@@ -63,7 +63,7 @@ parser → ferramenta:  carrega(nome_do_módulo) → ok | já_carregado | não_e
 
 `já_carregado` é o caso comum a partir do segundo import do mesmo módulo: os símbolos já estão na tabela e o parser só emite a inclusão.
 
-As duas chamadas são mutuamente recursivas, e é nessa pilha que vive a detecção de ciclo de import: "em carga" é `processa` já estar na pilha para aquele módulo. A regra é da linguagem (`keel-spec.md` §2.2.4.3); o que este documento registra é que ela não custa estrutura própria.
+As duas chamadas são mutuamente recursivas, e é nessa pilha que vive a detecção de ciclo de import: "em carga" é `processa` já estar na pilha para aquele módulo. A regra é da linguagem (`keel-spec.md` §4.1); o que este documento registra é que ela não custa estrutura própria.
 
 **Módulo genérico não acrescenta chamada nem estado a esta interface.** Ele é carregado como qualquer outro; o que muda é que o parser **retém o fluxo de tokens** em vez de descartá-lo depois de gerar, para substituir o parâmetro quando alguém escrever a instância. Reter é estado que depende apenas do fonte, logo é do parser — pelo critério de atribuição da linguagem §7, a ferramenta continua dona só do que depende da invocação.
 
@@ -205,7 +205,7 @@ Sem genéricos a diferença era invisível, porque o conteúdo da instância nã
 
 ### 4.6 Identidade do módulo
 
-A identidade do módulo é **declarada no fonte**, e a ferramenta apenas confere se o caminho relativo à raiz concorda com ela (`keel-spec.md` §2.2.4.1).
+A identidade do módulo é **declarada no fonte**, e a ferramenta apenas confere se o caminho relativo à raiz concorda com ela (`keel-spec.md` §4.1).
 
 Isso fecha um furo que a raiz sozinha não fecharia: `cgen src/a.k -I .` e `cgen src/a.k -I src` têm, cada uma, uma raiz só — passariam por qualquer regra de contagem de raízes — e ainda assim produziriam prefixos de símbolo diferentes para o mesmo arquivo, com falha só no link. Com a declaração, uma das duas invocações é diagnosticada.
 

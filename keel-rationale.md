@@ -9,6 +9,9 @@ Convenções:
 
 - Cada seção espelha a numeração da spec. Uma seção só existe aqui se houver
   razão registrada.
+- **`§N` sem qualificação é seção da spec**, e não deste documento — é o que
+  permite citar `§3.6` ou `§7.4`, que aqui não existem. Referência a outro
+  documento leva o nome na frente: `backend §5.5.2`, `ferramenta §5`.
 - Blocos marcados `/* o que sairia, se a checagem não existisse */` mostram o C
   que a ausência da regra produziria. São o que separa verificação necessária de
   redundância com o `cc1`.
@@ -2360,7 +2363,7 @@ mas exigiria reescrever identificadores **no corpo**, que é texto (§1.3) — e
 fora. Aceitar a escrita como semântica de `firstprivate` seria abrir mão de um
 diagnóstico que já estava especificado, por causa de uma troca de mecanismo.
 
-Então keel passa a cobrar sozinho: error **111** `captura-escrita`, varredura
+Então keel passa a cobrar sozinho: error **114** `captura-escrita`, varredura
 léxica do corpo por atribuição a um nome da lista. É a mesma varredura do 71 e do
 85, e cabe no mesmo orçamento (§4.1). O custo honesto é que uma verificação
 saiu do compilador C e entrou em keel — o único ponto em que a escolha do OpenMP

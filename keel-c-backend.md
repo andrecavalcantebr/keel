@@ -31,7 +31,7 @@ A obrigação 5 tem uma única concessão deliberada, registrada no §6.
 
 ### 2.1 Do nome canônico ao símbolo C
 
-A linguagem fixa o **nome canônico** de cada tipo no ponto de declaração (`keel-spec.md` §2.2.7.1). O backend o materializa trocando `.` por `_`:
+A linguagem fixa o **nome canônico** de cada tipo no ponto de declaração (`keel-spec.md` §4.3). O backend o materializa trocando `.` por `_`:
 
 | Nome canônico | Símbolo C |
 | --- | --- |
@@ -55,7 +55,7 @@ buffer _Atomic u32   →  keel_buffer_atomic_u32
 ```
 
 A perda de fidelidade é nominal e não cria ambiguidade: `atomic` não é grafia
-válida de tipo no fonte (§2.2.1 da linguagem), então nada mais pode produzir esse
+válida de tipo no fonte (§4.2 da linguagem), então nada mais pode produzir esse
 componente.
 
 Módulo hierárquico achata o `.`: `net.http` dá `net_http_`. O argumento carrega a própria qualificação, e é isso que faz o nome ser o mesmo em toda parte — a condição para que dois módulos atribuam entre si a mesma instância.
@@ -205,7 +205,7 @@ e menor do que a edição anterior deste documento afirmava:
 Praticamente todo nome que este backend gera é **externo** — símbolo `pub` com
 prefixo de módulo —, então o número aplicável seria **31**, não 63. Com 31,
 `keel_buffer_geom_Point` (22 caracteres) já estaria a uma composição de estourar,
-e a álgebra de modificadores do §6.4 da linguagem seria inutilizável na prática.
+e a álgebra de modificadores do §4.3 da linguagem seria inutilizável na prática.
 
 E o mínimo do padrão não descreve nenhum compilador real. O levantamento está no
 Anexo deste documento; o resumo é que **o pior caso prático é 255**, do IAR
@@ -216,14 +216,14 @@ Adotar o mínimo do padrão seria pagar por um alvo que não existe.
 > do padrão: 63 é a significância de identificador **interno**, e o texto o
 > atribuía ao externo. O erro era conservador, então nunca produziu programa
 > errado — só proibia nomes que todo compilador aceita. Fica registrado porque a
-> correção move um número que outras seções orçavam (linguagem §4.3, §2.2.12.7).
+> correção move um número que outras seções orçavam (linguagem §4.3, §1.7).
 
 **`--pedantic-names` baixa o teto para 63** (ferramenta §4.1), para quem mira alvo
 fora do levantamento. Não existe flag para *subir*: 255 já é o topo do que se pode
 prometer sem saber qual é o linker.
 
 **O 63 não é o mínimo do padrão, e a flag não promete ser.** O mínimo para nome
-externo é 31, e a 31 a álgebra de modificadores do §6.4 da linguagem seria
+externo é 31, e a 31 a álgebra de modificadores do §4.3 da linguagem seria
 inutilizável — `keel_buffer_geom_Point` já tem 22. A flag existe para o alvo
 cujo linker se conhece mal, não para reproduzir a garantia do padrão, e 63 é o
 teto abaixo do qual nenhum toolchain do Anexo foi encontrado.
@@ -1002,7 +1002,7 @@ num dos cinco, e as seções que o fazem são estas:
 **O ganho não é a contagem, é o fecho.** Doze formas viram cinco, mas o que
 importa é que as cinco **não podem crescer**: construção nova que termine escopo
 tem de baixar para um dos cinco, porque em C não há um sexto. O `defer` nunca
-aprende palavra nova, e é a invariante do §1.3 aplicada para dentro do gerador.
+aprende palavra nova, e é a invariante da linguagem §1.3 aplicada para dentro do gerador.
 
 **A ordem também corrige um caso, e não só simplifica.** `interrupted;` é saída
 **condicional** — só salta com a bandeira ligada. Baixado antes, ele *é*
@@ -1072,7 +1072,7 @@ ganha, ela custa.
 escada emite o corpo do `defer` **uma vez**, no fim do escopo do registro; o inline
 o cola **em cada saída**, que pode estar dentro de um escopo mais interno. Sob
 sombreamento as duas ligariam a símbolos diferentes — e um lowering que muda
-sentido não é lowering. A linguagem recusa o sombreamento (§4.7), e é essa recusa
+sentido não é lowering. A linguagem recusa o sombreamento (linguagem §4.7), e é essa recusa
 que autoriza o backend a ter duas formas. **Se ela caísse, só a escada seria
 correta**, e o corpo de laço voltaria a custar a variável de ação.
 
@@ -1239,7 +1239,7 @@ Oito regras de emissão:
 5. **Captura escalar é `firstprivate`; instância `byref` é `shared`.** É a disciplina da linguagem §4.7 traduzida uma para uma. Escrever num escalar capturado já é o error **114** na linguagem, então o backend não precisa de `const` para proibi-lo — e é uma diferença de custo real: com um struct de argumentos, o tipo de cada captura teria que ser escrito, e o backend não o conhece (§5.5).
 6. **Os três verbos saltam para o fim do corpo do worker.** `win`, `fail` e `interrupted` viram `goto keel__fim<N>`, com o rótulo dentro do bloco estruturado da iteração — nunca `break`, nunca `return`, nunca saída da região. `return` do usuário é o error **122** na linguagem, exatamente porque não teria como sair daqui: o GCC recusa a região com `invalid branch to/from OpenMP structured block`.
    **O rótulo vem depois da gravação do status**, e não antes: quem chega ao fim natural grava `SUCCESS` e cai no rótulo; quem saltou já gravou o próprio status e o rótulo não o toca. Invertido, `fail` e `interrupted` seriam apagados por um `SUCCESS` que ninguém pediu.
-7. **O status por worker vai num vetor local**, indexado por `w`, e os predicados `ok`, `failed` e `interrupted` do §2.2.11.2 saem como uma varredura serial depois do bloco.
+7. **O status por worker vai num vetor local**, indexado por `w`, e os predicados `ok`, `failed` e `interrupted` da linguagem §4.7 saem como uma varredura serial depois do bloco.
 8. **Contador e bandeira são locais do gestor**, nunca `static`. Um bloco `parallel` numa função chamada duas vezes tem que começar zerado nas duas, e `static` também tornaria o bloco não reentrante.
 
 **Sob política diferente de `ALL`**, entram as duas variáveis atômicas, também locais:

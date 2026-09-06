@@ -2828,10 +2828,108 @@ sem uma vírgula. E ela cai na vaga que o §3.10 já reservou: N ≥ 3 identific
 seguidos nunca é declaração válida em C.
 
 **E `tensor(3)` não reabre nada.** A objeção é contra `()` em volta de um
-**tipo**, onde a forma colide com chamada. O argumento de `dim` é literal decimal
-e só, e não existe chamada de função cujo nome seja um numeral — nem posição de
-especificador de tipo em que uma chamada seja legal. A restrição a literal não é
-conservadorismo: é ela que compra a ausência de ambiguidade.
+**tipo**, onde a forma colide com chamada. Aqui ela não colide, e o que separa as
+duas não é o numeral: é que **`modificador ( … )` é obrigatoriamente seguido de um
+argumento de tipo**. `tensor(DIM) f16 t;` casa `modificador argumento declarador`;
+`x = tensor(DIM);` não tem argumento depois do `)`, não casa `decl-keel`, e cai
+como `<opaco>` — que é o que ele é. Chamada de função nunca é seguida de nome de
+tipo, e por isso a vaga é livre mesmo com identificador dentro dos parênteses.
+
+#### Por que o argumento de `dim` aceita `constexpr`, e por que substitui o valor
+
+A restrição a literal era mais apertada do que precisava, e cobrava no uso normal:
+
+```keel
+constexpr i8 DIM = 3;
+tensor(DIM) f16 grade;      /* o rank tem nome, e o nome documenta */
+```
+
+Admiti-la custa **uma segunda exceção** à regra de que keel não lê o valor de um
+`constexpr` (§4.2), e a exceção foi desenhada para ser a menor possível: o
+inicializador tem de ser **um literal decimal**, e o que keel faz é ler um token
+de uma declaração que ele mesmo registrou. `constexpr i8 DIM = 2 + 1;` continua
+fora, porque dobrar constante é avaliar expressão, e aí a exceção viraria um
+avaliador. Macro e constante de enum continuam fora por outro motivo — keel não
+as enxerga (§1.4), e não há declaração de onde ler.
+
+**O que substitui é o valor, e a razão decisiva não é de identidade.** A de
+identidade já bastaria — com a grafia no nome, `tensor(3) f32` e `tensor(DIM) f32`
+com `DIM == 3` seriam instâncias distintas de layout idêntico, e o princípio 4
+estaria fragmentado por escrita. Mas a que fecha é de build:
+
+```keel
+/* a.k */  constexpr i8 DIM = 3;   tensor(DIM) f16 t;
+/* b.k */  constexpr i8 DIM = 4;   tensor(DIM) f16 u;
+```
+
+Com a grafia, os dois pedem `tens_tensor_DIM_f16` com **layouts diferentes**. O
+header de instância é escrito por quem usa, então ele deixaria de ser função das
+entradas, e o determinismo do `backend §7.1` cairia — a falha aparece como duas
+invocações se sobrescrevendo em laço sob `make -j`, que é exatamente o cenário
+que aquela regra existe para impedir.
+
+Com o valor, `tensor(DIM) f16` e `tensor(3) f16` geram **o mesmo C, byte a byte**,
+e a ergonomia fica inteira: trocar `DIM` de 3 para 4 regenera como
+`tens_tensor_4_f16`, porque a instância é gerada pelo uso. E a invalidação já
+estava resolvida: mudar `DIM` num módulo muda o C de quem escreve `tensor(DIM)`, e
+o critério transitivo de `ferramenta §5` cobre pelo fecho de imports.
+
+### Por que não há indexação parcial, e por que `dim` não faz conta
+
+As duas saíram juntas, e por um motivo só: **quem escreveria o que falta não sabe
+o que precisa saber.**
+
+A indexação parcial pedia uma **família** de acessores — `ptr(t,i)`, `ptr(t,i,j)`,
+… até `N−1` —, cuja *quantidade* depende de `N`. Escrevê-la caberia ao autor da
+biblioteca, que é quem sabe o que o layout significa; só que `N` só existe no
+ponto de uso. Se ele escrever até a aridade cinco, um uso com `N = 3` deixa as de
+aridade 4 e 5 **declaradas e chamáveis**, indexando além do rank. E se keel a
+gerasse, o bug moraria em código que ninguém escreveu, num lugar em que ele
+pareceria do programador — o princípio 2 na direção em que ele mais custa.
+
+Nada se perde na operação principal: o acessor por vetor `ptr(t, idx[static N])`
+**já serve todo rank**, e o compilador C desenrola o laço de índices por SROA. O
+que se perde é o descritor de rank reduzido, e ele é outro assunto.
+
+**Aritmética no argumento — `view(N-1)` — morreu na mesma pergunta.** Ela parecia
+resolver o rank reduzido dentro de um `dim` só, e tem dois problemas. O primeiro é
+que `constexpr i32 M = N - 1;` dentro do próprio `std.view` regride ao infinito:
+`view(3)` declara algo que devolve `view(2)`, que devolve `view(1)`, que pede
+`view(0)`, `view(-1)` — o error 53, e sem caso-base escrevível. O segundo é de
+escala: `IDENT ± NUM` cobre redução de um eixo e `unsqueeze`, e quebra em
+`reshape`, contração e `einsum`, que relacionam ranks **independentes** e são o
+que define uma biblioteca tensorial.
+
+A saída é o parâmetro a mais, e ela é estritamente melhor: cobre tudo, e **keel
+não precisa calcular nada**. A relação vira `static_assert(M == N - 1, …)`, que
+depois da substituição é expressão constante comum do C, conferida pelo
+compilador com a mensagem que a biblioteca escolheu — princípio 3. Uma relação
+arbitrária como `R == A + B - 2*K` cabe ali e não caberia em produção nenhuma da
+gramática.
+
+O que sobrou para a linguagem é o **piso**: valor ≥ 1, error 125. Ele não é
+higiene — é o caso-base que a família de ranks precisaria escrever à mão, e sem
+ele `rank(1,0)` geraria `size_t dims[0]`, que não é C.
+
+### Por que a vaga `alias(…)` é reservada em vez de decidida
+
+Um módulo com dois `dim` precisa que a chamada diga qual instância é, e a forma
+natural seria `rank(3,2).axis(v, 0, i)` — os numerais escritos, como o `k` do
+`parallel` (princípio 6). A decisão não foi tomada porque a biblioteca ainda não
+foi escrita, e só escrevendo-a se vê se essa chamada aparece uma vez ou cinquenta.
+
+Mas **não decidir também é decidir**, e é aí que estava a armadilha:
+`rank(3,2).axis(…)` é **C válido** — chamada devolvendo struct, seguida de acesso
+a campo — e hoje atravessa verbatim, porque o `.` de keel só resolve com
+identificador nu à esquerda. Dar sentido a ela mais tarde mudaria, em silêncio, um
+programa que compila hoje. Isso é o princípio 1, e é a categoria de falha que este
+documento recusa em todo lugar.
+
+Reservar desfaz o dilema, e é seguro nas duas direções: hoje a forma é o error
+126, com a saída na mensagem; adotá-la depois transforma erro em aceito; desistir
+transforma erro em passagem verbatim. **Nenhum programa que funcionava muda em
+qualquer dos dois futuros** — que é a única propriedade que se pede de uma vaga
+guardada.
 
 ### Por que a declaração sem parâmetro é emitida uma vez
 

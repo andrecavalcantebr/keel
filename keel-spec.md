@@ -559,7 +559,7 @@ unidade      ::= decl-modulo { item-topo }
 
 decl-modulo  ::= 'module' nome-modulo [ binder-dim ] [ binder-tipo ] ';'
 nome-modulo  ::= IDENT { '.' IDENT }
-binder-dim   ::= 'dim' IDENT              /* só identificador: a forma literal saiu */
+binder-dim   ::= 'dim' IDENT { ',' IDENT }   /* simétrico com `type`; a forma literal saiu */
 binder-tipo  ::= 'type' IDENT { ',' IDENT }
 
 item-topo    ::= import | import-c | extern-c | decl-topo | <opaco>
@@ -617,7 +617,8 @@ cauda-else   ::= 'else' ( bloco | <opaco> ';' )
 especificador ::= tipo-keel
 tipo-keel     ::= modificador argumento { argumento } | tipo-nulario
 tipo-nulario  ::= nome-qualificado
-modificador   ::= nome-qualificado [ '(' NUM ')' ]
+modificador   ::= nome-qualificado [ '(' valor-dim { ',' valor-dim } ')' ]
+valor-dim     ::= NUM | IDENT
 argumento     ::= { qual-arg } ( tipo-keel | nome-qualificado | tipo-base )
                   { qual-arg }
 qual-arg      ::= 'const' | 'volatile' | '_Atomic'
@@ -958,6 +959,15 @@ void f(void) {
     buffer.length(b);         /* já não é qualificação: é acesso a campo */
 }
 ```
+
+**Alias de módulo seguido de `(` é vaga reservada** — error **126** `alias-com-argumento`. Hoje a forma não significa nada em keel, e a mensagem diz o contorno: renomear o alias no `import`.
+
+```keel
+import std.rank as rank;
+rank(3,2).axis(v, 0, i);          /* error 126: vaga reservada */
+```
+
+A reserva existe porque a forma **é C válido** — chamada devolvendo struct, seguida de acesso a campo — e porque ela é a candidata natural para nomear a instância de um módulo com mais de um `dim` (§4.9). Dar sentido a ela mais tarde, sem reservar agora, faria um programa que hoje atravessa verbatim mudar de sentido em silêncio, que é o princípio 1. **Reservar é seguro nas duas direções:** adotar depois transforma erro em aceito, e desistir transforma erro em passagem verbatim — nenhum programa que funcionava muda em qualquer dos dois casos.
 
 Alias de módulo e nome de tipo com a mesma grafia no mesmo arquivo é o error **86** `alias-e-tipo-colidem` — **exceto quando os dois vêm do mesmo módulo**, que é a forma do §1.7:
 
@@ -1309,7 +1319,7 @@ array char linha[MAX_LEN];
 - **O nome declarado é o `IDENT` imediatamente anterior ao `=`.** Todo o resto da declaração, o tipo inclusive, é `<opaco>`: keel não precisa saber o que `size_t` significa para registrar `MAX_LEN`.
 - **O declarador tem de ser simples** (§4.3) — `x` ou `*x`. Nome enterrado, como em `constexpr int (*fp)(void) = f;`, é o error **120** `declarador-enterrado`, com `note` mandando usar `typedef`. A razão é que keel precisa **reconstruir** a declaração para conferi-la, e reconstruir exige saber onde o nome entra no declarador — que é a gramática de declaradores do C, e ela está fora (§1.3).
 - **Constante agregada não é `constexpr`.** Declarador com `[`, ou inicializador que abre `{`, é o error **121** `constexpr-agregado`. Agregado não serve onde o C exige expressão constante, nem em C23; a forma dele é `static const`, que keel não conhece e repassa intacta.
-- **keel registra que o símbolo é constante; nunca lê o valor.** A única exceção é o `k` de `keel.dim(v,k)`.
+- **keel registra que o símbolo é constante; quase nunca lê o valor.** As exceções são **duas**, e ambas pedem um numeral onde não cabe expressão: o `k` de `keel.dim(v,k)`, e o argumento de `dim` (§4.9). Nas duas, o que se lê é **um literal decimal** — na chamada, ou no inicializador desta declaração. keel não dobra constante em lugar nenhum.
 - **Sem `=`, nada é registrado** e a declaração atravessa: `constexpr` sem inicializador não é C válido, e quem diagnostica é o compilador C.
 - Em escopo de arquivo o nome recebe o prefixo do módulo e `pub`/`priv` decidem o posicionamento — regras gerais, sem emenda. **Em escopo de bloco não há prefixo no fonte**; sob C11 o backend gera um nome próprio e reescreve os usos (`backend §9.2`), o que é grafia e não linguagem.
 - O tipo é escrito pelo usuário e verificado pelo compilador C: keel não deduz tipo de literal em lugar nenhum.
@@ -2129,7 +2139,7 @@ Dois binders pedem percorrível; um binder pede contável. Verbo faltando é o e
 
 **`apply`** é `foreach` de corpo fixo: `apply(i32, xs, dobra)` equivale a `foreach (i32 v, size_t i : xs) { dobra(v, i); }`. `fn` recebe **elemento e índice**, nessa ordem. O primeiro argumento é o binder sem o nome — por isso admite `*` e tipo composto —, e ele não é redundante com o tipo do elemento: escolhe entre **valor e ponteiro**, que é a única informação que keel não tem por outro caminho.
 
-**O contêiner é sempre linear.** Não há forma que percorra um agregado multidimensional de uma vez; quem dá linha de rank ≥ 2 é o acessor parcial do módulo que possui a linearização (§4.10). Recorte em mais de uma dimensão é verbo, não sintaxe.
+**O contêiner é sempre linear.** Não há forma que percorra um agregado multidimensional de uma vez: percorre-se um `foreach` por eixo, com acesso de rank cheio no corpo (§4.10). Recorte em mais de uma dimensão é verbo, não sintaxe.
 
 **A forma de intervalo** tem um binder, e o fim é **exclusivo**: `1..1001` conta mil vezes. O limite é avaliado uma vez.
 
@@ -2626,7 +2636,56 @@ typedef struct tens_tensor_3_f32 {      /* de tensor(3) f32 */
 
 A segunda linha é o fechamento: é o que separa `dim` de metaprogramação de tempo de compilação.
 
-**O argumento é literal decimal** — `tensor(3)`, nunca `tensor(RANK)` — error **106** `dim-nao-literal`. Macro exigiria keel avaliar o pré-processador, e constante de enum exigiria conhecer valores. Dentro de um módulo genérico `tensor(N) T` é legal, porque depois da substituição `N` já é literal.
+**Um módulo pode ter mais de um `dim`**, e a lista é simétrica com a de `type`:
+
+```keel
+module std.rank dim N, M type T;      /* dois ranks, independentes */
+```
+
+**Cada argumento é o valor, escrito de duas formas:**
+
+> **literal decimal**, ou **identificador registrado como `constexpr` cujo inicializador é um literal decimal**. Qualquer outra coisa é o error **106** `dim-nao-constante`.
+>
+> **O valor tem de ser ≥ 1** — error **125** `dim-abaixo-de-um`, com a cadeia de instanciação na mensagem.
+
+O piso é da linguagem e não da biblioteca, porque abaixo dele o gerado não é C: um modificador com `dim N` quase sempre declara `size_t dims[N]`, e vetor de tamanho zero não existe. É também o **caso-base** que uma família de ranks precisaria escrever à mão — `rank(1,0)` para de instanciar aqui, com a cadeia, em vez de gerar struct inválida.
+
+**Não há aritmética no argumento.** `view(N-1)` não é escrevível, e é deliberado: `dim` substitui um valor, não avalia expressão. Relação entre ranks se escreve como **parâmetro a mais**, e a consistência é do autor da biblioteca, em C:
+
+```keel
+module std.rank dim N, M type T;
+static_assert(M == N - 1, "std.rank: destino é origem menos um");
+```
+
+Depois da substituição isso é `static_assert(1 == 2 - 1, …)` — expressão constante comum, conferida pelo compilador C com a mensagem que o autor escolheu. É o princípio 3: keel não avalia nada, e a instância errada é recusada por quem sabe recusá-la.
+
+```keel
+tensor(3) f16 t1;
+
+constexpr i8 DIM = 3;
+tensor(DIM) f16 t2;            /* mesma instância que t1 */
+```
+
+**As duas formas produzem o mesmo tipo, e isso é normativo:**
+
+> **`M(K) T` com `K` valendo `k` é o mesmo tipo que `M(k) T`** — mesmo nome canônico, mesma struct, mesmas funções. Nominal e estruturalmente idênticos, sem conversão entre eles porque não há dois.
+
+```c
+typedef struct tens_tensor_3_f16 { … } tens_tensor_3_f16;   /* uma vez, para os dois */
+```
+
+**Quem substitui é o valor, nunca o símbolo**, e as duas razões são de espécie diferente. A primeira é de identidade: com o símbolo no nome, `tensor(3) f32` e `tensor(DIM) f32` com `DIM == 3` seriam instâncias distintas de layout idêntico, que não se convertem — o princípio 4 fragmentado por grafia. A segunda é de build, e é a que fecha:
+
+```keel
+/* a.k */  constexpr i8 DIM = 3;   tensor(DIM) f16 t;
+/* b.k */  constexpr i8 DIM = 4;   tensor(DIM) f16 u;
+```
+
+Com o símbolo, os dois pedem `tens_tensor_DIM_f16` com **layouts diferentes**, e o header de instância — que é escrito por quem usa — deixa de ser função das entradas. É o determinismo de `backend §7.1` quebrado, e a falha aparece como duas invocações se sobrescrevendo em laço.
+
+**Macro e constante de enum continuam fora**, e agora por uma razão só: keel não as enxerga (§1.4), e não há declaração dele de onde ler o valor. **Inicializador que não seja literal também fica fora** — `constexpr i8 DIM = 2 + 1;` é o mesmo error 106. A fronteira é essa: keel **lê um token** de uma declaração que ele mesmo registrou; não dobra constante, porque dobrar constante é avaliar expressão.
+
+Dentro de um módulo genérico `tensor(N) T` é legal, porque depois da substituição `N` já é o valor.
 
 **O acessor de rank cheio recebe um vetor**, e um acessor serve todo rank:
 
@@ -2640,23 +2699,27 @@ pub inline T *ptr(tensor *t, size_t idx[static N]) {
 
 O `for` tem limite constante, então o compilador C o desenrola e o vetor de índices some por SROA: sai `t->ptr + idx0*p0 + idx1*p1 + idx2*p2`. **Em `-O0` o vetor é materializado e o laço roda** — é o preço, e ele existe.
 
-**A indexação parcial continua por aridade**, pelo sufixo:
+**Um acessor, e só ele.** A indexação sobre modificador com `dim` é **total ou nenhuma**:
 
 > Num modificador com `dim N`, para `x[i₁, …, i_k]`:
 >
-> | `k` | Baixa para | Acessor |
-> | --- | --- | --- |
-> | `k == N` | `*ptr(x, (size_t[N]){i₁, …, i_k})` | rank cheio, por vetor |
-> | `k < N` | `*ptr(x, i₁, …, i_k)` | parcial, de aridade `k` |
-> | `k > N` | **error 104** `indices-acima-do-rank` | — |
+> | `k` | |
+> | --- | --- |
+> | `k == N` | `*ptr(x, (size_t[N]){i₁, …, i_k})` — o acessor de rank cheio |
+> | `k ≠ N` | **error 104** `indices-fora-do-rank` |
 
-**O sufixo conta índices, não argumentos do C.** O acessor cheio de um `tensor(2)` recebe um argumento depois do contêiner — o vetor de índices — e mesmo assim é `_ptr2`, porque o ponto de chamada escreveu dois índices — é o que evita a colisão com `_ptr1`, e o que faz `k > N` ser erro de compilação. Modificador com `dim` mas sem `ptr` de rank cheio faz `x[i,…]` ser o error **105** `dim-sem-ptr-cheio`.
+**Não existe indexação parcial**, e a razão é que ela não tem dono possível. Escrevê-la caberia ao autor da biblioteca, que é quem sabe o que o layout significa — mas ele não conhece `N`, que só existe no ponto de uso. Se ele escrever a família até uma aridade arbitrária, digamos cinco, um uso com `N = 3` deixa as de aridade 4 e 5 **declaradas e chamáveis**, indexando além do rank. E se keel a gerasse, o resultado seria código que ninguém escreveu, num lugar onde um bug pareceria do programador — que é o princípio 2 na direção em que ele mais custa.
 
-**O numeral entra no nome canônico**, na posição em que foi escrito:
+**Nada se perde na operação principal**, porque o acessor por vetor já serve todo rank. O que se perde é o descritor de rank reduzido, e ele volta como **verbo de biblioteca** sobre um rank concreto, escrito por extenso — nunca como família gerada.
+
+**O sufixo conta índices, não argumentos do C.** O acessor cheio de um `tensor(2)` recebe **um** argumento depois do contêiner — o vetor de índices — e mesmo assim é `_ptr2`, porque o ponto de chamada escreveu dois índices. É o que faz o nome dizer o rank, e o que alinha o caso `dim` com o rank fixo, em que `mat_matrix_f32_ptr2` sai de dois índices escritos por extenso. Modificador com `dim` mas sem `ptr` de rank cheio faz `x[i,…]` ser o error **105** `dim-sem-ptr-cheio`.
+
+**O nome canônico carrega o valor, e não a grafia:**
 
 | Declaração | Uso | Nome canônico |
 | --- | --- | --- |
 | `module tens dim N type T;` | `tensor(3) f32` | `tens_tensor_3_f32` |
+| idem, com `constexpr i8 DIM = 3;` | `tensor(DIM) f32` | `tens_tensor_3_f32` — **o mesmo** |
 | `module mat type T;` (rank na mão) | `matrix f32` | `mat_matrix_f32` |
 
 `tensor(1) f64` é **estruturalmente** um `slice f64` e **não é** um `slice f64`, pelo princípio 4. A conversão é verbo de biblioteca, verificada, nunca implícita.
@@ -2674,6 +2737,8 @@ Não é lista de trabalho futuro: é o **limite do mecanismo**, escrito junto co
 | Sobrecarga escrita pelo usuário | Muda o mangling de toda função do módulo |
 | Aridade variável de parâmetros | Não há caso, e abriria recursão sobre lista de tipos |
 | Genérico que se instancia | Regressão infinita; error 53 |
+| Família de funções cuja **quantidade** depende de `dim` | Não tem dono: a biblioteca não conhece `N`, e keel gerá-la produziria código que ninguém escreveu (§4.9, indexação parcial) |
+| Aritmética no argumento de `dim` — `view(N-1)` | `dim` substitui um valor, não avalia expressão. Rank reduzido é verbo sobre rank concreto |
 
 A tabela é um **caso particular do orçamento de análise do §4.1**: quando aparecer a próxima ideia para os genéricos, o teste é aquele, não esta lista.
 
@@ -2798,17 +2863,16 @@ pub modifier view { size_t dims[N]; size_t passos[N]; T *ptr; }    /* com passo 
 | --- | --- |
 | `tensor.length(t)` · `view.length(v)` | total de elementos |
 | `tensor.dim(t, k)` · `view.dim(v, k)` | tamanho da dimensão `k` |
-| `tensor.ptr(t, idx[static N])` | `T *ref` — acessor de rank cheio |
-| `tensor.ptr(t, i)` … `ptr(t, i₁…i_{N-1})` | `view(N-k) T *ref` — acessores parciais |
+| `tensor.ptr(t, idx[static N])` | `T *ref` — acessor de rank cheio, e o único |
 | `tensor.ptr(t)` | `T *` — a base, para entregar a uma função C |
 
 ```keel
 tensor(2) f32 m;
-f32         x   = m[i,j];      /* k = N  →  rank cheio */
-view(1) f32 lin = m[i];        /* k < N  →  parcial    */
+f32 x = m[i,j];                /* k = N: o único caso */
+f32 y = m[i];                  /* error 104: índices fora do rank */
 ```
 
-É a tabela do §4.9 em uso, e é ela que faz `m[i,j,k]` sobre um `tensor(2)` ser erro de compilação (104) em vez de `assert` de execução.
+É a tabela do §4.9 em uso, e é ela que faz `m[i,j,k]` e `m[i]` sobre um `tensor(2)` serem erro de compilação (104) em vez de `assert` de execução.
 
 **Construção e recorte:**
 
@@ -2818,7 +2882,6 @@ view(1) f32 lin = m[i];        /* k < N  →  parcial    */
 | `tensor.of(b, d0, …, dN-1)` | `tensor(N) T` — sobre `buffer T` que já existe |
 | `view.of(t)` | `view(N) T` — a vista densa do tensor inteiro |
 | `view.sub(v, r0, …, rN-1)` | `view(N) T` — recorte por `range` em cada eixo |
-| `view.axis(v, k, i)` | `view(N-1) T` — fixa o eixo `k` no índice `i` |
 | `view.swap(v, k1, k2)` | `view(N) T` — troca dois eixos; transposta é `swap(v,0,1)` |
 | `tensor.clone(a, v)` | `outcome tensor(N) T` — materializa uma vista com passo em denso |
 
@@ -2832,14 +2895,25 @@ view(1) f32 lin = m[i];        /* k < N  →  parcial    */
 view(2) f32 bloco = view.sub(view.of(m), 2..8, 0..4);
 ```
 
-**A travessia é sempre por dimensão.** `foreach` exige contêiner linear, e nem `tensor` nem `view` o são acima de rank 1:
+**A travessia é sempre por dimensão.** `foreach` exige contêiner linear, e nem `tensor` nem `view` o são acima de rank 1 — então se aninha um `foreach` por eixo, e o acesso é sempre de rank cheio:
 
 ```keel
-foreach (auto i : 0..tensor.dim(m,0)) {
-    view(1) f32 lin = m[i];
-    foreach (auto j : 0..view.dim(lin,0)) lin[j] *= 2.0f;
-}
+foreach (auto i : 0..tensor.dim(m,0))
+    foreach (auto j : 0..tensor.dim(m,1))
+        m[i,j] *= 2.0f;
 ```
+
+Sem descritor intermediário: o acessor por vetor serve todo rank, e o compilador C desenrola o laço de índices por SROA (§4.9).
+
+**O que falta aqui, e falta de propósito: reduzir rank.** Tomar a linha `i` de uma matriz como um `view(1)` relaciona **dois** ranks, e nenhuma das formas de escrever isso está fechada — a chamada teria de nomear a instância de um módulo com dois `dim`, e essa vaga está **reservada** (§4.3, error 126) em vez de decidida. Enquanto não estiver, a saída é o construtor geral:
+
+```keel
+view(1) f32 lin = view.from(tensor.ptr(m, (size_t[2]){i, 0}),
+                            (size_t[1]){ tensor.dim(m, 1) },
+                            (size_t[1]){ 1 });
+```
+
+Explícito e sem instância escondida — e com o passo escrito à mão, que é o custo de a decisão estar aberta.
 
 **O teto de rank.** `N` é literal, então cada rank é um tipo, e o nome canônico carrega o numeral. Não há teto na linguagem; há na prática, e é o descritor: `view(N)` custa `2N` campos `size_t` mais um ponteiro, copiado a cada passagem por valor. Quatro cobre matriz, volume e lote de volumes.
 
@@ -3221,9 +3295,9 @@ aparecem aqui só para que a numeração seja única no projeto.
 | 99 | `estado-sem-rotulo` | Estado na lista declarada do `cofsm` sem rótulo correspondente no corpo | `error` | núcleo | §4.8 |
 | 101 | `restrict-em-conteiner` | `restrict` escrito antes de um modificador — a `note` dá a forma com ponteiro | `error` | núcleo | §4.2 |
 | 103 | `formato-estreito-indisponivel` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` | backend | §4.2 |
-| 104 | `indices-acima-do-rank` | `x[i, …]` com mais índices que o `dim N` do modificador | `error` | núcleo | §4.9, §4.6 |
+| 104 | `indices-fora-do-rank` | `x[i, …]` com número de índices diferente do `dim N` do modificador — indexação é total ou nenhuma | `error` | núcleo | §4.9, §4.6 |
 | 105 | `dim-sem-ptr-cheio` | Modificador com `dim` sem `ptr` de rank cheio, usado com `k == N` índices — a mensagem dá a assinatura que falta | `error` | núcleo | §4.9 |
-| 106 | `dim-nao-literal` | Argumento de `dim` que não é literal decimal | `error` | núcleo | §4.9 |
+| 106 | `dim-nao-constante` | Argumento de `dim` que não é literal decimal nem `constexpr` de inicializador literal | `error` | núcleo | §4.9 |
 | 107 | `dim-gera-declaracao` | `dim` usado onde geraria declaração — parâmetro, campo ou função | `error` | núcleo | §4.9 |
 | 108 | `openmp-indisponivel` | Módulo usa `parallel` e o alvo não oferece OpenMP — a travessia sai em série | `warning` | backend | §4.7 |
 | 109 | `alloc-overflow` | `arena.alloc` cujo `n * sizeof(T)` não cabe em `size_t` | `debug` | backend | §4.4 |
@@ -3242,6 +3316,8 @@ aparecem aqui só para que a numeração seja única no projeto.
 | 122 | `return-em-parallel` | `return` no corpo de um `parallel` — bloco estruturado de OpenMP não admite salto para fora | `error` | núcleo | §4.7 |
 | 123 | `defer-later-sombreado` | `defer` sem `[now]` cujo corpo nomeia símbolo redeclarado em escopo mais interno com ponto de saída — a `note` dá as duas saídas, `[now]` ou `goto` | `error` | núcleo | §4.7 |
 | 124 | `constexpr-endereco` | `&` sobre símbolo `constexpr`, ou uso que exija lvalue — a `note` dá a saída, `static const T k = K;` | `error` | núcleo | §4.2 |
+| 125 | `dim-abaixo-de-um` | Argumento de `dim` que resolve para valor menor que 1 — a mensagem dá a cadeia de instanciação | `error` | núcleo | §4.9 |
+| 126 | `alias-com-argumento` | Alias de módulo seguido de `(` — vaga reservada; a `note` manda renomear o alias | `error` | núcleo | §4.3 |
 
 **Os buracos são deliberados**, e a numeração é preservada para que referências
 externas não quebrem:

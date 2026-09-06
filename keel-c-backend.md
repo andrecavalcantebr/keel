@@ -97,14 +97,14 @@ push(b,v)       →  keel_buffer_i32_push1
 ptr(m,i,j)      →  mat_matrix_f32_ptr2
 ```
 
-**Com `dim`, o sufixo conta índices do call site, não argumentos do C** (linguagem §4.9). É a única exceção à frase acima, e sem ela dois acessores legítimos chegariam ao mesmo símbolo:
+**Com `dim`, o sufixo conta índices do call site, não argumentos do C** (linguagem §4.9). É a única exceção à frase acima:
 
 ```plain
-ptr(t,i)              →  tens_tensor_2_f32_ptr1   /* parcial: devolve view  */
-ptr(t,(size_t[2]){…}) →  tens_tensor_2_f32_ptr2   /* cheio:   devolve f32 * */
+ptr(t)                →  tens_tensor_2_f32_ptr    /* a base                 */
+ptr(t,(size_t[2]){…}) →  tens_tensor_2_f32_ptr2   /* rank cheio: dois índices */
 ```
 
-Os dois recebem um argumento além do contêiner; o que os separa é `k`, que o call site escreveu e o keel contou antes de montar o literal composto.
+O acessor de rank cheio recebe **um** argumento além do contêiner — o vetor —, e ainda assim leva o sufixo `2`, porque o ponto de chamada escreveu dois índices. É o que faz o nome dizer o rank, e o que alinha o caso `dim` com o rank fixo, em que `mat_matrix_f32_ptr2` sai de dois índices escritos por extenso. **Não há acessor parcial** (linguagem §4.9), então não há par a desempatar — o que a exceção compra é legibilidade do símbolo, não unicidade.
 
 **Fora de `dim`, o sufixo é o da regra geral, e é o que serve o rank fixo** (linguagem §4.9): `mat_matrix_f32_ptr1` e `mat_matrix_f32_ptr2` saem de `ptr(m,i)` e `ptr(m,i,j)`, dois acessores escritos por extenso, sem literal composto e sem exceção nenhuma no emissor.
 
@@ -163,6 +163,8 @@ manga, porque só ele muda o tipo do elemento.
 `ref` não entra na mangling: `buffer i32 *ref` e `buffer i32 *` são a mesma instância.
 
 `restrict` não aparece em mangling nenhum: ele não é qualificador de contêiner em keel (linguagem §4.2), e em declarador C comum atravessa verbatim, sem instância a nomear. Já o argumento de `dim` **entra**, e tem que entrar: `tensor(2) f32` e `tensor(3) f32` são tipos diferentes, com structs de tamanhos diferentes. Módulo sem `dim` não tem numeral a carregar — `mat_matrix_f32` (linguagem §4.9).
+
+**O que entra é o valor, e nunca a grafia.** `tensor(3) f16` e `tensor(DIM) f16`, com `DIM` valendo 3, dão o mesmo `tens_tensor_3_f16` — mesmo nome, mesma struct, mesmo header, byte a byte. É o que a linguagem §4.9 exige, e é o que mantém o §7.1 de pé: com a grafia no nome, dois módulos que declarassem `DIM` com valores diferentes pediriam o mesmo arquivo com conteúdos diferentes, e o header de instância deixaria de ser função das entradas. **O backend não resolve o símbolo** — recebe o valor já resolvido pela linguagem e o escreve.
 
 **No C gerado sai a grafia keel, não a de `<stdint.h>`.** A decisão está forçada: o corpo de função é copiado verbatim, então um `i32 x = 5;` escrito pelo usuário chega ao `.c` como `i32` de qualquer forma — o `typedef` do prelúdio é necessário em qualquer cenário. Emitir `int32_t` nas structs geradas criaria duas grafias para o mesmo tipo dentro do mesmo programa. E pelo princípio 3, a mensagem do compilador C deve referir o nome que o usuário escreveu: `expected i32 * but argument is of type f32 *` lê direto contra o fonte.
 
@@ -752,13 +754,11 @@ tensor(2) f32 m;
 
 f32 x = t[i,j,k];
 f32 y = m[i,j];
-view(1) f32 lin = m[i];
 ```
 
 ```c
 f32 x = *tens_tensor_3_f32_ptr3(&t, (size_t[3]){i, j, k});
 f32 y = *tens_tensor_2_f32_ptr2(&m, (size_t[2]){i, j});
-std_view_view_1_f32 lin = *tens_tensor_2_f32_ptr1(&m, i);
 ```
 
 Quatro obrigações:
@@ -771,8 +771,8 @@ Quatro obrigações:
 2. **A extensão do literal é o bloco que o contém**, que é o que o C garante e o
    que basta: ele vive até o fim da expressão de chamada, e o acessor não guarda
    o ponteiro.
-3. **`k < N` não emite literal nenhum** — sai a chamada de aridade `k`, idêntica
-   ao que a §5.3 já fazia antes de `dim` existir.
+3. **`k ≠ N` não chega aqui** — é o error 104 da linguagem, decidido antes de
+   qualquer emissão. O emissor tem um caso só, e não ramifica por aridade.
 4. **Modificador sem `dim` não passa por aqui.** O rank fixo declara um acessor
    por aridade (linguagem §4.9), e o açúcar da §5.3 o alcança pela regra
    geral: nenhum literal composto é emitido, e a ramificação desta subseção nem é

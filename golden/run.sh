@@ -10,11 +10,14 @@ for caso in casos/*/; do
     [ "$perfil" = c23 ] && std=c2x src="$caso/esperado.c"     || std=c11
     [ "$perfil" = c11 ] && { src="$caso/esperado.c11.c"; [ -f "$src" ] || src="$caso/esperado.c"; }
     [ -f "$src" ] || continue
-    if $CC -std=$std $FLAGS -I"$perfil" -c "$src" -o /dev/null 2>/dev/null; then
+    exe=/dev/null; modo=compila
+    grep -q '^int main' "$src" && { exe=$(mktemp); modo=executa; }
+    if $CC -std=$std $FLAGS -I"$perfil" $([ $modo = compila ] && echo -c) "$src" -o "$exe" 2>/dev/null \
+       && { [ $modo = compila ] || "$exe" >/dev/null; }; then
       if [ -f "$caso/PROBLEMA" ]; then
         printf 'XPASS  %-28s %s  — compilou, mas há PROBLEMA registrado\n' "$nome" "$perfil"; xpass=$((xpass+1))
       else
-        printf 'ok     %-28s %s\n' "$nome" "$perfil"; ok=$((ok+1))
+        printf 'ok     %-28s %s  (%s)\n' "$nome" "$perfil" "$modo"; ok=$((ok+1))
       fi
     else
       if [ -f "$caso/PROBLEMA" ]; then

@@ -801,28 +801,30 @@ A arena é o `.h` do módulo `keel.arena` — C comum, utilizável inclusive a p
 typedef struct keel_arena {
     size_t         cap;
     size_t         top;
-    size_t         base_align;      /* alinhamento efetivo de `buf` */
     unsigned char *buf;
 } keel_arena;
 
 [[nodiscard]] static inline void *keel_arena_alloc_n(keel_arena *a, size_t n,
                                                      size_t sz, size_t align) {
-    if (align > a->base_align)      return NULL;          /* diagnóstico 82 */
-    if (n > SIZE_MAX / sz)          return NULL;          /* diagnóstico 109 */
+    if (n > SIZE_MAX / sz) return NULL;                   /* diagnóstico 109 */
     size_t need = n * sz;
-    size_t p = (a->top + (align - 1)) & ~(align - 1);
-    if (p > a->cap || need > a->cap - p) return NULL;
-    a->top = p + need;
-    return a->buf + p;
+    uintptr_t base = (uintptr_t)(a->buf + a->top);
+    size_t pad   = (size_t)(((base + (align - 1)) & ~(uintptr_t)(align - 1)) - base);
+    size_t livre = a->cap - a->top;
+    if (pad > livre || need > livre - pad) return NULL;
+    a->top += pad + need;
+    return a->buf + a->top - need;
 }
 ```
 
 Quatro coisas nessa função são normativas, e as quatro vêm da linguagem §4.4:
 
 1. **Contagem e tamanho do elemento entram separados**, e o produto é feito aqui. É a forma do `calloc`, e existe para que `n * sizeof(T)` que transborda devolva `NULL` em vez de uma região pequena que o programa acredita ser grande. **É o único ponto do backend que emite essa multiplicação.**
-2. **A soma final não transborda**, porque é escrita como `need > a->cap - p` e nunca como `p + need > a->cap`.
-3. **O alinhamento da base é guardado no descritor**, e `alloc` cujo `alignof(T)` o exceda falha. Alinhar o topo não conserta um `buf` mal alinhado: o endereço entregue é `buf + top`.
+2. **A soma final não transborda**, porque é escrita como `need > livre - pad` e nunca como `pad + need > livre`.
+3. **O alinhamento é do endereço, não do deslocamento**, e é o que dispensa o campo `base_align` que esta struct tinha. Alinhar `top` só serviria se `buf` já estivesse alinhado — e keel não tem como saber se está, porque `alignas(64)` é copiado verbatim e nunca avaliado (linguagem §1.3). Alinhando o endereço que se vai entregar, a base pode estar em qualquer lugar e **toda alocação sai alinhada**, inclusive de tipo sobre-alinhado sobre um `array u8` nu.
 4. **`[[nodiscard]]`**, porque o `NULL` é o único canal de falha.
+
+**`uintptr_t` aparece uma vez e não fabrica ponteiro.** Ele calcula o **número** de bytes de padding; o endereço devolvido sai de `a->buf + a->top`, aritmética de ponteiro dentro do próprio vetor. É a diferença entre uma conversão de valor definida-pela-implementação e uma travessia de ponteiro por inteiro, e só a primeira acontece aqui.
 
 **O `T` nunca chega à biblioteca.** Quem carrega o tipo é o verbo, que não é função e sim reescrita: ele materializa o `sizeof`, o `alignof` e o cast que um humano escreveria à mão.
 
@@ -850,17 +852,16 @@ arena h;  arena.from_memory(h, mem, cap);
 
 ```c
 alignas(64) u8 memo[65536];
-keel_arena a = {0};  keel_arena_from_array(&a, memo, sizeof memo, alignof(memo));
+keel_arena a = {0};  keel_arena_from_array(&a, memo, sizeof memo);
 keel_arena s = {0};  keel_arena_from_parent(&s, &a, 4096);
 keel_arena t = {0};  alignas(alignof(max_align_t)) unsigned char keel__st0[4096];
-                     keel_arena_from_array(&t, keel__st0, sizeof keel__st0,
-                                           alignof(keel__st0));
+                     keel_arena_from_array(&t, keel__st0, sizeof keel__st0);
 keel_arena h = {0};  keel_arena_from_memory(&h, mem, cap);
 ```
 
-- **`from_array` recebe o alinhamento pelo `alignof` do símbolo**, não por dedução: é assim que o `alignas` do usuário chega ao descritor, e é por isso que a linguagem precisa reconhecer o prefixo `spec-c` (§5.1.1). Sem isso, `alignas(64)` seria escrito e ignorado.
-- **`from_stack` é o único construtor sem função C própria**: ele gera o vetor no frame e chama `keel_arena_from_array`. A origem "pilha" está no vetor emitido, não numa inicialização diferente. O `alignas(alignof(max_align_t))` sai sempre, porque um vetor de `unsigned char` teria alinhamento 1 e a arena nasceria inútil para qualquer tipo.
-- **`from_parent` recorta com `keel_arena_alloc_n(&pai, n, 1, pai.base_align)`** e herda o alinhamento do pai — a filha nunca nasce mais alinhada que ele.
+- **Nenhum construtor recebe alinhamento**, e é a consequência de a alocação alinhar o endereço. A tentativa anterior era `alignof(<símbolo>)` para levar o `alignas` do usuário ao descritor, e ela **não é C**: `alignof` exige nome de tipo, e o GCC recusa com `ISO C does not allow 'alignof (expression)'`. Não havia substituto — keel copia `alignas(64)` verbatim e não avalia o argumento —, e a saída foi tirar a necessidade em vez de procurar a grafia.
+- **`from_stack` é o único construtor sem função C própria**: ele gera o vetor no frame e chama `keel_arena_from_array`. A origem "pilha" está no vetor emitido, não numa inicialização diferente. O `alignas(alignof(max_align_t))` continua saindo, mas agora é **economia e não correção**: sem ele a arena funciona igual, e apenas gasta até `alignof(max_align_t) - 1` bytes de padding na primeira alocação.
+- **`from_parent` recorta com `keel_arena_alloc_n(&pai, n, 1, 1)`** — alinhamento 1, porque a filha alinha as próprias alocações. Ela não herda nem precisa herdar alinhamento nenhum.
 
 #### 5.4.1 O respaldo de tipo-caractere
 
@@ -1606,7 +1607,6 @@ A ressalva que sobra é a mesma do make: se o próprio gerador mudar, os gerados
 | 48 | `campo-de-instancia` | Acesso direto a campo de instância de modificador, fora do módulo que a declara | `warning` |
 | 66 | `estado-fora-de-faixa` | Estado fora de faixa na variável de estado | `debug` |
 | 79 | `recorte-fora-de-faixa` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` |
-| 82 | `alloc-alinhamento` | `arena.alloc` cujo `alignof(T)` excede o alinhamento da base da arena | `debug` |
 | 103 | `formato-estreito-indisponivel` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` |
 | 108 | `openmp-indisponivel` | Módulo usa `parallel` e o alvo não oferece OpenMP — a travessia sai em série | `warning` |
 | 109 | `alloc-overflow` | `arena.alloc` cujo `n * sizeof(T)` não cabe em `size_t` | `debug` |

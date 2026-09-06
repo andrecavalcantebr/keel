@@ -654,8 +654,7 @@ Esse é o pior modo de falha que a linguagem pode ter, e ele reaparecia em cada
 prefixo: `static buffer i32 contador;` num bloco, `[[maybe_unused]]` numa
 declaração de contêiner. Nenhum deles muda o tipo; todos apagavam o símbolo.
 
-O alinhamento é o caso que decide, porque é a única forma de pedir arena
-sobre-alinhada (§4.4) e porque orientação a dados o pede o tempo todo —
+O alinhamento é o caso que decide, porque orientação a dados o pede o tempo todo —
 linha de cache, largura de vetor SIMD, fronteira de página. Uma linguagem cujo
 alvo é layout explícito não pode ter o `alignas` como a coisa que faz o símbolo
 desaparecer.
@@ -1685,9 +1684,35 @@ superfície é de um ponto, e é por isso que fechá-la custa uma linha.
 execução — não há o que decidir na tradução. O canal já existe, o
 `[[nodiscard]]` já obriga a olhar, e quem trata falta de capacidade trata
 transbordamento pelo mesmo caminho, sem aprender nada novo. O que se acrescenta é
-o diagnóstico de **debug**, pela razão que o alinhamento já tinha estabelecido: o
-`NULL` diz que falhou e não diz por quê, e as três razões pedem correções
-diferentes.
+o diagnóstico de **debug**: o `NULL` diz que falhou e não diz por quê, e as duas
+razões — capacidade e transbordamento — pedem correções diferentes.
+
+#### Por que o alinhamento é de cada alocação, e não da base
+
+O desenho anterior guardava `base_align` no descritor: o construtor registrava o
+alinhamento do vetor de respaldo, e `alloc` recusava tipo que o excedesse. Ele
+caiu por não ser escrevível em C, e o substituto é melhor em três frentes.
+
+**Ele não era escrevível.** Levar o `alignas` do usuário ao descritor exigia
+`alignof(<símbolo>)`, e `alignof` do C só aceita **nome de tipo** — o GCC recusa
+com `ISO C does not allow 'alignof (expression)'`. E não havia contorno: keel
+copia `alignas(64)` verbatim e nunca avalia o argumento (§1.3), então
+genuinamente não sabe o alinhamento do vetor. Calcular do endereço em tempo de
+execução funciona, mas foi medido instável — 128 num lugar e 512 noutro para o
+mesmo `alignas(64)` —, o que tornaria `alloc` de tipo sobre-alinhado não
+reprodutível entre execuções.
+
+**A saída foi tirar a necessidade.** `alloc` alinha o **endereço** que vai
+entregar, e não o deslocamento `top`. Alinhar o deslocamento só serve se a base
+já estiver alinhada, que é a informação que faltava; alinhar o endereço não
+depende dela. O campo desapareceu, e com ele o diagnóstico 82 — a razão de falha
+deixou de existir.
+
+**E o resultado é mais forte do que o que se perdeu.** Antes, uma arena sobre
+`array u8` nu não conseguia alocar `alignas(64) T`; agora consegue, gastando
+padding. O `alignas` no vetor de respaldo passa de **correção** a **economia**, e
+essa é a posição certa para ele: keel não pode depender, para a correção de nada,
+de um prefixo que ele copia sem ler.
 
 #### Por que o sobre-alinhamento se pede no tipo
 
@@ -1698,7 +1723,9 @@ errado sem que nada acusasse. Quem exige 32 bytes é o **tipo** — carga vetori
 no `alignas` do struct, o compilador C confere em toda parte.
 
 Daí também não faltar uma quarta posição em `arena.alloc`: ela existiria para
-repetir, em cada chamada, uma informação que já está na declaração.
+repetir, em cada chamada, uma informação que já está na declaração. E daí os
+construtores não receberem alinhamento nenhum — não há o que passar, porque quem
+alinha é a alocação.
 
 #### Por que a arena não desce para módulo comum
 

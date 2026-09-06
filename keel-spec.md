@@ -1661,7 +1661,7 @@ arena t;  arena.from_stack(t, 4096);        /* vetor no frame atual; N constante
 arena h;  arena.from_memory(h, mem, cap);   /* região crua: malloc, mmap, linker      */
 ```
 
-Todos devolvem `bool`. A struct nasce zerada, então arena não inicializada tem `arena.capacity(a) == 0` e todo `arena.alloc` nela falha limpo.
+**Todos devolvem `bool`, e ele significa uma coisa só: `arena.capacity(a) > 0` depois de construir.** É falso quando a origem não deu memória — ponteiro nulo, tamanho zero, ou pai sem espaço para o recorte —, e nesses casos a arena fica válida e vazia, não indefinida. A struct nasce zerada, então arena não inicializada tem `arena.capacity(a) == 0` e todo `arena.alloc` nela falha limpo — que é o mesmo estado, alcançado sem construtor nenhum.
 
 **`from_array` exige símbolo `array u8`** — error **34** `arena-from-array-nao-u8` — e não tem forma com ponteiro e tamanho. `unsigned char` não é grafia aceita (§4.2); `char` continua permitido, para texto.
 
@@ -1724,14 +1724,19 @@ keel_arena_from_array(&t, keel__st0, sizeof keel__st0);
 
 #### Alinhamento, falha e verbos de topo
 
-O alinhamento tem dois níveis, e os dois se pedem em C. A **base** é resolvida dentro do construtor; como `array u8` tem alinhamento 1, isso custa até `alignof(max_align_t) - 1` bytes, e quem quiser mais escreve `alignas(64) array u8 memo[N];`, que keel copia verbatim. A **alocação** herda o alinhamento do tipo, porque `arena.alloc` emite `alignof(T)` — então sobre-alinhamento se pede no **tipo**, não na chamada. Não há quarta posição em `arena.alloc`.
+**O alinhamento é de cada alocação, e não da base.**
 
-`arena.alloc` falha por três razões, num canal só:
+> `arena.alloc(a, T, n)` devolve endereço alinhado para `alignof(T)`, **qualquer que seja o alinhamento da base**. O que a arena não puder alinhar dentro do que lhe resta, ela recusa devolvendo `NULL`.
+
+Sobre-alinhamento se pede no **tipo** — `arena.alloc` emite `alignof(T)` —, e não há quarta posição em `arena.alloc`. Um `alignas(64) T` sai de uma arena sobre `array u8` nu sem nada a mais.
+
+**Escrever `alignas` no vetor de respaldo é economia, não correção.** `alignas(64) array u8 memo[N];` atravessa verbatim e faz a primeira alocação não gastar padding; sem ele o programa é o mesmo, e gasta até `alignof(T) - 1` bytes. Isso é deliberado: keel copia o `alignas` sem avaliá-lo (§1.3), então **não pode** depender dele para a correção de nada.
+
+`arena.alloc` falha por duas razões, num canal só:
 
 | Razão | Quando | Diagnóstico em debug |
 | --- | --- | --- |
-| capacidade | o que resta na arena não chega | — |
-| alinhamento | `alignof(T)` excede o alinhamento da base | 82 `alloc-alinhamento` |
+| capacidade | o que resta na arena não chega, contado o alinhamento | — |
 | transbordamento | `n * sizeof(T)` não cabe em `size_t` | 109 `alloc-overflow` |
 
 Todas devolvem `NULL`, e o `[[nodiscard]]` obriga a olhar.
@@ -3276,7 +3281,6 @@ aparecem aqui só para que a numeração seja única no projeto.
 | 79 | `recorte-fora-de-faixa` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | backend | §4.6 |
 | 80 | `foreach-dois-binders-em-literal` | `foreach` de dois binders sobre literal de intervalo — a mensagem indica nomear o intervalo | `error` | núcleo | §4.7 |
 | 81 | `binder-ponteiro-em-intervalo` | Binder por ponteiro na forma de intervalo | `error` | núcleo | §4.7 |
-| 82 | `alloc-alinhamento` | `arena.alloc` cujo `alignof(T)` excede o alinhamento da base da arena | `debug` | backend | §4.4 |
 | 83 | `recorte-aberto` | Recorte com ponta aberta fora de índice | `error` | núcleo | §3.4 |
 | 84 | `recorte-aberto-com-indice` | `x[a..]` sobre caminho que contém índice ou verbo | `error` | núcleo | §4.6 |
 | 85 | `enum-sem-o-tipo` | Constante de enum escrita sem o nível do tipo | `error` | núcleo | §4.3 |
@@ -3328,6 +3332,7 @@ externas não quebrem:
 | 45 | removido: módulo cujo nome é palavra contextual é caso legítimo e determinístico (§3.10) |
 | 52 | absorvido pelo **111** |
 | 74, 75, 76 | eram de `soa`, que não entrou em keel (`rationale §1.3`) |
+| 82 | removido: o alinhamento passou a ser de cada alocação, e não da base (§4.4) — a razão de falha deixou de existir |
 | 96 | removido: `coseq` e `copar` produzem um valor e a execução segue — não são terminais (§4.8) |
 | 100, 102 | removidos com `restrict` sobre contêiner (§4.2): o lowering por hoisting não era honrado pelo compilador C e o caminho misto era UB. O **101** sobrevive com outro sentido, recusando a grafia |
 

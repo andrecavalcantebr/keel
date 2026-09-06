@@ -29,7 +29,7 @@ keel__e0: fclose(keel__c0.fp);
 #line 29 "app/cfg.k"
 keel_outcome_i32 app_cfg_soma_scratch(const char *caminho) {
     keel_arena t = {0};  alignas(alignof(max_align_t)) unsigned char keel__st0[4096];
-    if (!keel_arena_from_array(&t, keel__st0, sizeof keel__st0, alignof(max_align_t)))
+    if (!keel_arena_from_array(&t, keel__st0, sizeof keel__st0))
         return keel_outcome_i32_fail(4);
     return app_cfg_soma(&t, caminho);
 }

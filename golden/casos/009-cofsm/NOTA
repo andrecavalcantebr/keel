@@ -1,0 +1,28 @@
+O que este caso encontrou
+=========================
+
+A emissão do backend §5.6, copiada literalmente, NÃO compilava:
+
+  error: 'r' undeclared (first use in this function)
+
+`r` era declarado no bloco de ST1 e usado no de ST2. Não era erro de digitação:
+a regra 2 do §5.6 envolve cada estado em chaves — o que cria escopo por estado
+— enquanto a gramática da linguagem sugeria um escopo só, que é o que o exemplo
+usava. A linguagem não dizia qual dos dois valia.
+
+Resolvido a favor do escopo por estado, pela razão do despacho: a máquina entra
+por qualquer estado, porque o valor vem da variável do usuário e atravessa
+chamadas. Se a declaração de ST1 alcançasse ST2, o inicializador dela não teria
+rodado. O que precisa atravessar estados vai na struct do agente.
+
+O que este caso NÃO exercita, e por quê
+=======================================
+
+Entrar com estado fora da lista. O despacho cai no `default:` e sai do bloco do
+`cofsm` — que é o comportamento certo e completo: `cofsm` é statement, e sair
+dele devolve o controle para a linha seguinte.
+
+O exemplo aqui envolve o `cofsm` num `while (1)`, e esse laço é do usuário. Sem
+condição de parada ele reentra, como reentraria com um `switch` comum na mesma
+posição. Não é do `cofsm` ter opinião sobre política de avanço (linguagem §4.8),
+então o caso simplesmente não chama esse caminho.

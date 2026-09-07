@@ -1351,7 +1351,7 @@ Seis regras de emissão:
 2. **A variável de etapa é local ao bloco**, e o tipo é o menor inteiro sem sinal que conte as etapas. Não há enum e não há constante nomeada: numa cadeia o rótulo seria número de série, e a linguagem não pede que ele exista.
 3. **O código de falha é o ordinal da etapa, base um.** É de onde vem o "qual etapa quebrou" que o `outcome.code` entrega, e não custa campo novo.
 4. **ONGOING repete a mesma etapa na mesma chamada.** É a consequência de `coseq` não ceder o controle, e é o que o `continue` sobre o `for (;;)` expressa. O custo — laço apertado sobre uma etapa lenta — é da construção, e está escrito na linguagem §4.8.
-5. **`default:` sai com falha**, pela razão do §5.6: etapa fora de faixa é possível se alguém escrever na variável. Sob `--checks`, um `assert` o precede.
+5. **`default:` existe pela exaustividade, e é inalcançável.** A razão é a do §5.6 — o C pede o ramo quando o valor pode não estar no conjunto e não há fallthrough —, mas a *situação* do §5.6 não se repete aqui: lá a variável de estado é do usuário e pode vir de memória; aqui `keel__et` é local gerado, recebe apenas os ordinais que a emissão escreve, e nada do programa alcança. Sai com falha porque um ramo tem de sair com alguma coisa, e o `assert` sob `--checks` documenta que o caminho não deveria existir.
 6. **Nenhum `#line` dentro do despacho além do de cada `case`**: não há corpo de usuário a mapear, só chamadas que ele escreveu em uma linha cada.
 
 ### 5.11 `copar`

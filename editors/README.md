@@ -62,11 +62,6 @@ ela só declara uma linguagem e uma gramática, então o `wasm32-wasip2` do
 Se algo falhar, `zed: open log` mostra o erro; `zed --foreground` a partir do
 terminal mostra mais.
 
-> **Uma ressalva.** A documentação do Zed diz que uma extensão *é um repositório
-> Git*, e aqui ela é um subdiretório de um. Se o instalador recusar
-> `editors/zed/`, o contorno é copiar esse diretório para um lugar próprio e
-> apontar para lá — nada no conteúdo muda.
-
 Para atualizar depois de mexer no `highlights.scm`: `zed: reload extensions`.
 
 ## Zed — o que ele consegue, e por que menos que o VSCode
@@ -103,16 +98,22 @@ cabeçalho do arquivo tem como rodar.
 Verificado também o inverso — nada realçado dentro de comentário ou string — e
 que `x.foreach` continua sendo acesso a campo, não palavra.
 
-**Zed: manifesto conferido, realce não medido.** O `extension.toml` e o
+**Zed: instalado, e o realce visto na tela.** O `extension.toml` e o
 `config.toml` foram validados como TOML e comparados campo a campo com uma
 extensão de linguagem real do repositório do Zed e com
 `docs/src/extensions/languages.md` — foi assim que o `block_comment` saiu da
 forma de lista, que é antiga, para a de tabela. O `commit` da gramática é a tag
 v0.24.2, resolvida com `git ls-remote --tags`.
 
-O que **não** foi medido é o resultado na tela: a instalação de extensão de
-desenvolvimento é pela interface do Zed, e não há comando de linha para
-automatizá-la.
+A extensão instala como *dev extension* apontando para `editors/zed/`, e o
+realce aparece: as palavras de unidade, de fluxo e de tipo composto, os tipos da
+camada zero, os nomes da base, e comentário e string intactos.
+
+O que **não** foi medido é a **cobertura palavra por palavra**, que do lado
+VSCode é automatizada e aqui exigiria `tree-sitter` instalado. O que se observa
+é a degradação prevista: palavra dentro de construção que o parser do C não
+reconhece — o `ref` de `FILE *ref fp`, o `now` de `defer [now …]` — cai em nó de
+erro e pode não casar a consulta.
 
 ## Nota sobre `.k`
 

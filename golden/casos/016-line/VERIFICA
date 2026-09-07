@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# O caso 016 não compila de propósito. O que ele afirma não é que o C está
+# certo, e sim que o ERRO aponta o fonte keel, com os nomes que o usuário
+# escreveu — princípio 3, sustentado pelo `#line` do backend §6.
+#
+#   $1 = compilador   $2 = -std=...   $3 = diretório do perfil
+set -eu
+dir=$(dirname "$0")
+saida=$("$1" "$2" -pedantic-errors -I"$3" -c "$dir/esperado.c" -o /dev/null 2>&1 || true)
+
+falhou=0
+echo "$saida" | grep -q "app/ln\.k:8:" || { echo "  erro não aponta app/ln.k:8"; falhou=1; }
+# o gcc usa aspas tipográficas; casar só o texto
+echo "$saida" | grep -q "f32 \*"      || { echo "  mensagem não traz a grafia keel f32 *"; falhou=1; }
+echo "$saida" | grep -q "i32 \*"      || { echo "  mensagem não traz a grafia keel i32 *"; falhou=1; }
+echo "$saida" | grep -q "esperado\.c"  && { echo "  a mensagem vazou o nome do arquivo gerado"; falhou=1; }
+[ $falhou -eq 0 ] || { echo "$saida" | sed 's/^/    /' | head -4; exit 1; }
+exit 0

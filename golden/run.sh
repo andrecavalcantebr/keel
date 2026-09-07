@@ -16,6 +16,17 @@ for caso in casos/*/; do
     [ "$perfil" = c23 ] && std=c2x src="$caso/esperado.c"     || std=c11
     [ "$perfil" = c11 ] && { src="$caso/esperado.c11.c"; [ -f "$src" ] || src="$caso/esperado.c"; }
     [ -f "$src" ] || continue
+    # um caso com VERIFICA não é compilado: o script é que decide. É como se
+    # afirma coisa que não é "compila" — o mapeamento de linha, por exemplo,
+    # que exige um erro do compilador C apontando o .k
+    if [ -x "$caso/VERIFICA" ]; then
+      if "$caso/VERIFICA" "$CC" "-std=$std" "$perfil"; then
+        printf 'ok     %-28s %s  (verifica)\n' "$nome" "$perfil"; ok=$((ok+1))
+      else
+        printf 'FALHA  %-28s %s  (verifica)\n' "$nome" "$perfil"; falha=$((falha+1))
+      fi
+      continue
+    fi
     exe=/dev/null; modo=compila
     # um caso pode ter unidades a mais — `instance` mora num .k do usuário, e o
     # corpo extern da instância vive no .c dele (linguagem §4.9)

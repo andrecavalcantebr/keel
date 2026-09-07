@@ -29,6 +29,16 @@ Confirmado na prática: o GCC 13 reporta `__STDC_VERSION__ == 202000L` sob
 Os headers fixos (`keel/prelude.h`, `keel/arena.h`) e os de instância vivem em
 `c23/keel/` e `c11/keel/`, e diferem exatamente no que `backend §9.1` lista.
 
+## Casos com VERIFICA
+
+Nem tudo que a spec afirma é "este C compila". O mapeamento de linha do
+`backend §6`, por exemplo, só se afirma **fazendo o compilador C falhar** e
+conferindo que a mensagem aponta o `.k` com os nomes que o usuário escreveu —
+que é o princípio 3.
+
+Um caso com um `VERIFICA` executável não é compilado pelo runner: o script
+recebe `$1` compilador, `$2` `-std=…`, `$3` diretório do perfil, e decide.
+
 ## Casos com PROBLEMA
 
 Um caso que contém um arquivo `PROBLEMA` é **xfail**: espera-se que o C esperado

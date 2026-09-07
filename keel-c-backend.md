@@ -1099,7 +1099,7 @@ pub corot i32 passo(arena *a, Agente *ag) {
                 if (corot.ongoing(r)) coagain(0);
                 ag->s = ST3; cobreak;
             ST2:
-                if (corot.value(r) >= 20) coagain(0);
+                if (ag->n >= 20) coagain(0);
                 ag->s = ST1;
             ST3:
                 cowin(0);
@@ -1131,7 +1131,7 @@ keel_corot_i32 ag_passo(keel_arena *a, ag_Agente *ag) {
     }
     goto keel__ciclo_end;
     keel__ciclo_ST2: {
-        if (r.v >= 20) return (keel_corot_i32){ 0, 0 };
+        if (ag->n >= 20) return (keel_corot_i32){ 0, 0 };
         ag->s = ag_ciclo_ST1;
     }
     goto keel__ciclo_end;
@@ -1146,7 +1146,8 @@ keel_corot_i32 ag_passo(keel_arena *a, ag_Agente *ag) {
 Seis regras de emissão, e cada uma existe por um motivo concreto:
 
 1. **O `switch` de despacho contém apenas saltos.** Nenhum código do usuário mora dentro dele, e é isso que faz `break` e `continue` do usuário ligarem ao laço ou `switch` dele. Um `switch` com o corpo dentro reservaria `break` para a fsm.
-2. **O rótulo vai antes da chave de abertura**, não dentro do bloco. Saltar para um rótulo interno entraria no meio do escopo e **os inicializadores das declarações não rodariam** — legal em C, e o tipo de bug que ninguém encontra. Com o rótulo fora, o salto entra pelo topo e declaração de estado se comporta normalmente.
+2. **O rótulo vai antes da chave de abertura**, e as chaves são o escopo do
+   estado que a linguagem §4.8 exige — não um detalhe de emissão. Saltar para um rótulo interno entraria no meio do escopo e **os inicializadores das declarações não rodariam** — legal em C, e o tipo de bug que ninguém encontra. Com o rótulo fora, o salto entra pelo topo e declaração de estado se comporta normalmente.
 3. **Cada bloco de estado é seguido de `goto <fsm>_end`.** É o fim de bloco de estado da linguagem §4.8, e é o que elimina fallthrough. No último estado o salto é omitido: ele cairia na linha seguinte, e ninguém escreveria isso à mão (princípio 2).
 4. **`cobreak` é `goto <fsm>_end`**, de qualquer profundidade — a razão de o despacho ser por rótulo. **`cowin`, `cofail` e `coagain` são `return`**, não saltos: eles saem da função, não do bloco (linguagem §4.8), e por isso não interagem com o despacho.
 5. **Não há verbo de transição.** `ag->s = ST3;` é atribuição do usuário e atravessa opaca; o que keel faz é reescrever a constante nua para `ag_ciclo_ST3`, pela regra de escopo de enum (§2.1).

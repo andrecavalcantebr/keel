@@ -746,7 +746,8 @@ sem lookahead: um `if` de verdade casa `stmt-c`, e o `else` que sobra só pode s
 cauda de declaração.
 
 Dentro de `bloco-estados`, um `IDENT ':'` de topo é rótulo de estado, não
-`rotulo` de C.
+`rotulo` de C. **Cada rótulo abre um escopo**, que vai até o próximo rótulo ou
+até a chave de fechamento (§4.8).
 
 ### 3.4 Contêiner — a única posição tipada
 
@@ -2366,6 +2367,30 @@ pub cofsm mm [ISSO, AQUILO];
 ```keel
 pub typedef struct { mm s; i32 hp; } Agente;    /* mil agentes, um bloco */
 ```
+
+**Cada bloco de estado é um escopo**, e declaração feita num não alcança o
+seguinte:
+
+```keel
+cofsm ciclo (ag->s) {
+ST1:
+    corot i32 r = fn1(a);      /* vive só em ST1 */
+    ag->s = ST2; cobreak;
+ST2:
+    if (corot.value(r) >= 20)  /* error: `r` não existe aqui */
+        coagain(0);
+}
+```
+
+**A razão é o despacho, e ela é dirimente.** A máquina entra **por qualquer
+estado** — o valor vem de `ag->s`, que atravessa chamadas e pode vir de memória,
+arquivo ou rede. Entrar direto em `ST2` é o caso normal, não a borda. Se a
+declaração de `ST1` alcançasse `ST2`, o inicializador dela **não teria rodado**,
+e a leitura de lixo seria o comportamento por omissão em vez da exceção.
+
+**O que precisa atravessar estados vai na struct do usuário**, que é onde mora
+o estado que sobrevive — é para isso que `cofsm` recebe uma variável em vez de
+guardar a própria. `ag->r` atravessa; `r` local, não.
 
 **A lista de estados é obrigatória e mora na declaração.** Daí vêm três coisas de
 graça: os valores ficam estáveis sob edição, o `.h` fecha sem ver o corpo, e a

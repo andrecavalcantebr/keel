@@ -2,7 +2,10 @@
 # golden/run.sh — compila o C esperado de cada caso, nos dois perfis.
 # Um caso com PROBLEMA é xfail: espera-se que NÃO compile, e o arquivo diz por quê.
 CC=${CC:-gcc}
-FLAGS="-pedantic-errors -Wall -Wextra -Wno-unused-parameter"
+# -Werror=vla cobra uma afirmação normativa: a linguagem §4.4 diz que keel não
+# emite VLA nem alloca em lugar nenhum. Se um `constexpr` deixar de ser
+# expressão constante, o vetor vira VLA e a suíte inteira acusa.
+FLAGS="-pedantic-errors -Wall -Wextra -Wno-unused-parameter -Wvla -Werror=vla"
 # `parallel` é a única construção cujo gerado depende de algo fora do C: a spec
 # promete que ele compila e roda igual sem OpenMP, então cada caso com `#pragma
 # omp` roda nas duas configurações.

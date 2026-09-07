@@ -705,8 +705,14 @@ as_slice(xs, 2, 7)
 ```c
 keel_buffer_sim_Particle_length(&w->ps)
 keel_buffer_geom_Point_push1(&pts, (geom_Point){3.0f, 4.0f})
-keel_buffer_i32_as_slice(&xs, 2, 7)
+keel_buffer_i32_as_slice2(&xs, 2, 7)
 ```
+
+**O sufixo de aridade vale para `as_slice` como para qualquer outro**, e é o que
+impede a colisão: `slice.of(xs)` dá `_as_slice` e `slice.of(xs,2,7)` dá
+`_as_slice2` — dois argumentos além do contêiner. Sem o sufixo, as duas
+assinaturas chegariam ao mesmo símbolo, e C não tem sobrecarga:
+`error: conflicting types for 'as_slice'`.
 
 Todo builtin que pode falhar é gerado com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
 

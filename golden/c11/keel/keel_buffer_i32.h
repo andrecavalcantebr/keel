@@ -42,4 +42,9 @@ static inline keel_outcome_i32 keel_buffer_i32_at(const keel_buffer_i32 *b, size
 static inline keel_slice_i32 keel_buffer_i32_as_slice(const keel_buffer_i32 *b) {
     return (keel_slice_i32){ b->len, b->ptr };
 }
+/* `slice.of(x,a,b)` — sufixo 2: dois argumentos além do contêiner (§2.1).
+   Sem ele colidiria com o de cima; C não tem sobrecarga. */
+static inline keel_slice_i32 keel_buffer_i32_as_slice2(const keel_buffer_i32 *b, size_t a, size_t c) {
+    return (keel_slice_i32){ c - a, b->ptr + a };
+}
 #endif

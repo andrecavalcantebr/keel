@@ -1,0 +1,35 @@
+O que este caso prova
+=====================
+
+As duas formas da cláusula `else` (§5.12), executando:
+  * SAÍDA — o statement entra no `if`, verbatim; a variante com bloco também;
+  * DEFAULT — a expressão entra no `win` da instância e é reatribuída ao
+    próprio símbolo, sem temporário;
+  * o teste é sempre `M_failed(x)`, nunca `if (!x)`;
+  * NONE também é falha: `dobro(0)` sai pela cláusula, como `dobro(-1)`.
+
+E a instância recursiva `outcome slice i32`, que exercita o mangling do §2.2.
+
+Achado isolado: verbo aplicado a verbo que devolve valor
+========================================================
+
+A gramática de contêiner do §3.4 aceita `verbo '(' contentor … ')'`, então
+
+    slice.length(outcome.value(s))
+    slice.length(slice.of(b))
+
+são formas gramaticais. Mas o §4.11 diz que o `&` de adaptação só vale quando o
+argumento é SÍMBOLO-valor, e completa: "Fora desse caso, chamada de função passa
+os argumentos como escritos". Emitido ao pé da letra, isso dá
+
+    error: incompatible type for argument 1 of 'keel_slice_i32_length'
+
+porque `length` recebe ponteiro e o verbo interno devolve valor. Não há lowering
+especificado para o caso, e ele não é rebuscado — `slice.of` e `outcome.value`
+devolvem descritor por valor, que é o uso normal.
+
+Este caso evita a forma de propósito, escrevendo o símbolo intermediário. A
+decisão está em aberto; um candidato é a assinatura seguir o bit `byref`:
+instância `byref` (buffer, arena) por ponteiro, as demais (slice, view) por
+valor — o que faria o aninhamento funcionar sem temporário e estreitaria a regra
+do `&` para exatamente o que `byref` significa.

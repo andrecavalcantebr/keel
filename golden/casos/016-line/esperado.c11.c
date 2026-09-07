@@ -1,13 +1,30 @@
-/* gen/app/ln.c — perfil C23.
-   O gerador mantém dois contadores — a linha do .k e a do arquivo de saída — e
-   emite `#line` sempre que divergem (backend §6). Aqui o cabeçalho gerado tem
-   quatro linhas a mais que o fonte, então um `#line` ressincroniza antes do
-   corpo. NÃO COMPILA de propósito: ver VERIFICA. */
+/* gen/app/ml.c — perfil C23. NÃO COMPILA de propósito: ver VERIFICA.
+   O §6 é uma invariante sobre dois contadores — a linha do .k em tradução e a
+   do arquivo de saída — e `#line` sai SEMPRE que eles divergem. Este arquivo
+   emite os `#line` que a invariante exige, e nenhum a mais. */
 #include "keel/prelude.h"
 #include "keel/keel_buffer_i32.h"
+#include <stdio.h>
 
-#line 7 "app/ln.k"
-void app_ln_erra(keel_buffer_i32 *b) {
-    f32 *p = keel_buffer_i32_ptr(b);
-    (void)p;
+#line 5 "app/ml.k"
+typedef struct { int v; } app_ml_R;
+
+static void app_ml_solta(app_ml_R *r);
+
+int app_ml_usa(app_ml_R *r, keel_buffer_i32 *xs) {
+    int keel__rv0;
+    f32 *a = keel_buffer_i32_ptr(xs);
+    i32 t = 0;
+    { keel_buffer_i32 *keel__c0 = xs; size_t keel__n0 = keel_buffer_i32_length(keel__c0); for (size_t i = 0; i < keel__n0; i++) { i32 x = keel_buffer_i32_get(keel__c0, i); t += x; } }
+    f32 *b = keel_buffer_i32_ptr(xs);
+    (void)a; (void)b;
+    keel__rv0 = t; goto keel__e0;
+keel__e0: app_ml_solta(r);
+    return keel__rv0;
+#line 17 "app/ml.k"
+}
+
+static void app_ml_solta(app_ml_R *r) {
+    f32 *c = (i32 *)0;
+    (void)c; r->v = 0;
 }

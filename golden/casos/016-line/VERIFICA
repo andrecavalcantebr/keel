@@ -1,18 +1,25 @@
 #!/usr/bin/env sh
-# O caso 016 não compila de propósito. O que ele afirma não é que o C está
-# certo, e sim que o ERRO aponta o fonte keel, com os nomes que o usuário
-# escreveu — princípio 3, sustentado pelo `#line` do backend §6.
+# O caso 016 NÃO compila de propósito. Ele afirma o §6 — o mapeamento de linha —
+# e o princípio 3: o erro do compilador C aparece na posição do FONTE KEEL, com
+# os nomes que o usuário escreveu.
+#
+# As posições esperadas saem do próprio caso.k, das linhas marcadas /* ERRO */.
+# Não há número escrito aqui: se o esperado.c mover um `#line`, o teste acusa.
 #
 #   $1 = compilador   $2 = -std=...   $3 = diretório do perfil
 set -eu
 dir=$(dirname "$0")
-saida=$("$1" "$2" -pedantic-errors -I"$3" -c "$dir/esperado.c" -o /dev/null 2>&1 || true)
+
+esperado=$(grep -n '/\* ERRO \*/' "$dir/caso.k" | cut -d: -f1 | tr '\n' ' ')
+saida=$("$1" "$2" -I"$3" -c "$dir/esperado.c" -o /dev/null 2>&1 || true)
+obtido=$(printf '%s\n' "$saida" | grep -oE 'app/ml\.k:[0-9]+' | cut -d: -f2 | tr '\n' ' ')
 
 falhou=0
-echo "$saida" | grep -q "app/ln\.k:8:" || { echo "  erro não aponta app/ln.k:8"; falhou=1; }
-# o gcc usa aspas tipográficas; casar só o texto
-echo "$saida" | grep -q "f32 \*"      || { echo "  mensagem não traz a grafia keel f32 *"; falhou=1; }
-echo "$saida" | grep -q "i32 \*"      || { echo "  mensagem não traz a grafia keel i32 *"; falhou=1; }
-echo "$saida" | grep -q "esperado\.c"  && { echo "  a mensagem vazou o nome do arquivo gerado"; falhou=1; }
-[ $falhou -eq 0 ] || { echo "$saida" | sed 's/^/    /' | head -4; exit 1; }
+[ "$esperado" = "$obtido" ] || {
+    echo "  posições: esperado [$esperado]  obtido [$obtido]"; falhou=1; }
+printf '%s\n' "$saida" | grep -q 'f32 \*' || { echo "  falta a grafia keel f32 *"; falhou=1; }
+printf '%s\n' "$saida" | grep -q 'i32 \*' || { echo "  falta a grafia keel i32 *"; falhou=1; }
+printf '%s\n' "$saida" | grep -q 'esperado\.c' && { echo "  o nome do gerado vazou"; falhou=1; }
+
+[ $falhou -eq 0 ] || { printf '%s\n' "$saida" | sed 's/^/    /' | head -4; exit 1; }
 exit 0

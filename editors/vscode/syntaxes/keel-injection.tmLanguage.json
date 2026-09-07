@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "keel (injeção)",
+  "scopeName": "keel.injection",
+  "injectionSelector": "L:source.keel -comment -string",
+  "patterns": [
+    {
+      "name": "keyword.control.keel",
+      "match": "\\b(parallel|coagain|cobreak|foreach|cofail|apply|cofsm|copar|coseq|cowin|defer|later|ALL|ANY|now)\\b"
+    },
+    {
+      "name": "keyword.other.keel",
+      "match": "\\b(constexpr|extern_c|import_c|instance|modifier|import|module|array|byref|types|priv|type|dim|pub|ref|as)\\b"
+    },
+    {
+      "name": "support.type.primitive.keel",
+      "match": "\\b(ptrdiff_t|uintptr_t|size_t|bf16|f16|f32|f64|i16|i32|i64|u16|u32|u64|i8|u8)\\b"
+    },
+    {
+      "name": "support.type.base.keel",
+      "match": "\\b(outcome|buffer|strbuf|string|arena|corot|range|slice)\\b"
+    },
+    {
+      "match": "(?<![\\w.])(\\d+)(\\.\\.)",
+      "captures": {
+        "1": {
+          "name": "constant.numeric.decimal.c"
+        },
+        "2": {
+          "name": "keyword.operator.range.keel"
+        }
+      }
+    },
+    {
+      "name": "keyword.operator.range.keel",
+      "match": "(?<!\\.)\\.\\.(?!\\.)"
+    }
+  ]
+}

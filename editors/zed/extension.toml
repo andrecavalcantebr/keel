@@ -6,8 +6,8 @@ authors = ["Andre Cavalcante <andre.d.cavalcante@gmail.com>"]
 description = "Realce de sintaxe para keel, sobre a gramática do C."
 repository = "https://github.com/andrecavalcante/keel"
 
-# Zed exige commit fixado. PREENCHER com um commit real de tree-sitter-c
-# antes de instalar — não inventar hash.
+# Zed exige o commit fixado. Este é a tag v0.24.2 de tree-sitter-c, resolvida
+# com `git ls-remote --tags` — não é HEAD, para o realce não mudar sozinho.
 [grammars.c]
 repository = "https://github.com/tree-sitter/tree-sitter-c"
-commit = "PREENCHER"
+commit = "c9ff62c7ef293ccd6129318f638327dfd6ade7df"

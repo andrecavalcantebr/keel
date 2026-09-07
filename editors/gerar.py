@@ -32,21 +32,38 @@ def alt(xs): return "|".join(sorted(xs, key=lambda w: (-len(w), w)))
 todas = sum(PALAVRAS.values(), [])
 
 # ---------------------------------------------------------------- VSCode
-tm = {
-  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "keel", "scopeName": "source.keel", "fileTypes": ["k"],
-  "patterns": [{"include": "#keel"}, {"include": "source.c"}],
-  "repository": {"keel": {"patterns": [
+#
+# São DOIS arquivos, e a razão é medida: com um só, `"include": "source.c"`
+# não alcança o interior das funções — a regra de bloco do C assume e só os
+# padrões dela valem ali. `defer` saía como `meta.block.c` e `foreach` como
+# `entity.name.function.c`, que é onde mora quase toda palavra de keel.
+# A gramática base dá o C; a INJEÇÃO põe as palavras em todo escopo aninhado.
+padroes = [
     {"name": "keyword.control.keel",        "match": r"\b(%s)\b" % alt(PALAVRAS["fluxo"] + PALAVRAS["cooperativo"])},
     {"name": "keyword.other.keel",          "match": r"\b(%s)\b" % alt(PALAVRAS["unidade"] + PALAVRAS["tipo"])},
     {"name": "support.type.primitive.keel", "match": r"\b(%s)\b" % alt(PRIMITIVOS)},
     {"name": "support.type.base.keel",      "match": r"\b(%s)\b" % alt(BASE)},
-    {"name": "keyword.operator.range.keel", "match": r"\.\."},
-  ]}}
-}
+    # `0..4`: a regra numérica do C casa a partir do `0` e engoliria o `..`
+    # como número malformado. Casando o operando esquerdo junto, a injeção
+    # vence por posição — medido, e sem isso o intervalo não realça.
+    {"match": r"(?<![\w.])(\d+)(\.\.)",
+     "captures": {"1": {"name": "constant.numeric.decimal.c"},
+                  "2": {"name": "keyword.operator.range.keel"}}},
+    {"name": "keyword.operator.range.keel", "match": r"(?<!\.)\.\.(?!\.)"},
+]
+ESQ = "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json"
+base = {"$schema": ESQ, "name": "keel", "scopeName": "source.keel",
+        "fileTypes": ["k"], "patterns": [{"include": "source.c"}]}
+inj  = {"$schema": ESQ, "name": "keel (injeção)", "scopeName": "keel.injection",
+        # L: dá precedência sobre as regras do C já existentes no escopo
+        # `-comment -string`: sem isso, `defer` num comentário e `buffer` numa
+        # string saíam realçados — medido.
+        "injectionSelector": "L:source.keel -comment -string", "patterns": padroes}
+
 vs = RAIZ / "editors/vscode"
 (vs / "syntaxes").mkdir(parents=True, exist_ok=True)
-(vs / "syntaxes/keel.tmLanguage.json").write_text(json.dumps(tm, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+(vs / "syntaxes/keel.tmLanguage.json").write_text(json.dumps(base, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+(vs / "syntaxes/keel-injection.tmLanguage.json").write_text(json.dumps(inj, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 # ---------------------------------------------------------------- Zed
 zd = RAIZ / "editors/zed/languages/keel"

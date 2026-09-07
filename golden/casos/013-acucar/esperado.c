@@ -25,8 +25,8 @@ size_t app_ac_recorta(keel_buffer_i32 *b) {
     keel_slice_i32 fim  = keel_buffer_i32_as_slice2(b, 5, keel_buffer_i32_length(b));
     keel_slice_i32 ini  = keel_buffer_i32_as_slice2(b, 0, 3);
     keel_slice_i32 todo = keel_buffer_i32_as_slice(b);
-    return keel_slice_i32_length(&meio) + keel_slice_i32_length(&fim)
-         + keel_slice_i32_length(&ini)  + keel_slice_i32_length(&todo);
+    return keel_slice_i32_length(meio) + keel_slice_i32_length(fim)
+         + keel_slice_i32_length(ini)  + keel_slice_i32_length(todo);
 }
 
 int main(void) {

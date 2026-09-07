@@ -10,26 +10,7 @@ As duas formas da cláusula `else` (§5.12), executando:
 
 E a instância recursiva `outcome slice i32`, que exercita o mangling do §2.2.
 
-Achado isolado: verbo aplicado a verbo que devolve valor
-========================================================
-
-A gramática de contêiner do §3.4 aceita `verbo '(' contentor … ')'`, então
-
-    slice.length(outcome.value(s))
-    slice.length(slice.of(b))
-
-são formas gramaticais. Mas o §4.11 diz que o `&` de adaptação só vale quando o
-argumento é SÍMBOLO-valor, e completa: "Fora desse caso, chamada de função passa
-os argumentos como escritos". Emitido ao pé da letra, isso dá
-
-    error: incompatible type for argument 1 of 'keel_slice_i32_length'
-
-porque `length` recebe ponteiro e o verbo interno devolve valor. Não há lowering
-especificado para o caso, e ele não é rebuscado — `slice.of` e `outcome.value`
-devolvem descritor por valor, que é o uso normal.
-
-Este caso evita a forma de propósito, escrevendo o símbolo intermediário. A
-decisão está em aberto; um candidato é a assinatura seguir o bit `byref`:
-instância `byref` (buffer, arena) por ponteiro, as demais (slice, view) por
-valor — o que faria o aninhamento funcionar sem temporário e estreitaria a regra
-do `&` para exatamente o que `byref` significa.
+Prova também `slice.length(outcome.value(s))` — verbo aplicado a verbo que
+devolve valor. Ela funciona porque `slice` não é `byref` e o acessor recebe
+cópia (§4.11). Enquanto os acessores de `slice` recebiam ponteiro, esta forma
+dava `incompatible type for argument 1`, e não havia lowering especificado.

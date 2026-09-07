@@ -694,7 +694,7 @@ static inline i32 *keel_buffer_i32_pop(keel_buffer_i32 *b) {
 
 `push(x)` e `push(x,v)` geram funções distintas — `_push` e `_push1`, pela regra de aridade do §2.1 — em vez de uma variádica: são duas assinaturas C normais, e o compilador C confere cada uma.
 
-A chamada de builtin é reescrita para a função mangled correspondente, que recebe o **endereço** do container:
+A chamada de builtin é reescrita para a função mangled correspondente. **A forma do parâmetro é o bit `byref`** (linguagem §4.11): instância `byref` recebe o **endereço** do contêiner; instância que não é — `slice`, `view`, `range` — recebe **cópia**. É por isso que `as_slice` devolve `keel_slice_i32` e `keel_slice_i32_length` o consome direto, sem `&`:
 
 ```keel
 length(w->ps)
@@ -731,7 +731,7 @@ grid[3][7] = 5
 ```
 
 ```c
-keel_slice_char_length(keel_buffer_slice_char_ptr(&lines, 3))
+keel_slice_char_length(*keel_buffer_slice_char_ptr(&lines, 3))
 keel_buffer_i32_push1(keel_buffer_buffer_i32_ptr(&grid, 3), 42)
 *keel_buffer_i32_ptr(keel_buffer_buffer_i32_ptr(&grid, 3), 7) = 5
 ```

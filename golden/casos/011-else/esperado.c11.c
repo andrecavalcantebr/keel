@@ -28,8 +28,7 @@ int app_el_dobro_log(int n) {
 
 size_t app_el_tamanho(int n, i32 *base) {
     keel_outcome_keel_slice_i32 s = app_el_vista(n, base); if (keel_outcome_keel_slice_i32_failed(s)) s = keel_outcome_keel_slice_i32_win(keel_slice_i32_from(base, 0));
-    keel_slice_i32 sv = keel_outcome_keel_slice_i32_value(s);
-    return keel_slice_i32_length(&sv);
+    return keel_slice_i32_length(keel_outcome_keel_slice_i32_value(s));
 }
 
 int main(void) {

@@ -3078,7 +3078,16 @@ Nada aí é inferência: **cada linha é um nome numa tabela**, lida antes de pa
 
 #### Valor ou ponteiro
 
-> O símbolo guarda se foi declarado **como valor ou como ponteiro** (§4.3). Verbo sobre símbolo-valor emite `&x`; sobre símbolo-ponteiro, emite `x`.
+> **A forma do parâmetro é o bit `byref`** (§4.9): instância `byref` — `buffer`, `arena`, `tensor` — recebe **ponteiro**; instância que não é — `slice`, `view`, `range` — recebe **cópia**. E o símbolo guarda se foi declarado como valor ou como ponteiro (§4.3). Os dois bits dão quatro casos, e nenhum precisa de tipo:
+
+| parâmetro | símbolo | emite |
+| --- | --- | --- |
+| ponteiro (`byref`) | valor | `&x` |
+| ponteiro (`byref`) | ponteiro | `x` |
+| cópia | valor | `x` |
+| cópia | ponteiro | `*x` |
+
+**É a regra que faz verbo aninhar.** `slice.length(slice.of(b))` funciona porque `of` devolve um `slice` por valor e `length` recebe por valor — nada a adaptar. Com `length` recebendo ponteiro, o C recusaria: não há como tomar o endereço do resultado de uma chamada, e keel teria de inventar um temporário que ninguém escreveu.
 
 ```keel
 arena  a;   arena.alloc(a, i32, 4);      /* valor    */

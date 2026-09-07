@@ -28,6 +28,5 @@ pub int dobro_log(int n) {
 /* Forma de DEFAULT: a expressão entra no `win` e é reatribuída ao símbolo. */
 pub size_t tamanho(int n, i32 *base) {
     outcome slice i32 s = vista(n, base) else slice.from(i32, base, 0);
-    slice i32 sv = outcome.value(s);
-    return slice.length(sv);
+    return slice.length(outcome.value(s));   /* verbo sobre verbo: aninha */
 }

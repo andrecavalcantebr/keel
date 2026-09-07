@@ -45,10 +45,25 @@ Para instalar em desenvolvimento: copiar `editors/vscode/` para
 
 Zed não tem comando de linha para isso: a instalação é pela interface.
 
+> **`editors/zed/` não pode ser instalado direto.** O Zed exige que uma extensão
+> seja um **repositório Git**, e recusa um subdiretório de outro repositório —
+> isso está nos docs dele e foi confirmado na prática. É o que o script abaixo
+> resolve.
+
+```sh
+./editors/instalar-zed.sh                 # → ~/.local/share/keel-zed
+./editors/instalar-zed.sh /outro/lugar
+```
+
+Ele copia `editors/zed/` para um diretório próprio e faz `git init` ali. Depois:
+
 1. Abrir a paleta de comandos e rodar **`zed: install dev extension`** — ou ir à
    página de extensões e clicar em **Install Dev Extension**.
-2. Escolher o diretório **`editors/zed/`** deste repositório.
+2. Escolher o diretório que o script criou.
 3. Abrir um `.k`. A linguagem aparece como `keel` no seletor do rodapé.
+
+Mexeu no `highlights.scm` ou rodou o `gerar.py`? Rode o script de novo e
+`zed: reload extensions`.
 
 Na primeira instalação o Zed **baixa e compila o `tree-sitter-c`** fixado no
 `extension.toml`, o que exige rede e o `wasi-sdk` — que o próprio Zed busca
@@ -62,7 +77,12 @@ ela só declara uma linguagem e uma gramática, então o `wasm32-wasip2` do
 Se algo falhar, `zed: open log` mostra o erro; `zed --foreground` a partir do
 terminal mostra mais.
 
-Para atualizar depois de mexer no `highlights.scm`: `zed: reload extensions`.
+**Por que `editors/` não mora fora do repositório do keel.** Seria a saída
+óbvia para o problema do repositório próprio, e não funciona: `gerar.py` lê a
+tabela do §3.7 de `keel-spec.md`, que fica ao lado. Fora daqui o gerador quebra,
+e a lista de palavras volta a ser digitada à mão — que é exatamente o que ele
+existe para evitar. Por isso a fonte fica no repositório e o que sai é uma
+cópia.
 
 ## Zed — o que ele consegue, e por que menos que o VSCode
 
@@ -105,8 +125,8 @@ extensão de linguagem real do repositório do Zed e com
 forma de lista, que é antiga, para a de tabela. O `commit` da gramática é a tag
 v0.24.2, resolvida com `git ls-remote --tags`.
 
-A extensão instala como *dev extension* apontando para `editors/zed/`, e o
-realce aparece: as palavras de unidade, de fluxo e de tipo composto, os tipos da
+A extensão instala como *dev extension* — de uma cópia com `git init` própria,
+nunca de `editors/zed/` direto — e o realce aparece: as palavras de unidade, de fluxo e de tipo composto, os tipos da
 camada zero, os nomes da base, e comentário e string intactos.
 
 O que **não** foi medido é a **cobertura palavra por palavra**, que do lado

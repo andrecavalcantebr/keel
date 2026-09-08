@@ -5,3 +5,13 @@
 # Gerar/atualizar:  ./golden/gerar-ccjson.sh
 CompileFlags:
   CompilationDatabase: golden
+
+# O IncludeCleaner está errado neste projeto POR CONSTRUÇÃO. Ele marca
+# `keel/prelude.h` como "não usado diretamente" em todo `.h` gerado, porque o
+# que o cabeçalho usa — `bool`, `size_t` — ele atribui aos headers que o
+# prelúdio inclui, e não ao prelúdio. Só que o prelúdio é NORMATIVO no topo de
+# todo `.h` de módulo (backend §4.2): seguir o conselho quebraria a forma que
+# os casos existem para fixar.
+Diagnostics:
+  UnusedIncludes: None
+  MissingIncludes: None

@@ -1,8 +1,0 @@
-/* gen/pilha/pilha.h — o `.h` do módulo, uma vez. A constante não menciona
-   parâmetro nem modificador, então não pertence a instância nenhuma e o nome
-   não leva o argumento (backend §4.4.1). */
-#ifndef PILHA_H
-#define PILHA_H
-#include "keel/prelude.h"
-constexpr i32 pilha_VAZIA = -1;
-#endif

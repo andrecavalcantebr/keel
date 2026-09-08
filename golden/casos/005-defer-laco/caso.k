@@ -1,8 +1,14 @@
 module app.lc;
-import_c <stdio.h>;
 
-pub int adquire(int i);
-pub void solta(int h);
+priv int vivos  = 0;
+priv int soltos = 0;
+
+priv int  adquire(int i) { vivos++; return i == 3 ? 0 : (i == 7 ? 95 : i + 1); }
+priv void solta(int h)   { (void)h; vivos--; soltos++; }
+
+pub int  vivos_agora(void)  { return vivos; }
+pub int  soltos_agora(void) { return soltos; }
+pub void zera(void)         { vivos = 0; soltos = 0; }
 
 /* Corpo de laço com saídas mistas: `continue`, `break` e `return` vão para
    lugares diferentes, então o cleanup baixa INLINE em cada saída, e não em

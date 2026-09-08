@@ -1,16 +1,30 @@
 # golden — casos normativos
 
-Cada caso é um par: o fonte keel (`caso.k`) e **o C que ele deve produzir**
-(`esperado.c`, `esperado.h`), escrito à mão a partir da spec.
+Cada caso separa **dois papéis** que não podem se misturar:
 
-Servem a duas coisas, e a segunda foi a que os motivou:
+    casos/<caso>/caso.k              o fonte keel, e ele é COMPLETO — define os
+                                     próprios `priv`, e o que o teste precisa
+                                     observar sai por `pub`
+    casos/<caso>/esperado/c23/       o que o cgen deve produzir, e SÓ isso
+    casos/<caso>/esperado/c11/       idem, no outro perfil
+    casos/<caso>/prova.c             o arnês; NÃO é saída do transpilador
+    casos/<caso>/VERIFICA            quando o que se afirma não é "compila"
 
-1. **Fixtures do cgen.** Quando o parser existir, `cgen caso.k` tem de produzir
-   `esperado.c` — não byte a byte necessariamente, mas com o mesmo sentido, que
-   é o que a spec §7.1 obriga.
-2. **Verificação da própria spec.** O C esperado **compila**, nos dois perfis,
-   com `-pedantic-errors`. Onde não dá para escrevê-lo, é lacuna da spec — e foi
-   assim que o caso 002 nasceu.
+**`esperado/`** responde *o cgen produziu o que devia?* — é o alvo de comparação
+quando o transpiler existir. Um módulo com `pub` tem `.h` e `.c`; um módulo que
+declara `main` tem também a unidade de entrada `main_<módulo>.c`, porque ela não
+vai dentro do `.c` do módulo (`backend §5.8`).
+
+**`prova.c`** responde *o que ele produziu se comporta como a spec diz?* Ele
+inclui o `.h` gerado, toca **só a interface pública**, e afirma. Compila junto
+com o gerado e roda. Nunca é comparado com nada — é código de teste, para
+sempre. Casos cujo `.k` declara `main` não têm `prova.c`: as asserções vivem no
+fonte keel e o ponto de entrada é o wrapper gerado.
+
+A separação não é organização: **misturá-los foi o que invalidou a primeira
+versão destes casos.** Com o arnês dentro do `esperado.c`, dezesseis casos
+ficaram sem `.h` e catorze puseram `int main` no `.c` do módulo — um transpiler
+correto falharia a comparação em todos. O runner agora recusa as duas coisas.
 
 ## Para o editor achar os headers
 

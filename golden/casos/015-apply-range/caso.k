@@ -1,10 +1,11 @@
 module app.ap;
 import keel.buffer as buffer types;
 import keel.range  as range  types;
-import_c <stdio.h>;
 
-priv void dobra(i32 v, size_t i);
-priv void escala(i32 v, size_t i, i32 k);
+priv i32 acc = 0;
+priv void dobra (i32 v, size_t i)        { acc += v * 2 + (i32)i; }
+priv void escala(i32 v, size_t i, i32 k) { acc += v * k + (i32)i; }
+pub  i32  soma_acc(void) { return acc; }
 
 /* `apply` é `foreach` de corpo fixo. `fn` recebe elemento e índice, nessa
    ordem, e os argumentos de contexto atravessam opacos depois deles (§4.7). */

@@ -1,7 +1,8 @@
 module app.dl;
-import_c <stdio.h>;
 
-pub void anota(int v);
+priv int visto = 0;
+priv void anota(int v) { visto = v; }
+pub  int  ultimo(void) { return visto; }
 
 /* Sem lista, o corpo referencia a variável direto e lê o valor NA SAÍDA.
    Com `[now]`, a cópia é feita no registro. A diferença é semântica. */

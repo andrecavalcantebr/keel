@@ -41,6 +41,13 @@ Confirmado na prática: o GCC 13 reporta `__STDC_VERSION__ == 202000L` sob
 Os headers fixos (`keel/prelude.h`, `keel/arena.h`) e os de instância vivem em
 `c23/keel/` e `c11/keel/`, e diferem exatamente no que `backend §9.1` lista.
 
+## `prova.c` é um arquivo para os dois perfis
+
+O arnês não é derivado: é o mesmo arquivo compilado sob `-std=c11` e `-std=c2x`.
+Então ele **não pode usar grafia que o `backend §9.1` troca** — escreve
+`_Alignof` e `_Static_assert`, nunca `alignof` e `static_assert`. Quem ganha a
+forma certa por perfil é o gerado, não o teste.
+
 ## Casos com VERIFICA
 
 Nem tudo que a spec afirma é "este C compila". O mapeamento de linha do

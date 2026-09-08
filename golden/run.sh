@@ -1,65 +1,69 @@
 #!/usr/bin/env sh
-# golden/run.sh — compila o C esperado de cada caso, nos dois perfis.
-# Um caso com PROBLEMA é xfail: espera-se que NÃO compile, e o arquivo diz por quê.
-CC=${CC:-gcc}
+# golden/run.sh — compila o que o cgen deve produzir, nos dois perfis, e roda a
+# prova de cada caso.
+#
+#   casos/<caso>/caso.k              o fonte keel (mais outros .k, se houver)
+#   casos/<caso>/esperado/<perfil>/  o que o cgen deve produzir
+#   casos/<caso>/prova.c             o arnês — NÃO é saída do transpilador
+#   casos/<caso>/VERIFICA            afirma o que não é "compila"; o script decide
+#   casos/<caso>/PROBLEMA            xfail: espera-se que NÃO compile
+#
 # -Werror=vla cobra uma afirmação normativa: a linguagem §4.4 diz que keel não
-# emite VLA nem alloca em lugar nenhum. Se um `constexpr` deixar de ser
-# expressão constante, o vetor vira VLA e a suíte inteira acusa.
+# emite VLA nem alloca em lugar nenhum.
+CC=${CC:-gcc}
 FLAGS="-pedantic-errors -Wall -Wextra -Wno-unused-parameter -Wvla -Werror=vla"
-# `parallel` é a única construção cujo gerado depende de algo fora do C: a spec
-# promete que ele compila e roda igual sem OpenMP, então cada caso com `#pragma
-# omp` roda nas duas configurações.
 ok=0; falha=0; xfail=0; xpass=0
+
 for caso in casos/*/; do
   nome=$(basename "$caso")
   for perfil in c23 c11; do
-    [ "$perfil" = c23 ] && std=c2x src="$caso/esperado.c"     || std=c11
-    [ "$perfil" = c11 ] && { src="$caso/esperado.c11.c"; [ -f "$src" ] || src="$caso/esperado.c"; }
-    [ -f "$src" ] || continue
-    # um caso com VERIFICA não é compilado: o script é que decide. É como se
-    # afirma coisa que não é "compila" — o mapeamento de linha, por exemplo,
-    # que exige um erro do compilador C apontando o .k
+    [ "$perfil" = c23 ] && std=c2x || std=c11
+    ger="$caso/esperado/$perfil"
+    [ -d "$ger" ] || { printf 'SEM    %-24s %s  — sem esperado/%s\n' "$nome" "$perfil" "$perfil"; falha=$((falha+1)); continue; }
+
     if [ -x "$caso/VERIFICA" ]; then
       if "$caso/VERIFICA" "$CC" "-std=$std" "$perfil"; then
-        printf 'ok     %-28s %s  (verifica)\n' "$nome" "$perfil"; ok=$((ok+1))
+        printf 'ok     %-24s %s  (verifica)\n' "$nome" "$perfil"; ok=$((ok+1))
       else
-        printf 'FALHA  %-28s %s  (verifica)\n' "$nome" "$perfil"; falha=$((falha+1))
+        printf 'FALHA  %-24s %s  (verifica)\n' "$nome" "$perfil"; falha=$((falha+1))
       fi
       continue
     fi
-    exe=/dev/null; modo=compila
-    # um caso pode ter unidades a mais — `instance` mora num .k do usuário, e o
-    # corpo extern da instância vive no .c dele (linguagem §4.9)
-    aux=""
-    if [ "$perfil" = c11 ]; then
-      [ -f "$caso/aux.c11.c" ] && aux="$caso/aux.c11.c" || { [ -f "$caso/aux.c" ] && aux="$caso/aux.c"; }
-    else
-      [ -f "$caso/aux.c" ] && aux="$caso/aux.c"
+
+    srcs=$(find "$ger" -name '*.c' | sort | tr '\n' ' ')
+    [ -f "$caso/prova.c" ] && srcs="$srcs $caso/prova.c"
+    inc="-I$perfil -I$ger -I$caso"
+
+    # todo módulo com `pub` tem de ter `.h` — foi o que passou despercebido 16 vezes
+    if grep -q '^pub ' "$caso"/*.k 2>/dev/null && ! find "$ger" -name '*.h' | grep -q .; then
+      printf 'FALHA  %-24s %s  — módulo com `pub` e sem .h gerado\n' "$nome" "$perfil"; falha=$((falha+1)); continue
     fi
-    grep -q '^int main' "$src" && { exe=$(mktemp); modo=executa; }
-    [ -n "$aux" ] && modo="$modo, 2 TUs"
-    omps=""
-    grep -q '#pragma omp' "$src" && omps=" -fopenmp"
+
+    modo=compila; exe=/dev/null
+    grep -lq '^int main' $srcs 2>/dev/null && { modo=executa; exe=$(mktemp); }
+    omps=""; grep -lq '#pragma omp' $srcs 2>/dev/null && omps=" -fopenmp"
+
     bom=1
     for omp in "" $omps; do
       [ -z "$omp" ] && extra=-Wno-unknown-pragmas || extra=""
-      $CC -std=$std $FLAGS $extra $omp -I"$perfil" -I"$caso/$perfil" -I"$caso" $(case $modo in compila*) echo -c;; esac) "$src" $aux -o "$exe" 2>/dev/null \
-        && { case $modo in compila*) : ;; *) "$exe" >/dev/null ;; esac; } || bom=0
+      $CC "-std=$std" $FLAGS $extra $omp $inc $([ $modo = compila ] && echo -c) $srcs -o "$exe" 2>/dev/null \
+        && { [ $modo = compila ] || "$exe" >/dev/null; } || bom=0
     done
     [ -n "$omps" ] && modo="$modo, ±omp"
+
     if [ $bom -eq 1 ]; then
       if [ -f "$caso/PROBLEMA" ]; then
-        printf 'XPASS  %-28s %s  — compilou, mas há PROBLEMA registrado\n' "$nome" "$perfil"; xpass=$((xpass+1))
+        printf 'XPASS  %-24s %s  — compilou, mas há PROBLEMA\n' "$nome" "$perfil"; xpass=$((xpass+1))
       else
-        printf 'ok     %-28s %s  (%s)\n' "$nome" "$perfil" "$modo"; ok=$((ok+1))
+        printf 'ok     %-24s %s  (%s)\n' "$nome" "$perfil" "$modo"; ok=$((ok+1))
       fi
+    elif [ -f "$caso/PROBLEMA" ]; then
+      printf 'xfail  %-24s %s  — %s\n' "$nome" "$perfil" "$(head -1 "$caso/PROBLEMA")"; xfail=$((xfail+1))
     else
-      if [ -f "$caso/PROBLEMA" ]; then
-        printf 'xfail  %-28s %s  — %s\n' "$nome" "$perfil" "$(head -1 "$caso/PROBLEMA")"; xfail=$((xfail+1))
-      else
-        printf 'FALHA  %-28s %s\n' "$nome" "$perfil"; falha=$((falha+1))
-        $CC -std=$std $FLAGS -Wno-unknown-pragmas $omps -I"$perfil" -I"$caso/$perfil" -I"$caso" -c "$src" -o /dev/null 2>&1 | sed 's/^/         /' | head -6
-      fi
+      printf 'FALHA  %-24s %s\n' "$nome" "$perfil"; falha=$((falha+1))
+      for s1 in $srcs; do
+        $CC "-std=$std" $FLAGS -Wno-unknown-pragmas $omps $inc -fsyntax-only "$s1" 2>&1 | sed 's/^/         /'
+      done | head -8
     fi
   done
 done

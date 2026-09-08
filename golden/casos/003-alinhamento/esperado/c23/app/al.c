@@ -1,14 +1,11 @@
-/* gen/app/al.c — perfil C23.
-   `from_array_torta` não é verbo de keel: o caso desloca a base à mão para
-   provar que a alocação não depende do alinhamento dela. */
-#include "keel/prelude.h"
-#include "keel/arena.h"
+/* gen/app/al.c — gerado de app/al.k, perfil C23.
+   `main` do keel é função comum e sai manglada como qualquer outra (§5.8). */
+#include "app/al.h"
 #include <stdio.h>
 #include <stdint.h>
 
-typedef struct { alignas(64) f64 x[8]; } app_al_Vec8;
-
-int main(int argc, char **argv) {
+#line 10 "app/al.k"
+int app_al_main(int argc, char **argv) {
     (void)argc; (void)argv;
     static u8 app_al_cru[8192];
     for (size_t d = 0; d < 8; d++) {

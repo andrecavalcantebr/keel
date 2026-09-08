@@ -12,6 +12,18 @@ Servem a duas coisas, e a segunda foi a que os motivou:
    com `-pedantic-errors`. Onde não dá para escrevê-lo, é lacuna da spec — e foi
    assim que o caso 002 nasceu.
 
+## Para o editor achar os headers
+
+Os headers fixos vivem em `c23/keel/` e `c11/keel/`; os gerados de cada caso,
+em `casos/<caso>/esperado/<perfil>/`. Sem saber disso, o clangd não resolve um
+`#include "keel/prelude.h"` sequer.
+
+    ./gerar-ccjson.sh
+
+emite `compile_commands.json` com o include path e o `-std` certos por arquivo —
+o perfil vem do caminho. Zed, VSCode e vim leem daí. Não é versionado, porque
+tem caminhos absolutos: rodar de novo depois de acrescentar um caso.
+
 ## Como roda
 
     ./run.sh            # gcc; CC=clang ./run.sh para outro compilador

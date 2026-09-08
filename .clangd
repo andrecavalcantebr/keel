@@ -1,0 +1,7 @@
+# O único C do projeto é o de golden/, e o banco de compilação vive lá.
+# Sem isto, o clangd só o encontra subindo a partir de um arquivo já dentro de
+# golden/ — com isto, encontra a partir de qualquer lugar do repositório.
+#
+# Gerar/atualizar:  ./golden/gerar-ccjson.sh
+CompileFlags:
+  CompilationDatabase: golden

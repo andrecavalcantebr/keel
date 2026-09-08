@@ -38,6 +38,15 @@ emite `compile_commands.json` com o include path e o `-std` certos por arquivo �
 o perfil vem do caminho. Zed, VSCode e vim leem daí. Não é versionado, porque
 tem caminhos absolutos: rodar de novo depois de acrescentar um caso.
 
+O arquivo fica em `golden/`, e é onde o clangd o acha: ele sobe do diretório do
+arquivo aberto até encontrar. O `.clangd` na raiz do repositório aponta para cá,
+para o caso de a raiz do projeto no editor confundir essa busca.
+
+> **`.k` não é assunto do clangd.** Ele atende C, C++ e ObjC, e mais nada. Num
+> arquivo keel o que existe é o realce do `editors/zed/` — sem resolução de
+> `#include`, sem ir-para-definição, sem diagnóstico. Isso é da alçada do cgen,
+> quando ele existir.
+
 ## Como roda
 
     ./run.sh            # gcc; CC=clang ./run.sh para outro compilador

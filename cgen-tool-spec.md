@@ -1,6 +1,6 @@
 # cgen — Especificação da Ferramenta
 
-**Documento normativo.** Especifica o cgen, transpilador de referência de keel para C23: o que depende da invocação.
+**Documento normativo.** Especifica o cgen, transpilador de referência de keel para C — C11 ou C23, conforme o perfil da §4.9: o que depende da invocação.
 
 Três documentos dividem o assunto, por um critério só:
 
@@ -27,6 +27,8 @@ O `cgen` é o transpilador de referência, e é um **driver sobre o compilador C
 ## 1. Motivação
 
 O cgen deve poder **substituir `gcc` ou `clang` no build system** e tudo continuar funcionando como antes. Trocar `CC = gcc` por `CC = cgen` num Makefile existente é o teste de aceitação da ferramenta, não um caso de uso secundário.
+
+A promessa é exatamente essa, e nada além: o build que existe continua valendo, e nenhuma parte dele precisa ser reescrita. **O que um fonte `.k` acrescenta é uma regra**, porque nenhum build system tem regra embutida para o sufixo — como aconteceria com qualquer linguagem nova no projeto. A §4.10 mostra qual é.
 
 Disso decorre quase todo o resto deste documento: o cgen aceita e repassa as opções do compilador C, dirige a compilação ele mesmo, mantém o significado de `-o`, e produz dependências no formato que make e ninja já consomem. Nada disso é para ser elegante — é para que o build de quem adota keel não precise ser reescrito.
 
@@ -65,7 +67,7 @@ parser → ferramenta:  carrega(nome_do_módulo) → ok | já_carregado | não_e
 
 As duas chamadas são mutuamente recursivas, e é nessa pilha que vive a detecção de ciclo de import: "em carga" é `processa` já estar na pilha para aquele módulo. A regra é da linguagem (`keel-spec.md` §4.1); o que este documento registra é que ela não custa estrutura própria.
 
-**Módulo genérico não acrescenta chamada nem estado a esta interface.** Ele é carregado como qualquer outro; o que muda é que o parser **retém o fluxo de tokens** em vez de descartá-lo depois de gerar, para substituir o parâmetro quando alguém escrever a instância. Reter é estado que depende apenas do fonte, logo é do parser — pelo critério de atribuição da linguagem §6.1, a ferramenta continua dona só do que depende da invocação.
+**Módulo genérico não acrescenta chamada nem estado a esta interface.** Ele é carregado como qualquer outro; o que muda é que o parser **retém o fluxo de tokens** em vez de descartá-lo depois de gerar, para substituir o parâmetro quando alguém escrever a instância. Reter é estado que depende apenas do fonte, logo é do parser — pelo critério de atribuição da tabela de abertura deste documento, a ferramenta continua dona só do que depende da invocação.
 
 ---
 
@@ -90,7 +92,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `-I <dir>` | raiz de busca de módulos; repetível, ordem significativa | `.` |
 | `--dest-dir <dir>` | raiz da saída gerada; a hierarquia dos módulos é espelhada sob ela | `./gen` |
 | `--stop-after=<fase>` | interrompe após `lex`, `parse` ou `gen`; ver §4.2 | não interrompe |
-| `--checks=on\|off` | verificações de limite no código gerado, o `debug` da [catálogo da spec](keel-spec.md#62-catálogo) | `on` |
+| `--checks=on\|off` | verificações de limite no código gerado, o `debug` do [catálogo da spec](keel-spec.md#62-catálogo) | `on` |
 | `--line=on\|off` | emissão de `#line` para o fonte keel; ver backend §6 | `on` |
 | `--main <módulo>` | gera a unidade com o ponto de entrada do C, chamando o do módulo indicado; ver §4.7 | não gera |
 | `--cc=<programa>` | compilador C a invocar | `cc` |
@@ -122,11 +124,11 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 
 ---
 
-> **Nota — não há flag de VLA, nem de threads.** A primeira existiu enquanto `arena.from_stack` admitia tamanho de runtime; com a exigência de constante em tempo de compilação (linguagem §5.2) o lowering ficou único, e a flag que forçaria o outro caminho deixou de ter o que ligar. A segunda nunca chegou a existir, e não deve: `parallel` baixa para diretiva OpenMP (backend §5.9), e quem liga o OpenMP é a flag do **compilador C** — `-fopenmp` — que o cgen já repassa verbatim pela §4.1. Uma opção própria seria uma segunda grafia para a mesma coisa, e as duas poderiam discordar.
+> **Nota — não há flag de VLA, e a de threads não é o que parece.** A primeira existiu enquanto `arena.from_stack` admitia tamanho de runtime; com a exigência de constante em tempo de compilação (linguagem §5.2) o lowering ficou único, e a flag que forçaria o outro caminho deixou de ter o que ligar. A segunda nunca existiu e não deve existir: **ligar** o OpenMP é da flag do compilador C — `-fopenmp` —, que o cgen repassa verbatim e apenas lê (§4.8). Uma opção do cgen que o ligasse seria uma segunda grafia para a mesma coisa, e as duas poderiam discordar. O que o cgen tem é outra coisa: `--parallel-lowering` **seleciona entre os lowerings que o backend especifica**, e por isso muda o gerado em vez de mudar a linha do `cc`.
 
 Opção longa não reconhecida vai para o compilador C, e tem que ir: o próprio gcc tem opções longas (`--param`, `--sysroot`). Consequência aceita: erro de digitação numa opção do cgen chega ao `cc`, que reclama nomeando a opção.
 
-**`-I` é a única opção lida pelos dois lados.** Ela mantém exatamente o significado do gcc e é **repassada sem filtragem**; o cgen apenas também a lê, para achar módulos. Nada impede que `.c` e `.h` escritos à mão convivam com os `.k` nos mesmos diretórios, e é isso que a passagem íntegra preserva.
+**Quatro opções do compilador C são lidas pelos dois lados**, e nenhuma delas é filtrada: `-I`, para achar módulos; `-std=`, para o perfil (§4.9); `-fopenmp`, para o lowering (§4.8); e as de dependência — `-MMD`, `-MD`, `-MF`, `-MT` —, para o depfile (§4.10). Todas mantêm exatamente o significado do gcc e são repassadas íntegras; o cgen apenas também as lê, sempre pela mesma razão: a decisão já está escrita na linha, e ler é a única forma de os dois lados nunca discordarem. Nada impede que `.c` e `.h` escritos à mão convivam com os `.k` nos mesmos diretórios, e é isso que a passagem íntegra preserva.
 
 O cgen **acrescenta** um `-I` a mais na chamada ao `cc`: o do `--dest-dir`, que é fonte confiável de C tanto quanto os diretórios do usuário. Sem ele as inclusões do código gerado não resolvem.
 
@@ -195,7 +197,7 @@ cgen -o prog main.o geom.o http.o
 
 ### 4.5 Depfile
 
-O cgen emite dependências no formato de depfile do gcc — `.d`, o mesmo de `-MMD`. É o único formato de interoperação que make e ninja consomem nativamente, e é o que informa ao build quando reexecutar o cgen porque um `.k` importado mudou.
+O cgen emite dependências no formato de depfile do gcc — o mesmo de `-MMD`. É o único formato de interoperação que make e ninja consomem nativamente, e é o que informa ao build quando reexecutar o cgen porque um `.k` importado mudou. O gatilho, o alvo e a fusão com o que o compilador C reporta estão na §4.10; esta seção responde por **o que entra** no fecho.
 
 **O fecho é transitivo sobre imports, não direto.** A regra não é "os módulos que este importa", e sim "todo `.k` alcançável a partir dele". O motivo é a instância: as funções saem inline num header, então toda unidade de tradução que a inclui embute o código. Editar um módulo genérico três níveis acima tem que retriggar quem alcança aquele header, e não apenas quem escreveu a instância.
 
@@ -285,11 +287,101 @@ implícito por outra razão.
 **Por que não perguntar ao compilador qual é o padrão dele.** Descobrir isso exige
 invocar o `cc` e interpretar a resposta, que varia por compilador e por versão. Seria
 uma segunda fonte de verdade sobre a mesma decisão, e as duas poderiam discordar — o
-mesmo argumento que a §4.1 usa para não ter flag própria de OpenMP. A regra lê o que
-está escrito na linha, e só.
+mesmo argumento pelo qual o cgen **lê** `-fopenmp` em vez de ligá-lo (§4.8). A regra
+lê o que está escrito na linha, e só.
 
 **Esta flag muda o C gerado**, como a `--parallel-lowering` da §4.8. Ela seleciona
 entre lowerings especificados, como `--checks` e `--line`, e entra na ressalva da §5.
+
+---
+
+### 4.10 No build
+
+Um build precisa de três coisas da ferramenta: um alvo previsível, dependências
+que ele saiba ler, e nenhuma surpresa sob `-j`. Esta seção dá as três, e fixa o
+que a §4.4 mostrava só por exemplo.
+
+**Um fonte `.k` por invocação.** Mais de um é erro da ferramenta, com código 2.
+O cgen dirige a compilação, e `-c` e `-o` mantêm o significado do gcc: um `.k`,
+uma unidade de tradução, um objeto. Fontes que **não** são `.k` na mesma linha —
+`.c`, `.o`, `.a` — atravessam para o compilador C como sempre, e é o que permite
+um projeto misto.
+
+**A regra canônica produz o objeto**, e o C gerado é intermediário que o build
+nunca nomeia:
+
+```make
+CC     = cgen
+CFLAGS = -I src -O2 -Wall
+KFLAGS = --dest-dir gen
+
+%.o : %.k
+	$(CC) $(KFLAGS) $(CFLAGS) -MMD -c $< -o $@
+
+prog: main.o geom.o net/http.o
+	$(CC) $^ -o $@
+
+-include $(OBJS:.o=.d)
+```
+
+**Quem quiser ver o `.c` escreve a outra regra**, e ela é escrevível porque o
+alvo é previsível: a §4.6 exige que o nome do módulo concorde com o caminho
+relativo à raiz, então `src/net/http.k` sai em `gen/net/http.c` e o pattern rule
+fecha.
+
+```make
+gen/%.c : src/%.k
+	cgen --stop-after=gen -I src --dest-dir gen $<
+```
+
+Em ninja, a mesma coisa com `deps = gcc`:
+
+```ninja
+rule keel
+  command = cgen --dest-dir gen -I src -MMD -MF $out.d -c $in -o $out
+  depfile = $out.d
+  deps = gcc
+```
+
+#### O depfile
+
+O gatilho é o do gcc: **sem `-MMD` ou `-MD` na linha, nenhum depfile é escrito.**
+Com um deles, o arquivo sai onde `-MF` disser, ou no nome derivado que o gcc
+usaria, e o alvo é o de `-MT`, ou o `.o`.
+
+O conteúdo é que é próprio da ferramenta:
+
+> **O depfile lista, numa regra só, o que o compilador C reportaria e mais o
+> fecho de `.k` alcançável por `import`.** Os dois conjuntos vão fundidos, e não
+> em duas regras.
+
+As duas metades são necessárias e nenhuma cobre a outra: o compilador C reporta
+os headers — gerados e do sistema — que a unidade incluiu; só o cgen sabe que
+`gen/A.c` é função de `A.k` e de todo `.k` que ele alcança. Sem a segunda metade,
+editar um módulo importado não retriga nada e o `.o` fica obsoleto em silêncio —
+que é a falha da §4.5.
+
+**Fundidas numa regra só, e não acrescentadas como segunda regra**, porque o make
+aceitaria as duas mas o ninja lê a primeira e ignora o resto: uma regra a mais
+seria silenciosamente perdida justamente onde o grafo é estático.
+
+Em `--stop-after=gen` não há compilador C a consultar, e o depfile tem só o fecho
+de `.k`, com o `.c` gerado como alvo.
+
+#### Uma invocação gera o fecho
+
+`cgen -c src/main.k` também escreve `gen/geom.c` se `geom` estiver desatualizado
+(§4.4). Para o build isso significa que **duas regras podem escrever o mesmo
+arquivo**, e as duas propriedades que tornam isso inofensivo já estão
+especificadas: o conteúdo é determinístico (backend §7.1), então os dois
+escritores produzem os mesmos bytes; e a escrita é temporário mais `rename`
+(§6), então nenhum leitor vê arquivo pela metade. O trabalho repetido é absorvido
+pela regra de não tocar arquivo idêntico (regra 2 da §6): o segundo escritor compara,
+encontra igual, e não mexe no timestamp.
+
+A consequência prática é que o build **não precisa** declarar os gerados dos
+módulos importados como saídas da regra. Ele declara um alvo por módulo, e a
+redundância se paga sozinha.
 
 ---
 
@@ -335,9 +427,9 @@ A v1 vai pela primeira. A segunda é a porta de saída se o tempo de build incom
 Import circular é diagnóstico. Módulo já carregado nesta invocação não é reprocessado.
 
 **A comparação é de timestamp, e opção não tem timestamp.** É a limitação que
-sobra depois do fecho transitivo, e ela é de outra espécie: as três opções que
-selecionam lowering — `--checks`, `--line` e `--profile` — mudam o conteúdo do
-gerado sem tocar fonte nenhum, então trocar qualquer uma delas **não** invalida o
+sobra depois do fecho transitivo, e ela é de outra espécie: as quatro opções que
+selecionam lowering — `--checks`, `--line`, `--profile` e `--parallel-lowering` —
+mudam o conteúdo do gerado sem tocar fonte nenhum, então trocar qualquer uma delas **não** invalida o
 que já está no `--dest-dir`: o `.h` continua mais recente que o `.k` e o módulo é pulado. É
 para isso que existe o `-f`, e trocar de perfil sem ele deixa a árvore com módulos
 dos dois. Uma implementação pode registrar as opções de lowering ao lado do gerado e
@@ -418,8 +510,44 @@ do keel em parada, para quem quer o build estrito.
 | Código | Situação |
 | --- | --- |
 | 0 | sucesso, com ou sem `warning` |
-| 1 | pelo menos um `error`; nada foi escrito |
-| 2 | erro da ferramenta: argumento inválido, fonte ausente, falha de E/S |
+| 1 | pelo menos um `error` da linguagem; nada foi escrito |
+| 2 | erro da ferramenta; a tabela é a da §7.1 |
+
+### 7.1 Diagnósticos da ferramenta
+
+A tabela da spec é a lista dos diagnósticos **da linguagem** — os que dependem do
+fonte. Restam os que dependem da invocação, e eles são da ferramenta:
+
+| Identificador | Condição |
+| --- | --- |
+| `fonte-multiplo` | mais de um `.k` na mesma invocação (§4.10) |
+| `fonte-nao-encontrado` | o `.k` nomeado não existe ou não pode ser lido |
+| `fonte-fora-de-raiz` | o `.k` não está sob nenhuma raiz `-I` (§4.6) |
+| `fonte-em-varias-raizes` | o `.k` está sob mais de uma raiz (§4.6) |
+| `modulo-nao-encontrado` | um `import` que nenhuma raiz resolve (§3) |
+| `main-sem-entrada` | `--main` sobre módulo sem função de entrada pública (§4.7) |
+| `lowering-indisponivel` | `--parallel-lowering=openmp` sem `-fopenmp` na linha (§4.8) |
+| `opcao-invalida` | opção do cgen com valor fora do enumerado |
+| `falha-de-escrita` | E/S falhou ao escrever sob o `--dest-dir` (§6) |
+
+Quatro regras governam a tabela:
+
+- **Todos são `error`, e todos saem com código 2.** Não há `warning` de
+  ferramenta: o que ela sabe, ela sabe antes de traduzir, e seguir adiante
+  produziria artefato que ninguém pediu.
+- **Nenhum se desliga.** Eles têm nome pela mesma razão que os da linguagem — a
+  mensagem fica estável e o teste pode citá-la —, e não para que `-Wno-` os
+  alcance. `-Wno-` continua valendo só para `warning` da linguagem (§7).
+- **Os dois espaços de nome não se cruzam.** Um identificador desta tabela nunca
+  aparece na da spec, e vice-versa; é o que permite ao filtro de `-W` da §7
+  decidir olhando uma lista só.
+- **A posição é do fonte quando existe uma.** `modulo-nao-encontrado` e
+  `main-sem-entrada` apontam a linha do `import` ou o módulo pedido; os demais
+  não têm posição, e saem no formato do gcc para erro de invocação:
+
+```plain
+cgen: error: mais de um fonte .k na invocação [fonte-multiplo]
+```
 
 ---
 

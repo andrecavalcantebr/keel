@@ -1,0 +1,29 @@
+O que este caso afirma
+======================
+
+Percorrer não exige indexar. `lst.Lista` não declara `length`, `get` nem `ptr`,
+e mesmo assim é percorrível: `walk` pede `begin`, `has_next` e `next`, e nada
+mais. Nenhum dos três é da base — o protocolo é resolvido pela §4.4, e o módulo
+que os declara é do programa. É a prova de que "indexável" e "percorrível por
+cursor" são capacidades independentes (linguagem §5.1).
+
+O cursor é escrito com seu tipo, qualificado pelo módulo do contêiner:
+`lst.cursor` para a lista, `buffer.cursor` para o contêiner da base. O da base
+é declarado uma vez no módulo, e não por instância, porque guarda uma posição e
+não menciona `T` — por isso se escreve sem argumento (backend §5.11).
+
+A ordem das chamadas é a que o contrato fixa: `begin` uma vez na entrada,
+`has_next` antes de cada elemento, `next` uma vez por iteração e depois do
+teste. A lista vazia executa zero iterações, e o `return` dentro do corpo sai
+da função como qualquer outro.
+
+Uma restrição do arnês, e não da linguagem
+==========================================
+
+O fonte deste caso usava `nullptr` para o fim da cadeia, e sob C11 o gerado não
+compila. Isso não é achado sobre keel: o dialeto do C escrito pelo programa é
+assunto do build, e o PPC não observa palavra-chave de C (linguagem §1.2) — quem
+relata é o compilador C, como se espera. O que a troca por `NULL` atende é o
+arnês: um caso golden é compilado nos dois perfis, então o C que ele embute tem
+de ser neutro de dialeto, pela mesma razão que a `prova.c` escreve `_Alignof` e
+nunca `alignof`.

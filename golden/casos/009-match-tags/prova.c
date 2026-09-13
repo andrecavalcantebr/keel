@@ -1,18 +1,36 @@
-/* prova.c — arnês. A máquina cede enquanto `fn1` cede, e o estado avança por
-   atribuição do usuário; o que atravessa estados mora na struct do agente. */
+/* prova.c — arnês. O despacho é por etiqueta, o laço é daqui, e o que
+   atravessa braços mora na struct do agente. */
 #include "ag/ag.h"
 #include <stdio.h>
 
 int main(void) {
-    ag_Agente ag = { ag_ciclo_ST1, 0 };
-    int a = 2;
-    keel_corot_i32 r = ag_passo(&a, &ag);
-    if (!keel_corot_i32_ongoing(r)) return 1;
-    r = ag_passo(&a, &ag);
-    if (!keel_corot_i32_ongoing(r)) return 2;
-    r = ag_passo(&a, &ag);                     /* fn1 vence → ST2 → ST3 → cowin */
-    if (!keel_corot_i32_ok(r)) return 3;
-    if (keel_corot_i32_value(r) != 7) return 4;
+    keel_tagged_ag_Ciclo_void st = { ag_Ciclo_ST1 };
+    ag_Agente ag = { 0 };
+    i32 a = 2;
+
+    keel_corot r = ag_passo(&a, &st, &ag);      /* ST1: fn1 cede            */
+    if (!keel_corot_ongoing(r)) return 1;
+    if (st.tag != ag_Ciclo_ST1) return 2;
+
+    r = ag_passo(&a, &st, &ag);                 /* ST1: fn1 cede de novo    */
+    if (!keel_corot_ongoing(r)) return 3;
+
+    r = ag_passo(&a, &st, &ag);                 /* ST1: fn1 vence → ST2     */
+    if (!keel_corot_ongoing(r)) return 4;       /* o `break` sai do match   */
+    if (st.tag != ag_Ciclo_ST2 || ag.n != 7) return 5;
+
+    r = ag_passo(&a, &st, &ag);                 /* ST2 → ST3, sem cair nele */
+    if (!keel_corot_ongoing(r)) return 6;
+    if (st.tag != ag_Ciclo_ST3) return 7;
+
+    r = ag_passo(&a, &st, &ag);                 /* ST3: vence               */
+    if (!keel_corot_ok(r)) return 8;
+
+    /* etiqueta fora da lista cai no `default:` e sai do despacho */
+    st.tag = 99;
+    r = ag_passo(&a, &st, &ag);
+    if (!keel_corot_ongoing(r)) return 9;
+
     puts("ok");
     return 0;
 }

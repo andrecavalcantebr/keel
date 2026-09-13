@@ -2,6 +2,7 @@
 #ifndef KEEL_BUFFER_I32_H
 #define KEEL_BUFFER_I32_H
 #include "keel/prelude.h"
+#include "keel/buffer.h"
 #include "keel/keel_slice_i32.h"
 #include "keel/keel_outcome_i32.h"
 
@@ -37,10 +38,31 @@ static inline i32   *keel_buffer_i32_pop(keel_buffer_i32 *b) {
 static inline void   keel_buffer_i32_clear(keel_buffer_i32 *b) { b->len = 0; }
 /* único acessor com teste em release; devolve `outcome i32` (backend §5.13) */
 static inline keel_outcome_i32 keel_buffer_i32_at(const keel_buffer_i32 *b, size_t i) {
-    return i < b->len ? keel_outcome_i32_win(b->ptr[i]) : keel_outcome_i32_none();
+    keel_outcome_i32 r = {0};
+    return i < b->len ? keel_outcome_i32_win1(&r, b->ptr[i]) : keel_outcome_i32_none(&r);
 }
 static inline keel_slice_i32 keel_buffer_i32_as_slice(const keel_buffer_i32 *b) {
     return (keel_slice_i32){ b->len, b->ptr };
+}
+/* cursor: `walk` pede `begin`, `has_next` e `next`; `next` devolve o endereço
+   do elemento, então o binder é por ponteiro (linguagem §5.3) */
+static inline keel_buffer_cursor keel_buffer_i32_begin(const keel_buffer_i32 *b) {
+    (void)b; return (keel_buffer_cursor){ 0 };
+}
+static inline bool keel_buffer_i32_has_next(const keel_buffer_i32 *b, keel_buffer_cursor *c) {
+    return c->i < b->len;
+}
+static inline i32 *keel_buffer_i32_next(const keel_buffer_i32 *b, keel_buffer_cursor *c) {
+    return &b->ptr[c->i++];
+}
+/* partição: as `k` partes são disjuntas e cobrem o contêiner; a de índice alto
+   pode sair vazia. O produto é `slice i32` (linguagem §5.3) */
+static inline keel_slice_i32 keel_buffer_i32_partition(const keel_buffer_i32 *b, size_t k, size_t w) {
+    size_t n = b->len, passo = k ? (n + k - 1) / k : n;
+    size_t lo = w * passo, hi;
+    if (lo > n) lo = n;
+    hi = lo + passo; if (hi > n) hi = n;
+    return (keel_slice_i32){ hi - lo, b->ptr + lo };
 }
 /* `slice.of(x,a,b)` — sufixo 2: dois argumentos além do contêiner (§2.1).
    Sem ele colidiria com o de cima; C não tem sobrecarga. */

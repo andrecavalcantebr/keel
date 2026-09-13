@@ -1,0 +1,27 @@
+Contrato exercitado: linguagem §4.8 e §5.7.
+
+O que este caso encontrou
+=========================
+
+**Fim natural não é vitória.** A redação anterior do §4.8 dizia que "o fim
+natural do corpo do worker é sucesso", e a emissão contabilizava uma vitória
+ali. Sob `ANY`, isso torna a política satisfeita por quatro workers que
+terminaram sem achar nada — a busca devolvia verdadeiro sempre. Corrigido na
+linguagem e no backend: **só `win` conta para a política e só `fail` conta
+contra ela**; o fim natural termina o worker sem veredito. `ALL` continua sendo
+satisfeito por quem simplesmente termina, porque o que ele pede é que ninguém
+falhe.
+
+O que este caso afirma
+======================
+
+`interrupted` é consulta, e não saída: devolve `bool` onde foi escrita, não
+salta e não grava status. Quem a observa aqui apenas para de procurar, com um
+`break` que é do `foreach` e não do `parallel`.
+
+O índice gravado é o da **parte**, não o do contêiner. Quem particiona recebe
+um recorte, e converter para índice global é conta do programa — a prova
+confere `9`, que é a posição local mais um, e não `41`.
+
+Sem OpenMP o mesmo C compila e roda em série, e a série é uma das execuções
+permitidas: o runner compila as duas formas.

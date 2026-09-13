@@ -4,5 +4,5 @@
 #include "keel/prelude.h"
 #include "keel/arena.h"
 
-bool app_pool_inicia(keel_arena *a);
+bool app_pool_inicia(arena *a);
 #endif

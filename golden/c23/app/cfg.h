@@ -8,6 +8,6 @@
 
 constexpr size_t app_cfg_MAX = 256;
 
-keel_outcome_i32 app_cfg_soma(keel_arena *a, const char *caminho);
+keel_outcome_i32 app_cfg_soma(arena *a, const char *caminho);
 keel_outcome_i32 app_cfg_soma_scratch(const char *caminho);
 #endif

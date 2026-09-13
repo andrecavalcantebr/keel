@@ -5,6 +5,6 @@
 #line 6 "app/pool.k"
 alignas(64) static u8 app_pool_memo[65536];
 
-bool app_pool_inicia(keel_arena *a) {
+bool app_pool_inicia(arena *a) {
     return keel_arena_from_array(a, app_pool_memo, sizeof app_pool_memo);
 }

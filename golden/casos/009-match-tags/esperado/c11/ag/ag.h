@@ -1,17 +1,18 @@
 /* gen/ag/ag.h — gerado de ag/ag.k, perfil C11.
-   O `enum` da máquina sai do `decl-maquina`, e `pub` o põe no `.h` (§5.6). */
+   O `enum` sai da declaração `tags`, e `pub` o põe no `.h` (backend §5.6). */
 #ifndef AG_AG_H
 #define AG_AG_H
 #include "keel/prelude.h"
-#include "keel/keel_corot_i32.h"
+#include "keel/corot.h"
+#include "keel/keel_tagged_ag_Ciclo_void.h"
 
-typedef struct { int s; int n; } ag_Agente;
+typedef enum ag_Ciclo {
+    ag_Ciclo_ST1,            /* 0 — ordinal da posição escrita */
+    ag_Ciclo_ST2,
+    ag_Ciclo_ST3
+} ag_Ciclo;
 
-typedef enum ag_ciclo {
-    ag_ciclo_ST1,            /* 0 — estado inicial */
-    ag_ciclo_ST2,
-    ag_ciclo_ST3
-} ag_ciclo;
+typedef struct { i32 n; } ag_Agente;
 
-keel_corot_i32 ag_passo(int *a, ag_Agente *ag);
+keel_corot ag_passo(i32 *a, keel_tagged_ag_Ciclo_void *st, ag_Agente *ag);
 #endif

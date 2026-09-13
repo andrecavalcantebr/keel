@@ -1,28 +1,34 @@
 O que este caso encontrou
 =========================
 
-A emissão do backend §5.6, copiada literalmente, NÃO compilava:
+1. Escopo por braço, e não um escopo só.
 
-  error: 'r' undeclared (first use in this function)
+A emissão do backend §5.6 envolve cada braço em chaves, o que cria escopo por
+braço; a gramática sugeria um escopo só. Resolvido a favor do escopo por braço,
+pela razão do despacho: o `match` entra por qualquer etiqueta, porque o valor
+vem de um objeto do programa e atravessa chamadas. Se a declaração de ST1
+alcançasse ST2, o inicializador dela não teria rodado. O que precisa atravessar
+braços vai na struct do agente. Aqui `r` vive só em ST1.
 
-`r` era declarado no bloco de ST1 e usado no de ST2. Não era erro de digitação:
-a regra 2 do §5.6 envolve cada estado em chaves — o que cria escopo por estado
-— enquanto a gramática da linguagem sugeria um escopo só, que é o que o exemplo
-usava. A linguagem não dizia qual dos dois valia.
+2. O parâmetro de escrita da etiqueta sai como `i32`, não como o `enum`.
 
-Resolvido a favor do escopo por estado, pela razão do despacho: a máquina entra
-por qualquer estado, porque o valor vem da variável do usuário e atravessa
-chamadas. Se a declaração de ST1 alcançasse ST2, o inicializador dela não teria
-rodado. O que precisa atravessar estados vai na struct do agente.
+A §4.3 da linguagem tipa esse parâmetro pelo conjunto — `mark(t, E e)` — e é
+isso que autoriza a verificação de pertinência na tradução. No C, porém, o
+`enum` vive no header do módulo que declarou o conjunto, e o header de
+instância é incluído POR ele: emitir `ag_Ciclo` na assinatura faria o header de
+instância depender do header do módulo, e a ordem só fecharia quando a inclusão
+começasse pelo módulo. Com `i32` não há ciclo, e nada se perde — a verificação
+é da tradução, e o C converteria `enum` para `int` em silêncio de qualquer
+forma. O backend §5.6 foi corrigido por causa deste caso.
 
 O que este caso NÃO exercita, e por quê
 =======================================
 
-Entrar com estado fora da lista. O despacho cai no `default:` e sai do bloco do
-`cofsm` — que é o comportamento certo e completo: `cofsm` é statement, e sair
-dele devolve o controle para a linha seguinte.
+Braço compartilhado por rótulos consecutivos. A forma está no exemplo da
+linguagem §4.9 e na emissão do backend §5.6; aqui os três braços têm corpo
+próprio, e o que o caso exercita é o `break` do braço — que sai do despacho e
+cai no statement seguinte ao bloco.
 
-O exemplo aqui envolve o `cofsm` num `while (1)`, e esse laço é do usuário. Sem
-condição de parada ele reentra, como reentraria com um `switch` comum na mesma
-posição. Não é do `cofsm` ter opinião sobre política de avanço (linguagem §4.8),
-então o caso simplesmente não chama esse caminho.
+O laço. O `match` executa um braço por passagem, e quem repete é o chamador: a
+`prova.c` chama `ag_passo` cinco vezes. Não é do `match` ter opinião sobre
+política de avanço (linguagem §4.9).

@@ -1,13 +1,17 @@
 module app.bs;
-import keel.buffer as buffer types;
-import_c <stdio.h>;
+import keel.buffer   as buffer   types;
+import keel.slice    as slice    types;
+import keel.parallel as parallel;
 
-/* ANY: contador e bandeira atômicos, locais do gestor. `interrupted` é o ponto
-   de interrupção declarado, e é obrigatório fora de ALL (error 88). */
+/* Busca: `win` é o único veredito que conta para a política, então `ok` só é
+   verdadeiro se alguém achou (§4.8). Quem observa o pedido de interrupção
+   apenas para de procurar — a consulta não é saída. */
 pub bool achou_alguem(buffer i32 *xs, i32 alvo, buffer size_t *onde) {
-    parallel busca ANY (size_t w : 0..4; i32 x, size_t i : xs; (alvo)) {
-        interrupted;
-        if (x == alvo) { buffer.set(onde, w, i); win; }
+    parallel busca ANY (size_t w : 0..4; slice i32 parte : xs; (alvo, onde)) {
+        foreach (i32 x, size_t i : parte) {
+            if (parallel.interrupted(busca)) break;
+            if (x == alvo) { buffer.set(onde, w, i + 1); win; }
+        }
     }
-    return failed(busca) == false && ok(busca) == false;
+    return parallel.ok(busca);
 }

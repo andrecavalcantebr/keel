@@ -9,7 +9,7 @@ int app_al_main(int argc, char **argv) {
     (void)argc; (void)argv;
     static u8 app_al_cru[8192];
     for (size_t d = 0; d < 8; d++) {
-        keel_arena a = {0};
+        arena a;
         if (!keel_arena_from_array(&a, app_al_cru + d, sizeof app_al_cru - 8)) return 1;
         i32         *p = (i32 *)        keel_arena_alloc_n(&a, 3, sizeof(i32),         _Alignof(i32));
         f64         *q = (f64 *)        keel_arena_alloc_n(&a, 2, sizeof(f64),         _Alignof(f64));

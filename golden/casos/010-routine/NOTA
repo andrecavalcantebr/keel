@@ -1,36 +1,31 @@
-O que este caso prova
-=====================
+Contrato exercitado: linguagem §5.6 (`keel.routine`) e §5.5 (`corot`).
 
-coseq — política de avanço em sequência:
-  * ONGOING repete a MESMA etapa na mesma chamada (o `continue` sobre o for);
-  * o valor do resultado vem da ÚLTIMA etapa;
-  * o código de falha é o ordinal da etapa, base um — falha na segunda dá 2.
+A composição é chamada de função, não construção. Não há gestor injetado, não
+há região de finalização e não há reafirmação de código: o que antes ficava
+depois de um rótulo de saída é o statement seguinte à declaração do resultado —
+aqui, a leitura de `routine.code(passos[2])` em `cadeia_quebrada`.
 
-copar ANY — política de avanço em paralelo cooperativo:
-  * bloco guardado por participante: quem terminou não é chamado de novo;
-  * sai na primeira vitória. Conferido que o segundo participante foi chamado
-    exatamente uma vez.
+`seq` chama a etapa corrente até ela deixar de ceder, avança em SUCCESS e
+encerra no primeiro FAILED. A terceira etapa de `cadeia_quebrada` não é
+chamada, e seu slot permanece em ONGOING — código zero, que é o que a prova
+confere.
 
-Observado, e vale registrar: sob ANY, todos os participantes guardados são
-avançados na rodada em que o primeiro vence — a política é conferida no fim da
-rodada, não entre participantes. É o análogo cooperativo do `parallel`, onde
-quem já tinha terminado quando a bandeira subiu não parou (§4.7).
+`par` avalia a política ao fim do ciclo. Com alvo um entre dois, a segunda
+participante ainda é chamada na rodada em que a primeira vence: a prova
+verifica isso pelo contador do contexto. Com alvo dois entre três, uma falha
+não encerra; duas tornam o alvo impossível.
 
-Uma coisa que este caso NÃO é
-=============================
+O resultado é `outcome u32`: o código diz se a política foi satisfeita, e o
+valor associado é a quantidade de slots que terminaram em SUCCESS. Nenhum valor
+de participante é transportado — elas devolvem `corot`, que não tem valor.
 
-Uma versão anterior desta nota dizia que o `default:` do coseq "colidia" com o
-código da etapa 1. Não colide, e o erro era de leitura do `outcome`: o status é
-binário — `failed` é `code != 0` — e o `code` é CARGA, não status. Ele diz qual
-etapa quebrou, ou qual erro foi. Duas falhas com a mesma carga não violam
-protocolo nenhum.
+O que este caso encontrou
+=========================
 
-E o `default:` do coseq é inalcançável de todo modo: `keel__et` é local gerado,
-recebe só os ordinais que a emissão escreve, e o programa não tem como tocá-lo.
-Ele existe pela exaustividade, que é o que o C pede quando não há fallthrough —
-a mesma razão do cofsm.
-
-O que saiu disso foi uma correção no backend §5.10, regra 5, que justificava o
-`default:` com a situação do §5.6 — "se alguém escrever na variável". No cofsm
-isso vale, porque a variável de estado é do usuário; no coseq não, porque ela é
-gerada e local.
+O header da instância de `slice slot` não pode incluir o da instância de
+`keel.routine`. O backend §4.3 manda um header de instância incluir o do seu
+argumento, e aqui isso fecharia um ciclo: `keel.routine` precisa do tipo do
+recorte para as assinaturas de `seq` e `par`, e o recorte precisa do tipo do
+slot. A saída usada é a ordem — o header de `keel.routine` define o slot e só
+então inclui o do recorte —, e a consequência é que o header do recorte não é
+autocontido. Fechar isso pede um header por declaração, e é decisão do backend.

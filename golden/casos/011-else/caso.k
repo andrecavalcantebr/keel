@@ -4,13 +4,15 @@ import keel.outcome as outcome types;
 import_c <stdio.h>;
 
 priv outcome i32 le(int n) {
-    if (n < 0) return outcome.fail(7);
-    if (n == 0) return outcome.none();
-    return outcome.win(n * 2);
+    outcome i32 r = {0};
+    if (n < 0) return outcome.fail(r, 7);
+    if (n == 0) return outcome.none(r);
+    return outcome.win(r, n * 2);
 }
 priv outcome slice i32 vista(int n, i32 *base) {
-    if (n <= 0) return outcome.none();
-    return outcome.win(slice.from(i32, base, (size_t)n));
+    outcome slice i32 r = {0};
+    if (n <= 0) return outcome.none(r);
+    return outcome.win(r, slice.from(i32, base, (size_t)n));
 }
 
 /* Forma de SAÍDA: o statement entra no `if`, verbatim. */
@@ -25,7 +27,7 @@ pub int dobro_log(int n) {
     return outcome.value(v);
 }
 
-/* Forma de DEFAULT: a expressão entra no `win` e é reatribuída ao símbolo. */
+/* Forma de DEFAULT: `win` recebe o próprio resultado e o valor de default. */
 pub size_t tamanho(int n, i32 *base) {
     outcome slice i32 s = vista(n, base) else slice.from(i32, base, 0);
     return slice.length(outcome.value(s));   /* verbo sobre verbo: aninha */

@@ -4,7 +4,7 @@
 # É necessário: o Zed exige que uma extensão seja um repositório Git, e recusa
 # um subdiretório de outro repositório — verificado na prática, não só nos docs.
 # E `editors/` não pode simplesmente morar fora do repositório do keel, porque
-# `gerar.py` lê a tabela do §3.7 de `keel-spec.md`, que fica ao lado.
+# `gerar.py` lê a tabela do §2.2 de `keel-spec.md`, que fica ao lado.
 #
 #   ./editors/instalar-zed.sh [destino]     (padrão: ~/.local/share/keel-zed)
 #

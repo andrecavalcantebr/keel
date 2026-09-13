@@ -1,13 +1,13 @@
 # editors — realce de sintaxe
 
-Duas extensões, geradas a partir de `keel-spec.md`:
+Duas extensões, com o vocabulário keel gerado a partir de `keel-spec.md`:
 
     python3 editors/gerar.py
 
-**A lista de palavras não é digitada aqui** — o gerador lê a tabela do §3.7 do
+**A lista de palavras não é digitada aqui** — o gerador lê a tabela do §2.2 do
 documento. Se a spec ganhar ou perder uma palavra, rodar o gerador é o que
-mantém os editores em dia, e é por isso que ele existe em vez de dois arquivos
-escritos à mão.
+mantém os editores em dia. No Zed, o gerador combina esse vocabulário com
+`editors/c-highlights.scm`, que contém as regras de realce de C.
 
 ## VSCode — dois arquivos, e a razão é medida
 
@@ -79,33 +79,41 @@ terminal mostra mais.
 
 **Por que `editors/` não mora fora do repositório do keel.** Seria a saída
 óbvia para o problema do repositório próprio, e não funciona: `gerar.py` lê a
-tabela do §3.7 de `keel-spec.md`, que fica ao lado. Fora daqui o gerador quebra,
+tabela do §2.2 de `keel-spec.md`, que fica ao lado. Fora daqui o gerador quebra,
 e a lista de palavras volta a ser digitada à mão — que é exatamente o que ele
 existe para evitar. Por isso a fonte fica no repositório e o que sai é uma
 cópia.
 
-## Zed — o que ele consegue, e por que menos que o VSCode
+## Zed — C e keel no mesmo arquivo
 
-Zed usa Tree-sitter, que é parser e não regex. **Não existe "incluir" o C por
-configuração.** Há dois caminhos, e este repositório traz o barato:
+`grammar = "c"` seleciona o parser. As cores vêm das consultas em
+`highlights.scm`, que a extensão precisa fornecer. A configuração anterior
+continha somente as regras de keel; por isso palavras C como `if` e `return`,
+números, strings e comentários ficavam sem suas capturas de realce.
+A [documentação do Zed](https://zed.dev/docs/extensions/languages#syntax-highlighting)
+descreve essa separação entre gramática e consultas.
 
-**O que está aqui:** a linguagem declara `grammar = "c"` e traz um
-`highlights.scm` próprio, que casa as palavras de keel **por grafia** sobre nós
-`identifier` e `type_identifier`. Funciona bem na massa do arquivo, que é C. Nas
-construções que o parser do C não reconhece — `foreach (i32 v : xs)`,
-`parallel p ANY (…)`, `buffer i32 xs` — o Tree-sitter produz nós de erro e o
-realce degrada. As palavras continuam realçadas; a estrutura em volta, nem
-sempre.
+O gerador agora reúne duas partes no mesmo `highlights.scm`:
 
-O problema de comentário e string não se repete aqui: o parser põe comentário e
-literal em nós próprios, e não há `identifier` dentro deles para a consulta
-casar.
+- `editors/c-highlights.scm`: palavras C, tipos, funções, campos, literais,
+  comentários, operadores, pontuação e diretivas;
+- vocabulário da spec: palavras contextuais, tipos da camada zero e nomes da
+  base keel, reconhecidos em nós `identifier` e `type_identifier`.
 
-**O caminho certo, quando incomodar:** `tree-sitter-keel` estendendo
-`tree-sitter-c`. Tree-sitter suporta herança de gramática — é como
-`tree-sitter-cpp` é feito —, então a forma é a mesma que o VSCode consegue por
-injeção, só que escrita em `grammar.js`. É projeto à parte, não arquivo de
-configuração.
+A regra genérica de nomes de tipo C exclui o vocabulário keel para não disputar
+sua classificação. Comentários e strings são nós próprios; as palavras
+escritas dentro deles não recebem as capturas de keel.
+
+O parser continua sendo o de C. Construções como `buffer i32 xs` e `foreach`
+podem gerar nós de erro e prejudicar o reconhecimento estrutural de funções e
+declarações ao redor. O realce de C não depende de criar outra gramática;
+reconhecimento completo dessas construções exigiria uma gramática de keel.
+
+A extensão instalada pode estar em uma cópia diferente de `editors/zed/`.
+No Linux, o link `~/.local/share/zed/extensions/installed/keel` mostra o destino
+usado pelo Zed. Atualize essa cópia e execute `zed: reload extensions` na
+paleta de comandos. Rodar apenas `gerar.py` atualiza os arquivos deste
+repositório.
 
 ## O que foi verificado, e o que não foi
 
@@ -118,22 +126,23 @@ cabeçalho do arquivo tem como rodar.
 Verificado também o inverso — nada realçado dentro de comentário ou string — e
 que `x.foreach` continua sendo acesso a campo, não palavra.
 
-**Zed: instalado, e o realce visto na tela.** O `extension.toml` e o
-`config.toml` foram validados como TOML e comparados campo a campo com uma
-extensão de linguagem real do repositório do Zed e com
-`docs/src/extensions/languages.md` — foi assim que o `block_comment` saiu da
-forma de lista, que é antiga, para a de tabela. O `commit` da gramática é a tag
-v0.24.2, resolvida com `git ls-remote --tags`.
+**Zed: consultas verificadas com Tree-sitter.** O teste
+`editors/verifica-zed.py` carrega `tree-sitter-c` v0.24.2, a versão fixada no
+manifesto, e compila o `highlights.scm` gerado. Verifica capturas de C e keel no
+caso `006-dim`, uma amostra C com diretivas e escapes, a exclusão de palavras
+dentro de comentários e strings, e a execução das consultas em todos os `.k`
+de `golden/casos/`.
 
-A extensão instala como *dev extension* — de uma cópia com `git init` própria,
-nunca de `editors/zed/` direto — e o realce aparece: as palavras de unidade, de fluxo e de tipo composto, os tipos da
-camada zero, os nomes da base, e comentário e string intactos.
+```sh
+python3 -m venv /tmp/keel-highlight-venv
+/tmp/keel-highlight-venv/bin/pip install tree-sitter==0.25.2 tree-sitter-c==0.24.2
+python3 editors/gerar.py
+/tmp/keel-highlight-venv/bin/python editors/verifica-zed.py
+```
 
-O que **não** foi medido é a **cobertura palavra por palavra**, que do lado
-VSCode é automatizada e aqui exigiria `tree-sitter` instalado. O que se observa
-é a degradação prevista: palavra dentro de construção que o parser do C não
-reconhece — o `ref` de `FILE *ref fp`, o `now` de `defer [now …]` — cai em nó de
-erro e pode não casar a consulta.
+Esse teste verifica capturas, não a cor escolhida pelo tema nem o resultado
+visual de uma janela do Zed. Também não promete cobrir cada palavra dentro de
+construções que o parser de C não reconhece.
 
 ## Nota sobre `.k`
 

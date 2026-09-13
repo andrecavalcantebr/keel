@@ -6,7 +6,7 @@
   "patterns": [
     {
       "name": "keyword.control.keel",
-      "match": "\\b(parallel|coagain|cobreak|foreach|cofail|apply|cofsm|copar|coseq|cowin|defer|later|ALL|ANY|now)\\b"
+      "match": "\\b(parallel|foreach|apply|defer|later|match|fail|tags|walk|ALL|ANY|now|win)\\b"
     },
     {
       "name": "keyword.other.keel",
@@ -18,7 +18,7 @@
     },
     {
       "name": "support.type.base.keel",
-      "match": "\\b(outcome|buffer|strbuf|string|arena|corot|range|slice)\\b"
+      "match": "\\b(outcome|routine|buffer|tagged|arena|corot|range|slice)\\b"
     },
     {
       "match": "(?<![\\w.])(\\d+)(\\.\\.)",

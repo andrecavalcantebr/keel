@@ -40,9 +40,9 @@ Um evocador do parser. Ela resolve caminho de arquivo, decide se algo precisa se
 
 A premissa deste documento é que **a linguagem evolui e a ferramenta não**. O que se congela é pequeno: a linha de comando, a pasta de saída, o formato de diagnóstico e o código de saída. Construção nova na linguagem acrescenta no máximo nomes de diagnóstico.
 
-Os módulos genéricos da linguagem §4.9 são a primeira construção que cobra algo além disso, e vale registrar exatamente o quanto: **nada da superfície congelada muda** — nenhuma opção nova, nenhum diretório novo, nenhum código de saída novo. O que muda são duas regras internas, a §4.5 e a §5, e pelo mesmo motivo nos dois casos: um arquivo gerado deixa de ser função apenas do fonte que o pediu.
+Os módulos genéricos da linguagem §4.3 são a primeira construção que cobra algo além disso, e vale registrar exatamente o quanto: **nada da superfície congelada muda** — nenhuma opção nova, nenhum diretório novo, nenhum código de saída novo. O que muda são duas regras internas, a §4.5 e a §5, e pelo mesmo motivo nos dois casos: um arquivo gerado deixa de ser função apenas do fonte que o pediu.
 
-O `parallel` é a segunda, e **cobrou uma opção** — `--target-openmp` (§4.8). Fica registrado como exceção, com a razão: ela não descreve o fonte nem o conteúdo gerado, e sim uma **propriedade do alvo** que só a invocação conhece, porque o cgen não compila. É a mesma categoria de `--pedantic-names`, e como ela decide apenas um diagnóstico, o teste abaixo continua passando — nenhum byte do gerado depende do seu valor.
+O `parallel` é a segunda, e **cobrou uma opção** — `--parallel-lowering` (§4.8). Fica registrado, com a razão: a linguagem não escolhe o mecanismo de execução, e diz isso por escrito (spec §4.8); quem escolhe é o backend, e quem informa a escolha é a invocação, porque o cgen não compila e só a linha de comando sabe o que o alvo oferece. Ela é da categoria de `--profile` (§4.9), não da de `--pedantic-names`: seleciona entre lowerings especificados e muda o C gerado, sem mudar o que o programa significa.
 
 > **Teste de que a separação funcionou.** Este documento nomeia construções da linguagem — `import`, `module`, `instance` — apenas para dizer de quem é a responsabilidade em cada ponto. Em nenhum lugar ele depende do que elas **significam**: nenhuma regra daqui mudaria se `defer` fosse redefinido amanhã. Quando uma construção nova aparecer, o que se pergunta é uma coisa só — ela faz um arquivo gerado deixar de ser função apenas do fonte que o pediu?
 
@@ -65,7 +65,7 @@ parser → ferramenta:  carrega(nome_do_módulo) → ok | já_carregado | não_e
 
 As duas chamadas são mutuamente recursivas, e é nessa pilha que vive a detecção de ciclo de import: "em carga" é `processa` já estar na pilha para aquele módulo. A regra é da linguagem (`keel-spec.md` §4.1); o que este documento registra é que ela não custa estrutura própria.
 
-**Módulo genérico não acrescenta chamada nem estado a esta interface.** Ele é carregado como qualquer outro; o que muda é que o parser **retém o fluxo de tokens** em vez de descartá-lo depois de gerar, para substituir o parâmetro quando alguém escrever a instância. Reter é estado que depende apenas do fonte, logo é do parser — pelo critério de atribuição da linguagem §7, a ferramenta continua dona só do que depende da invocação.
+**Módulo genérico não acrescenta chamada nem estado a esta interface.** Ele é carregado como qualquer outro; o que muda é que o parser **retém o fluxo de tokens** em vez de descartá-lo depois de gerar, para substituir o parâmetro quando alguém escrever a instância. Reter é estado que depende apenas do fonte, logo é do parser — pelo critério de atribuição da linguagem §6.1, a ferramenta continua dona só do que depende da invocação.
 
 ---
 
@@ -90,12 +90,12 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `-I <dir>` | raiz de busca de módulos; repetível, ordem significativa | `.` |
 | `--dest-dir <dir>` | raiz da saída gerada; a hierarquia dos módulos é espelhada sob ela | `./gen` |
 | `--stop-after=<fase>` | interrompe após `lex`, `parse` ou `gen`; ver §4.2 | não interrompe |
-| `--checks=on\|off` | verificações de limite no código gerado, o `debug` da tabela de diagnósticos da linguagem §6 | `on` |
+| `--checks=on\|off` | verificações de limite no código gerado, o `debug` da [catálogo da spec](keel-spec.md#62-catálogo) | `on` |
 | `--line=on\|off` | emissão de `#line` para o fonte keel; ver backend §6 | `on` |
 | `--main <módulo>` | gera a unidade com o ponto de entrada do C, chamando o do módulo indicado; ver §4.7 | não gera |
 | `--cc=<programa>` | compilador C a invocar | `cc` |
 | `--pedantic-names` | baixa o teto de comprimento de nome gerado de 255 para 63; ver backend §2.4 | desligado |
-| `--target-openmp=<on\|off\|auto>` | se o alvo oferece OpenMP, para decidir o diagnóstico 108; ver §4.8 | `auto` |
+| `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de execução emitido para `parallel`; ver §4.8 | `auto` |
 | `--profile=<c11\|c23\|auto>` | padrão C a que o gerado se conforma; ver §4.9 | `auto` |
 | `-f` | força regeração, ignorando timestamp | desligado |
 | `--cgen-version`, `--cgen-help` | | |
@@ -103,12 +103,12 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 `-o` **não** pertence ao cgen: é do compilador C e mantém o significado de sempre. Foi por isso que a saída gerada ganhou `--dest-dir`.
 
 > **Nota — `-fno-strict-aliasing` é repasse, e é deliberado que seja.** O respaldo
-> de tipo-caractere da arena é uma guarda nomeada da linguagem §7.1, e quem a
+> de tipo-caractere da arena é uma guarda nomeada da linguagem §6.3, e quem a
 > honra é o backend (backend §5.4.1). Num alvo em que ela não se sustente, o
 > remédio é essa flag do compilador C — que atravessa verbatim, como qualquer
 > outra, **sem opção própria do cgen**. Ter uma seria uma segunda fonte de verdade
-> sobre uma decisão que já é do `cc`, que é o mesmo argumento de não ter flag
-> própria de OpenMP (§4.8). E ela não entra por omissão: o custo recai sobre todo
+> sobre uma decisão que já é do `cc`, que é o mesmo argumento pelo qual o cgen
+> **lê** `-fopenmp` em vez de ter uma opção que o ligue (§4.8). E ela não entra por omissão: o custo recai sobre todo
 > programa, e o risco que ela paga não foi reproduzido em nenhum compilador
 > testado.
 
@@ -122,7 +122,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 
 ---
 
-> **Nota — não há flag de VLA, nem de threads.** A primeira existiu enquanto `arena.from_stack` admitia tamanho de runtime; com a exigência de constante em tempo de compilação (linguagem §4.4) o lowering ficou único, e a flag que forçaria o outro caminho deixou de ter o que ligar. A segunda nunca chegou a existir, e não deve: `parallel` baixa para diretiva OpenMP (backend §5.9), e quem liga o OpenMP é a flag do **compilador C** — `-fopenmp` — que o cgen já repassa verbatim pela §4.1. Uma opção própria seria uma segunda grafia para a mesma coisa, e as duas poderiam discordar.
+> **Nota — não há flag de VLA, nem de threads.** A primeira existiu enquanto `arena.from_stack` admitia tamanho de runtime; com a exigência de constante em tempo de compilação (linguagem §5.2) o lowering ficou único, e a flag que forçaria o outro caminho deixou de ter o que ligar. A segunda nunca chegou a existir, e não deve: `parallel` baixa para diretiva OpenMP (backend §5.9), e quem liga o OpenMP é a flag do **compilador C** — `-fopenmp` — que o cgen já repassa verbatim pela §4.1. Uma opção própria seria uma segunda grafia para a mesma coisa, e as duas poderiam discordar.
 
 Opção longa não reconhecida vai para o compilador C, e tem que ir: o próprio gcc tem opções longas (`--param`, `--sysroot`). Consequência aceita: erro de digitação numa opção do cgen chega ao `cc`, que reclama nomeando a opção.
 
@@ -150,10 +150,10 @@ Com `--stop-after=gen`, ou com `-c` repassado ao compilador C, cada módulo é c
 
 Instâncias são header-only, então **um `.k` produz um `.c` e um `.o`, e nada além** (backend §4.1). Não existe alvo gerado sem fonte keel correspondente, e portanto não há lista dinâmica para o build acompanhar por glob, manifesto ou arquivo agregador. Isso importa especialmente para ninja e cmake, cujos grafos são estáticos e montados antes da compilação: alvo novo aparecendo no meio do build seria justamente o que eles não sabem tratar.
 
-**Módulo genérico não abre exceção.** Ele próprio é um `.k` e produz o seu par, praticamente vazio. As instâncias que ele origina continuam header-only por omissão. A única forma de obter corpo fora de linha é a declaração `instance` da linguagem §4.9, e ela mora num `.k` que o usuário escreveu — com o `.o` e a regra que ele mesmo pôs no build. A ferramenta não descobre alvo nenhum sozinha, e continua não precisando.
+**Módulo genérico não abre exceção.** Ele próprio é um `.k` e produz o seu par, praticamente vazio. As instâncias que ele origina continuam header-only por omissão. A única forma de obter corpo fora de linha é a declaração `instance` da linguagem §4.3, e ela mora num `.k` que o usuário escreveu — com o `.o` e a regra que ele mesmo pôs no build. A ferramenta não descobre alvo nenhum sozinha, e continua não precisando.
 
 **A colisão de símbolos é verificada no que a invocação alcança**, e é isto que a
-linguagem §4.2 promete: o módulo em tradução mais o fecho transitivo dos seus
+linguagem §4.1 promete: o módulo em tradução mais o fecho transitivo dos seus
 `import`. Módulos que não se importam não entram no conjunto de nenhuma invocação,
 e a colisão entre eles é erro de link — a mesma falha, com a mesma mensagem, de
 dois `.c` definindo o mesmo global. Acumular símbolos entre invocações para fechar
@@ -232,23 +232,23 @@ Diagnósticos próprios:
 
 Sem a flag, nenhuma unidade de entrada é gerada — o caso normal de quem está só compilando módulos para objeto.
 
-### 4.8 Disponibilidade de OpenMP
+### 4.8 Lowering de `parallel`
 
-O `parallel` da linguagem baixa para diretiva, e a diretiva é ignorável: sem OpenMP o programa **continua correto** e a travessia sai em série (backend §5.9.1). Isso torna a disponibilidade um assunto de **aviso**, não de erro, e é o que o diagnóstico 108 `openmp-indisponivel` expressa.
+A linguagem não escolhe o mecanismo de execução de um `parallel`: série, OpenMP, pool de threads ou outro produzem execuções que a semântica já permite, e nenhuma delas exige diagnóstico (spec §4.8). Quem escolhe é o backend; quem informa a escolha é a invocação, porque o cgen não compila e só a linha de comando sabe o que o alvo oferece.
 
-Quem decide se o alvo oferece OpenMP é a invocação, porque o cgen não compila — e por isso a flag:
+| Valor | O cgen pede ao backend |
+| --- | --- |
+| `openmp` | o lowering por diretiva OpenMP |
+| `serie` | as partes uma depois da outra, sem diretiva |
+| `auto` | procura `-fopenmp` ou `-fopenmp=…` entre as opções repassadas: achando, `openmp`; senão, `serie` |
 
-| Valor | O cgen assume | Diagnóstico 108 |
-| --- | --- | --- |
-| `on` | o alvo oferece | não emitido |
-| `off` | o alvo não oferece | emitido, uma vez por módulo que use `parallel` |
-| `auto` | procura `-fopenmp` ou `-fopenmp=…` entre as opções repassadas | segue o que achou |
+**`auto` é o padrão, e ele lê a linha de comando em vez de adivinhar.** A flag do OpenMP já está lá, escrita pelo usuário, e é a mesma que o `cc` vai receber — então lê-la é a única forma de os dois nunca discordarem. `-fopenmp` continua sendo repassado íntegro (§4.1); o cgen apenas também o lê, como faz com `-I` (§4.1) e com `-std=` (§4.9), e pelo mesmo motivo.
 
-**`auto` é o padrão, e ele lê a linha de comando em vez de adivinhar.** A flag do OpenMP já está lá, escrita pelo usuário, e é a mesma que o `cc` vai receber — então lê-la é a única forma de os dois nunca discordarem. Um `--target-openmp=on` sem `-fopenmp` na linha é permitido e é problema de quem o escreveu: o `#warning` do C gerado ainda dispara, porque `_OPENMP` não estará definido.
+**Pedir `openmp` sem `-fopenmp` na linha faz o cgen recusar a invocação**, como qualquer combinação inválida de opções. O programa continuaria correto em série, mas o que foi pedido não pode ser entregue, e entregar outra coisa em silêncio é pior do que parar. Não há o caso inverso: `serie` está sempre disponível.
 
-`-fopenmp` continua sendo repassado íntegro (§4.1) — o cgen apenas também o lê, como faz com `-I` e pelo mesmo motivo.
+**Não há mais diagnóstico de indisponibilidade.** Ele existia quando o lowering era um só e a ausência de OpenMP era um desvio a relatar; com a escolha do mecanismo pertencendo ao backend, executar em série deixou de ser desvio e passou a ser uma das emissões previstas. Quem exige paralelismo de verdade escreve `--parallel-lowering=openmp`, e aí a ausência para o build no cgen, antes de compilar.
 
-**A flag não muda o C gerado.** Ela decide um diagnóstico, e nada mais. O conteúdo do `.c` é o mesmo nos três valores, o que preserva a regra da §6.1: nada do que a linha de comando pede entra no arquivo de um módulo.
+**Esta flag muda o C gerado**, e por isso entra na ressalva da §5, com `--profile`, `--checks` e `--line`. O que ela não muda é o conjunto de execuções permitidas, que é o mesmo nos três valores — é o que permite que o padrão seja `auto`.
 
 ---
 
@@ -288,8 +288,8 @@ uma segunda fonte de verdade sobre a mesma decisão, e as duas poderiam discorda
 mesmo argumento que a §4.1 usa para não ter flag própria de OpenMP. A regra lê o que
 está escrito na linha, e só.
 
-**Esta flag muda o C gerado**, ao contrário da `--target-openmp`. Ela seleciona entre
-lowerings especificados, como `--checks` e `--line`, e entra na ressalva da §5.
+**Esta flag muda o C gerado**, como a `--parallel-lowering` da §4.8. Ela seleciona
+entre lowerings especificados, como `--checks` e `--line`, e entra na ressalva da §5.
 
 ---
 
@@ -307,7 +307,7 @@ O mesmo do make, resolvido com chamadas ao sistema.
 
 **Por que o fecho transitivo, e não só o próprio `.k`.** A tradução de `A` lê a
 interface de `B`: o `&` de adaptação vem do parâmetro declarado no callee, e o
-despacho lê a assinatura de lá (linguagem §4.11). Trocar `slice i32` por
+despacho lê a assinatura de lá (linguagem §4.4). Trocar `slice i32` por
 `slice i32 *` num `pub` de `B` muda o C de `A` sem editar `A.k`. Comparando só
 contra o próprio fonte, `A.k` continua mais velho que `gen/A.h`, o cgen pula, e o
 `.c` obsoleto vai para o compilador C.
@@ -398,22 +398,22 @@ Formato do gcc, que editor e IDE já sabem parsear. Severidades `error`, `warnin
 
 Toda posição é no fonte `.k`, nunca no arquivo gerado.
 
-Todo diagnóstico tem nome estável em kebab-case, usado por `-Wno-<nome>`. `error` não se desliga. **A lista de diagnósticos é a tabela única de `keel-spec.md` §2.4**; aqui fica só a convenção de formato.
+Todo diagnóstico tem nome estável em kebab-case, usado por `-Wno-<nome>`. `error` não se desliga. **A lista de diagnósticos é a [tabela da spec](keel-spec.md#62-catálogo)**; aqui fica só a convenção de formato.
 
 `-W<nome>` e `-Wno-<nome>` são lidos pelo cgen, e o repasse ao compilador C é
 **condicionado**: repassa-se o que **não** é nome de diagnóstico do keel. Um
-`-Wno-` de nome do gcc precisa chegar lá; `-Wopenmp-indisponivel` não pode, porque
+`-Wno-` de nome do gcc precisa chegar lá; `-Wtypes-sombreado` não pode, porque
 opção `-W` desconhecida é **erro** no gcc — não aviso — e derrubaria a compilação:
 
 ```plain
-gcc: error: unrecognized command-line option '-Wopenmp-indisponivel'
+gcc: error: unrecognized command-line option '-Wtypes-sombreado'
 ```
 
-O filtro é o que a §7 já tem: a tabela única de `keel-spec.md` §2.4 é a lista dos
+O filtro é o que a §7 já tem: a [tabela da spec](keel-spec.md#62-catálogo) é a lista dos
 nomes que ficam. Nomes fora dela atravessam sem que o cgen os entenda, que é a
 mesma disciplina de `-I` (§4.1). `-Werror` é a exceção que vale para os dois
-lados, porque não é nome de diagnóstico — é o que transforma o warning 108 em
-parada, para quem exige paralelismo de verdade.
+lados, porque não é nome de diagnóstico — é o que transforma qualquer `warning`
+do keel em parada, para quem quer o build estrito.
 
 | Código | Situação |
 | --- | --- |

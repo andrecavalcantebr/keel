@@ -26,7 +26,7 @@ expansão. Essa sintaxe é a linguagem de uso do PPC: descreve transformações 
 keel processa o fonte antes do pré-processador C; o código emitido é compilado
 pelo compilador C do projeto. [Justificativa: macros e sintaxe do PPC](keel-rationale.md#macros-e-sintaxe-do-ppc).
 
-keel reconhece suas construções e seus símbolos no código-fonte, inclusive quando aparecem dentro de expressões. Não realiza análise semântica de expressões C puras nem resolve o sistema de tipos do C.
+keel é um parser de ilhas em um mar de C. keel reconhece suas construções e seus símbolos no código-fonte, inclusive quando aparecem dentro de expressões. Não realiza análise semântica de expressões C puras nem resolve o sistema de tipos do C.
 
 Um modificador atua sobre o tipo que o segue e define sua representação e suas
 operações. Em `buffer struct Person pessoas;`, `buffer` modifica `struct Person`
@@ -1321,6 +1321,7 @@ Todas as verificações desta tabela são de keel:
 | `modifier` fora de módulo genérico | `modifier-fora-de-generico` |
 | Declaração que reutiliza nome de parâmetro genérico | `nome-de-parametro` |
 | Dependência de instanciação circular entre módulos genéricos | `generico-circular` |
+| Cadeia de tipos que se contêm por valor atravessando instância de modificador | `ciclo-de-layout` |
 | `instance` fora de arquivo ou sobre tipo que não é modificador genérico | `instance-fora-de-arquivo`; `instance-nao-modificador` |
 | `instance` sem corpos fora de linha a colocar | `instance-inutil` (`warning`) |
 | Parâmetro por valor de instância `byref` | `byref-param` |
@@ -1406,7 +1407,7 @@ mantendo um único parâmetro.
 
 - [Rationale: modificador e tipo modificado](keel-rationale.md#modificador-e-tipo-modificado).
 - [Rationale: substituição e aridade fixa](keel-rationale.md#substituição-e-aridade-fixa).
-- [Backend: headers de instância](keel-c-backend.md#43-headers-de-instância) e [definição fora de linha](keel-c-backend.md#44-definição-fora-de-linha-de-instância).
+- [Backend: headers de instância](keel-c-backend.md#43-headers-de-instância), [camadas de emissão](keel-c-backend.md#431-camadas-de-emissão), [os quatro artefatos](keel-c-backend.md#432-os-quatro-artefatos) e [definição fora de linha](keel-c-backend.md#44-definição-fora-de-linha-de-instância).
 
 ### 4.4 Resolução de operações
 
@@ -3114,6 +3115,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `modifier-fora-de-generico` | `modifier` fora de módulo genérico | `error` | keel | §4.3 |
 | `nome-de-parametro` | Declaração de símbolo com o nome de um parâmetro do módulo | `error` | keel | §4.3 |
 | `generico-circular` | Módulo genérico que se instancia, com a cadeia na mensagem | `error` | keel | §4.3 |
+| `ciclo-de-layout` | Cadeia de tipos que se contêm por valor atravessando instância de modificador, com a cadeia na mensagem | `error` | keel | §4.3 |
 | `instance-fora-de-arquivo` | `instance` fora de escopo de arquivo | `error` | keel | §4.3 |
 | `instance-nao-modificador` | Argumento de `instance` que não é modificador de módulo genérico | `error` | keel | §4.3 |
 | `instance-inutil` | `instance` sobre genérico inteiramente `pub inline` | `warning` | keel | §4.3 |

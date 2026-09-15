@@ -175,10 +175,10 @@ cgen -I src -c src/main.k -o main.o -O2 -Wall
 O cgen parseia `src/main.k`; cada import carrega e, se desatualizado, gera o módulo importado. Ao final existem:
 
 ```plain
-gen/main.c  gen/main.h
-gen/geom.c  gen/geom.h
-gen/net/http.c  gen/net/http.h
-gen/keel/keel_buffer_geom_Point.h   ...
+gen/main.type.h  gen/main.h  gen/main.impl.h  gen/main.c
+gen/geom.type.h  gen/geom.h  gen/geom.impl.h  gen/geom.c
+gen/net/http.type.h  gen/net/http.h  gen/net/http.impl.h  gen/net/http.c
+gen/keel/keel_buffer_geom_Point.type.h  .h  .impl.h   ...
 ```
 
 E a chamada emitida é uma só, sobre o módulo que foi pedido:
@@ -204,6 +204,14 @@ O cgen emite dependências no formato de depfile do gcc — o mesmo de `-MMD`. �
 Sem genéricos a diferença era invisível, porque o conteúdo da instância não dependia de fonte nenhum (§5). Com eles, um depfile direto deixaria um corpo antigo sobreviver dentro de um `.o` — falha silenciosa, e a pior classe de bug de build.
 
 **O depfile e o critério da §5 são o mesmo fecho, vistos dos dois lados.** Este diz ao build **quando reinvocar** o cgen; aquele diz ao cgen **quando não pular**. Os dois têm de concordar, e concordam por serem o mesmo conjunto — o `.k` alcançável por `import`. Se só um deles fosse transitivo, o build reinvocaria o cgen para nada, ou o cgen regeneraria sem ninguém pedir.
+
+**A metade do compilador C fica mais fina de graça.** Desde o backend §4.3.2 cada
+módulo e cada instância saem em `.type.h`, `.h` e `.impl.h`, e é o compilador C
+que reporta quais deles a unidade de fato incluiu. Nada muda aqui — o depfile
+continua sendo o que ele reporta, fundido com o fecho de `.k` —, mas o efeito é
+que editar um corpo `inline` passa a retriggar só quem chama o verbo, e não todo
+mundo que menciona o tipo. Não há lista a montar: a granularidade vem da
+separação dos arquivos, não de análise da ferramenta.
 
 ### 4.6 Identidade do módulo
 
@@ -390,9 +398,14 @@ redundância se paga sozinha.
 O mesmo do make, resolvido com chamadas ao sistema.
 
 > **O gerado de um módulo é função do fonte dele e da interface dos módulos que
-> ele importa** (backend §7.2). O critério compara, então, o `.h` gerado com **o
+> ele importa** (backend §7.2). O critério compara, então, o gerado com **o
 > mais novo entre o próprio `.k` e os `.k` alcançáveis por `import`,
 > transitivamente**.
+
+A interface de um módulo são dois arquivos desde o backend §4.3.2 — o `.h` e o
+`.type.h` que ele inclui —, e o critério é o mesmo para os quatro gerados: **o
+operando da comparação é o mais antigo deles**. Comparar contra um só deixaria
+passar o caso em que a geração anterior parou no meio.
 
 - gerado não existe, ou é mais antigo que esse máximo → parseia e gera
 - gerado é mais recente → não parseia; **mas os símbolos precisam entrar na tabela**
@@ -430,7 +443,7 @@ Import circular é diagnóstico. Módulo já carregado nesta invocação não é
 sobra depois do fecho transitivo, e ela é de outra espécie: as quatro opções que
 selecionam lowering — `--checks`, `--line`, `--profile` e `--parallel-lowering` —
 mudam o conteúdo do gerado sem tocar fonte nenhum, então trocar qualquer uma delas **não** invalida o
-que já está no `--dest-dir`: o `.h` continua mais recente que o `.k` e o módulo é pulado. É
+que já está no `--dest-dir`: os gerados continuam mais recentes que o `.k` e o módulo é pulado. É
 para isso que existe o `-f`, e trocar de perfil sem ele deixa a árvore com módulos
 dos dois. Uma implementação pode registrar as opções de lowering ao lado do gerado e
 comparar também por elas; a v1 não o faz, e a obrigação fica com quem invoca.
@@ -439,9 +452,13 @@ comparar também por elas; a v1 não o faz, e a obrigação fica com quem invoca
 
 Instância de modificador **embutido** — `buffer`, `slice` — tem conteúdo que é função pura do nome, e o nome é o nome do arquivo (backend §7). A verificação é um `stat`: existe, pula; não existe, gera e escreve. Não se lê nem se compara.
 
-Instância de modificador **do usuário** não tem essa propriedade. O conteúdo de `coll_stack_i32.h` é função do nome **e do corpo de `coll.k`**: editar o `push` do genérico muda o arquivo sem mudar o nome dele.
+Instância de modificador **do usuário** não tem essa propriedade. O conteúdo de `coll_stack_i32.impl.h` é função do nome **e do corpo de `coll.k`**: editar o `push` do genérico muda o arquivo sem mudar o nome dele.
 
 > Para instância de genérico do usuário, o critério é o **timestamp do fonte do módulo genérico** contra o do header de instância. Mais recente, regenera.
+
+Vale para os três headers da instância, e não só para o `.impl.h`: editar `coll.k`
+pode mexer no corpo do modificador tanto quanto nos verbos. A comparação é contra
+o mais antigo dos três, pela razão da §5.
 
 É a mesma comparação da §5, com o fonte do genérico no lugar do fonte do módulo — nenhum mecanismo novo, apenas outro operando. O mesmo vale para o `.c` de um módulo que declare `instance`: ele depende do corpo do genérico, não só do próprio fonte.
 

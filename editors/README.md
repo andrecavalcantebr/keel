@@ -38,8 +38,25 @@ casa a partir do `0` e engole o `..` como número malformado
 (`invalid.illegal.constant.numeric`); casando o operando esquerdo junto, a
 injeção vence por posição.
 
-Para instalar em desenvolvimento: copiar `editors/vscode/` para
-`~/.vscode/extensions/keel/` e recarregar a janela.
+## VSCode — como instalar
+
+```sh
+./editors/instalar-vscode.sh              # link para editors/vscode/
+./editors/instalar-vscode.sh --copiar     # cópia, para levar a outra máquina
+```
+
+O script cria `~/.vscode/extensions/<publisher>.<name>-<version>` a partir do
+`package.json`. Por padrão é um **link simbólico**, e o VSCode segue link: rodar
+`gerar.py` de novo atualiza a extensão instalada sem reinstalar. Depois:
+
+1. Paleta de comandos → **`Developer: Reload Window`**.
+2. Abrir um `.k`. A linguagem aparece como `keel` no rodapé.
+3. Para conferir o escopo de uma palavra: **`Developer: Inspect Editor Tokens
+   and Scopes`**.
+
+`code --list-extensions | grep keel` confirma que o VSCode a enxergou. Outro
+destino vai em `VSCODE_EXT`: `~/.vscode-server/extensions` para Remote-SSH,
+`~/.vscode-oss/extensions` para VSCodium. Para desinstalar, basta apagar o link.
 
 ## Zed — como instalar
 

@@ -2,7 +2,7 @@
    saída do corpo: `continue`, `break` e `return`. Nada pode vazar. */
 
 #include "keel/prelude.h"
-#include "app/lc.impl.h"
+#include "app/app_lc.impl.h"
 #include <stdio.h>
 int main(void) {
     app_lc_zera();

@@ -38,6 +38,25 @@ for caso in casos/*/; do
   done
 done
 
+# O nome do gerado e o do fonte seguem regras DIFERENTES, e as duas são cobradas:
+# o .k mora no caminho do módulo (acima), e o header leva o símbolo manglado sob
+# o diretório dos componentes-pai (backend §4.1). `module app.cfg;` mora em
+# app/cfg.k e gera app/app_cfg.h.
+for caso in casos/*/; do
+  for perfil in c23 c11; do
+    ger="$caso/esperado/$perfil"
+    [ -d "$ger" ] || continue
+    for k in $(find "$caso" -name '*.k' | sort); do
+      grep -q '^pub ' "$k" || continue
+      mod=$(grep -m1 '^module' "$k" | sed 's/^module *//; s/[; ].*//')
+      dir=$(printf '%s' "$mod" | sed 's/\.[^.]*$//; t; s/.*//' | tr '.' '/')
+      sim=$(printf '%s' "$mod" | tr '.' '_')
+      [ -n "$dir" ] && alvo="$ger/$dir/$sim.h" || alvo="$ger/$sim.h"
+      [ -f "$alvo" ] || { printf 'ESTRUT %s — `module %s` deveria gerar %s\n' "$k" "$mod" "$alvo"; estrutura=$((estrutura+1)); }
+    done
+  done
+done
+
 # I1: um .type.h inclui apenas .type.h — é o que torna o grafo de layout um DAG
 for t in $(find c23 c11 casos -name '*.type.h' | sort); do
   mau=$(grep '^#include "' "$t" | grep -v '\.type\.h"' | grep -v 'prelude\.h"')

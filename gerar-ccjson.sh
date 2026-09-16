@@ -39,9 +39,9 @@ entrada() {  # $1 = arquivo relativo, $2... = flags
     entrada "$c" "-I gen -I src"
   done
 
-  # a ferramenta de geração: fecha em si mesma
-  for c in $(find src/codegen/src -name '*.c' 2>/dev/null | sort); do
-    entrada "$c" "-I src/codegen/src"
+  # as ferramentas de bootstrap: fecham em si mesmas
+  for c in $(find tools/codegen/src -name '*.c' 2>/dev/null | sort); do
+    entrada "$c" "-I tools/codegen/src"
   done
 
   # cada árvore de header gerada responde pela própria raiz: é o que faz

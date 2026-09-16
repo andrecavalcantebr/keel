@@ -3,7 +3,7 @@
    recorte, e converter para índice global é conta do programa. */
 
 #include "keel/prelude.h"
-#include "app/bs.impl.h"
+#include "app/app_bs.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include "keel/keel_buffer_size_t.impl.h"
 #include <stdio.h>

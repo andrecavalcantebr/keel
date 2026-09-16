@@ -1,7 +1,7 @@
 /* prova.c — arnês das duas formas da cláusula `else`. */
 
 #include "keel/prelude.h"
-#include "app/el.impl.h"
+#include "app/app_el.impl.h"
 #include <stdio.h>
 int main(void) {
     i32 base[4] = {1,2,3,4};

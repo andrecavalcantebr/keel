@@ -4,8 +4,8 @@
 #ifndef KEEL_KEEL_ROUTINE_AG2_AG_TYPE_H
 #define KEEL_KEEL_ROUTINE_AG2_AG_TYPE_H
 #include "keel/prelude.h"
-#include "keel/corot.type.h"
-#include "ag2/ag2.type.h"
+#include "keel/keel_corot.type.h"
+#include "ag2.type.h"
 
 typedef keel_corot (*keel_routine_ag2_Ag)(ag2_Ag *);
 typedef struct keel_routine_slot_ag2_Ag {

@@ -90,7 +90,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | Opção | Efeito | Padrão |
 | --- | --- | --- |
 | `-I <dir>` | raiz de busca de módulos; repetível, ordem significativa | `.` |
-| `--dest-dir <dir>` | raiz da saída gerada; a hierarquia dos módulos é espelhada sob ela | `./gen` |
+| `--dest-dir <dir>` | raiz da saída gerada; os componentes-pai do módulo viram diretórios sob ela, e o nome do arquivo é o símbolo (backend §4.1) | `./gen` |
 | `--stop-after=<fase>` | interrompe após `lex`, `parse` ou `gen`; ver §4.2 | não interrompe |
 | `--checks=on\|off` | verificações de limite no código gerado, o `debug` do [catálogo da spec](keel-spec.md#62-catálogo) | `on` |
 | `--line=on\|off` | emissão de `#line` para o fonte keel; ver backend §6 | `on` |
@@ -177,7 +177,7 @@ O cgen parseia `src/main.k`; cada import carrega e, se desatualizado, gera o mó
 ```plain
 gen/main.type.h  gen/main.h  gen/main.impl.h  gen/main.c
 gen/geom.type.h  gen/geom.h  gen/geom.impl.h  gen/geom.c
-gen/net/http.type.h  gen/net/http.h  gen/net/http.impl.h  gen/net/http.c
+gen/net/net_http.type.h  gen/net/net_http.h  gen/net/net_http.impl.h  gen/net/net_http.c
 gen/keel/keel_buffer_geom_Point.type.h  .h  .impl.h   ...
 ```
 
@@ -188,6 +188,13 @@ cc -c gen/main.c -o main.o -I src -I gen -O2 -Wall
 ```
 
 `-c` continua significando uma unidade de tradução, um objeto. Os `.c` dos módulos importados não são compilados aqui: eles têm regra própria, disparada por `cgen -c src/geom.k` e `cgen -c src/net/http.k`. **Gerar não é compilar.**
+
+**O fonte e o gerado não se chamam igual, e isso é regra e não descuido**:
+`src/net/http.k` produz `gen/net/net_http.h`. O caminho do `.k` é o nome do
+módulo, cobrado por `module-fora-do-caminho`; o nome do gerado é o símbolo, para
+que o `#include` seja função do nome do tipo. O backend §4.1 dá a razão dos dois.
+Uma regra de padrão do make sobre esses nomes precisa da transformação, não de
+`%`: é um motivo a mais para o depfile da §4.5 ser a interface com o build.
 
 O link é transparente — sem `.k` na linha, o cgen repassa tudo:
 

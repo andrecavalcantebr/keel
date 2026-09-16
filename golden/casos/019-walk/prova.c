@@ -3,7 +3,7 @@
 
 #include "keel/prelude.h"
 #include "keel/keel_buffer_i32.impl.h"
-#include "lst/lst.impl.h"
+#include "lst.impl.h"
 #include <assert.h>
 int main(void) {
     lst_No c = { 3, NULL }, b = { 4, &c }, a = { 1, &b };

@@ -2,7 +2,7 @@
    contagem de sucessos; o que cada participante deixou fica no seu slot. */
 
 #include "keel/prelude.h"
-#include "ag2/ag2.impl.h"
+#include "ag2.impl.h"
 #include "keel/keel_outcome_u32.impl.h"
 #include <assert.h>
 int main(void) {

@@ -342,7 +342,7 @@ deixaria de compilar por um tipo que não usa. E se morassem no mesmo arquivo, u
 módulo que só nomeia `f16` pararia pela guarda de `bf16` — que é o caso comum,
 porque `_Float16` e `__bf16` não chegam juntos aos alvos. **Cada arquivo é
 incluído só quando o módulo nomeia o seu tipo**, e o custo recai exatamente sobre
-quem pediu. É a mesma mecânica de `keel/arena.h`, e pela mesma razão.
+quem pediu. É a mesma mecânica de `keel/keel_arena.h`, e pela mesma razão.
 
 O diagnóstico `formato-estreito-indisponivel` é a versão do cgen dessa parada, para o caso em que o alvo é
 conhecido na invocação; o `#error` é a rede para quando não é. Os dois dizem a
@@ -368,12 +368,46 @@ A invariante sobrevive aos módulos genéricos porque a instância continua send
 Isso **não** quer dizer que o `.c` seja o único arquivo gerado: cada módulo gera três headers além dele, e as instâncias geram os seus. Headers não compilam e não geram objeto, então não são alvos — é justamente por isso que a invariante se sustenta. O corte dos três headers é do §4.3.2, e a razão dele é evitar ciclo de inclusão.
 
 ```text
-modulo.k  →  modulo.type.h                   tipos
-             modulo.h                        interface          → o que se inclui para usar
-             modulo.impl.h                   corpos inline
-             modulo.c                        corpos fora de linha  → modulo.o
-             keel/keel_buffer_f32.type.h  .h  .impl.h  instância   → (nenhum objeto)
+app/cfg.k  →  app/app_cfg.type.h                tipos
+              app/app_cfg.h                     interface          → o que se inclui para usar
+              app/app_cfg.impl.h                corpos inline
+              app/app_cfg.c                     corpos fora de linha  → app_cfg.o
+              keel/keel_buffer_f32.type.h  .h  .impl.h  instância    → (nenhum objeto)
 ```
+
+#### O nome do arquivo é o símbolo; o diretório é o módulo
+
+Os componentes-**pai** do nome do módulo viram diretórios; o nome do arquivo é o
+símbolo manglado do §2.1, com o argumento quando há:
+
+| Declarado | Diretório | Arquivo |
+| --- | --- | --- |
+| `module keel;` | — | `keel.h` |
+| `module keel.arena;` | `keel/` | `keel_arena.h` |
+| `module net.http;` | `net/` | `net_http.h` |
+| `module lst;` | — | `lst.h` |
+| instância `buffer i32` de `keel.buffer` | `keel/` | `keel_buffer_i32.h` |
+| instância `stack i32` de `pilha` | — | `pilha_stack_i32.h` |
+
+**A regra é uma só para módulo e para instância**, e é o que ela compra que a
+justifica ([justificativa: o nome do arquivo gerado é o símbolo](keel-rationale.md#o-nome-do-arquivo-gerado-é-o-símbolo)):
+o header de um tipo passa a ser **função do nome do tipo**, sem que
+se precise saber de qual dos dois ele veio. `keel_arena` mora em
+`keel_arena.h` como `keel_buffer_i32` mora em `keel_buffer_i32.h`. Quem precisa
+emitir um `#include` a partir de um nome de tipo — o próprio cgen, ao resolver a
+regra 5 do §4.3.2 — concatena, em vez de consultar uma tabela.
+
+O preço é a repetição em `net/net_http.h`, e ela é deliberada: o diretório existe
+para agrupar, o nome para identificar, e um não substitui o outro. Sem ela,
+`#include "net/http.h"` traria `net_http_get` de um arquivo cujo nome não o
+nomeia, e a derivação acima deixaria de existir.
+
+**O caminho do fonte é outra regra, e a assimetria é de propósito.** O `.k` mora
+no caminho do módulo — `module app.cfg;` em `app/cfg.k` —, sob pena de
+`module-fora-do-caminho` (linguagem §4.1). Ele pode se dar a esse luxo porque
+**declara o próprio nome na primeira linha**: o caminho é redundante e serve de
+conferência. O header gerado não declara nada — o nome do arquivo é o único
+identificador que ele tem, e por isso carrega o símbolo inteiro.
 
 **O que vai em cada arquivo:**
 
@@ -437,11 +471,11 @@ todo o resto do C gerado usa a grafia keel.
 o único módulo implícito (linguagem §4.1): `arena`, `buffer`, `slice`, `range`,
 `tagged`, `outcome`, `corot`, `routine` e `parallel` **se importam**, e por isso os
 seus headers chegam pela regra geral de import — o `.h` do módulo, mais os headers de instância que ele origina, cada um na camada que a regra de inclusão do §4.3.2 pedir.
-`keel/arena.h` continua existindo e continua sendo C comum, mas ele é o `.h` do
+`keel/keel_arena.h` continua existindo e continua sendo C comum, mas ele é o `.h` do
 módulo `keel.arena`, incluído porque alguém escreveu o `import`, e não porque o
 backend o injeta em toda unidade.
 
-A consequência prática é boa: um módulo que não usa arena não vê `keel/arena.h`,
+A consequência prática é boa: um módulo que não usa arena não vê `keel/keel_arena.h`,
 e um projeto que não importe esse módulo pode usar sua própria `arena` — que é
 exatamente o que a linguagem comprou ao tirar a base do prelúdio.
 
@@ -714,7 +748,7 @@ pub constexpr i32 NONE = INT32_MIN;
 ```
 
 ```c
-/* keel/outcome.h — o .h do módulo, uma vez; sob C23 */
+/* keel/keel_outcome.h — o .h do módulo, uma vez; sob C23 */
 constexpr i32 keel_outcome_OK   = 0;
 constexpr i32 keel_outcome_NONE = (-2147483647 - 1);
 
@@ -978,7 +1012,7 @@ decidiu não gerar.
 A arena é o `.h` do módulo `keel.arena` — C comum, utilizável inclusive a partir de código que não passa pelo keel. Ela chega ao módulo pelo `import`, como qualquer outro (§4.2).
 
 ```c
-/* keel/arena — o typedef no .type.h, os corpos no .impl.h */
+/* keel/keel_arena — o typedef no .type.h, os corpos no .impl.h */
 typedef struct keel_arena {
     size_t         cap;
     size_t         top;
@@ -1356,7 +1390,7 @@ A função de entrada de um módulo é função comum e sai manglada como qualqu
 
 ```c
 /* gen/main_net_http.c */
-#include "net/http.h"
+#include "net/net_http.h"
 int main(int argc, char **argv) { return net_http_main(argc, argv); }
 ```
 
@@ -1416,7 +1450,7 @@ Nove regras de emissão:
 **O tipo do símbolo é do módulo, e sai no header dele** — `keel.parallel` é módulo comum (linguagem §5.7), e o gestor apenas escreve nos seus campos:
 
 ```c
-/* keel/parallel — o typedef no .type.h, os corpos no .impl.h */
+/* keel/keel_parallel — o typedef no .type.h, os corpos no .impl.h */
 #include <stdatomic.h>
 
 typedef struct keel_parallel_control {
@@ -1462,7 +1496,7 @@ A terceira linha é a diferença de modelo em relação à revisão anterior: **
 
 **`relaxed` basta em todos.** A bandeira é dica: vê-la tarde custa iterações, não corretude. O que precisa estar visível ao pai é o que o worker escreveu, e quem sincroniza isso é a barreira implícita no fim do `omp parallel for` — no lowering em série, a própria ordem do programa.
 
-**`<stdatomic.h>` chega com `keel/parallel.h`**, e não depende do OpenMP: `_Atomic` é qualificador de linguagem, e gcc e clang o baixam para instrução ou para builtin `__atomic_*`. Não há alvo em que se tenha o compilador e falte o atômico. Em execução serial as operações continuam corretas, sem contenção.
+**`<stdatomic.h>` chega com `keel/keel_parallel.type.h`**, e não depende do OpenMP: `_Atomic` é qualificador de linguagem, e gcc e clang o baixam para instrução ou para builtin `__atomic_*`. Não há alvo em que se tenha o compilador e falte o atômico. Em execução serial as operações continuam corretas, sem contenção.
 
 **Mapeamento de linhas.** O gestor é região injetada e diverge, como o despacho do `match`; ressincroniza com um `#line` uma vez, depois dele. Dentro do corpo do worker vale a regra do §5.7.
 
@@ -1546,7 +1580,7 @@ Quatro regras de emissão:
 Os dois protocolos que a linguagem §5.1 exige de `walk` e de `parallel` saem como funções de instância comuns (§5.2). O que é próprio deles é onde o tipo do cursor mora e o que a partição devolve.
 
 ```c
-/* keel/buffer.type.h — do módulo, não da instância */
+/* keel/keel_buffer.type.h — do módulo, não da instância */
 typedef struct keel_buffer_cursor { size_t i; } keel_buffer_cursor;
 
 /* keel/keel_buffer_i32.h — da instância; os corpos, no .impl.h dela */
@@ -1690,7 +1724,7 @@ o setter recebe endereço, conforme sua assinatura escrita.
 **`corot` tem o mesmo layout de um `outcome void` e outra leitura do zero.** Ele é tipo, e não modificador (linguagem §5.5): sai **uma vez** no `.type.h` do módulo, sem header de instância e sem sufixo de argumento.
 
 ```c
-/* keel/corot — os typedef no .type.h, os corpos no .impl.h */
+/* keel/keel_corot — os typedef no .type.h, os corpos no .impl.h */
 typedef struct keel_corot { i32 code; } keel_corot;
 
 typedef enum keel_corot_Status {

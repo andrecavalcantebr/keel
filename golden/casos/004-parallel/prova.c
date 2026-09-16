@@ -3,7 +3,7 @@
    segundo teste devolvia falso. */
 
 #include "keel/prelude.h"
-#include "app/val.impl.h"
+#include "app/app_val.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include <stdio.h>
 int main(void) {

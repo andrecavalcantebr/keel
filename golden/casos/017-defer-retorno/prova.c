@@ -3,7 +3,7 @@
    denunciaria a ordem errada, e nenhuma compilação acusaria isso. */
 
 #include "keel/prelude.h"
-#include "app/dr.impl.h"
+#include "app/app_dr.impl.h"
 #include <stdio.h>
 int main(void) {
     app_dr_Rec r = { 5 };

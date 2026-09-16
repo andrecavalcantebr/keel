@@ -2,7 +2,7 @@
 #ifndef KEEL_KEEL_BUFFER_I32_H
 #define KEEL_KEEL_BUFFER_I32_H
 #include "keel/keel_buffer_i32.type.h"
-#include "keel/buffer.type.h"
+#include "keel/keel_buffer.type.h"
 #include "keel/keel_slice_i32.type.h"
 #include "keel/keel_outcome_i32.type.h"
 

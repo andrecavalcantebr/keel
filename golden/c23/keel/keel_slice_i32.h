@@ -5,7 +5,7 @@
 #ifndef KEEL_KEEL_SLICE_I32_H
 #define KEEL_KEEL_SLICE_I32_H
 #include "keel/keel_slice_i32.type.h"
-#include "keel/slice.type.h"
+#include "keel/keel_slice.type.h"
 
 static inline keel_slice_i32 keel_slice_i32_from(i32 *p, size_t n);
 static inline size_t keel_slice_i32_length(keel_slice_i32 s);

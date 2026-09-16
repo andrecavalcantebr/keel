@@ -3,7 +3,7 @@
    Compila junto com esperado/<perfil>/app/cfg.c. */
 
 #include "keel/prelude.h"
-#include "app/cfg.impl.h"
+#include "app/app_cfg.impl.h"
 #include "keel/keel_outcome_i32.impl.h"
 #include <stdio.h>
 int main(void) {

@@ -2,7 +2,7 @@
 #ifndef KEEL_KEEL_OUTCOME_VOID_IMPL_H
 #define KEEL_KEEL_OUTCOME_VOID_IMPL_H
 #include "keel/keel_outcome_void.h"
-#include "keel/outcome.h"
+#include "keel/keel_outcome.h"
 
 static inline bool keel_outcome_void_ok(keel_outcome_void r) { return r.code == 0; }
 static inline bool keel_outcome_void_failed(keel_outcome_void r) { return r.code != 0; }

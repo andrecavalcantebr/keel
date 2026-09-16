@@ -3,7 +3,7 @@
 #ifndef KEEL_KEEL_OUTCOME_KEEL_SLICE_I32_IMPL_H
 #define KEEL_KEEL_OUTCOME_KEEL_SLICE_I32_IMPL_H
 #include "keel/keel_outcome_keel_slice_i32.h"
-#include "keel/outcome.h"
+#include "keel/keel_outcome.h"
 
 static inline bool keel_outcome_keel_slice_i32_failed(keel_outcome_keel_slice_i32 e) { return e.code != keel_outcome_OK; }
 static inline bool keel_outcome_keel_slice_i32_ok    (keel_outcome_keel_slice_i32 e) { return e.code == keel_outcome_OK; }

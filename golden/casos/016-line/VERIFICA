@@ -11,7 +11,7 @@ set -eu
 dir=$(dirname "$0")
 
 esperado=$(grep -n '/\* ERRO \*/' "$dir/app/ml.k" | cut -d: -f1 | tr '\n' ' ')
-saida=$("$1" "$2" -I"$3" -I"$dir/esperado/$3" -c "$dir/esperado/$3/app/ml.c" -o /dev/null 2>&1 || true)
+saida=$("$1" "$2" -I"$3" -I"$dir/esperado/$3" -c "$dir/esperado/$3/app/app_ml.c" -o /dev/null 2>&1 || true)
 obtido=$(printf '%s\n' "$saida" | grep -oE 'app/ml\.k:[0-9]+' | cut -d: -f2 | tr '\n' ' ')
 
 falhou=0
@@ -19,7 +19,7 @@ falhou=0
     echo "  posições: esperado [$esperado]  obtido [$obtido]"; falhou=1; }
 printf '%s\n' "$saida" | grep -q 'f32 \*' || { echo "  falta a grafia keel f32 *"; falhou=1; }
 printf '%s\n' "$saida" | grep -q 'i32 \*' || { echo "  falta a grafia keel i32 *"; falhou=1; }
-printf '%s\n' "$saida" | grep -q 'ml\.c' && { echo "  o nome do gerado vazou"; falhou=1; }
+printf '%s\n' "$saida" | grep -q 'app_ml\.c' && { echo "  o nome do gerado vazou"; falhou=1; }
 
 [ $falhou -eq 0 ] || { printf '%s\n' "$saida" | sed 's/^/    /' | head -4; exit 1; }
 exit 0

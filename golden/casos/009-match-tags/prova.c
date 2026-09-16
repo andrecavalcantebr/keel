@@ -2,8 +2,8 @@
    atravessa braços mora na struct do agente. */
 
 #include "keel/prelude.h"
-#include "ag/ag.impl.h"
-#include "keel/corot.impl.h"
+#include "ag.impl.h"
+#include "keel/keel_corot.impl.h"
 #include "keel/keel_tagged_ag_Ciclo_void.type.h"
 #include <stdio.h>
 int main(void) {

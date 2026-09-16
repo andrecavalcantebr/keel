@@ -1116,6 +1116,41 @@ Referências: [spec v3 §1](keel-spec.md#1-escopo-e-princípios),
 [módulos e modificadores](keel-spec.md#43-módulos-genéricos) e
 [resultados](keel-spec.md#55-keeloutcome-e-keelcorot).
 
+## O nome do arquivo gerado é o símbolo
+
+O header gerado de `keel.arena` chama-se `keel/keel_arena.h`, e não
+`keel/arena.h`. A repetição incomoda à primeira vista, e o mesmo desconforto
+aparece em `net/net_http.h`. Ela é o preço de uma propriedade que se quis:
+
+> O header de um tipo é função do nome do tipo, e de mais nada.
+
+Sem ela, há duas convenções convivendo no mesmo diretório. `keel/arena.h`
+declara `keel_arena` e `keel/keel_buffer_i32.h` declara `keel_buffer_i32` — o
+primeiro nome vem do módulo, o segundo do símbolo. Quem lê `keel_arena` num
+diagnóstico do compilador C, ou quem precisa emitir o `#include` que traz esse
+tipo, tem de saber antes se ele nasceu de um módulo ou de uma instância, porque
+a resposta muda a regra. É uma pergunta que o nome já podia ter respondido.
+
+E é uma pergunta que o **cgen** faz o tempo todo. A regra 5 do backend §4.3.2
+manda cada arquivo com corpo incluir o `.impl.h` de quem ele chama; o gerador
+descobre quem é chamado resolvendo o nome manglado, e o que ele tem em mãos,
+naquele ponto, é exatamente um símbolo. Com a regra uniforme, o include é
+concatenação; sem ela, é consulta a uma tabela de origem que precisaria existir
+só para isso.
+
+**A assimetria com o fonte é deliberada.** O `.k` continua morando no caminho do
+módulo — `module app.cfg;` em `app/cfg.k` —, e o backend não o segue. A razão é
+que os dois arquivos têm quantidades diferentes de informação: o `.k` **declara o
+próprio nome na primeira linha**, então o caminho é redundante e pode servir de
+conferência barata, que é o que `module-fora-do-caminho` faz. O header gerado não
+declara nada sobre si; o nome do arquivo é o único identificador que ele tem, e
+gastá-lo com meia informação seria desperdício.
+
+Instância nunca teve escolha: `buffer i32` não é módulo e não tem caminho de
+módulo para herdar, então o nome dela sempre foi o símbolo. A decisão aqui não
+foi inventar uma convenção — foi **parar de manter duas**, estendendo ao módulo
+a que a instância já obrigava.
+
 ## Arena é um tipo
 
 `arena` já nomeia uma estrutura C que controla uma região de memória por um

@@ -2,7 +2,7 @@
 # golden/run.sh — compila o que o cgen deve produzir, nos dois perfis, e roda a
 # prova de cada caso.
 #
-#   casos/<caso>/caso.k              o fonte keel (mais outros .k, se houver)
+#   casos/<caso>/<caminho-do-módulo>.k   o fonte keel; o caminho vem do `module`
 #   casos/<caso>/esperado/<perfil>/  o que o cgen deve produzir
 #   casos/<caso>/prova.c             o arnês — NÃO é saída do transpilador
 #   casos/<caso>/VERIFICA            afirma o que não é "compila"; o script decide
@@ -24,6 +24,17 @@ for h in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' ! -name '*.impl.h' 
   base=${h%.h}
   for camada in .type.h .impl.h; do
     [ -f "$base$camada" ] || { printf 'ESTRUT %s — falta %s\n' "$h" "$base$camada"; estrutura=$((estrutura+1)); }
+  done
+done
+
+# O caminho do .k é o nome do `module`: é `module-fora-do-caminho` (spec §4.1),
+# e a suíte já o violava em 19 dos 22 fontes — todos chamados `caso.k`, enquanto
+# os `#line` do gerado ao lado já citavam o caminho certo.
+for caso in casos/*/; do
+  for k in $(find "$caso" -name '*.k' | sort); do
+    mod=$(grep -m1 '^module' "$k" | sed 's/^module *//; s/[; ].*//')
+    esperado="$caso$(printf '%s' "$mod" | tr '.' '/').k"
+    [ "$k" = "$esperado" ] || { printf 'ESTRUT %s — declara `module %s`, deveria ser %s\n' "$k" "$mod" "$esperado"; estrutura=$((estrutura+1)); }
   done
 done
 
@@ -65,7 +76,7 @@ for caso in casos/*/; do
     inc="-I$perfil -I$ger -I$caso"
 
     # todo módulo com `pub` tem de ter `.h` — foi o que passou despercebido 16 vezes
-    if grep -q '^pub ' "$caso"/*.k 2>/dev/null && ! find "$ger" -name '*.h' ! -name '*.type.h' ! -name '*.impl.h' | grep -q .; then
+    if find "$caso" -name '*.k' -exec grep -lq '^pub ' {} + 2>/dev/null && ! find "$ger" -name '*.h' ! -name '*.type.h' ! -name '*.impl.h' | grep -q .; then
       printf 'FALHA  %-24s %s  — módulo com `pub` e sem .h gerado\n' "$nome" "$perfil"; falha=$((falha+1)); continue
     fi
 

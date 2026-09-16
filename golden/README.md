@@ -2,9 +2,12 @@
 
 Cada caso separa **dois papéis** que não podem se misturar:
 
-    casos/<caso>/caso.k              o fonte keel, e ele é COMPLETO — define os
+    casos/<caso>/<módulo>.k          o fonte keel, e ele é COMPLETO — define os
                                      próprios `priv`, e o que o teste precisa
-                                     observar sai por `pub`
+                                     observar sai por `pub`. O CAMINHO do arquivo
+                                     é o do `module` que ele declara: `module
+                                     app.cfg;` mora em `app/cfg.k`, senão o caso
+                                     viola `module-fora-do-caminho` (spec §4.1)
     casos/<caso>/esperado/c23/       o que o cgen deve produzir, e SÓ isso
     casos/<caso>/esperado/c11/       idem, no outro perfil
     casos/<caso>/prova.c             o arnês; NÃO é saída do transpilador

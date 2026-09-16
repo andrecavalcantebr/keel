@@ -1,9 +1,11 @@
 /* prova.c — arnês. É regressão do rótulo de término: com a emissão anterior,
    que punha o rótulo ANTES da gravação de SUCCESS, o `fail` era apagado e o
    segundo teste devolvia falso. */
-#include "app/val.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/val.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
+#include <stdio.h>
 int main(void) {
     i32 v[16];
     keel_buffer_i32 b = keel_buffer_i32_of(v, 16);

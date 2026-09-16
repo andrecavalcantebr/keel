@@ -1,8 +1,11 @@
 /* prova.c — arnês. O despacho é por etiqueta, o laço é daqui, e o que
    atravessa braços mora na struct do agente. */
-#include "ag/ag.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "ag/ag.impl.h"
+#include "keel/corot.impl.h"
+#include "keel/keel_tagged_ag_Ciclo_void.type.h"
+#include <stdio.h>
 int main(void) {
     keel_tagged_ag_Ciclo_void st = { ag_Ciclo_ST1 };
     ag_Agente ag = { 0 };

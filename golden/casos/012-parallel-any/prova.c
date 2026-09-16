@@ -1,9 +1,12 @@
 /* prova.c — arnês. Afirma o que o §4.8 promete e nada além.
    O índice gravado é o da PARTE, não o do contêiner: quem parte recebe um
    recorte, e converter para índice global é conta do programa. */
-#include "app/bs.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/bs.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
+#include "keel/keel_buffer_size_t.impl.h"
+#include <stdio.h>
 int main(void) {
     i32 v[64]; size_t o[4] = {0,0,0,0};
     for (size_t i = 0; i < 64; i++) v[i] = (i32)i;

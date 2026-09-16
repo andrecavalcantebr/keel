@@ -4,10 +4,12 @@
 
    Afirma o §4.4: a alocação alinha o endereço, e o `alignas`
    do vetor de respaldo não é o que torna isso correto. */
-#include "app/pool.h"
+
+#include "keel/prelude.h"
+#include "app/pool.impl.h"
+#include "keel/arena.impl.h"
 #include <stdio.h>
 #include <stdint.h>
-
 int main(void) {
     arena a = {0};
     if (!app_pool_inicia(&a)) return 1;

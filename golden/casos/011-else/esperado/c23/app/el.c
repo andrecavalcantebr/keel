@@ -1,9 +1,13 @@
 /* gen/app/el.c — gerado de app/el.k, perfil C23.
    §5.12: a declaração sai como estava, seguida de um `if` cujo teste é o
    `failed` da instância — nunca `if (!x)`. Tudo numa linha só (regra 2 do §6). */
-#include "app/el.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/el.impl.h"
+#include "keel/keel_outcome_i32.impl.h"
+#include "keel/keel_outcome_keel_slice_i32.impl.h"
+#include "keel/keel_slice_i32.impl.h"
+#include <stdio.h>
 #line 6 "app/el.k"
 static keel_outcome_i32 app_el_le(int n) {
     keel_outcome_i32 r = {0};

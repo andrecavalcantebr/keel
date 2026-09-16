@@ -1,9 +1,11 @@
 /* prova.c — arnês do açúcar. O segundo teste é o que importa: o índice tem de
    ser avaliado UMA vez, que é o que o lowering por função garante e o por
    macro não garantiria. */
-#include "app/ac.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/ac.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
+#include <stdio.h>
 int main(void) {
     i32 v[10];
     for (size_t k = 0; k < 10; k++) v[k] = (i32)k;

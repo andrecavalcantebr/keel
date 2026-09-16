@@ -4,10 +4,12 @@
    saltou já contou a sua. Invertido, o `fail` seria apagado.
    O símbolo de controle é declarado FORA do bloco: a linguagem §4.8 o torna
    legível depois dele. */
-#include "app/val.h"
-#include "keel/parallel.h"
-#include "keel/keel_slice_i32.h"
 
+#include "keel/prelude.h"
+#include "app/val.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
+#include "keel/keel_slice_i32.impl.h"
+#include "keel/parallel.impl.h"
 #line 9 "app/val.k"
 bool app_val_tem_negativo(keel_buffer_i32 *xs) {
     keel_parallel_control valida = { .workers = 4, .target = 0 };

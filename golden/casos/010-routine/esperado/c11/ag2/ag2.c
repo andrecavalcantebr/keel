@@ -1,10 +1,12 @@
 /* gen/ag2/ag2.c — gerado de ag2/ag2.k, perfil C11.
    Nenhuma região é injetada: `seq` e `par` são funções da instância, e a
    tabela é um vetor do programa (backend §5.10). */
-#include "ag2/ag2.h"
-#include "keel/corot.h"
-#include "keel/keel_routine_ag2_Ag.h"
 
+#include "keel/prelude.h"
+#include "ag2/ag2.impl.h"
+#include "keel/corot.impl.h"
+#include "keel/keel_outcome_u32.type.h"
+#include "keel/keel_routine_ag2_Ag.impl.h"
 #line 9 "ag2/ag2.k"
 static keel_corot ag2_ola(ag2_Ag *g) { keel_corot r = {0}; if (g->a-- > 0) return keel_corot_again(&r); return keel_corot_win(&r); }
 #line 10 "ag2/ag2.k"

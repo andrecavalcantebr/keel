@@ -1,9 +1,11 @@
 /* prova.c — arnês do caso. NÃO é saída do transpilador: é o programa que
    exercita a interface pública gerada e afirma o comportamento.
    Compila junto com esperado/<perfil>/app/cfg.c. */
-#include "app/cfg.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/cfg.impl.h"
+#include "keel/keel_outcome_i32.impl.h"
+#include <stdio.h>
 int main(void) {
     /* escreve um arquivo com quatro inteiros e soma pela API gerada */
     FILE *f = fopen("/tmp/keel_c001.txt", "w");

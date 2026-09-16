@@ -1,7 +1,11 @@
 /* gen/app/cfg.c — gerado de app/cfg.k, perfil C11. */
-#include "app/cfg.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/cfg.impl.h"
+#include "keel/arena.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
+#include "keel/keel_outcome_i32.impl.h"
+#include <stdio.h>
 #line 11 "app/cfg.k"
 keel_outcome_i32 app_cfg_soma(arena *a, const char *caminho) {
     keel_outcome_i32 resultado = {0};

@@ -1,7 +1,10 @@
 /* gen/app/p.c — gerado de app/p.k, perfil C23. */
-#include "app/p.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/p.impl.h"
+#include "pilha.impl.h"
+#include "pilha_stack_i32.impl.h"
+#include <stdio.h>
 #line 5 "app/p.k"
 int app_p_main(int argc, char **argv) {
     (void)argc; (void)argv;

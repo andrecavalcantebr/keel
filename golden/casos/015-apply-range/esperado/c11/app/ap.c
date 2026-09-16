@@ -1,8 +1,11 @@
 /* gen/app/ap.c — gerado de app/ap.k, perfil C11.
    `apply` é o mesmo laço do `foreach` com corpo fixo, e os índices saem na
    família `keel__i<N>` porque não há binder escrito (backend §5.7, regra 2). */
-#include "app/ap.h"
 
+#include "keel/prelude.h"
+#include "app/ap.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
+#include "keel/keel_range.impl.h"
 #line 5 "app/ap.k"
 static i32 app_ap_acc = 0;
 static void app_ap_dobra (i32 v, size_t i)        { app_ap_acc += v * 2 + (i32)i; }

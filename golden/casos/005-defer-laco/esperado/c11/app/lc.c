@@ -2,8 +2,9 @@
    Alguma saída é `break`/`continue` → forma INLINE (backend §5.5.2). Um rótulo
    só não serviria às três: `continue` cai no incremento, `break` deixa o laço,
    `return` deixa a função. */
-#include "app/lc.h"
 
+#include "keel/prelude.h"
+#include "app/lc.impl.h"
 #line 3 "app/lc.k"
 static int app_lc_vivos  = 0;
 static int app_lc_soltos = 0;

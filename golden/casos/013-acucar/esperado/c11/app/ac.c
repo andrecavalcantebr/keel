@@ -1,8 +1,11 @@
 /* gen/app/ac.c — gerado de app/ac.k, perfil C11.
    §5.3: o açúcar baixa por função `static inline`, nunca por macro — é o que
    garante avaliação única —, e o par `&*` colapsa na geração. */
-#include "app/ac.h"
 
+#include "keel/prelude.h"
+#include "app/ac.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
+#include "keel/keel_slice_i32.impl.h"
 #line 8 "app/ac.k"
 i32 app_ac_troca(keel_buffer_i32 *b, size_t i) {
     *keel_buffer_i32_ptr1(b, i) = *keel_buffer_i32_ptr1(b, i) + 1;

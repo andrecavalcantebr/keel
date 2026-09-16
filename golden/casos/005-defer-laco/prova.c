@@ -1,8 +1,9 @@
 /* prova.c — arnês. Afirma que o cleanup roda uma vez por iteração, em TODA
    saída do corpo: `continue`, `break` e `return`. Nada pode vazar. */
-#include "app/lc.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/lc.impl.h"
+#include <stdio.h>
 int main(void) {
     app_lc_zera();
     if (app_lc_roda(20) != -1) return 1;         /* sai por `return` em i=7 */

@@ -2,8 +2,11 @@
    Despacho por `goto` e blocos rotulados, nunca um `switch` com o corpo do
    usuário dentro. O rótulo vai ANTES da chave, e as chaves são o escopo do
    braço que a linguagem §4.9 exige (backend §5.6, regra 2). */
-#include "ag/ag.h"
 
+#include "keel/prelude.h"
+#include "ag/ag.impl.h"
+#include "keel/corot.impl.h"
+#include "keel/keel_tagged_ag_Ciclo_void.impl.h"
 #line 9 "ag/ag.k"
 static keel_corot ag_fn1(i32 *a) {
     keel_corot r = {0};

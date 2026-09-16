@@ -1,9 +1,10 @@
 /* prova.c — arnês. A ordem é o que importa: `expr` é avaliada ANTES do
    cleanup, e o cleanup zera o campo que a expressão lê. Devolver 0 em vez de 5
    denunciaria a ordem errada, e nenhuma compilação acusaria isso. */
-#include "app/dr.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/dr.impl.h"
+#include <stdio.h>
 int main(void) {
     app_dr_Rec r = { 5 };
     if (app_dr_consome(&r, 0) != 5) return 1;   /* valor ANTES do cleanup */

@@ -2,10 +2,13 @@
    Sob política diferente de `ALL` a vitória arma a bandeira, e o alvo sai como
    literal (backend §5.9). `interrupted` é consulta: devolve `bool` onde foi
    escrita, não salta e não grava status. */
-#include "app/bs.h"
-#include "keel/parallel.h"
-#include "keel/keel_slice_i32.h"
 
+#include "keel/prelude.h"
+#include "app/bs.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
+#include "keel/keel_buffer_size_t.impl.h"
+#include "keel/keel_slice_i32.impl.h"
+#include "keel/parallel.impl.h"
 #line 9 "app/bs.k"
 bool app_bs_achou_alguem(keel_buffer_i32 *xs, i32 alvo, keel_buffer_size_t *onde) {
     keel_parallel_control busca = { .workers = 4, .target = 1 };

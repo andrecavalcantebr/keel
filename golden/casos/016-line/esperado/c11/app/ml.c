@@ -2,8 +2,10 @@
    O §6 é uma invariante sobre dois contadores — a linha do .k em tradução e a
    do arquivo de saída — e `#line` sai SEMPRE que eles divergem. Este arquivo
    emite os que a invariante exige, e nenhum a mais. */
-#include "app/ml.h"
 
+#include "keel/prelude.h"
+#include "app/ml.impl.h"
+#include "keel/keel_buffer_i32.impl.h"
 static void app_ml_solta(app_ml_R *r);
 
 #line 9 "app/ml.k"

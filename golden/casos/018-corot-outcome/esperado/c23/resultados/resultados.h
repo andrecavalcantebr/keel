@@ -3,13 +3,11 @@
    (backend §5.14). */
 #ifndef RESULTADOS_RESULTADOS_H
 #define RESULTADOS_RESULTADOS_H
-#include "keel/prelude.h"
-#include "keel/corot.h"
-#include "keel/keel_outcome_void.h"
-#include "keel/keel_outcome_i32.h"
+#include "resultados/resultados.type.h"
+
 keel_corot resultados_estado(i32 codigo);
 bool resultados_falhou(i32 codigo);
 keel_outcome_void resultados_final(bool falha, i32 codigo);
 i32 resultados_reparar(i32 codigo);
 keel_corot resultados_avaliar_cleanup(i32 *contador);
-#endif
+#endif /* RESULTADOS_RESULTADOS_H */

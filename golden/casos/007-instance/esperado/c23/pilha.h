@@ -3,6 +3,7 @@
    não leva o argumento (backend §4.4.1). */
 #ifndef PILHA_H
 #define PILHA_H
-#include "keel/prelude.h"
+#include "pilha.type.h"
+
 constexpr i32 pilha_VAZIA = -1;
-#endif
+#endif /* PILHA_H */

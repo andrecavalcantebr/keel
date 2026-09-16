@@ -1,9 +1,11 @@
 /* gen/app/g.c — gerado de app/g.k, perfil C23.
    Os dois parâmetros são a MESMA instância: se fossem tipos distintos, passar
    o mesmo objeto nas duas posições não compilaria. */
-#include "app/g.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/g.impl.h"
+#include "grid_grade_3_f32.impl.h"
+#include <stdio.h>
 #line 9 "app/g.k"
 f32 app_g_primeiro(grid_grade_3_f32 *a, grid_grade_3_f32 *b) {
     return *grid_grade_3_f32_ptr3(a, (size_t[3]){0,0,0})

@@ -1,7 +1,8 @@
 /* prova.c — arnês das duas formas da cláusula `else`. */
-#include "app/el.h"
-#include <stdio.h>
 
+#include "keel/prelude.h"
+#include "app/el.impl.h"
+#include <stdio.h>
 int main(void) {
     i32 base[4] = {1,2,3,4};
     if (app_el_dobro(5)  != 10) return 1;

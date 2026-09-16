@@ -11,12 +11,28 @@ Cada caso separa **dois papéis** que não podem se misturar:
     casos/<caso>/VERIFICA            quando o que se afirma não é "compila"
 
 **`esperado/`** responde *o cgen produziu o que devia?* — é o alvo de comparação
-quando o transpiler existir. Um módulo com `pub` tem `.h` e `.c`; um módulo que
-declara `main` tem também a unidade de entrada `main_<módulo>.c`, porque ela não
-vai dentro do `.c` do módulo (`backend §5.8`).
+quando o transpiler existir. Um módulo com `pub` tem **quatro** arquivos, e uma
+instância tem os três primeiros (`backend §4.3.2`):
+
+    <módulo>.type.h    L0+L1  os tipos, e as declarações adiantadas dos campos `X *`
+    <módulo>.h         L2     a interface: inclui o próprio .type.h, mais protótipos
+    <módulo>.impl.h    L3     os corpos `static inline`
+    <módulo>.c         L3     os corpos fora de linha
+
+Um módulo que declara `main` tem também a unidade de entrada `main_<módulo>.c`,
+porque ela não vai dentro do `.c` do módulo (`backend §5.8`).
+
+**O corte em três não é arrumação, é o que impede ciclo de inclusão.** A
+dependência de layout de uma instância corre no sentido contrário do import —
+`keel.buffer` importa `keel.outcome`, e o layout de `keel_outcome_keel_buffer_i32`
+depende do de `keel_buffer_i32`. Com tipos e assinaturas no mesmo arquivo, os dois
+sentidos se encontram e o ciclo é inevitável; separados, cada grafo é acíclico por
+uma razão própria (`backend §4.3.1`).
 
 **`prova.c`** responde *o que ele produziu se comporta como a spec diz?* Ele
-inclui o `.h` gerado, toca **só a interface pública**, e afirma. Compila junto
+inclui o gerado, toca **só a interface pública**, e afirma. Qual camada ele
+inclui sai da regra 5 do `backend §4.3.2` e é sempre a mesma pergunta: **quem
+chama inclui o `.impl.h`**; quem só nomeia um tipo inclui o `.type.h`. Compila junto
 com o gerado e roda. Nunca é comparado com nada — é código de teste, para
 sempre. Casos cujo `.k` declara `main` não têm `prova.c`: as asserções vivem no
 fonte keel e o ponto de entrada é o wrapper gerado.
@@ -25,6 +41,21 @@ A separação não é organização: **misturá-los foi o que invalidou a primei
 versão destes casos.** Com o arnês dentro do `esperado.c`, dezesseis casos
 ficaram sem `.h` e catorze puseram `int main` no `.c` do módulo — um transpiler
 correto falharia a comparação em todos. O runner agora recusa as duas coisas.
+
+## O que o runner checa antes de compilar
+
+O corte em camadas é verificável sem compilador, e um gerado que o violasse
+compilaria assim mesmo — a suíte deixaria de ser oráculo justamente da regra que
+mata os ciclos. Então `run.sh` começa por três asserções estruturais:
+
+1. todo `.h` de módulo ou instância tem `.type.h` e `.impl.h` ao lado;
+2. **um `.type.h` inclui apenas `.type.h`** — é o que faz o grafo de layout ser
+   um DAG;
+3. **um `.h` não inclui o `.h` de outro módulo** — protótipo não precisa de
+   protótipo, e é essa ausência de aresta que deixa a interface de um módulo sem
+   arrastar a implementação dos outros.
+
+Falha estrutural sai como `ESTRUT` e conta como falha.
 
 ## Para o editor achar os headers
 
@@ -61,8 +92,21 @@ Confirmado na prática: o GCC 13 reporta `__STDC_VERSION__ == 202000L` sob
 `-std=c2x`, não `202311L`, então detectar C23 pelo pré-processador não funciona.
 É a razão de `cgen-tool-spec.md §4.9` ler o perfil da linha de comando.
 
-Os headers fixos (`keel/prelude.h`, `keel/arena.h`) e os de instância vivem em
-`c23/keel/` e `c11/keel/`, e diferem exatamente no que `backend §9.1` lista.
+Os headers fixos (`keel/prelude.h`) e os de módulo e instância da base vivem em
+`c23/keel/` e `c11/keel/`.
+
+**Cada árvore é escrita como saída esperada, e nenhuma é derivada da outra.**
+Houve um `derivar-c11.sh` que gerava `c11/` de `c23/` por `sed`, e ele saiu: o
+que um perfil emite é **escolha do backend**, não uma reescrita textual fixa do
+outro. O §9.1 lista as diferenças que existem hoje, e a lista ser curta é um
+fato sobre a versão de agora, não um contrato — assim que uma delas deixar de
+ser textual, o derivador mentiria em silêncio.
+
+Ele já mentia: `c11/keel/prelude.h` precisa de `<stdbool.h>` e `<assert.h>`, que
+o C23 não pede, e `casos/008-constexpr-bloco/esperado/c11/app/cx.c` escreve
+`constexpr` de escopo de bloco como macro com nome reescrito (`backend §9.2`) —
+nenhum dos dois sai de `sed`. Eram exceções mantidas à mão dentro de um script
+que se apresentava como completo, e derivar por cima delas as apagava.
 
 ## `prova.c` é um arquivo para os dois perfis
 

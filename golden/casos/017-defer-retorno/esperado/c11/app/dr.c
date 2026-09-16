@@ -2,8 +2,9 @@
    Toda saída é `return` ou fim natural → escada de rótulos (backend §5.5.2),
    um degrau por registro, na ordem inversa. O temporário do `return expr` é
    declarado com o tipo de retorno ESCRITO na função (§4.7). */
-#include "app/dr.h"
 
+#include "keel/prelude.h"
+#include "app/dr.impl.h"
 #line 6 "app/dr.k"
 static void app_dr_zera(app_dr_Rec *r) { r->v = 0; }
 static void app_dr_marca_a(app_dr_Rec *r) { r->v = r->v * 10 + 1; }

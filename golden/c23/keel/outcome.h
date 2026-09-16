@@ -2,7 +2,8 @@
    não mencionam parâmetro nem modificador (keel-c-backend.md §4.4.1). */
 #ifndef KEEL_OUTCOME_H
 #define KEEL_OUTCOME_H
-#include "keel/prelude.h"
+#include "keel/outcome.type.h"
+
 constexpr i32 keel_outcome_OK   = 0;
 constexpr i32 keel_outcome_NONE = (-2147483647 - 1);
-#endif
+#endif /* KEEL_OUTCOME_H */

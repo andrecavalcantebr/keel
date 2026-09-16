@@ -2,6 +2,6 @@
    instância: o cursor guarda uma posição e não menciona `T` (backend §5.11). */
 #ifndef KEEL_BUFFER_H
 #define KEEL_BUFFER_H
-#include "keel/prelude.h"
-typedef struct keel_buffer_cursor { size_t i; } keel_buffer_cursor;
-#endif
+#include "keel/buffer.type.h"
+
+#endif /* KEEL_BUFFER_H */

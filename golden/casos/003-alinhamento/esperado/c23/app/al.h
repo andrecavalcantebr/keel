@@ -1,10 +1,7 @@
 /* gen/app/al.h — gerado de app/al.k, perfil C23. */
 #ifndef APP_AL_H
 #define APP_AL_H
-#include "keel/prelude.h"
-#include "keel/arena.h"
-
-typedef struct { alignas(64) f64 x[8]; } app_al_Vec8;
+#include "app/al.type.h"
 
 int app_al_main(int argc, char **argv);
-#endif
+#endif /* APP_AL_H */

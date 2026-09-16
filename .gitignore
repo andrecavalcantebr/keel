@@ -1,0 +1,8 @@
+# gerado por ./gerar-ccjson.sh — tem caminhos absolutos, não versionar
+compile_commands.json
+
+# saída do gerador e do build
+gen/
+obj/
+*.out
+keel

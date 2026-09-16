@@ -1,17 +1,19 @@
-# O único C do projeto é o de golden/, e o banco de compilação vive lá.
-# Sem isto, o clangd só o encontra subindo a partir de um arquivo já dentro de
-# golden/ — com isto, encontra a partir de qualquer lugar do repositório.
+# Cada árvore de header tem o seu banco de compilação, porque o repositório tem
+# várias com os MESMOS nomes e conteúdos diferentes — `gen/keel/keel_buffer_i32.type.h`
+# não é o de `golden/c23/keel/`. O clangd acha o certo subindo a partir do arquivo
+# aberto: `golden/compile_commands.json` para a suíte, o da raiz para o resto.
 #
-# Gerar/atualizar:  ./golden/gerar-ccjson.sh
-CompileFlags:
-  CompilationDatabase: golden
+# NÃO fixar `CompilationDatabase:` aqui. Fixando, uma das árvores passa a valer
+# para o repositório inteiro e as outras recebem flags erradas em silêncio.
+#
+# Gerar/atualizar:  ./gerar-ccjson.sh
 
 # O IncludeCleaner está errado neste projeto POR CONSTRUÇÃO. Ele marca
 # `keel/prelude.h` como "não usado diretamente" em todo `.h` gerado, porque o
 # que o cabeçalho usa — `bool`, `size_t` — ele atribui aos headers que o
 # prelúdio inclui, e não ao prelúdio. Só que o prelúdio é NORMATIVO no topo de
-# todo `.h` de módulo (backend §4.2): seguir o conselho quebraria a forma que
-# os casos existem para fixar.
+# todo `.type.h` de módulo (backend §4.2): seguir o conselho quebraria a forma
+# que os casos existem para fixar.
 Diagnostics:
   UnusedIncludes: None
   MissingIncludes: None

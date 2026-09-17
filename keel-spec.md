@@ -1,15 +1,21 @@
 # keel — Pré-processador de C - Especificação
 
-Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições do PPC keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
+> © 2026 Faculdade de Engenharia Elétrica e de Computação, Universidade
+> Federal do Amazonas (FEEC/UFAM). Licenciado sob
+> [CC BY-SA 4.0](LICENSE-DOCS.md) ([tradução](LICENSE-DOCS.pt.md)) — este
+> documento é prosa sobre a linguagem, não código; o `cgen` e a Base keel têm
+> licença própria, ver [`LICENSE.md`](LICENSE.md). Escrita e revisão tiveram
+> auxílio de Claude Opus e Claude Sonnet (Anthropic), sob direção humana.
+>
+> **Licença do código descrito aqui.** `cgen` copia trechos de fonte da Base
+> keel para dentro do C gerado de todo projeto — não é vínculo de biblioteca,
+> é fonte colado. Por isso a Base é distribuída sob GPLv3 com uma exceção que
+> isenta esse texto gerado, para que o programa do usuário não seja arrastado
+> ao copyleft por transitividade de transpilação. Ver
+> [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit)
+> para o argumento. Esta nota não é normativa.
 
-> **Licença.** `cgen` copia trechos de fonte da Base keel para dentro do C
-> gerado de todo projeto — não é vínculo de biblioteca, é fonte colado. Por
-> isso a Base é distribuída sob GPLv3 com uma exceção que isenta esse texto
-> gerado, para que o programa do usuário não seja arrastado ao copyleft por
-> transitividade de transpilação. Ver [`LICENSE.md`](LICENSE.md) (o texto com
-> efeito jurídico), [`LICENSE.pt.md`](LICENSE.pt.md) (tradução informal) e o
-> argumento em [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit).
-> Esta nota não é normativa.
+Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições do PPC keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
 
 **Convenções de apresentação:**
 

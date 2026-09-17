@@ -1,5 +1,13 @@
 # keel — Design e Plano de Implementação do Lexer
 
+> © 2026 Faculdade de Engenharia Elétrica e de Computação, Universidade
+> Federal do Amazonas (FEEC/UFAM). Licenciado sob
+> [CC BY-SA 4.0](../LICENSE-DOCS.md) ([tradução](../LICENSE-DOCS.pt.md)) —
+> plano de implementação, não contrato normativo (ver o próprio texto
+> abaixo) nem código; o `cgen` e a Base keel têm licença própria, ver
+> [`LICENSE.md`](../LICENSE.md). Escrita e revisão tiveram auxílio de Claude
+> Opus e Claude Sonnet (Anthropic), sob direção humana.
+
 Este documento define o desenho e o plano de implementação do **lexer** de keel. O contrato normativo está em [keel-spec.md §2](../keel-spec.md#2-léxico-vocabulário-e-gramática); as justificativas estão em [keel-rationale.md](../keel-rationale.md). A preservação do fonte atende ao [backend C §6](../keel-c-backend.md#6-mapeamento-de-linhas), e a separação de E/S segue [cgen §3](../cgen-tool-spec.md#3-separação-de-es).
 
 ---

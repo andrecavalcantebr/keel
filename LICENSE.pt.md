@@ -57,7 +57,8 @@ de um `cgen` modificado.
 Se você quiser redistribuir a própria Base sob outros termos, ou tiver dúvida se o seu uso
 está coberto, entre em contato com o titular dos direitos autorais.
 
-Copyright (C) 2026 Universidade Federal do Amazonas *(titular a confirmar — ver nota)*.
+Copyright (C) 2026 Faculdade de Engenharia Elétrica e de Computação, Universidade
+Federal do Amazonas (FEEC/UFAM) *(titular a confirmar — ver nota)*.
 Todos têm permissão para copiar e distribuir cópias fiéis deste aviso de exceção, mas
 alterá-lo não é permitido.
 

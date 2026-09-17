@@ -1,5 +1,13 @@
 # keel — Backend C
 
+> © 2026 Faculdade de Engenharia Elétrica e de Computação, Universidade
+> Federal do Amazonas (FEEC/UFAM). Licenciado sob
+> [CC BY-SA 4.0](LICENSE-DOCS.md) ([tradução](LICENSE-DOCS.pt.md)) — este
+> documento é prosa sobre a linguagem, não código; o `cgen` e a Base keel têm
+> licença própria, ver [`LICENSE.md`](LICENSE.md) e a nota do §4.2. Escrita e
+> revisão tiveram auxílio de Claude Opus e Claude Sonnet (Anthropic), sob
+> direção humana.
+
 **Documento normativo.** Especifica como as construções da linguagem ([`keel-spec.md`](keel-spec.md)) são materializadas em C.
 
 Este documento existe porque **a linguagem não é o lowering**. `defer` é definido como cleanup léxico na saída do escopo, em ordem inversa de registro — isso é a linguagem, e não muda. Que a v0 já tenha estado presa a extensão do GCC, e que hoje se resolva varrendo os pontos de saída e injetando o corpo em cada um conforme o escopo, é assunto **deste** arquivo, e nada disso altera a definição do `defer`. Um segundo backend deve as mesmas obrigações; pode pagá-las de outro jeito — **onde a linguagem não tiver nomeado a forma**. O `parallel` é o caso em que isso mais aparece: a linguagem §4.8 deixa o mecanismo em aberto, e este documento especifica dois — série e OpenMP —, escolhidos pela invocação. O terceiro que a linguagem permitiria, um pool de threads da libc, não está aqui porque precisaria do tipo de cada captura, e a invariante da linguagem §1.3 proíbe conhecê-lo (§5.9.1).

@@ -1,5 +1,13 @@
 # cgen — Especificação da Ferramenta
 
+> © 2026 Faculdade de Engenharia Elétrica e de Computação, Universidade
+> Federal do Amazonas (FEEC/UFAM). Licenciado sob
+> [CC BY-SA 4.0](LICENSE-DOCS.md) ([tradução](LICENSE-DOCS.pt.md)) — este
+> documento é prosa sobre a ferramenta, não código; o `cgen` e a Base keel têm
+> licença própria, ver [`LICENSE.md`](LICENSE.md) e a nota do §8. Escrita e
+> revisão tiveram auxílio de Claude Opus e Claude Sonnet (Anthropic), sob
+> direção humana.
+
 **Documento normativo.** Especifica o cgen, transpilador de referência de keel para C — C11 ou C23, conforme o perfil da §4.9: o que depende da invocação.
 
 Três documentos dividem o assunto, por um critério só:

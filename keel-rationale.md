@@ -1,5 +1,12 @@
 # keel — Justificativas de projeto
 
+> © 2026 Faculdade de Engenharia Elétrica e de Computação, Universidade
+> Federal do Amazonas (FEEC/UFAM). Licenciado sob
+> [CC BY-SA 4.0](LICENSE-DOCS.md) ([tradução](LICENSE-DOCS.pt.md)) — este
+> documento é prosa sobre a linguagem, não código; o `cgen` e a Base keel têm
+> licença própria, ver [`LICENSE.md`](LICENSE.md). Escrita e revisão tiveram
+> auxílio de Claude Opus e Claude Sonnet (Anthropic), sob direção humana.
+
 Este documento reúne as motivações e as decisões de projeto do PPC keel. Os
 contratos pertencem à [especificação](keel-spec.md); a representação e a emissão
 de C, ao [backend](keel-c-backend.md); a linha de comando, à

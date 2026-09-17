@@ -9,11 +9,17 @@ da própria FSF.
 
 ## Âmbito
 
+Repositório não implica licença única — obra é que implica. É o mesmo formato
+que o `gcc` já usa: o compilador é GPL, o manual é GFDL, no mesmo repositório.
+Aqui:
+
 | Caminho | Licença |
 | --- | --- |
 | `tools/codegen/`, `src/main.c`, e o futuro parser/backend de `cgen` | GPLv3, sem exceção |
+| `golden/` (fixtures compiladas e executadas, não geradas da Base) | GPLv3, sem exceção |
+| `editors/` — as gramáticas de realce (`.json`/`.scm`); o `README.md` de dentro segue a documentação | GPLv3, sem exceção |
 | `src/base/` — a Base keel — e qualquer arquivo que leve este aviso | GPLv3 **+ a exceção abaixo** |
-| `keel-spec.md`, `keel-rationale.md`, `keel-c-backend.md`, `cgen-tool-spec.md`, `golden/` | ainda não decidido; ver nota nos próprios documentos |
+| `keel-spec.md`, `keel-rationale.md`, `keel-c-backend.md`, `cgen-tool-spec.md`, `design/` | [CC BY-SA 4.0](LICENSE-DOCS.md) — prosa, não código; ver `LICENSE-DOCS.md` |
 
 A exceção existe porque `cgen` **copia texto** da Base para dentro do `.h`/`.c` de todo
 projeto que passa por ele — não é vínculo de biblioteca, é fragmento de fonte colado. Sob
@@ -735,7 +741,8 @@ a modified `cgen`.
 If you want to redistribute the Base itself under different terms, or you are unsure
 whether your use is covered, contact the copyright holder.
 
-Copyright (C) 2026 Universidade Federal do Amazonas *(titular a confirmar — ver nota)*.
+Copyright (C) 2026 Faculdade de Engenharia Elétrica e de Computação, Universidade
+Federal do Amazonas (FEEC/UFAM) *(titular a confirmar — ver nota)*.
 Everyone is permitted to copy and distribute verbatim copies of this exception notice, but
 changing it is not allowed.
 

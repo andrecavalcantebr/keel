@@ -2,7 +2,7 @@
    `pub inline` sai `static inline` no header, com corpo (backend §4.1). */
 #ifndef LST_TYPE_H
 #define LST_TYPE_H
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "keel/keel_buffer_i32.type.h"
 
 typedef struct lst_No { i32 v; struct lst_No *prox; } lst_No;

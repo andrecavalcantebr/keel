@@ -1,4 +1,4 @@
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "keel/keel_corot.impl.h"
 #include "keel/keel_outcome_i32.impl.h"
 #include "keel/keel_outcome_void.impl.h"

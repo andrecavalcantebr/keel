@@ -1,7 +1,7 @@
 /* gen/resultados/resultados.c — gerado de resultados/resultados.k, perfil C11.
    Os produtores de `corot` são verbos: ajustam o receptor e devolvem a cópia.
    Quem sai da função é o `return` escrito no fonte (backend §5.14). */
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "keel/keel_corot.impl.h"
 #include "keel/keel_outcome_i32.impl.h"
 #include "keel/keel_outcome_void.impl.h"

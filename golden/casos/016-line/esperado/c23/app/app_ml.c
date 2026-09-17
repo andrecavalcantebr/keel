@@ -3,7 +3,7 @@
    do arquivo de saída — e `#line` sai SEMPRE que eles divergem. Este arquivo
    emite os que a invariante exige, e nenhum a mais. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_ml.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 static void app_ml_solta(app_ml_R *r);

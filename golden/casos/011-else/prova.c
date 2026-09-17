@@ -1,6 +1,6 @@
 /* prova.c — arnês das duas formas da cláusula `else`. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_el.impl.h"
 #include <stdio.h>
 int main(void) {

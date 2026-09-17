@@ -2,7 +2,7 @@
    §5.12: a declaração sai como estava, seguida de um `if` cujo teste é o
    `failed` da instância — nunca `if (!x)`. Tudo numa linha só (regra 2 do §6). */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_el.impl.h"
 #include "keel/keel_outcome_i32.impl.h"
 #include "keel/keel_outcome_keel_slice_i32.impl.h"

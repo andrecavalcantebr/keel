@@ -20,7 +20,6 @@ ok=0; falha=0; xfail=0; xpass=0
 # deixaria de ser oráculo justamente da regra que mata os ciclos de inclusão.
 estrutura=0
 for h in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' ! -name '*.impl.h' | sort); do
-  case "$h" in */prelude.h) continue ;; esac
   base=${h%.h}
   for camada in .type.h .impl.h; do
     [ -f "$base$camada" ] || { printf 'ESTRUT %s — falta %s\n' "$h" "$base$camada"; estrutura=$((estrutura+1)); }
@@ -59,16 +58,15 @@ done
 
 # I1: um .type.h inclui apenas .type.h — é o que torna o grafo de layout um DAG
 for t in $(find c23 c11 casos -name '*.type.h' | sort); do
-  mau=$(grep '^#include "' "$t" | grep -v '\.type\.h"' | grep -v 'prelude\.h"')
+  mau=$(grep '^#include "' "$t" | grep -v '\.type\.h"')
   [ -z "$mau" ] || { printf 'ESTRUT %s — .type.h incluindo fora da camada:\n%s\n' "$t" "$mau"; estrutura=$((estrutura+1)); }
 done
 
 # I2: um .h não inclui o .h de outro módulo — protótipo não precisa de protótipo
 for d in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' ! -name '*.impl.h' | sort); do
-  case "$d" in */prelude.h) continue ;; esac
   n=$(basename "$d" .h)
   mau=$(grep '^#include "' "$d" | grep -v '\.type\.h"' | grep -v '\.impl\.h"' \
-        | grep -v 'prelude\.h"' | grep -v "/$n\.h\"\|\"$n\.h\"")
+        | grep -v "/$n\.h\"\|\"$n\.h\"")
   [ -z "$mau" ] || { printf 'ESTRUT %s — .h incluindo .h de outro módulo:\n%s\n' "$d" "$mau"; estrutura=$((estrutura+1)); }
 done
 [ $estrutura -eq 0 ] && printf 'ok     estrutura de camadas         (backend §4.3.2)\n'

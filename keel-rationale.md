@@ -572,6 +572,36 @@ sem metalinguagem de templates ou análise semântica de tipos C.
 
 Referência: [spec v3 §4.3](keel-spec.md#43-módulos-genéricos).
 
+## Memória e visão: a direção da conversão
+
+`buffer`/`slice` não são um par arbitrário de contêineres parecidos — são a
+primeira instância de um padrão que se repete: um lado **memória**, que
+possui o armazenamento e pode crescer, e um lado **visão**, que descreve um
+trecho fixo sem possuir nada. `bitbuffer`/`bitslice`, `buffer(N)`/`slice(N)`
+e `string`/`strview` são o mesmo par, com o mesmo layout de dependência.
+
+A conversão só faz sentido num sentido: memória produz visão (`buffer` sabe
+o comprimento atual, a capacidade, e pode entregar uma janela sobre o que já
+tem), nunca o contrário (uma visão não tem de onde tirar armazenamento
+próprio — "criá-lo" seria alocar, o que já tem nome, `clone`, e não é
+conversão). Por isso o lado memória importa o lado visão — para devolvê-la —,
+e o lado visão nunca importa o lado memória. Isso não é só estilo: é o que
+evita um ciclo de import genuíno. Se o verbo de recorte fosse um único `of`
+universal, vivendo no módulo da visão e aceitando o lado memória como
+argumento (como uma leitura apressada de `slice.of` sugeriria), o lado visão
+precisaria conhecer o tipo do lado memória — e o lado memória já precisa
+conhecer o da visão, para devolvê-la de `partition` e do próprio recorte.
+As duas importações juntas são circulares, e a linguagem já recusa isso
+(`import-circular`, §4.1).
+
+A saída, já implementada antes de estar escrita aqui: cada lado memória
+declara seu próprio verbo de recorte, com o nome que fizer sentido para ele
+— `buffer.as_slice`, não `buffer.of` — e o lado visão continua com o seu
+próprio `of`, para recortar a si mesma, sem depender de nada além do próprio
+tipo. `slice` nunca importa `buffer`; é sempre `buffer` que importa `slice`.
+
+Referência: [spec v3 §4.5](keel-spec.md#45-indexação-e-recortes).
+
 ## Particionável e percorrível
 
 A revisão anterior deixava `parallel` conhecer a divisão: a fórmula das faixas
@@ -1251,7 +1281,7 @@ contribui, por transpilação, para o *output* do `cgen` sobre o fonte do própr
 aí o usuário fica livre para licenciar como quiser.
 
 Referências: [`LICENSE.md`](LICENSE.md), [`LICENSE.pt.md`](LICENSE.pt.md) (tradução
-informal), [backend §4.2](keel-c-backend.md#42-headers-fixos).
+informal), [backend §4.2](keel-c-backend.md#42-o-prelúdio-keelk).
 
 ## O nome do arquivo gerado é o símbolo
 

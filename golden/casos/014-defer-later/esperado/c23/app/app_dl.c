@@ -2,7 +2,7 @@
    Sem `[now]` o corpo referencia as variáveis direto e NENHUMA struct de
    captura é gerada (backend §5.5); o valor lido é o da saída. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_dl.impl.h"
 #line 3 "app/dl.k"
 static int app_dl_visto = 0;

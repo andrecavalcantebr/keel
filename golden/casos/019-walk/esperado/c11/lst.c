@@ -3,7 +3,7 @@
    elemento com `next` — uma chamada por iteração, depois do teste
    (backend §5.11, linguagem §4.7). */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "keel/keel_buffer.type.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include "lst.impl.h"

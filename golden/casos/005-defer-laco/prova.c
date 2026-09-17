@@ -1,7 +1,7 @@
 /* prova.c — arnês. Afirma que o cleanup roda uma vez por iteração, em TODA
    saída do corpo: `continue`, `break` e `return`. Nada pode vazar. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_lc.impl.h"
 #include <stdio.h>
 int main(void) {

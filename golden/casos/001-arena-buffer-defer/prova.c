@@ -2,7 +2,7 @@
    exercita a interface pública gerada e afirma o comportamento.
    Compila junto com esperado/<perfil>/app/cfg.c. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_cfg.impl.h"
 #include "keel/keel_outcome_i32.impl.h"
 #include <stdio.h>

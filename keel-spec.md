@@ -1567,10 +1567,14 @@ são operações dos módulos que os implementam.
   com todos os índices. O layout permanece o do vetor multidimensional C.
 - Cada índice é avaliado uma vez. A tradução não impõe uma ordem relativa
   adicional entre expressões que o C não ordena.
-- `x[a..b]` chama o verbo `of` da aridade correspondente e produz um descritor
-  por valor — sobre a base, `slice.of(x,a,b)`. `x[..b]` fornece início zero;
-  `x[a..]` fornece `length(x)` como fim; `x[..]` usa o `of` de um argumento.
-  Quem declara o `of` é o módulo do contêiner, e não este contrato.
+- `x[a..b]` chama o verbo de recorte declarado pelo lado **memória** do par
+  memória/visão a que `x` pertence — nunca pelo lado visão — e produz um
+  descritor por valor. Sobre a base, é `buffer.as_slice(x,a,b)` quando `x` é
+  `buffer`; `slice.of(x,a,b)` quando `x` já é `slice`, recortando a si mesma.
+  `x[..b]` fornece início zero; `x[a..]` fornece `length(x)` como fim; `x[..]`
+  usa a forma de um argumento. Quem declara o verbo e o nome que ele leva são
+  do módulo do contêiner, e não deste contrato — a única exigência é a
+  direção: memória→visão, nunca o inverso (rationale: memória e visão).
 - O recorte é rvalue; atribuir ao recorte inteiro é sujeito à recusa do
   compilador C. Alterar um elemento da vista segue o contrato do elemento.
 - Na forma `x[a..]`, a tradução usa o contêiner para o recorte e para obter
@@ -1585,7 +1589,7 @@ são operações dos módulos que os implementam.
 | --- | --- | --- |
 | Indexação parcial de `array` | keel | `array-indexacao-parcial` |
 | Tipo não possui `ptr` da aridade escrita | keel | `aridade-sem-ptr` |
-| Tipo não possui o `of` necessário ao recorte | keel | `recorte-sem-of` |
+| Tipo não possui o verbo de recorte necessário à aridade | keel | `recorte-sem-of` |
 | Limites numericamente conhecidos com início maior que fim | keel | `recorte-invertido` |
 | Limites violam `a <= b <= length(x)` | backend, em execução debug | `recorte-fora-de-faixa` |
 | Fim omitido sobre caminho que contém índice ou verbo | keel | `recorte-aberto-com-indice` |
@@ -1618,6 +1622,7 @@ O incremento ocorre uma vez e a escrita alcança o armazenamento original.
 #### 8. Referências
 
 - [Rationale: acesso e travessia](keel-rationale.md#acesso-e-travessia).
+- [Rationale: memória e visão](keel-rationale.md#memória-e-visão-a-direção-da-conversão).
 - [Backend: açúcar de indexação](keel-c-backend.md#53-açúcar-de-indexação).
 
 ### 4.6 Cleanup léxico
@@ -3308,7 +3313,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `mutacao-na-travessia` | `push`, `pop` ou `clear` sobre o contêiner percorrido ou particionado, no corpo do `foreach`, do `walk` ou do `parallel` | `error` | keel | §4.7 |
 | `indice-nao-size-t` | Binder de índice cujo tipo não é `size_t` | `error` | keel | §4.7 |
 | `nao-contavel` | `foreach` de um binder sobre tipo que não declara `first` e `limit` | `error` | keel | §4.7 |
-| `recorte-sem-of` | Índice por intervalo sobre tipo que não declara o `of` da aridade que a forma exige | `error` | keel | §4.5 |
+| `recorte-sem-of` | Índice por intervalo sobre tipo que não declara o verbo de recorte da aridade que a forma exige | `error` | keel | §4.5 |
 | `recorte-invertido` | Recorte com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
 | `recorte-fora-de-faixa` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
 | `foreach-dois-binders-em-literal` | `foreach` de dois binders sobre literal de intervalo — a mensagem indica nomear o intervalo | `error` | keel | §4.7 |

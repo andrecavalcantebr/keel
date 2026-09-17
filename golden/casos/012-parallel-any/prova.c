@@ -2,7 +2,7 @@
    O índice gravado é o da PARTE, não o do contêiner: quem parte recebe um
    recorte, e converter para índice global é conta do programa. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_bs.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include "keel/keel_buffer_size_t.impl.h"

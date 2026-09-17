@@ -2,6 +2,6 @@
    declara menciona um parâmetro, então pertence à instância (backend §4.3). */
 #ifndef GRID_TYPE_H
 #define GRID_TYPE_H
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 
 #endif /* GRID_TYPE_H */

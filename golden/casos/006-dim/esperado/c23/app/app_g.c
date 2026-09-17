@@ -2,7 +2,7 @@
    Os dois parâmetros são a MESMA instância: se fossem tipos distintos, passar
    o mesmo objeto nas duas posições não compilaria. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_g.impl.h"
 #include "grid_grade_3_f32.impl.h"
 #include <stdio.h>

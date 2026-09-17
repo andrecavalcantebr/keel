@@ -1,7 +1,9 @@
-/* keel/prelude.h — perfil C11. Fixo, idêntico em todo projeto, não gerado.
-   Normativo: keel-c-backend.md §4.2. */
-#ifndef KEEL_PRELUDE_H
-#define KEEL_PRELUDE_H
+/* keel/keel.type.h — gerado de keel.k, perfil C11. Determinístico, mesmo
+   conteúdo toda vez para este perfil — não é hand-maintained; é a saída de
+   `module keel;` (spec §5.1), que não declara verbo, só os nomes de tipo
+   primitivos. Normativo: keel-c-backend.md §4.2. */
+#ifndef KEEL_KEEL_TYPE_H
+#define KEEL_KEEL_TYPE_H
 #include <stdint.h>
 #include <stddef.h>
 #include <float.h>

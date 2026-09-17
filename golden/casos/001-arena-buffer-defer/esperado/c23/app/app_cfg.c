@@ -1,6 +1,6 @@
 /* gen/app/cfg.c — gerado de app/cfg.k, perfil C23. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_cfg.impl.h"
 #include "keel/keel_arena.impl.h"
 #include "keel/keel_buffer_i32.impl.h"

@@ -4,7 +4,7 @@
    (linguagem §4.9, backend §2.2). */
 #ifndef GRID_GRADE_3_F32_TYPE_H
 #define GRID_GRADE_3_F32_TYPE_H
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 
 typedef struct grid_grade_3_f32 { size_t dims[3]; f32 *ptr; } grid_grade_3_f32;
 #endif /* GRID_GRADE_3_F32_TYPE_H */

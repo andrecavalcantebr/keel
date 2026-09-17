@@ -3,7 +3,7 @@
    só não serviria às três: `continue` cai no incremento, `break` deixa o laço,
    `return` deixa a função. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_lc.impl.h"
 #line 3 "app/lc.k"
 static int app_lc_vivos  = 0;

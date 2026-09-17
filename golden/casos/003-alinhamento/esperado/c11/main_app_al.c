@@ -3,6 +3,6 @@
    flag de invocação, e o critério de timestamp deixaria de significar o que
    significa (backend §5.8). */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_al.impl.h"
 int main(int argc, char **argv) { return app_al_main(argc, argv); }

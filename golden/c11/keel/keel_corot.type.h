@@ -4,7 +4,7 @@
    header de instância: não há valor associado a parametrizar. */
 #ifndef KEEL_KEEL_COROT_TYPE_H
 #define KEEL_KEEL_COROT_TYPE_H
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 
 typedef struct keel_corot { i32 code; } keel_corot;
 /* O conjunto nomeia as três regiões do código; `tag` é leitura, não

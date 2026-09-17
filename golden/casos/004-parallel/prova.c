@@ -2,7 +2,7 @@
    que punha o rótulo ANTES da gravação de SUCCESS, o `fail` era apagado e o
    segundo teste devolvia falso. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_val.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include <stdio.h>

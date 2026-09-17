@@ -64,7 +64,7 @@ Falha estrutural sai como `ESTRUT` e conta como falha.
 
 Os headers fixos vivem em `c23/keel/` e `c11/keel/`; os gerados de cada caso,
 em `casos/<caso>/esperado/<perfil>/`. Sem saber disso, o clangd não resolve um
-`#include "keel/prelude.h"` sequer.
+`#include "keel/keel.type.h"` sequer.
 
     ./gerar-ccjson.sh
 
@@ -95,8 +95,10 @@ Confirmado na prática: o GCC 13 reporta `__STDC_VERSION__ == 202000L` sob
 `-std=c2x`, não `202311L`, então detectar C23 pelo pré-processador não funciona.
 É a razão de `cgen-tool-spec.md §4.9` ler o perfil da linha de comando.
 
-Os headers fixos (`keel/prelude.h`) e os de módulo e instância da base vivem em
-`c23/keel/` e `c11/keel/`.
+Os headers do prelúdio (`keel/keel.type.h`, `keel/keel.h`, `keel/keel.impl.h`
+— gerados de `keel.k`, mas determinísticos: mesmo conteúdo sempre, para um
+dado perfil) e os de módulo e instância da base vivem em `c23/keel/` e
+`c11/keel/`.
 
 **Cada árvore é escrita como saída esperada, e nenhuma é derivada da outra.**
 Houve um `derivar-c11.sh` que gerava `c11/` de `c23/` por `sed`, e ele saiu: o
@@ -105,7 +107,7 @@ outro. O §9.1 lista as diferenças que existem hoje, e a lista ser curta é um
 fato sobre a versão de agora, não um contrato — assim que uma delas deixar de
 ser textual, o derivador mentiria em silêncio.
 
-Ele já mentia: `c11/keel/prelude.h` precisa de `<stdbool.h>` e `<assert.h>`, que
+Ele já mentia: `c11/keel/keel.type.h` precisa de `<stdbool.h>` e `<assert.h>`, que
 o C23 não pede, e `casos/008-constexpr-bloco/esperado/c11/app/cx.c` escreve
 `constexpr` de escopo de bloco como macro com nome reescrito (`backend §9.2`) —
 nenhum dos dois sai de `sed`. Eram exceções mantidas à mão dentro de um script

@@ -2,7 +2,7 @@
    O `enum` sai da declaração `tags`, e `pub` o põe no `.h` (backend §5.6). */
 #ifndef AG_TYPE_H
 #define AG_TYPE_H
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "keel/keel_corot.type.h"
 #include "keel/keel_tagged_ag_Ciclo_void.type.h"
 

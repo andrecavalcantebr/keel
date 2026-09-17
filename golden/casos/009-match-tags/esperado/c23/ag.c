@@ -3,7 +3,7 @@
    usuário dentro. O rótulo vai ANTES da chave, e as chaves são o escopo do
    braço que a linguagem §4.9 exige (backend §5.6, regra 2). */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "ag.impl.h"
 #include "keel/keel_corot.impl.h"
 #include "keel/keel_tagged_ag_Ciclo_void.impl.h"

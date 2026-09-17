@@ -2,7 +2,7 @@
    Nenhuma região é injetada: `seq` e `par` são funções da instância, e a
    tabela é um vetor do programa (backend §5.10). */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "ag2.impl.h"
 #include "keel/keel_corot.impl.h"
 #include "keel/keel_outcome_u32.type.h"

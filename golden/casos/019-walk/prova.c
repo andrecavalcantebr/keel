@@ -1,7 +1,7 @@
 /* prova.c — arnês. Percorrer não exige indexar: a lista não declara `length`
    nem `ptr`, e mesmo assim `walk` a percorre. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include "lst.impl.h"
 #include <assert.h>

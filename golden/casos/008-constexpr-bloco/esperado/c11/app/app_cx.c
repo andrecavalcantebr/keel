@@ -2,7 +2,7 @@
    usos não mudam. Sob C11 o de bloco vira macro de nome gerado, com os usos
    reescritos — e `c->N` fica intacto (§9.2). */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_cx.impl.h"
 #include <stdio.h>
 #line 12 "app/cx.k"

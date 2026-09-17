@@ -2,7 +2,7 @@
    ser avaliado UMA vez, que é o que o lowering por função garante e o por
    macro não garantiria. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_ac.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include <stdio.h>

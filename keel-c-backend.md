@@ -446,7 +446,7 @@ Variável pública **nunca** vai para o `.h` como `static`. Isso compila e linka
 
 `const` não precisa de exceção: `pub const float PI = 3.14f;` sai como `extern const float PI;` no `.h` e a definição no `.c` — símbolo único, sem duplicação.
 
-### 4.2 Headers fixos
+### 4.2 O prelúdio: `keel.k`
 
 > **Licença.** A Base keel — `src/base/` e o que dela é distribuído sob
 > `lib/keel/base` (§9) — é fonte **copiado**, não vinculado, para dentro do C
@@ -456,10 +456,17 @@ Variável pública **nunca** vai para o `.h` como `static`. Isso compila e linka
 > [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit).
 > Esta nota não é normativa.
 
-Um header é **fixo, idêntico em todo projeto, não gerado**: `keel/prelude.h`. Ele é a materialização do módulo `keel` da camada zero neste backend: é o backend C que deve os `typedef` e as guardas, porque é ele que não tem os tipos nativamente.
+`keel` é `module keel;` (linguagem §5.1): não declara verbo nenhum, só os
+nomes de tipo primitivos — `i8`..`u64`, `f32`, `f64`. Como qualquer módulo, é
+fonte keel de verdade (`keel.k`), e segue o mesmo corte em artefatos do §4.3.2:
+`keel.type.h` (L0+L1, os `typedef` e as guardas C que o backend deve porque o
+alvo não tem os tipos nativamente) e `keel.h` (L2, que aqui é só o `#include`
+do `.type.h` — não há protótipo porque não há verbo). Não existe `keel.impl.h`
+com corpo nem `keel.c`: nada é `inline` nem fora de linha, porque nada é
+função.
 
 ```c
-/* keel/prelude.h — incluído no topo de todo .type.h de módulo */
+/* keel/keel.type.h — incluído no topo de todo .type.h de módulo */
 #include <stdint.h>
 #include <stddef.h>
 #include <float.h>
@@ -475,6 +482,14 @@ static_assert(FLT_RADIX == 2 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024
               && sizeof(f64) == 8, "keel: f64 exige IEEE 754 binary64 neste alvo");
 ```
 
+**Gerado, mas não variável.** `keel.type.h` não é hand-maintained fora do
+pipeline, é a saída de compilar `keel.k` — só que, como `keel.k` nunca muda de
+projeto para projeto e o backend nunca insere `#if` de versão (§9.1), o
+resultado é determinístico: mesmo conteúdo, byte a byte, toda vez, para um
+dado perfil. Essa estabilidade é o que antes se chamava de "fixo"; a diferença
+é que agora há um fonte `.k` real do qual esse header é, de fato, função —
+não uma exceção às regras de artefato, é o caso mais simples delas.
+
 **Os asserts provam o formato, e não o tamanho.** `sizeof == 4` sozinho não
 distingue binary32 de um float de 32 bits que não é IEEE — e o §3.1 promete o
 formato, não a largura. Radix, dígitos de mantissa e expoente máximo fixam
@@ -483,7 +498,7 @@ vários alvos com IEEE de verdade não definem por causa de exceções e
 arredondamento. Este é o **único lugar onde `<stdint.h>` e `<float.h>` aparecem**:
 todo o resto do C gerado usa a grafia keel.
 
-**Só a camada zero é fixa, e é o prelúdio da linguagem que decide isso.** `keel` é
+**Só a camada zero vem do prelúdio, e é a linguagem que decide isso.** `keel` é
 o único módulo implícito (linguagem §4.1): `arena`, `buffer`, `slice`, `range`,
 `tagged`, `outcome`, `corot`, `routine` e `parallel` **se importam**, e por isso os
 seus headers chegam pela regra geral de import — o `.h` do módulo, mais os headers de instância que ele origina, cada um na camada que a regra de inclusão do §4.3.2 pedir.
@@ -495,7 +510,7 @@ A consequência prática é boa: um módulo que não usa arena não vê `keel/ke
 e um projeto que não importe esse módulo pode usar sua própria `arena` — que é
 exatamente o que a linguagem comprou ao tirar a base do prelúdio.
 
-Os `static_assert` são a contrapartida do mapeamento de ponto flutuante (§3.1). Este é o **único lugar onde `<stdint.h>` aparece**: todo o resto do C gerado usa a grafia keel. Se o projeto já define `u8` ou `i32` com tipo compatível, a redeclaração de `typedef` é legal desde o C11; uma definição conflitante vira erro do compilador C sobre o prelúdio — visível, não silencioso.
+Se o projeto já define `u8` ou `i32` com tipo compatível, a redeclaração de `typedef` é legal desde o C11; uma definição conflitante vira erro do compilador C sobre `keel.type.h` — visível, não silencioso.
 
 ### 4.3 Headers de instância
 

@@ -3,6 +3,6 @@
    não leva o argumento (backend §4.4.1). */
 #ifndef PILHA_TYPE_H
 #define PILHA_TYPE_H
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 
 #endif /* PILHA_TYPE_H */

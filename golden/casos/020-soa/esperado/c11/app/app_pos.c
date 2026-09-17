@@ -4,7 +4,7 @@
    sintetizado: `ocupar` aloca à mão, `somar_x` usa `slice.from`, já
    existente (§5.3), pra entrar em `foreach`. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_pos.impl.h"
 #include "keel/keel_arena.impl.h"
 #include "keel/keel_slice_f32.impl.h"

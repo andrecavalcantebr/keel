@@ -3,7 +3,7 @@
    literal (backend §5.9). `interrupted` é consulta: devolve `bool` onde foi
    escrita, não salta e não grava status. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_bs.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include "keel/keel_buffer_size_t.impl.h"

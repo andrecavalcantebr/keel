@@ -3,7 +3,7 @@
    invertidos para ponteiro (spec §4.11). */
 #ifndef APP_APP_POS_TYPE_H
 #define APP_APP_POS_TYPE_H
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 
 typedef struct app_pos_position {
     f32 *x;

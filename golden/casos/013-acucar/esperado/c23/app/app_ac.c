@@ -2,7 +2,7 @@
    §5.3: o açúcar baixa por função `static inline`, nunca por macro — é o que
    garante avaliação única —, e o par `&*` colapsa na geração. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_ac.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include "keel/keel_slice_i32.impl.h"

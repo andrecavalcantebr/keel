@@ -5,7 +5,7 @@
    O símbolo de controle é declarado FORA do bloco: a linguagem §4.8 o torna
    legível depois dele. */
 
-#include "keel/prelude.h"
+#include "keel/keel.type.h"
 #include "app/app_val.impl.h"
 #include "keel/keel_buffer_i32.impl.h"
 #include "keel/keel_slice_i32.impl.h"

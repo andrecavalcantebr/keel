@@ -2227,6 +2227,100 @@ O par da §3.4 mostra a forma de default sobre o próprio objeto e a extração 
 - [Rationale: resultados finais e estados cooperativos](keel-rationale.md#resultados-finais-e-estados-cooperativos).
 - [Backend](keel-c-backend.md): §5.12 para `else`, §5.5 para cleanup.
 
+### 4.11 `soa`
+
+#### 1. Finalidade
+
+Declarar um struct cujos campos marcados `array` são armazenados em colunas paralelas, com comprimento e capacidade únicos, compartilhados entre as colunas.
+
+#### 2. Sintaxe
+
+```keel
+soa struct position {
+    array f32 x;
+    array f32 y;
+    array f16 z;
+    screen *sc;
+};
+
+soa position p;
+```
+
+`soa struct NOME { ... }` é uma declaração de arquivo. Um campo escrito `array T campo;` torna-se uma coluna; um campo escrito sem `array` é único, compartilhado por toda a instância — pode haver mais de um campo desse tipo. `soa NOME var;` declara o container, com a mesma disciplina de `byref` de `buffer` (§4.3): não passa por valor, não é copiado por atribuição.
+
+#### 3. Reconhecimento
+
+- `soa struct NOME { ... }` é reconhecida pelo núcleo como forma de declaração, não como `modifier` nem como módulo genérico: os campos são lidos por extenso, uma vez, no ponto da declaração.
+- O tipo de cada campo deve ser nomeado. Definição de `struct` ou `union` anônima escrita inline no corpo de `soa struct` não é reconhecida.
+- Um campo marcado `array` só é reconhecido como coluna se seu declarador for simples: um tipo nomeado seguido de zero ou mais `*`. Declarador com `[]`, parênteses de função ou `:` de bitfield não é reconhecido como coluna — a marca não altera nada além de inserir um nível de ponteiro, e a restrição existe para que essa inserção nunca precise de raciocínio sobre precedência de declarador.
+- Nenhum campo, marcado ou não, pode ser `const`.
+- `var[i].campo` — símbolo conhecido de tipo `soa` seguido da forma sintática `[ expr ] . campo` — é reconhecido por varredura léxica, o mesmo mecanismo que já reconhece uso de `ref` (§4.2), e reescrito para `var.campo[i]`. Nenhuma análise de expressão C arbitrária ocorre: a forma é ancorada no símbolo declarado e no nome do campo, e a reescrita não altera a ordem de avaliação nem iça operando algum. Nenhuma outra forma de `var[i]` é reconhecida.
+- Os verbos da instância são procurados pelo protocolo da §4.4, qualificados por `keel`, no mesmo sentido em que operações do núcleo sobre `array` usam `keel` (§4.4).
+
+#### 4. Semântica
+
+- A declaração produz um struct C com um ponteiro por campo marcado `array`, os campos não marcados como escritos, e um `len`/`cap` únicos, compartilhados por todas as colunas.
+- keel sintetiza, no ponto da declaração, os verbos da instância:
+
+| Verbo | Efeito |
+| --- | --- |
+| `keel.soa_from(a, cap)` | Aloca cada coluna com capacidade `cap` na arena `a`; o tipo do alvo vem da declaração, atribuição ou retorno, como em `buffer.from` (§4.4) |
+| `keel.length(var)` / `keel.capacity(var)` | Leitura de `len`/`cap`, únicos para todas as colunas |
+| `keel.push(var, v1, v2, …)` | Aridade igual ao número de campos marcados `array`, na ordem declarada; escreve um valor em cada coluna na posição `len` e incrementa `len` uma vez |
+| `keel.pop(var)` | Reduz `len` uma vez, para todas as colunas |
+| `keel.clear(var)` | Zera `len`, preservando `cap` e o armazenamento |
+| `keel.slice_of(var, NOME.campo)` | Devolve `slice T` da coluna identificada pelo campo |
+
+- `NOME.campo` referencia uma constante do `enum` gerado para a instância (`keel_soa_NOME_fields`, com constantes `NOME_campo`), na mesma convenção de escopo já usada para constante de enum nomeado (§4.2) e para conjunto de tags (§4.9).
+- Uma coluna, convertida por `keel.slice_of`, satisfaz os protocolos Indexável, Percorrível por cursor e Particionável (§5.1) como qualquer `slice T` — por isso `foreach`, `walk` e `parallel` operam sobre a coluna, não sobre a instância `soa`. A instância `soa` não implementa esses protocolos diretamente: não existe elemento endereçável correspondente a uma linha inteira, então não há `next` nem `partition` sobre ela.
+- `push`, `pop` e `clear` são as únicas operações que alteram `len`; não há operação que altere o comprimento de uma coluna isoladamente.
+- Campos não marcados são lidos e escritos diretamente (`var.campo`), sem verbo dedicado, e não participam de `push`.
+- Reconstruir uma instância de `NOME` inteira a partir de um índice — reunindo todos os campos, marcados e não marcados — não é oferecido como verbo. O programa que precisar disso escreve a montagem campo a campo; quem precisa da struct inteira usa `struct`, não `soa struct`.
+
+#### 5. Restrições e diagnósticos
+
+| Condição | Responsável | Identificador |
+| --- | --- | --- |
+| Tipo de campo não nomeado (`struct`/`union` anônima inline) | keel | `soa-tipo-anonimo` |
+| Campo `const`, marcado ou não | keel | `soa-campo-const` |
+| Campo marcado `array` com declarador que não seja tipo nomeado seguido de `*` | keel | `soa-declarador-nao-simples` |
+| `var[i]` sem `.campo` imediatamente seguinte | keel | `soa-elemento-nao-existente` |
+| Argumento de `keel.slice_of` que não nomeia campo marcado `array` da instância | keel | `soa-tag-desconhecida` |
+| Cópia por atribuição de instância `soa` | keel | `byref-atribuido` (`warning`, mesmo diagnóstico de §4.3) |
+
+#### 6. Pré-condições e limites
+
+- `keel.soa_from` aloca espaço para cada coluna; não inicializa valores. `push` sem valor exige que o programa os escreva antes de ler, como em `buffer.push` (§5.3).
+- O programa é responsável por escrever e ler campos não marcados; keel não verifica seu uso além das regras gerais de declaração (§4.2).
+- Acesso à posição removida por `pop` segue a mesma regra de `buffer` (§5.3): permanece no armazenamento, mas fora do comprimento atual.
+
+#### 7. Exemplo mínimo
+
+```keel
+//keel
+module jogo;
+import keel.arena as arena types;
+
+soa struct position {
+    array f32 x;
+    array f32 y;
+    array f16 z;
+    screen *sc;
+};
+
+arena a = arena.from_stack(4096);
+soa position p = keel.soa_from(a, 64);
+p.sc = tela_principal;
+keel.push(p, 1.0f, 2.0f, (f16)0.5f);
+
+slice f32 xs = keel.slice_of(p, position.x);
+```
+
+#### 8. Referências
+
+- [Rationale: soa, da recusa à admissão](keel-rationale.md#soa-da-recusa-à-admissão).
+- [Backend: os quatro artefatos](keel-c-backend.md#432-os-quatro-artefatos).
+
 ## 5. Protocolos e módulos da base
 
 Os módulos deste capítulo acompanham a distribuição de keel e são módulos
@@ -3047,6 +3141,55 @@ O par da §4.8 mostra a declaração implícita do símbolo e sua consulta depoi
 - [Rationale: políticas e sinalização](keel-rationale.md#políticas-e-sinalização-de-interrupção).
 - [Backend: parallel](keel-c-backend.md#59-parallel).
 
+### 5.8 Biblioteca padrão — extensões candidatas
+
+As entradas a seguir não são contrato fechado, ao contrário das §§5.2–5.7: registram nome, descrição, verbos mínimos e um esboço conceitual de implementação, não código fechado nem diagnósticos. Nenhuma tem `.k` distribuído ainda. O formato é deliberadamente mais leve; promover uma entrada ao formato de oito itens é decisão em aberto, por candidata.
+
+**`keel.buffer(N)` / `keel.slice(N)`** — soa homogêneo: `N` colunas paralelas do mesmo tipo `T`, sincronizadas por um único `len`/`cap` (`slice(N)`, só `len`). Mesmos verbos de `buffer`/`slice` normais, com um índice a mais para "qual coluna", na mesma convenção de `array` multidimensional (`keel.dim(v,k)`, §4.2). Zero trabalho de núcleo: cabe inteiramente no mecanismo genérico de `dim` (§4.3).
+
+```keel
+module keel.buffer_n dim N type T;
+pub modifier buffer byref { T *col[N]; size_t len, cap; }
+
+module keel.slice_n dim N type T;
+pub modifier slice { T *view[N]; size_t len; }
+```
+
+```keel
+buffer(3) f32 pos;
+push(pos, 0, 1.0f, 2.0f, 3.0f);
+```
+
+**`keel.strbuf` / `keel.string`** — typedefs de conveniência, não modificadores novos: `strbuf` = `buffer char`; `string` = `slice const char`. O trabalho real, ainda em aberto, é o conjunto de funções utilitárias específicas de string (comparação, concatenação, formatação) que os verbos de `buffer`/`slice` não cobrem.
+
+```keel
+typedef buffer char strbuf;
+typedef slice const char string;
+```
+
+**`keel.bitbuffer(W)` / `keel.bitslice(W)`** — array compacto de inteiros de `W` bits, com `T` como tipo de interface do `get`/`set` (qualquer inteiro, provavelmente sem sinal). `bitbuffer(1)`/`bitslice(1)` é o caso particular que dá bitmask/bitset clássico, sem precisar de tipo à parte.
+
+```keel
+module keel.bitbuffer dim W type T;
+pub modifier bitbuffer byref { u8 *palavras; size_t len, cap; }
+// get/set convertem entre o empacotamento de W bits e o T da chamada
+```
+
+```keel
+bitbuffer(3) u8 grupos;
+bitbuffer(1) u8 marcados; // bitmask
+```
+
+**`keel.atomic` / `keel.chan` / `keel.barrier`** — completam o conjunto cooperativo (com `corot`, `outcome`, `tags`/`match`, `seq`/`par` já dá para montar rotinas que pausam e retomam no mesmo ponto, ao estilo Duffy's device).
+
+- `keel.atomic type T` — `modifier atomic byref { _Atomic T v; }`, com `init`/`load`/`store`/`swap`. `byref` evita sincronizar com uma cópia.
+- `keel.chan type T` — `send`/`recv` como `corot`; variante cooperativa (índice comum, mesmo fio) e SPSC entre threads (`acquire`/`release`). MPMC fica fora da base.
+- `keel.barrier` — `arrive(b, total) -> corot`, `ONGOING` até completar; rendezvous sem busy-wait e sem `thrd_yield` — quem cede o controle é o `return` da participante.
+
+#### Referências
+
+- [Rationale: soa, da recusa à admissão](keel-rationale.md#soa-da-recusa-à-admissão) para o `buffer(N)`/`slice(N)` (mesma família de decisão que separa soa homogêneo de heterogêneo).
+
 ## 6. Diagnósticos e conformidade
 
 ### 6.1 Emissão e responsabilidade
@@ -3201,6 +3344,11 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `constexpr-endereco` | `&` sobre símbolo `constexpr`, ou uso que exija lvalue — a `note` dá a saída, `static const T k = K;` | `error` | keel | §4.2 |
 | `dim-abaixo-de-um` | Argumento de `dim` que resolve para valor menor que 1 — a mensagem dá a cadeia de instanciação | `error` | keel | §4.3 |
 | `alias-com-argumento` | Alias de módulo seguido de `(` — vaga reservada; a `note` manda renomear o alias | `error` | keel | §2.5 |
+| `soa-tipo-anonimo` | Campo de `soa struct` com tipo `struct`/`union` anônima escrita inline | `error` | keel | §4.11 |
+| `soa-campo-const` | Campo `const` em `soa struct`, marcado ou não | `error` | keel | §4.11 |
+| `soa-declarador-nao-simples` | Campo marcado `array` em `soa struct` com declarador além de tipo nomeado seguido de `*` | `error` | keel | §4.11 |
+| `soa-elemento-nao-existente` | `var[i]` de instância `soa` sem `.campo` imediatamente seguinte | `error` | keel | §4.11 |
+| `soa-tag-desconhecida` | Argumento de `keel.slice_of` que não nomeia campo marcado `array` da instância | `error` | keel | §4.11 |
 
 ### 6.3 Implementação conforme
 

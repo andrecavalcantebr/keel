@@ -37,6 +37,11 @@ mais estreito do que "serve à orientação a dados": inverter layout, por exemp
 o C expressa perfeitamente — `struct { f32 *x; f32 *y; }` —, e por isso não há
 `soa` (ver a tabela de recusas adiante).
 
+Esse parágrafo continua valendo para inversão **automática, inferida do tipo C
+de um struct já existente** — é essa a forma recusada, e a revisão que a
+admite depois, sob outro desenho, está registrada em [soa: da recusa à
+admissão](#soa-da-recusa-à-admissão).
+
 Referência: [spec v3 §1](keel-spec.md#1-escopo-e-princípios), princípio 9.
 
 ## C usado como o assembly portável
@@ -159,7 +164,7 @@ traduzir estas formas sem análise semântica de C:
 | Corrotina com retomada de posição | Interpretar o corpo para içar variáveis locais através da suspensão |
 | Lambda e closure | O mesmo, mais captura implícita |
 | Fatiamento multidimensional como sintaxe | Despachar pela forma dos argumentos, e não pela contagem |
-| Inversão de layout, como um marcador `soa` | Conhecer o tipo de cada campo para decidir o que é invertível |
+| Inversão de layout, como um marcador `soa` **automático** | Conhecer o tipo de cada campo para decidir o que é invertível |
 | Constraints, concepts ou interfaces sobre o parâmetro de tipo | Um predicado sobre o argumento de tipo; o único bit existente, `byref`, pertence ao modificador |
 | Especialização de modificador, total ou parcial | Casar padrão sobre argumento de tipo, o que transforma substituição em avaliação |
 | Sobrecarga por tipo de argumento | Escolher entre assinaturas pelo tipo do que foi escrito; a resolução conta argumentos |
@@ -183,6 +188,62 @@ o custo é de significado, não de análise.
 
 Referência: [spec v3 §5.4](keel-spec.md#64-programa-conforme-e-limites) e o
 item 6 de cada contrato do capítulo 4.
+
+## `soa`: da recusa à admissão
+
+A recusa original mirava um marcador que inverte o layout de um struct **já
+existente**, inferindo dele o que é invertível: essa forma continua fora,
+porque exige exatamente a análise semântica de tipo C que o critério de
+admissão recusa na primeira pergunta. O que muda não é o critério — é a forma.
+
+`soa struct NOME { array T campo; … }` (spec v3 §4.11) não infere nada do tipo
+de um struct que já existe em outro lugar: é uma declaração nova, escrita por
+extenso, no mesmo lugar em que o núcleo já lê qualquer `struct`. A decisão de
+o que é coluna não vem de keel examinando o tipo C do campo — vem do
+programador escrevendo `array`, um marcador que já existia (§4.2), já se
+aplicava a campo, e já desaparecia no lowering como `ref`. keel reconhece o
+token; não interpreta o tipo. É essa troca — de inferência automática para
+marcação explícita — que tira a construção de trás da primeira pergunta do
+teste de admissão.
+
+A segunda pergunta ("um módulo consegue?") também parecia fechar essa porta:
+as tentativas de generalizar `soa` por um parâmetro de módulo — `dim N`, lista
+de tipos, qualquer forma de aridade que dependesse de uma lista externa —
+esbarram na mesma regra de "Substituição e aridade fixa" que já nega a
+`corot`/`routine` um segundo parâmetro fixo (acima): gerar uma família de
+declarações, ou uma assinatura de aridade variável, a partir de uma lista que
+o módulo não escreve por extenso. Nenhuma dessas tentativas é `soa`; nenhuma
+sobrevive à mesma regra que já vale para todo o capítulo 4.3. `soa struct` não
+tenta — os campos são escritos por extenso, uma vez, no ponto da declaração,
+exatamente como os de qualquer `struct` comum (linguagem §4.2, "campos keel em
+struct são registrados com o tipo e os marcadores escritos"). Não há
+parâmetro, não há instanciação, não há lista externa: por isso a construção
+não é módulo genérico, é núcleo, admitida pela mesma via que já admite
+`array` e `range`.
+
+Falta a terceira pergunta: que garantia a construção carrega, que o C não
+expressa? Não é o layout — `struct { f32 *x; f32 *y; }` continua sendo C
+perfeito, e nenhuma construção nova muda isso. A garantia é outra: `len` e
+`cap` **únicos**, compartilhados por todas as colunas, com `push`/`pop`
+avançando todas juntas. Nada em C impede duas colunas saírem de tamanhos
+diferentes quando escritas por `push`es manuais e independentes; é
+precisamente essa sincronização — não o ponteiro, não o array — que `soa`
+garante e que o programa, escrevendo à mão, teria que reconstruir e manter por
+conta própria em cada função que toca o container. A ela se soma o açúcar
+`var[i].campo` → `var.campo[i]`, reconhecido por varredura léxica ancorada em
+símbolo — o mesmo mecanismo que já reconhece `ref` —, sem içar operando e sem
+mudar ordem de avaliação.
+
+Uma escolha deliberada de escopo acompanha a admissão: `soa` não reconstrói a
+entidade inteira a partir de um índice. `var[i]` sozinho não tem forma
+reconhecida — só `var[i].campo`. Quem precisa da struct inteira em um valor
+usa `struct`, não `soa struct`; o gather, se o programa quiser um, é escrito à
+mão, campo a campo. É a mesma disciplina que já nega sincronização inserida
+por `parallel` ou transporte automático de valor de uma participante
+cooperativa (tabela acima): a construção entrega o que verifica, não o que
+teria que adivinhar sobre a intenção do programa.
+
+Referência: [spec v3 §4.11](keel-spec.md#411-soa).
 
 ## Fronteira com C e conflitos léxicos
 

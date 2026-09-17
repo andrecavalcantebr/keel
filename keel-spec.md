@@ -2271,7 +2271,7 @@ soa position p;
 | `keel.clear(var)` | Zera `len`, preservando `cap` e o armazenamento |
 | `keel.slice_of(var, NOME.campo)` | Devolve `slice T` da coluna identificada pelo campo |
 
-- `NOME.campo` referencia uma constante do `enum` gerado para a instância (`keel_soa_NOME_fields`, com constantes `NOME_campo`), na mesma convenção de escopo já usada para constante de enum nomeado (§4.2) e para conjunto de tags (§4.9).
+- `NOME.campo` referencia uma constante de um `enum` gerado junto com `NOME`, com a mesma tag sintética de qualquer agregado do módulo (backend §4.3.1) — `<módulo>_NOME_fields`, com constantes `<módulo>_NOME_campo` —, na mesma convenção de escopo já usada para constante de enum nomeado (§4.2) e para conjunto de tags (§4.9). Não leva o prefixo `keel_`: o `enum` pertence ao módulo que declara `NOME`, não à base.
 - Uma coluna, convertida por `keel.slice_of`, satisfaz os protocolos Indexável, Percorrível por cursor e Particionável (§5.1) como qualquer `slice T` — por isso `foreach`, `walk` e `parallel` operam sobre a coluna, não sobre a instância `soa`. A instância `soa` não implementa esses protocolos diretamente: não existe elemento endereçável correspondente a uma linha inteira, então não há `next` nem `partition` sobre ela.
 - `push`, `pop` e `clear` são as únicas operações que alteram `len`; não há operação que altere o comprimento de uma coluna isoladamente.
 - Campos não marcados são lidos e escritos diretamente (`var.campo`), sem verbo dedicado, e não participam de `push`.

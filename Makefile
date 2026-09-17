@@ -44,9 +44,12 @@ run:
 ccjson:
 	@./gerar-ccjson.sh
 
-# a base keel, gerada dos .k de src/base para gen/
+# a base keel: fonte em tools/codegen/base (meta-linguagem $T do bootstrap,
+# não keel de verdade — a futura /base será isso), gerada para gen/. O mesmo
+# fonte também gera tools/codegen/gen/, para validação própria do codegen;
+# ver tools/codegen/base/Makefile.
 base:
-	@$(MAKE) -C src/base
+	@$(MAKE) -C tools/codegen/base DEST=$(abspath $(GENDIR))
 
 .PHONY: all clean ccjson base
 

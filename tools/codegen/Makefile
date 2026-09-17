@@ -8,7 +8,7 @@ LIBDIR:=./lib
 OBJDIR:=./obj
 
 CC := gcc
-CFLAGS := -std=c2x -I $(INCDIR) -I $(SRCDIR) -I $(SRCDIR)/base -Wall -Wextra -g -O0 -DDEBUG -MMD -MP
+CFLAGS := -std=c2x -I $(INCDIR) -I $(SRCDIR) -Wall -Wextra -g -O0 -DDEBUG -MMD -MP
 LDLIBS := -lm
 LDFLAGS := -L $(OBJDIR) -L $(LIBDIR)
 
@@ -38,7 +38,13 @@ $(PRJ): $(objects)
 run:
 	./$(PRJ)
 
-.PHONY: all clean
+# a base do bootstrap, gerada aqui mesmo em gen/ para validação própria da
+# ferramenta — sem depender do resto da árvore. Compare com o /gen da raiz,
+# que sai do mesmo fonte (base/) via o alvo `base` do Makefile raiz.
+base:
+	@$(MAKE) -C base
+
+.PHONY: all clean base
 
 clean:
 	@rm -rf $(OBJDIR) $(PRJ)

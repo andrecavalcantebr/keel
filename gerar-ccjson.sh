@@ -8,7 +8,7 @@
 # em silêncio. Então cada árvore tem o seu banco, e o clangd acha o certo subindo
 # a partir do arquivo aberto:
 #
-#   ./compile_commands.json          src/ e as árvores geradas de src/base
+#   ./compile_commands.json          src/, tools/codegen/ e as árvores geradas
 #   golden/compile_commands.json     a suíte, nos dois perfis
 #
 # Os `-I` são RELATIVOS ao campo "directory" de cada entrada, que é a raiz do
@@ -45,8 +45,10 @@ entrada() {  # $1 = arquivo relativo, $2... = flags
   done
 
   # cada árvore de header gerada responde pela própria raiz: é o que faz
-  # `#include "keel.type.h"` achar o prelúdio e, com ele, i32 e os demais
-  for arvore in gen src/gen src/prova; do
+  # `#include "keel.type.h"` achar o prelúdio e, com ele, i32 e os demais.
+  # tools/codegen/gen é a cópia local que o codegen gera para validar a si
+  # mesmo (mesmo fonte de tools/codegen/base, dest-dir diferente do /gen).
+  for arvore in gen tools/codegen/gen; do
     [ -d "$arvore" ] || continue
     for h in $(find "$arvore" -name '*.h' | sort); do
       entrada "$h" "-I $arvore"

@@ -1,9 +1,11 @@
 # Gera a base keel a partir dos .k, no trio .type.h / .h / .impl.h
 # O corte em tres e o do backend 4.3.2: tipos, interface, corpos.
 
-CG    := ../../tools/codegen/codegen.out
+CG    := ../codegen.out
 SRC   := .
-DEST  := ../../gen
+# local por padrao (validacao/uso proprio do codegen); o Makefile da raiz
+# sobrepoe com DEST=<absoluto>/gen ao chamar daqui, para alimentar src/main.c
+DEST  := ../gen
 
 # os tipos para os quais a base e instanciada
 TYPES := i32 u32 char

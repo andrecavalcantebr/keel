@@ -440,7 +440,15 @@ Variável pública **nunca** vai para o `.h` como `static`. Isso compila e linka
 
 ### 4.2 Headers fixos
 
-Três headers são **fixos, idênticos em todo projeto, não gerados**. Eles são a materialização do módulo `keel` da camada zero neste backend: é o backend C que deve os `typedef` e as guardas, porque é ele que não tem os tipos nativamente.
+> **Licença.** A Base keel — `src/base/` e o que dela é distribuído sob
+> `lib/keel/base` (§9) — é fonte **copiado**, não vinculado, para dentro do C
+> de todo projeto: por isso ela sai da GPLv3 comum e ganha uma exceção que
+> isenta esse texto gerado. Ver [`LICENSE.md`](LICENSE.md),
+> [`LICENSE.pt.md`](LICENSE.pt.md) e o argumento em
+> [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit).
+> Esta nota não é normativa.
+
+Um header é **fixo, idêntico em todo projeto, não gerado**: `keel/prelude.h`. Ele é a materialização do módulo `keel` da camada zero neste backend: é o backend C que deve os `typedef` e as guardas, porque é ele que não tem os tipos nativamente.
 
 ```c
 /* keel/prelude.h — incluído no topo de todo .type.h de módulo */

@@ -575,7 +575,53 @@ cgen: error: mais de um fonte .k na invocação [fonte-multiplo]
 
 ---
 
-## 8. Fora de escopo
+## 8. Distribuição e a base
+
+`cgen` é distribuído como uma árvore relocável: `bin/cgen` ao lado de
+`lib/keel/base/`, a fonte dos módulos `keel.*` que todo programa importa.
+Mover a árvore inteira — descompactar o tarball em qualquer lugar, symlinkar
+o binário — não quebra nada, porque a base nunca é referenciada por caminho
+absoluto fixo.
+
+```plain
+keel-1.0.0-linux-x86_64/
+  bin/cgen
+  lib/keel/base/
+    keel.k
+    keel/
+      prelude.h
+      arena.k  buffer.k  slice.k  outcome.k
+      corot.k  range.k  tagged.k  routine.k  parallel.k
+```
+
+**Resolução, nesta ordem:**
+
+1. `--base-dir <dir>`, se passado.
+2. `KEEL_HOME`, se definida.
+3. Caminho relativo ao próprio executável, resolvido em tempo de execução
+   (segue symlink): `<diretório do binário>/../lib/keel/base`.
+
+O resultado é acrescentado como **último** `-I` de busca de módulo — depois
+de todos os `-I` do usuário, inclusive o default `.` — e como `-I` adicional
+na chamada ao `cc`, pela mesma razão do `--dest-dir` (§4.1): sem ele, as
+inclusões do código gerado da base não resolvem. Por ser o último, um `-I` de
+usuário que contenha um módulo `keel.*` sombreia o da base — é assim que se
+desenvolve ou testa uma base alternativa sem reinstalar.
+
+A base é sempre lida, nunca escrita: cada projeto gera sua própria cópia dos
+headers dela em `--dest-dir`, com o mesmo critério de atualização da §5. Não
+há cache compartilhado entre projetos nem exigência de permissão de escrita
+sobre a instalação, e não há checagem de versão entre binário e base: os dois
+chegam juntos no mesmo prefixo, então são a mesma versão por construção.
+
+> **Licença.** A base distribuída em `lib/keel/base` é a mesma Base de
+> `src/base/`, sob GPLv3 com a exceção que isenta o código que ela contribui
+> ao gerado do usuário. Ver [`LICENSE.md`](LICENSE.md) e
+> [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit).
+
+---
+
+## 9. Fora de escopo
 
 | Item | Motivo |
 | --- | --- |

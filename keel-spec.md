@@ -2,6 +2,15 @@
 
 Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições do PPC keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
 
+> **Licença.** `cgen` copia trechos de fonte da Base keel para dentro do C
+> gerado de todo projeto — não é vínculo de biblioteca, é fonte colado. Por
+> isso a Base é distribuída sob GPLv3 com uma exceção que isenta esse texto
+> gerado, para que o programa do usuário não seja arrastado ao copyleft por
+> transitividade de transpilação. Ver [`LICENSE.md`](LICENSE.md) (o texto com
+> efeito jurídico), [`LICENSE.pt.md`](LICENSE.pt.md) (tradução informal) e o
+> argumento em [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit).
+> Esta nota não é normativa.
+
 **Convenções de apresentação:**
 
 - Os pares keel/C mostram a semântica essencial da tradução. O C apresentado é uma representação lógica próxima da saída, sem compromisso com sua grafia exata; detalhes como `#line` e `[[nodiscard]]` podem ser omitidos.

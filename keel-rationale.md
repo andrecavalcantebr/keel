@@ -1116,6 +1116,46 @@ Referências: [spec v3 §1](keel-spec.md#1-escopo-e-princípios),
 [módulos e modificadores](keel-spec.md#43-módulos-genéricos) e
 [resultados](keel-spec.md#55-keeloutcome-e-keelcorot).
 
+## Por que a base é copyleft com exceção, e não GPL simples nem MIT
+
+`cgen` não vincula a Base ao programa do usuário — ele **copia texto** dela para dentro do
+`.h`/`.c` de todo projeto que passa pela ferramenta. É uma diferença que muda a análise de
+licença por completo: "vincular biblioteca" é o caso clássico que LGPL resolve; "colar
+fragmento de fonte alheio dentro do seu" não é.
+
+Sob GPL simples, sem adendo, a leitura literal da §2 arrisca tornar **todo programa
+compilado com keel** um "trabalho baseado" na Base, só pela transpilação — nenhum usuário
+precisaria ter tocado a Base para o copyleft alcançá-lo. Isso mataria a adoção: ninguém
+escreve `.k` de produção sabendo que o binário resultante pode ser cobrado a abrir o
+próprio fonte por causa de uma struct de `buffer` que ele nunca editou.
+
+Sob MIT, o problema é o oposto e o `Makefile` do repositório previa: qualquer um pode pegar
+`cgen` e a Base, melhorá-los, e distribuir a versão fechada sem devolver nada — nem código,
+nem crédito. Para um projeto acadêmico, dentro de uma universidade, isso é o pior dos dois
+mundos: os autores perdem a visibilidade do próprio trabalho, e a comunidade perde o acesso
+às melhorias.
+
+**A saída não é nova — é a mesma que a FSF já usou para o problema gêmeo.** `libgcc` é GPL e
+é embutida (inline, estática) em todo binário que o `gcc` produz; a saída não vira GPL por
+causa disso porque a *GCC Runtime Library Exception* diz isso explicitamente. keel está na
+mesma posição de `libgcc` — na verdade mais literal ainda, porque aqui não há nem "link", é
+transpilação de texto puro.
+
+A exceção que `LICENSE.md` adota é o mesmo desenho, com uma simplificação que a arquitetura
+do keel permite: ela cobre **só uma coisa**. Modificar e redistribuir `cgen` já é coberto
+pela GPL comum, sem exceção nenhuma — rodar um binário GPL sobre o próprio fonte nunca
+implicou o fonte, é assim que compilar código proprietário com `gcc` sempre funcionou, e
+isso vale tanto para o `cgen` de referência quanto para um `cgen` modificado que reconheça
+construção nova da linguagem. Modificar e redistribuir a Base em si também já é GPL comum,
+sem exceção — quem pega `src/base/keel/buffer.k`, melhora e redistribui deve o fonte de
+volta, exatamente a proteção contra o cenário MIT do parágrafo acima. A exceção existe só
+para a terceira situação, que é a única onde GPL comum erraria: o texto que a Base
+contribui, por transpilação, para o *output* do `cgen` sobre o fonte do próprio usuário. Só
+aí o usuário fica livre para licenciar como quiser.
+
+Referências: [`LICENSE.md`](LICENSE.md), [`LICENSE.pt.md`](LICENSE.pt.md) (tradução
+informal), [backend §4.2](keel-c-backend.md#42-headers-fixos).
+
 ## O nome do arquivo gerado é o símbolo
 
 O header gerado de `keel.arena` chama-se `keel/keel_arena.h`, e não

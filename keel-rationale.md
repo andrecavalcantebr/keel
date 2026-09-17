@@ -221,18 +221,47 @@ parâmetro, não há instanciação, não há lista externa: por isso a constru�
 não é módulo genérico, é núcleo, admitida pela mesma via que já admite
 `array` e `range`.
 
+`soa` não é o primeiro caso do núcleo que gera um tipo novo a partir de uma
+lista que a própria declaração especifica — `tags NOME [ … ];` já faz isso,
+derivando um `enum` de uma lista de nomes (linguagem §4.9). A diferença é que
+a lista de `tags` é homogênea: cada nome vira uma constante sequencial, sem
+variar de forma entre itens. `soa` lida com uma lista **heterogênea** — cada
+campo pode estar marcado ou não, e só o marcado muda de forma — e é essa
+variação por item, não a novidade de gerar um tipo, que exige o cuidado extra
+do §4.11 (declarador simples, tipo nomeado). `array`, `ref` e `range` não são
+o mesmo tipo de coisa: nenhum deles gera um tipo novo, só reconhecem uma
+sintaxe e reescrevem ou apontam para um tipo que já existe. `tags` e `soa`
+formam a família que sintetiza tipo a partir de lista; `array`/`ref` formam a
+do açúcar de declarador sem tipo novo nenhum.
+
 Falta a terceira pergunta: que garantia a construção carrega, que o C não
-expressa? Não é o layout — `struct { f32 *x; f32 *y; }` continua sendo C
-perfeito, e nenhuma construção nova muda isso. A garantia é outra: `len` e
-`cap` **únicos**, compartilhados por todas as colunas, com `push`/`pop`
-avançando todas juntas. Nada em C impede duas colunas saírem de tamanhos
-diferentes quando escritas por `push`es manuais e independentes; é
-precisamente essa sincronização — não o ponteiro, não o array — que `soa`
-garante e que o programa, escrevendo à mão, teria que reconstruir e manter por
-conta própria em cada função que toca o container. A ela se soma o açúcar
-`var[i].campo` → `var.campo[i]`, reconhecido por varredura léxica ancorada em
-símbolo — o mesmo mecanismo que já reconhece `ref` —, sem içar operando e sem
-mudar ordem de avaliação.
+expressa? Uma versão mais ambiciosa foi cogitada e recusada: `soa` poderia
+inverter um `struct` já escrito para outro fim, inserindo `len`/`cap` que o
+programa nunca escreveu, e sintetizando `push`/`pop`/`get`/`set` para
+manipulá-los — a versão que garantiria sincronização entre colunas de
+verdade. Ela não passou pela própria motivação do documento: **"keel é o que
+já se faz com truque de macro, escrito como sintaxe"** (abertura). O ganho
+dessa versão mais pesada é pago com o custo que essa frase existe pra evitar
+— verbos que o próprio projetista da linguagem não consegue apontar como um
+`module`/`modifier` comum (§4.3), porque não são: são campo escondido e corpo
+gerado por uma lista de campos que não cabe em `dim`/`type`/`tags` sem
+reabrir a metalinguagem de template que a §4.3 já fecha ("Substituição e
+aridade fixa", acima). Sem conseguir escrever isso como módulo, também não dá
+pra dizer ao programa exatamente onde o mecanismo mora — e é essa opacidade,
+não a complexidade em si, que o critério recusa.
+
+A versão que entrou não gera `len`, `cap` ou verbo nenhum: o programa escreve
+os campos de controle que quiser, iguais a qualquer outro campo, e escreve as
+próprias funções de crescimento. A garantia que resta é outra, mais estreita,
+mas real: a reescrita `var[i].campo` → `var.campo[i]` (ou `param->campo[i]`,
+por ponteiro) preserva ordem de avaliação e não iça operando — uma das três
+formas de garantia que o critério já lista. E o ponteiro que sobra depois da
+inversão não é solto: `slice.from(T, var.campo, n)` (§5.3), verbo que já
+existe, o transforma em `slice T`, e daí `foreach`, `walk`, `apply` e
+`partition`/`parallel` funcionam sem nenhum código a mais — o que um SoA
+manual em C não dá de graça, porque C não sabe que aqueles ponteiros formam
+uma sequência. É a ponte para a maquinaria de travessia e partição que já
+existe, não uma sincronização nova, que sustenta o critério 3.
 
 Uma escolha deliberada de escopo acompanha a admissão: `soa` não reconstrói a
 entidade inteira a partir de um índice. `var[i]` sozinho não tem forma

@@ -5,7 +5,6 @@
 #include "keel/prelude.h"
 #include "app/app_pos.impl.h"
 #include "keel/keel_arena.impl.h"
-#include "keel/keel_outcome_i32.impl.h"
 #include <stdio.h>
 
 int main(void) {
@@ -13,17 +12,20 @@ int main(void) {
     keel_arena a;
     if (!keel_arena_from_array(&a, buf, sizeof buf)) return 90;
 
-    /* quatro linhas: x = 0,1,2,3 — soma 6. `ativo` e `y` não entram na soma,
-       só existem para provar que o campo compartilhado e a segunda coluna
-       convivem sem interferir na leitura de `x`. */
-    keel_outcome_i32 r = app_pos_somar_x(&a, 4);
-    if (keel_outcome_i32_failed(r)) return 1;
-    if (keel_outcome_i32_value(r) != 6) return 2;
+    app_pos_position p;
+    app_pos_ocupar(&p, &a, 4);
 
-    /* capacidade maior que a arena consegue dar: falha pelo canal normal */
-    keel_outcome_i32 r2 = app_pos_somar_x(&a, 1000000);
-    if (!keel_outcome_i32_failed(r2)) return 3;
-    if (keel_outcome_i32_code(r2) != 1) return 4;
+    /* quatro linhas: x = 0,1,2,3 — soma 6. y só existe para provar que a
+       segunda coluna e o campo `ativo` convivem sem interferir em `x`. */
+    if (!app_pos_linha(&p, 0.0f, 0.0f)) return 1;
+    if (!app_pos_linha(&p, 1.0f, 2.0f)) return 2;
+    if (!app_pos_linha(&p, 2.0f, 4.0f)) return 3;
+    if (!app_pos_linha(&p, 3.0f, 6.0f)) return 4;
+
+    /* cheia: cap == 4, a quinta falha pelo canal normal, sem keel envolvido */
+    if (app_pos_linha(&p, 4.0f, 8.0f)) return 5;
+
+    if (app_pos_somar_x(&p) != 6.0f) return 6;
 
     puts("ok");
     return 0;

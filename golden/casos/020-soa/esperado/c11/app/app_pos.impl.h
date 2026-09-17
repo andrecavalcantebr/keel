@@ -1,5 +1,5 @@
 /* gen/app/pos.impl.h — gerado de app/pos.k, perfil C11.
-   Nenhum corpo `pub inline` neste módulo: `somar_x` é `pub` sem `inline`,
+   Nenhum corpo `pub inline` neste módulo: os três `pub` são sem `inline`,
    corpo no `.c` (backend §4.4). */
 #ifndef APP_APP_POS_IMPL_H
 #define APP_APP_POS_IMPL_H

@@ -1,9 +1,14 @@
 /* gen/app/pos.type.h — gerado de app/pos.k, perfil C23.
-   Só o que é `pub`: o tipo de retorno de `somar_x` (backend §4.1). O `soa
-   struct position` não é `pub` — nenhum artefato público o menciona. */
+   `soa struct position` é `pub`: layout completo aqui, com `x`/`y` já
+   invertidos para ponteiro (spec §4.11). */
 #ifndef APP_APP_POS_TYPE_H
 #define APP_APP_POS_TYPE_H
 #include "keel/prelude.h"
-#include "keel/keel_outcome_i32.type.h"
 
+typedef struct app_pos_position {
+    f32 *x;
+    f32 *y;
+    bool ativo;
+    size_t len, cap;
+} app_pos_position;
 #endif /* APP_APP_POS_TYPE_H */

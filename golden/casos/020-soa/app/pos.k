@@ -1,30 +1,42 @@
 module app.pos;
 
-import keel.arena   as arena   types;
-import keel.outcome as outcome types;
-import keel.slice   as slice   types;
+import keel.arena as arena types;
+import keel.slice as slice types;
 
-/* soa homogêneo por campo: `x` e `y` viram colunas; `ativo` é único,
-   compartilhado por toda a instância (spec §4.11). Não é `pub`: nenhum
-   artefato público o menciona, então mora inteiro no `.c` gerado. */
-soa struct position {
+/* soa (spec §4.11): `x`/`y` marcados `array` viram coluna; `ativo`, `len`
+   e `cap` passam como escritos — nenhum campo, verbo ou aloca por conta do
+   núcleo. `pub` porque o chamador declara a instância e a passa por
+   ponteiro; a marca `soa` se repete no parâmetro para que o reconhecimento
+   de `p[i].campo` continue ancorado na declaração, não em rastreamento de
+   tipo entre funções. */
+pub soa struct position {
     array f32 x;
     array f32 y;
     bool ativo;
+    size_t len, cap;
 };
 
-pub outcome i32 somar_x(arena *a, size_t n) {
-    outcome i32 r = {0};
-    soa position p = keel.soa_from(a, n);
-    if (keel.capacity(p) == 0) return outcome.fail(r, 1);
+pub void ocupar(soa position *p, arena *a, size_t n) {
+    p->x = arena.alloc(a, f32, n);
+    p->y = arena.alloc(a, f32, n);
+    p->cap = n;
+    p->len = 0;
+}
 
-    p.ativo = true;
-    for (size_t i = 0; i < n; i++)
-        keel.push(p, (f32)i, (f32)i * 2.0f);
+pub bool linha(soa position *p, f32 vx, f32 vy) {
+    if (p->len == p->cap) return false;
+    p[p->len].x = vx;
+    p[p->len].y = vy;
+    p->len++;
+    return true;
+}
 
+/* a ponte: `slice.from` já existente (§5.3) torna a coluna crua um `slice
+   f32` comum, e `foreach` funciona sem nenhum código a mais — o mesmo
+   valeria para `walk`, `apply` e `partition`/`parallel`. */
+pub f32 somar_x(soa position *p) {
+    slice f32 xs = slice.from(f32, p->x, p->len);
     f32 total = 0;
-    slice f32 xs = keel.slice_of(p, position.x);
     foreach (f32 v, size_t i : xs) total += v;
-
-    return outcome.win(r, (i32)total);
+    return total;
 }

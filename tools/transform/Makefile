@@ -39,8 +39,8 @@ run:
 	./$(PRJ)
 
 # a base do bootstrap, gerada aqui mesmo em gen/ para validação própria da
-# ferramenta — sem depender do resto da árvore. Compare com o /gen da raiz,
-# que sai do mesmo fonte (base/) via o alvo `base` do Makefile raiz.
+# ferramenta — sem depender do resto da árvore. Compare com tools/cgen/gen,
+# que sai do mesmo fonte (base/) via o alvo `base` do Makefile do cgen.
 base:
 	@$(MAKE) -C base
 

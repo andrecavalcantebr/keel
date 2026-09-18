@@ -11,7 +11,7 @@
  *
  * SPECS:
  * 1. chamada:
- * codegen -m qualified_module_name -i input_dir -d output_dir -t type -n dimension -e "[enum_list]"
+ * transform -m qualified_module_name -i input_dir -d output_dir -t type -n dimension -e "[enum_list]"
  *
  * 2. variáveis globais reconhecidas:
  * 2.1. o tipo: via opção -t
@@ -412,7 +412,7 @@ void transform(strbuf *input, strbuf *out[SEC_COUNT]) {
 }
 
 int main(int argc, char *argv[]) {
-    puts("codegen: simple code generation for keel files");
+    puts("transform: simple code generation for keel files");
     for (int i = 0; i < argc; i++) {
         if(strcmp(argv[i], "-m") == 0) {
             module_name = argv[i + 1];

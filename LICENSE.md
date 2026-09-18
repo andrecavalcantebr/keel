@@ -15,7 +15,7 @@ Aqui:
 
 | Caminho | Licença |
 | --- | --- |
-| `tools/codegen/`, `src/main.c`, e o futuro parser/backend de `cgen` | GPLv3, sem exceção |
+| `tools/transform/` e `tools/cgen/` (o parser/backend de `cgen`) | GPLv3, sem exceção |
 | `golden/` (fixtures compiladas e executadas, não geradas da Base) | GPLv3, sem exceção |
 | `editors/` — as gramáticas de realce (`.json`/`.scm`); o `README.md` de dentro segue a documentação | GPLv3, sem exceção |
 | `src/base/` — a Base keel — e qualquer arquivo que leve este aviso | GPLv3 **+ a exceção abaixo** |

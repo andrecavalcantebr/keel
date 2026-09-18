@@ -1,15 +1,15 @@
 # gerado por ./gerar-ccjson.sh — tem caminhos absolutos, não versionar
 compile_commands.json
 
-# a árvore da base, gerada dos .k de tools/codegen/base por tools/codegen
+# a árvore da base, gerada dos .k de tools/transform/base por tools/transform
 /gen/
-/tools/codegen/gen/
+/tools/transform/gen/
+/tools/cgen/gen/
 
 # build
 obj/
 *.out
 
-# o executável do projeto. ANCORADO na raiz de propósito: sem a barra, `keel`
-# casaria todo diretório com esse nome — src/base/keel/, golden/c23/keel/ — e
-# engoliria a base inteira sem avisar.
-/keel
+# o executável do projeto. ANCORADO de propósito: sem a barra, `cgen`
+# casaria todo diretório com esse nome e engoliria a árvore sem avisar.
+/tools/cgen/cgen

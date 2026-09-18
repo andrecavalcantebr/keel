@@ -34,6 +34,8 @@ $(OBJDIR):
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(objects): | base
+
 $(PRJ): $(objects)
 	gcc $(LDFLAGS) $(objects) $(LDLIBS) -o $(PRJ)
 
@@ -42,14 +44,17 @@ run:
 
 # bancos de compilação do clangd (Zed, VSCode, vim); veja ./gerar-ccjson.sh
 ccjson:
-	@./gerar-ccjson.sh
+	@../../gerar-ccjson.sh
 
-# a base keel: fonte em tools/codegen/base (meta-linguagem $T do bootstrap,
-# não keel de verdade — a futura /base será isso), gerada para gen/. O mesmo
-# fonte também gera tools/codegen/gen/, para validação própria do codegen;
-# ver tools/codegen/base/Makefile.
+# a base do bootstrap: fonte em tools/transform/base (meta-linguagem $T, não
+# keel de verdade — /base, na raiz, é o alvo final), gerada aqui em gen/ pelo
+# transform. O mesmo fonte também gera tools/transform/gen/, para validação
+# própria da ferramenta; ver tools/transform/base/Makefile.
+TRANSFORM := ../transform
+
 base:
-	@$(MAKE) -C tools/codegen/base DEST=$(abspath $(GENDIR))
+	@$(MAKE) -C $(TRANSFORM)
+	@$(MAKE) -C $(TRANSFORM)/base DEST=$(abspath $(GENDIR))
 
 .PHONY: all clean ccjson base
 

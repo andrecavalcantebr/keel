@@ -8,7 +8,7 @@
 # em silêncio. Então cada árvore tem o seu banco, e o clangd acha o certo subindo
 # a partir do arquivo aberto:
 #
-#   ./compile_commands.json          src/, tools/codegen/ e as árvores geradas
+#   ./compile_commands.json          tools/cgen/, tools/transform/ e as árvores geradas
 #   golden/compile_commands.json     a suíte, nos dois perfis
 #
 # Os `-I` são RELATIVOS ao campo "directory" de cada entrada, que é a raiz do
@@ -34,21 +34,22 @@ entrada() {  # $1 = arquivo relativo, $2... = flags
 {
   printf '[\n'
 
-  # o executável do projeto: vê a base gerada em gen/ e os próprios fontes
-  for c in $(find src -maxdepth 1 -name '*.c' | sort); do
-    entrada "$c" "-I gen -I src"
+  # o cgen: vê a base gerada em tools/cgen/gen e os próprios fontes
+  for c in $(find tools/cgen/src -maxdepth 1 -name '*.c' 2>/dev/null | sort); do
+    entrada "$c" "-I tools/cgen/gen -I tools/cgen/src"
   done
 
   # as ferramentas de bootstrap: fecham em si mesmas
-  for c in $(find tools/codegen/src -name '*.c' 2>/dev/null | sort); do
-    entrada "$c" "-I tools/codegen/src"
+  for c in $(find tools/transform/src -name '*.c' 2>/dev/null | sort); do
+    entrada "$c" "-I tools/transform/src"
   done
 
   # cada árvore de header gerada responde pela própria raiz: é o que faz
   # `#include "keel.type.h"` achar o prelúdio e, com ele, i32 e os demais.
-  # tools/codegen/gen é a cópia local que o codegen gera para validar a si
-  # mesmo (mesmo fonte de tools/codegen/base, dest-dir diferente do /gen).
-  for arvore in gen tools/codegen/gen; do
+  # tools/transform/gen é a cópia local que o transform gera para validar a
+  # si mesmo (mesmo fonte de tools/transform/base, dest-dir diferente do
+  # tools/cgen/gen).
+  for arvore in tools/cgen/gen tools/transform/gen; do
     [ -d "$arvore" ] || continue
     for h in $(find "$arvore" -name '*.h' | sort); do
       entrada "$h" "-I $arvore"

@@ -1,11 +1,8 @@
-/* gen/app/pos.h — gerado de app/pos.k, perfil C11.
-   Só o que é `pub`: o tipo e os três protótipos (backend §4.1). */
-#ifndef APP_APP_POS_H
-#define APP_APP_POS_H
-#include "app/app_pos.type.h"
+/* gen/app/pos.impl.h — gerado de app/pos.k, perfil C11.
+   Nenhum corpo `pub inline` neste módulo: os três `pub` são sem `inline`,
+   corpo no `.c` (backend §4.4). */
+#ifndef APP_APP_POS_IMPL_H
+#define APP_APP_POS_IMPL_H
+#include "app/app_pos.h"
 
-typedef struct keel_arena keel_arena;
-void app_pos_ocupar(app_pos_position *p, keel_arena *a, size_t n);
-bool app_pos_linha(app_pos_position *p, f32 vx, f32 vy);
-f32  app_pos_somar_x(app_pos_position *p);
-#endif /* APP_APP_POS_H */
+#endif /* APP_APP_POS_IMPL_H */

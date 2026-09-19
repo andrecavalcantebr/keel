@@ -1,9 +1,6 @@
-/* gen/app/dr.h — gerado de app/dr.k, perfil C11. */
-#ifndef APP_APP_DR_H
-#define APP_APP_DR_H
-#include "app/app_dr.type.h"
+/* gen/app/dr.impl.h — gerado de app/dr.k, perfil C11. */
+#ifndef APP_APP_DR_IMPL_H
+#define APP_APP_DR_IMPL_H
+#include "app/app_dr.h"
 
-int  app_dr_consome(app_dr_Rec *r, int modo);
-int  app_dr_dois(app_dr_Rec *r, int cedo);
-void app_dr_nada(app_dr_Rec *r);
-#endif /* APP_APP_DR_H */
+#endif /* APP_APP_DR_IMPL_H */

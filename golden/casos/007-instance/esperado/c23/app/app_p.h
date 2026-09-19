@@ -1,7 +1,6 @@
-/* gen/app/p.h — gerado de app/p.k, perfil C23. */
-#ifndef APP_APP_P_H
-#define APP_APP_P_H
-#include "app/app_p.type.h"
+/* gen/app/p.impl.h — gerado de app/p.k, perfil C23. */
+#ifndef APP_APP_P_IMPL_H
+#define APP_APP_P_IMPL_H
+#include "app/app_p.h"
 
-int app_p_main(int argc, char **argv);
-#endif /* APP_APP_P_H */
+#endif /* APP_APP_P_IMPL_H */

@@ -677,20 +677,21 @@ Quatro regras de inclusão, e nada além delas:
 2. **`.proto.h` inclui o próprio `.type.h`** e o `.type.h` de todo tipo que
    apareça por valor nas suas assinaturas. **Nunca inclui o `.proto.h` nem o `.h`
    de outro módulo ou instância** — protótipo não precisa de protótipo.
-3. **`.h` inclui o próprio `.proto.h`; depois o `.proto.h` de cada módulo ou
-   instância cujas funções os seus corpos chamam; depois o `.h` de cada um cujas
-   funções `inline` eles chamam** — nesta ordem —, e só então escreve os corpos.
+3. **`.h` inclui o próprio `.proto.h`, o `.h` de cada módulo ou instância cujas
+   funções `inline` os seus corpos chamam, e o `.proto.h` de cada um cujas
+   funções fora de linha eles chamam** — e só então escreve os corpos.
 4. **`.c` inclui o próprio `.h` e o `.h` de cada módulo ou instância que ele usa.**
 
 A regra 2 é a que carrega o resultado: sem aresta `.proto.h → .proto.h`, o grafo
 de interface é uma floresta de folhas sobre o grafo de layout.
 
-A regra 3 põe **todo protótipo antes de todo corpo** na unidade de tradução, e é
-o que deixa a recursão entre corpos `inline` funcionar sem o backend ordenar nada
-dentro do arquivo: um `static inline` só precisa estar **declarado** antes da
-chamada, e a definição pode vir depois, na mesma unidade. Dentro do módulo, o
-próprio `.proto.h` traz todos os protótipos dele; entre módulos, o `.proto.h` do
-callee chega antes do `.h` do callee.
+A regra 3 põe **todo protótipo antes de todo corpo**, e é o que deixa a recursão
+entre corpos `inline` do mesmo módulo funcionar sem o backend ordenar nada dentro
+do arquivo: o próprio `.proto.h` traz todos os protótipos dele, e um `static
+inline` só precisa estar **declarado** antes da chamada. Entre módulos não há
+ordem a garantir: cada `.h` incluído traz o próprio `.proto.h` antes dos próprios
+corpos, e o L3→L3 entre módulos é acíclico (§4.3.1), então um `.h` nunca volta a
+si mesmo pelo caminho.
 
 A regra 4 é a do C de sempre, e é segura porque **nada inclui um `.c`**: ele é
 folha do grafo, então incluir o arquivo "tudo" de quem ele usa não fecha ciclo

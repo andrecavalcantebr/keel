@@ -177,18 +177,23 @@ char *a_list = NULL;   // headers do argumento, separados por virgula
 strbuf arg_includes = {0};
 
 // o texto antes da primeira marca: comentario de cabecalho, que sai acima do
-// include guard em cada um dos tres arquivos
+// include guard em cada um dos dois arquivos
 strbuf preamble = {0};
 
 strbuf input_buffer = {.len = 0, .cap = MEGA, .ptr = memory};
 
-// as tres secoes de saida, na ordem das camadas do backend 4.3.2
+// as tres secoes de entrada, na ordem das camadas do backend 4.3.1
 enum { SEC_TYPE, SEC_DECL, SEC_IMPL, SEC_COUNT };
 
 const char *section_mark[SEC_COUNT] = { "%type", "%h", "%impl" };
-// %h e o L2 (.proto.h); %impl e o L3, o .h que se inclui para usar
-const char *section_ext[SEC_COUNT]  = { ".type.h", ".proto.h", ".h" };
-const char *section_guard[SEC_COUNT] = { "_TYPE_H", "_PROTO_H", "_H" };
+
+// os dois arquivos de saida (backend 4.3.2): %type e o L0+L1, o .type.h;
+// %h (L2) e %impl (L3) vao juntos, nessa ordem, para o .h que se inclui para
+// usar -- os prototipos antes dos #include dos .h chamados e dos corpos
+enum { OUT_TYPE, OUT_H, OUT_COUNT };
+
+const char *out_ext[OUT_COUNT]   = { ".type.h", ".h" };
+const char *out_guard[OUT_COUNT] = { "_TYPE_H", "_H" };
 
 //---------
 // files and i/o
@@ -340,7 +345,7 @@ void save_file(char *file, strbuf *sb) {
 // parser and code generation
 //---------
 
-// emite no destino corrente; cur < 0 e o preambulo, que e comum aos tres
+// emite no destino corrente; cur < 0 e o preambulo, que e comum aos dois
 void emit_char(strbuf *out[SEC_COUNT], int cur, char c) {
     strbuf_append_char(cur < 0 ? &preamble : out[cur], c);
 }
@@ -514,14 +519,19 @@ int main(int argc, char *argv[]) {
     load_file(source_file, &input_buffer);
     transform(&input_buffer, section);
 
-    for (int s = 0; s < SEC_COUNT; s++) {
+    // %h e %impl no mesmo .h, nessa ordem
+    if (section[SEC_DECL]->len && section[SEC_IMPL]->len) strbuf_append_char(section[SEC_DECL], '\n');
+    strbuf_append_strbuf(section[SEC_DECL], section[SEC_IMPL]);
+    strbuf *output[OUT_COUNT] = { section[SEC_TYPE], section[SEC_DECL] };
+
+    for (int s = 0; s < OUT_COUNT; s++) {
         // o caminho de escrita leva o --dest-dir; o de include, nao
         strbuf target = strbuf_from_arena(&a, 512);
         strbuf include = strbuf_from_arena(&a, 512);
         strbuf head = strbuf_from_arena(&a, 1024);
         strbuf tail = strbuf_from_arena(&a, 512);
 
-        build_target_name(&target, output_dir, module_name, t_type, section_ext[s]);
+        build_target_name(&target, output_dir, module_name, t_type, out_ext[s]);
 
         // o guard vem do nome do alvo sem diretorio de destino, em caixa alta
         build_target_name(&include, "", module_name, t_type, "");
@@ -530,23 +540,23 @@ int main(int argc, char *argv[]) {
         strbuf_append_strbuf(&head, &preamble);
         strbuf_append_pchar(&head, "#ifndef ");
         strbuf_append_upper(&head, strbuf_cstr(&include) ? include.ptr : "");
-        strbuf_append_pchar(&head, section_guard[s]);
+        strbuf_append_pchar(&head, out_guard[s]);
         strbuf_append_pchar(&head, "\n#define ");
         strbuf_append_upper(&head, include.ptr);
-        strbuf_append_pchar(&head, section_guard[s]);
+        strbuf_append_pchar(&head, out_guard[s]);
         strbuf_append_pchar(&head, "\n\n");
 
-        // auto-include: o .proto.h puxa o .type.h, o .h puxa o .proto.h (backend 4.3.2)
-        if (s != SEC_TYPE) {
+        // auto-include: o .h puxa o proprio .type.h (backend 4.3.2, regra 2)
+        if (s == OUT_H) {
             strbuf_append_pchar(&head, "#include \"");
             strbuf_append_pchar(&head, include.ptr);
-            strbuf_append_pchar(&head, section_ext[s - 1]);
+            strbuf_append_pchar(&head, out_ext[OUT_TYPE]);
             strbuf_append_pchar(&head, "\"\n\n");
         }
 
         strbuf_append_pchar(&tail, "\n#endif // ");
         strbuf_append_upper(&tail, include.ptr);
-        strbuf_append_pchar(&tail, section_guard[s]);
+        strbuf_append_pchar(&tail, out_guard[s]);
         strbuf_append_pchar(&tail, "\n");
 
         char *target_file = strbuf_cstr(&target);
@@ -560,7 +570,7 @@ int main(int argc, char *argv[]) {
             mkdir_p(target_dir);
         }
 
-        save_file3(target_file, &head, section[s], &tail);
+        save_file3(target_file, &head, output[s], &tail);
         printf("- Output file: %s \n", target_file);
     }
 

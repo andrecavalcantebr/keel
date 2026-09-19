@@ -37,10 +37,10 @@ typedef double f64;
     typedef _Float128 f128;
 #endif
 
-%h
 // OK e NONE nao mencionam o parametro do modulo keel.outcome, entao sao do
-// modulo e nao da instancia (backend 4.4.1). Aqui moram no prelude, que e o
-// unico modulo que existe uma vez so nesta ferramenta.
+// modulo e nao da instancia (backend 4.4.1), e constante de modulo e L1
+// (backend 4.3.1). Aqui moram no prelude, que e o unico modulo que existe
+// uma vez so nesta ferramenta.
 // enum, e nao constexpr: constante de enum nao tem ligacao e pode viver em
 // header incluido por muitas unidades.
 enum {

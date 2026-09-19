@@ -1,5 +1,5 @@
-# Gera a base keel a partir dos .k, no trio .type.h / .proto.h / .h
-# O corte em tres e o do backend 4.3.2: tipos, interface, corpos.
+# Gera a base keel a partir dos .k, no par .type.h / .h
+# O corte em dois e o do backend 4.3.2: tipos; prototipos e corpos.
 
 CG    := ../transform.out
 SRC   := .

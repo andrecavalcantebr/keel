@@ -39,10 +39,10 @@ transform -m qualified_module_name -i input_dir -d output_dir -t type -n dimensi
 #### 3.5.2. $N é substituído pela dimensão do módulo
 #### 3.5.3. $E é substituído pela lista de enums
 
-### 3.6. marcas de geração para .type.h, .impl.h e o .h:
-#### 3.6.1. %type - leva o texto para .type.h
-#### 3.6.2. %impl - leva o texto para .impl.h
-#### 3.6.3. %h - leva o texto para o .h: é gerado pelo import  do .type.h + o que for de tipo próprio necessário
+### 3.6. marcas de geração para o .type.h e o .h (backend §4.3.2):
+#### 3.6.1. %type - leva o texto para o .type.h: `import_c`, tipos, constantes de módulo, e os `#include` de `.type.h` de que os campos por valor precisam
+#### 3.6.2. %h - leva o texto para o .h, logo depois do `#include` do próprio .type.h: os `#include` de `.type.h` das assinaturas, e os protótipos
+#### 3.6.3. %impl - leva o texto para o .h, depois do %h: os `#include` dos `.h` chamados, e os corpos
 #### 3.6.4. $A - gera o conjunto de #includes
 
 ## Detalhes:

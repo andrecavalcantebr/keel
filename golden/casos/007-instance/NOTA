@@ -17,11 +17,6 @@ invariante de nenhum alvo sem fonte (backend §4.3).
 o par de instancias.k. `instance` coloca, não declara
 nome: não há nada de `pub` aqui (linguagem §4.9).
 
-**`instancias.proto.h`** (c23, c11)
-
-o par de instancias.k. `instance` coloca, não declara
-nome: não há nada de `pub` aqui (linguagem §4.9).
-
 **`instancias.type.h`** (c23, c11)
 
 o par de instancias.k. `instance` coloca, não declara
@@ -29,20 +24,13 @@ nome: não há nada de `pub` aqui (linguagem §4.9).
 
 **`pilha.c`** (c23, c11)
 
-o par do genérico. A constante é `pub` e vive no `.h`; não há
+o par do genérico. A constante é `pub` e vive no `.type.h`; não há
 corpo a emitir aqui (backend §4.3).
 
 **`pilha.h`** (c23, c11)
 
-o `.h` do módulo genérico, uma vez. A constante não menciona
-parâmetro nem modificador, então não pertence a instância nenhuma e o nome
-não leva o argumento (backend §4.4.1).
-
-**`pilha.proto.h`** (c23, c11)
-
-o `.h` do módulo genérico, uma vez. A constante não menciona
-parâmetro nem modificador, então não pertence a instância nenhuma e o nome
-não leva o argumento (backend §4.4.1).
+o `.h` do módulo genérico, uma vez: só inclui o `.type.h`, onde a
+constante mora (backend §4.3.2, §4.4.1).
 
 **`pilha.type.h`** (c23, c11)
 
@@ -53,17 +41,10 @@ não leva o argumento (backend §4.4.1).
 **`pilha_stack_i32.h`** (c23, c11)
 
 instância de `stack i32`.
-Inclui o `.h` do genérico, e não o contrário: a constante é dele, a struct é
-da instância (backend §4.4.1).
-
-**`pilha_stack_i32.proto.h`** (c23, c11)
-
-instância de `stack i32`.
-O `.h` do genérico chega a quem usa a constante dele — aqui ninguém usa, e
-o include segue a necessidade (backend §4.3.2, regra 2).
+O `.type.h` do genérico chega a quem usa a constante dele — aqui nenhum corpo
+usa, e o include segue a necessidade (backend §4.3.2, regra 2).
 
 **`pilha_stack_i32.type.h`** (c23, c11)
 
 instância de `stack i32`.
-Inclui o `.h` do genérico, e não o contrário: a constante é dele, a struct é
-da instância (backend §4.4.1).
+A constante é do genérico, a struct é da instância (backend §4.4.1).

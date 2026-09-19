@@ -15,12 +15,8 @@ existente (§5.3), pra entrar em `foreach`.
 
 **`app/app_pos.h`** (c23, c11)
 
-Nenhum corpo `pub inline` neste módulo: os três `pub` são sem `inline`,
-corpo no `.c` (backend §4.4).
-
-**`app/app_pos.proto.h`** (c23, c11)
-
-Só o que é `pub`: o tipo e os três protótipos (backend §4.1).
+Os três protótipos, sobre o `.type.h`; nenhum corpo `pub inline` neste
+módulo: os três `pub` são sem `inline`, corpo no `.c` (backend §4.1, §4.4).
 
 **`app/app_pos.type.h`** (c23, c11)
 

@@ -19,11 +19,11 @@ ok=0; falha=0; xfail=0; xpass=0
 # verificado aqui: um gerado que o viole compilaria mesmo assim, e a suíte
 # deixaria de ser oráculo justamente da regra que mata os ciclos de inclusão.
 estrutura=0
-for h in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' ! -name '*.proto.h' | sort); do
-  base=${h%.h}
-  for camada in .type.h .proto.h; do
-    [ -f "$base$camada" ] || { printf 'ESTRUT %s — falta %s\n' "$h" "$base$camada"; estrutura=$((estrutura+1)); }
-  done
+for h in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' | sort); do
+  [ -f "${h%.h}.type.h" ] || { printf 'ESTRUT %s — falta %s\n' "$h" "${h%.h}.type.h"; estrutura=$((estrutura+1)); }
+done
+for d in $(find c23 c11 casos -name '*.proto.h' | sort); do
+  printf 'ESTRUT %s — o corte é em dois, .type.h e .h (backend §4.3.2)\n' "$d"; estrutura=$((estrutura+1))
 done
 
 # O caminho do .k é o nome do `module`: é `module-fora-do-caminho` (spec §4.1),
@@ -63,10 +63,12 @@ for t in $(find c23 c11 casos -name '*.type.h' | sort); do
   [ -z "$mau" ] || { printf 'ESTRUT %s — .type.h incluindo fora da camada:\n%s\n' "$t" "$mau"; estrutura=$((estrutura+1)); }
 done
 
-# I2: um .proto.h inclui apenas .type.h — protótipo não precisa de protótipo
-for d in $(find c23 c11 casos -name '*.proto.h' | sort); do
-  mau=$(grep '^#include "' "$d" | grep -v '\.type\.h"')
-  [ -z "$mau" ] || { printf 'ESTRUT %s — .proto.h incluindo fora da camada:\n%s\n' "$d" "$mau"; estrutura=$((estrutura+1)); }
+# I2: as seções do .h (regra 2) — todo #include de .type.h vem antes do primeiro
+# #include de .h. Os protótipos ficam entre os dois blocos, e é essa ordem que
+# faz todo protótipo alcançável chegar antes do primeiro corpo.
+for h in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' | sort); do
+  mau=$(grep '^#include "' "$h" | awk '/\.type\.h"/ { if (visto) print; next } { visto = 1 }')
+  [ -z "$mau" ] || { printf 'ESTRUT %s — .type.h incluído depois de um .h:\n%s\n' "$h" "$mau"; estrutura=$((estrutura+1)); }
 done
 [ $estrutura -eq 0 ] && printf 'ok     estrutura de camadas         (backend §4.3.2)\n'
 falha=$((falha+estrutura))
@@ -92,7 +94,7 @@ for caso in casos/*/; do
     inc="-I$perfil -I$ger -I$caso"
 
     # todo módulo com `pub` tem de ter `.h` — foi o que passou despercebido 16 vezes
-    if find "$caso" -name '*.k' -exec grep -lq '^pub ' {} + 2>/dev/null && ! find "$ger" -name '*.h' ! -name '*.type.h' ! -name '*.proto.h' | grep -q .; then
+    if find "$caso" -name '*.k' -exec grep -lq '^pub ' {} + 2>/dev/null && ! find "$ger" -name '*.h' ! -name '*.type.h' | grep -q .; then
       printf 'FALHA  %-24s %s  — módulo com `pub` e sem .h gerado\n' "$nome" "$perfil"; falha=$((falha+1)); continue
     fi
 

@@ -45,21 +45,11 @@ tabela é um vetor do programa (backend §5.10).
 
 As tabelas são locais das funções, então o `.h` não menciona `routine`.
 
-**`ag2.proto.h`** (c23, c11)
-
-As tabelas são locais das funções, então o `.h` não menciona `routine`.
-
 **`ag2.type.h`** (c23, c11)
 
 As tabelas são locais das funções, então o `.h` não menciona `routine`.
 
 **`keel/keel_routine_ag2_Ag.h`** (c23, c11)
-
-instância de `keel.routine` sobre o contexto
-`ag2.Ag` (backend §5.10). O typedef da participante é da instância; o estado
-por slot é um `corot`, e não um inteiro nu.
-
-**`keel/keel_routine_ag2_Ag.proto.h`** (c23, c11)
 
 instância de `keel.routine` sobre o contexto
 `ag2.Ag` (backend §5.10). O typedef da participante é da instância; o estado
@@ -72,11 +62,6 @@ instância de `keel.routine` sobre o contexto
 por slot é um `corot`, e não um inteiro nu.
 
 **`keel/keel_slice_keel_routine_slot_ag2_Ag.h`** (c23, c11)
-
-instância de `slice slot`.
-Arrastada pela instanciação de `keel.routine` (backend §4.3).
-
-**`keel/keel_slice_keel_routine_slot_ag2_Ag.proto.h`** (c23, c11)
 
 instância de `slice slot`.
 Arrastada pela instanciação de `keel.routine` (backend §4.3).

@@ -25,9 +25,11 @@ typedef struct keel_buffer_$T {
 typedef struct keel_buffer_cursor { size_t i; } keel_buffer_cursor;
 #endif
 
+%h
+#include "keel/keel_slice_$T.type.h"
+
 %impl
 #include "keel/keel_arena.h"
-#include "keel/keel_slice_$T.type.h"
 #include "keel/keel_outcome_$T.h"
 #include "keel/keel_outcome_keel_buffer_$T.h"
 

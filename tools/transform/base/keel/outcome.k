@@ -17,8 +17,7 @@ typedef struct keel_outcome_$T {
 } keel_outcome_$T;
 
 %impl
-// OK e NONE sao do modulo, nao da instancia, e sao L2: moram no .h do prelude
-#include "keel.proto.h"
+// OK e NONE sao do modulo, nao da instancia, e sao L1: chegam pelo keel.type.h
 
 static inline keel_outcome_$T keel_outcome_$T_win(keel_outcome_$T *r) {
     r->code = keel_outcome_OK;

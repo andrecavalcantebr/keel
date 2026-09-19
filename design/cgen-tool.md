@@ -733,10 +733,10 @@ e o código de saída do `cc` — subiram para a spec da ferramenta.)
 | --- | --- | --- |
 | P4 | golden × backend §4.1/§6 | o golden põe `import_c` no `.c`, sem `#line`, e não põe `#line` nas declarações levadas a header; o backend põe `import_c` no `.type.h` e `#line` nos dois. Resolve-se na auditoria dos casos |
 | P5 | golden | comentários de abertura com prosa que o cgen não pode gerar; `003` tem `(void)argc; (void)argv;` que não está no fonte — comparação byte a byte falha até o golden ser regularizado |
-| P13 | golden × backend §4.3.2 | o golden ainda tem `.proto.h` em todo módulo e instância, `constexpr` de módulo no `.proto.h`, e o `run.sh`/`README.md` checam o corte em três; o backend corta em dois (`.type.h` + `.h`). Resolve-se na re-derivação do golden |
 
 Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão
 da §4.10), P3 (`--base-dir`, sem `KEEL_HOME`), P8 (o `.c` só da invocação), P9
 (a base não vai ao `cc`), P10 (lexer-design), P11 (`prelude.h` no backend §3.2),
 P6 (unidade de entrada inclui só o `.h`), P7 (código do `cc` na spec §7, era D5)
 e P12 (`base/` no repositório, `lib/base/` na distribuição).
+Resolvida em 2026-09-19: P13 (golden no corte em dois, `.type.h` + `.h`).

@@ -44,10 +44,6 @@ elemento com `next` — uma chamada por iteração, depois do teste
 
 `pub inline` sai `static inline` no header, com corpo (backend §4.1).
 
-**`lst.proto.h`** (c23, c11)
-
-`pub inline` sai `static inline` no header, com corpo (backend §4.1).
-
 **`lst.type.h`** (c23, c11)
 
 `pub inline` sai `static inline` no header, com corpo (backend §4.1).

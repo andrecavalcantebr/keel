@@ -8,14 +8,9 @@ só o cabeçalho de uma linha (desenho do cgen §5.3).
 
 **`keel.h`** (c23, c11)
 
-Nenhum corpo `pub
-inline`: `module keel;` não declara verbo (backend §4.3.2).
-
-**`keel.proto.h`** (c23, c11)
-
-`module keel;` não declara
-verbo, só tipos — a interface é literalmente incluir o `.type.h`, sem
-protótipo nenhum (backend §4.3.2). Normativo: keel-c-backend.md §4.2.
+`module keel;` não declara verbo, só tipos — o `.h` é literalmente
+incluir o `.type.h`, sem protótipo nem corpo (backend §4.3.2). Normativo:
+keel-c-backend.md §4.2.
 
 **`keel.type.h`** (c23, c11)
 
@@ -25,11 +20,6 @@ conteúdo toda vez para este perfil — não é hand-maintained; é a saída de
 primitivos. Normativo: keel-c-backend.md §4.2.
 
 **`keel/keel_arena.h`** (c23, c11)
-
-O `.h` do módulo keel.arena; C comum.
-Normativo: keel-c-backend.md §5.4 e §5.4.1.
-
-**`keel/keel_arena.proto.h`** (c23, c11)
 
 O `.h` do módulo keel.arena; C comum.
 Normativo: keel-c-backend.md §5.4 e §5.4.1.
@@ -44,11 +34,6 @@ Normativo: keel-c-backend.md §5.4 e §5.4.1.
 o que o módulo `keel.buffer` declara uma vez, e não por
 instância: o cursor guarda uma posição e não menciona `T` (backend §5.11).
 
-**`keel/keel_buffer.proto.h`** (c23, c11)
-
-o que o módulo `keel.buffer` declara uma vez, e não por
-instância: o cursor guarda uma posição e não menciona `T` (backend §5.11).
-
 **`keel/keel_buffer.type.h`** (c23, c11)
 
 o que o módulo `keel.buffer` declara uma vez, e não por
@@ -58,20 +43,11 @@ instância: o cursor guarda uma posição e não menciona `T` (backend §5.11).
 
 instância de `buffer i32` (backend §5.2, §5.13).
 
-**`keel/keel_buffer_i32.proto.h`** (c23, c11)
-
-instância de `buffer i32` (backend §5.2, §5.13).
-
 **`keel/keel_buffer_i32.type.h`** (c23, c11)
 
 instância de `buffer i32` (backend §5.2, §5.13).
 
 **`keel/keel_buffer_size_t.h`** (c23, c11)
-
-instância de `buffer size_t`.
-Recortada ao que o caso usa: `of` e `set` (backend §5.2).
-
-**`keel/keel_buffer_size_t.proto.h`** (c23, c11)
 
 instância de `buffer size_t`.
 Recortada ao que o caso usa: `of` e `set` (backend §5.2).
@@ -88,13 +64,6 @@ Tipo verdadeiro, não modificador: um campo, e três estados por sinal do
 código — <0 SUCCESS, 0 ONGOING, >0 FAILED. Sai uma vez no módulo, sem
 header de instância: não há valor associado a parametrizar.
 
-**`keel/keel_corot.proto.h`** (c23, c11)
-
-o tipo `corot` e seu conjunto de tags (backend §5.14).
-Tipo verdadeiro, não modificador: um campo, e três estados por sinal do
-código — <0 SUCCESS, 0 ONGOING, >0 FAILED. Sai uma vez no módulo, sem
-header de instância: não há valor associado a parametrizar.
-
 **`keel/keel_corot.type.h`** (c23, c11)
 
 o tipo `corot` e seu conjunto de tags (backend §5.14).
@@ -104,24 +73,16 @@ header de instância: não há valor associado a parametrizar.
 
 **`keel/keel_outcome.h`** (c23, c11)
 
-O `.h` do módulo, uma vez: as duas constantes
-não mencionam parâmetro nem modificador (keel-c-backend.md §4.4.1).
-
-**`keel/keel_outcome.proto.h`** (c23, c11)
-
-O `.h` do módulo, uma vez: as duas constantes
-não mencionam parâmetro nem modificador (keel-c-backend.md §4.4.1).
+O `.h` do módulo, uma vez: só inclui o `.type.h`, porque o módulo não tem
+verbo que não mencione parâmetro (keel-c-backend.md §4.4.1).
 
 **`keel/keel_outcome.type.h`** (c23, c11)
 
-O `.h` do módulo, uma vez: as duas constantes
-não mencionam parâmetro nem modificador (keel-c-backend.md §4.4.1).
+O `.type.h` do módulo, uma vez: as duas constantes não mencionam parâmetro
+nem modificador, e `constexpr` de módulo é L1 (keel-c-backend.md §4.3.1,
+§4.4.1).
 
 **`keel/keel_outcome_i32.h`** (c23, c11)
-
-instância de `outcome i32` (backend §5.12).
-
-**`keel/keel_outcome_i32.proto.h`** (c23, c11)
 
 instância de `outcome i32` (backend §5.12).
 
@@ -130,11 +91,6 @@ instância de `outcome i32` (backend §5.12).
 instância de `outcome i32` (backend §5.12).
 
 **`keel/keel_outcome_keel_slice_i32.h`** (c23, c11)
-
-instância de `outcome slice i32`.
-Mangling recursivo: `outcome` sobre `slice i32` (backend §2.2).
-
-**`keel/keel_outcome_keel_slice_i32.proto.h`** (c23, c11)
 
 instância de `outcome slice i32`.
 Mangling recursivo: `outcome` sobre `slice i32` (backend §2.2).
@@ -148,10 +104,6 @@ Mangling recursivo: `outcome` sobre `slice i32` (backend §2.2).
 
 instância de `outcome u32` (backend §5.12).
 
-**`keel/keel_outcome_u32.proto.h`** (c23, c11)
-
-instância de `outcome u32` (backend §5.12).
-
 **`keel/keel_outcome_u32.type.h`** (c23, c11)
 
 instância de `outcome u32` (backend §5.12).
@@ -160,21 +112,11 @@ instância de `outcome u32` (backend §5.12).
 
 Instância sem payload: spec v2 §4.12.
 
-**`keel/keel_outcome_void.proto.h`** (c23, c11)
-
-Instância sem payload: spec v2 §4.12.
-
 **`keel/keel_outcome_void.type.h`** (c23, c11)
 
 Instância sem payload: spec v2 §4.12.
 
 **`keel/keel_parallel.h`** (c23, c11)
-
-o símbolo de controle de um bloco `parallel` (backend §5.9).
-O nome escrito no fonte declara um objeto deste tipo no escopo que contém o
-bloco; o gestor escreve nos campos, e o programa lê pelos verbos.
-
-**`keel/keel_parallel.proto.h`** (c23, c11)
 
 o símbolo de controle de um bloco `parallel` (backend §5.9).
 O nome escrito no fonte declara um objeto deste tipo no escopo que contém o
@@ -192,12 +134,6 @@ o `.h` do módulo keel.range.
 `range` NÃO é `byref`: os verbos recebem cópia (linguagem §4.11). Declara os
 quatro que fazem dele contável e percorrível: first, limit, length, get.
 
-**`keel/keel_range.proto.h`** (c23, c11)
-
-o `.h` do módulo keel.range.
-`range` NÃO é `byref`: os verbos recebem cópia (linguagem §4.11). Declara os
-quatro que fazem dele contável e percorrível: first, limit, length, get.
-
 **`keel/keel_range.type.h`** (c23, c11)
 
 o `.h` do módulo keel.range.
@@ -205,10 +141,6 @@ o `.h` do módulo keel.range.
 quatro que fazem dele contável e percorrível: first, limit, length, get.
 
 **`keel/keel_slice.h`** (c23, c11)
-
-idem para `keel.slice` (backend §5.11).
-
-**`keel/keel_slice.proto.h`** (c23, c11)
 
 idem para `keel.slice` (backend §5.11).
 
@@ -223,13 +155,6 @@ instância de `slice f32` (backend §5.2).
 (linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
 temporário: `of` devolve valor e `length` consome valor.
 
-**`keel/keel_slice_f32.proto.h`** (c23, c11)
-
-instância de `slice f32` (backend §5.2).
-`slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro
-(linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
-temporário: `of` devolve valor e `length` consome valor.
-
 **`keel/keel_slice_f32.type.h`** (c23, c11)
 
 instância de `slice f32` (backend §5.2).
@@ -238,13 +163,6 @@ instância de `slice f32` (backend §5.2).
 temporário: `of` devolve valor e `length` consome valor.
 
 **`keel/keel_slice_i32.h`** (c23, c11)
-
-instância de `slice i32` (backend §5.2).
-`slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro
-(linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
-temporário: `of` devolve valor e `length` consome valor.
-
-**`keel/keel_slice_i32.proto.h`** (c23, c11)
 
 instância de `slice i32` (backend §5.2).
 `slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro

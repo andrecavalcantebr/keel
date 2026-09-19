@@ -4,4 +4,5 @@
 #include "keel.type.h"
 #include "grid_grade_3_f32.type.h"
 
+constexpr i8 app_g_DIM = 3;
 #endif /* APP_APP_G_TYPE_H */

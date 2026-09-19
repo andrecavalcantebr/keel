@@ -1,6 +1,10 @@
 /* app/app_pos.h — gerado de app/pos.k pelo cgen, perfil C11. */
 #ifndef APP_APP_POS_H
 #define APP_APP_POS_H
-#include "app/app_pos.proto.h"
+#include "app/app_pos.type.h"
 
+typedef struct keel_arena keel_arena;
+void app_pos_ocupar(app_pos_position *p, keel_arena *a, size_t n);
+bool app_pos_linha(app_pos_position *p, f32 vx, f32 vy);
+f32  app_pos_somar_x(app_pos_position *p);
 #endif /* APP_APP_POS_H */

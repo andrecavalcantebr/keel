@@ -4,4 +4,5 @@
 #include "keel.type.h"
 #include "keel/keel_outcome_i32.type.h"
 
+constexpr size_t app_cfg_MAX = 256;
 #endif /* APP_APP_CFG_TYPE_H */

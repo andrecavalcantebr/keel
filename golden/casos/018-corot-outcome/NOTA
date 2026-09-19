@@ -24,11 +24,6 @@ Quem sai da função é o `return` escrito no fonte (backend §5.14).
 `corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
 (backend §5.14).
 
-**`resultados.proto.h`** (c23, c11)
-
-`corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
-(backend §5.14).
-
 **`resultados.type.h`** (c23, c11)
 
 `corot` é tipo, não instância: um header de módulo, sem sufixo de argumento

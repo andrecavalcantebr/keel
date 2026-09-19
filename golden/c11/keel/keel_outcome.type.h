@@ -3,4 +3,8 @@
 #define KEEL_KEEL_OUTCOME_TYPE_H
 #include "keel.type.h"
 
+#define keel_outcome_OK ((i32)0)
+static const i32 keel_outcome_OK__chk = 0;
+#define keel_outcome_NONE ((i32)(-2147483647 - 1))
+static const i32 keel_outcome_NONE__chk = (-2147483647 - 1);
 #endif /* KEEL_KEEL_OUTCOME_TYPE_H */

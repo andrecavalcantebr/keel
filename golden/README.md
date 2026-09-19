@@ -18,28 +18,30 @@ Cada caso separa **dois papéis** que não podem se misturar:
 
 **`esperado/`** responde *o cgen produziu o que devia?* — é o alvo de comparação
 quando o transpiler existir. O módulo do caso é o que a invocação compila, então
-tem **quatro** arquivos, sempre; uma instância, ou um módulo só importado, tem os
-três primeiros (`backend §4.1`, `§4.3.2`):
+tem **três** arquivos, sempre; uma instância, ou um módulo só importado, tem os
+dois primeiros (`backend §4.1`, `§4.3.2`):
 
-    <módulo>.type.h    L0+L1  os tipos, e as declarações adiantadas dos campos `X *`
-    <módulo>.proto.h   L2     protótipos, `extern`, `constexpr`: inclui o próprio .type.h
-    <módulo>.h         L3     os corpos `static inline`: inclui o próprio .proto.h, e
-                              é o único include de uso
+    <módulo>.type.h    L0+L1  os tipos, os `constexpr` de módulo, e as declarações
+                              adiantadas dos campos `X *`
+    <módulo>.h         L2+L3  os .type.h, os protótipos e `extern`, os .h de quem os
+                              corpos chamam, e os corpos `static inline` — nessa
+                              ordem; é o único include de uso
     <módulo>.c         L3     os corpos fora de linha; inclui o próprio .h
 
 Um módulo que declara `main` tem também a unidade de entrada `main_<módulo>.c`,
 porque ela não vai dentro do `.c` do módulo (`backend §5.8`).
 
-**O corte em três não é arrumação, é o que impede ciclo de inclusão.** A
+**O corte em dois não é arrumação, é o que impede ciclo de inclusão.** A
 dependência de layout de uma instância corre no sentido contrário do import —
 `keel.buffer` importa `keel.outcome`, e o layout de `keel_outcome_keel_buffer_i32`
-depende do de `keel_buffer_i32`. Com tipos e assinaturas no mesmo arquivo, os dois
-sentidos se encontram e o ciclo é inevitável; separados, cada grafo é acíclico por
-uma razão própria (`backend §4.3.1`).
+depende do de `keel_buffer_i32`. Com tipos e corpos no mesmo arquivo, os dois
+sentidos se encontram e o ciclo depende da ordem de entrada; separados, o de
+layout é acíclico, e o de chamada fica inofensivo pela ordem das seções do `.h`
+(`backend §4.3.1`, `§4.3.2`; o porquê, no rationale, "Dois headers, tipo e uso").
 
 **`prova.c`** responde *o que ele produziu se comporta como a spec diz?* Ele
 inclui o gerado, toca **só a interface pública**, e afirma. Ele inclui o `.h` de
-cada módulo que usa, como qualquer `.c` de usuário (regra 4 do `backend §4.3.2`). Compila junto
+cada módulo que usa, como qualquer `.c` de usuário (regra 3 do `backend §4.3.2`). Compila junto
 com o gerado e roda. Nunca é comparado com nada — é código de teste, para
 sempre. Casos cujo `.k` declara `main` não têm `prova.c`: as asserções vivem no
 fonte keel e o ponto de entrada é o wrapper gerado.
@@ -55,14 +57,14 @@ O corte em camadas é verificável sem compilador, e um gerado que o violasse
 compilaria assim mesmo — a suíte deixaria de ser oráculo justamente da regra que
 mata os ciclos. Então `run.sh` começa por asserções estruturais:
 
-1. todo `.h` de módulo ou instância tem `.type.h` e `.proto.h` ao lado;
+1. todo `.h` de módulo ou instância tem `.type.h` ao lado, e não existe `.proto.h`;
 2. o módulo de cada caso tem `.h` e `.c` com o nome do símbolo, sob o diretório
    dos componentes-pai (`backend §4.1`);
 3. **um `.type.h` inclui apenas `.type.h`** — é o que faz o grafo de layout ser
    um DAG;
-4. **um `.proto.h` inclui apenas `.type.h`** — protótipo não precisa de
-   protótipo, e é essa ausência de aresta que deixa o grafo de interface sem
-   ciclo.
+4. **num `.h`, todo `#include` de `.type.h` vem antes do primeiro `#include` de
+   `.h`** — os protótipos ficam entre os dois blocos, e é essa ordem que faz
+   todo protótipo alcançável chegar antes do primeiro corpo.
 
 Falha estrutural sai como `ESTRUT` e conta como falha.
 
@@ -101,7 +103,7 @@ Confirmado na prática: o GCC 13 reporta `__STDC_VERSION__ == 202000L` sob
 `-std=c2x`, não `202311L`, então detectar C23 pelo pré-processador não funciona.
 É a razão de `cgen-tool-spec.md §4.9` ler o perfil da linha de comando.
 
-A explicação dos headers da base mora em `NOTA`, pela mesma razão. Os headers do prelúdio (`keel.type.h`, `keel.proto.h`, `keel.h` — gerados de
+A explicação dos headers da base mora em `NOTA`, pela mesma razão. Os headers do prelúdio (`keel.type.h` e `keel.h` — gerados de
 `keel.k`, mas determinísticos: mesmo conteúdo sempre, para um dado perfil) vivem
 na raiz de `c23/` e `c11/`, porque `module keel;` não tem componente-pai
 (`backend §4.1`); os de módulo e instância da base, em `c23/keel/` e

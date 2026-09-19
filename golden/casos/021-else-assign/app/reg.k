@@ -41,7 +41,7 @@ priv outcome f64 read_birth(size_t i) {
 /* Os três resultados são locais e vivem FORA do laço: é a declaração deles que
    dá o tipo, e a cauda `else` na atribuição reusa esse tipo a cada volta
    (§4.10). Escrever `people[i].address = read_address(i) else …` seria
-   `else-alvo-complexo`: o alvo não é identificador declarado. */
+   `else-on-complex-target`: o alvo não é identificador declarado. */
 pub size_t load(size_t n) {
     outcome slice const char name = {0};
     outcome slice const char address = {0};

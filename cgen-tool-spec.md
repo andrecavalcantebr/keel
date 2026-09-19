@@ -162,7 +162,7 @@ Com `--stop-after=gen`, ou com `-c` repassado ao compilador C, cada módulo é c
 
 **Uma invocação escreve um `.c`, e só um: o do que ela compila** (backend §4.1). Módulos importados e instâncias implícitas saem só em headers, que não são alvo; o `.c` de um importado é escrito pela invocação dele. Não existe alvo gerado sem fonte correspondente, e portanto não há lista dinâmica para o build acompanhar por glob, manifesto ou arquivo agregador. Isso importa especialmente para ninja e cmake, cujos grafos são estáticos e montados antes da compilação: alvo novo aparecendo no meio do build seria justamente o que eles não sabem tratar.
 
-**Módulo genérico não compila sozinho.** `cgen coll.k` sobre um módulo com parâmetro é `fonte-generico`: o parser não tem o que pôr no lugar de `T`, `N` ou `E`. Importado, ele gera os próprios headers — o que não menciona parâmetro, backend §4.4.1 — como qualquer módulo. Um genérico entra no build de duas formas, e a ferramenta não descobre nenhuma delas sozinha:
+**Módulo genérico não compila sozinho.** `cgen coll.k` sobre um módulo com parâmetro é `generic-source-without-instance`: o parser não tem o que pôr no lugar de `T`, `N` ou `E`. Importado, ele gera os próprios headers — o que não menciona parâmetro, backend §4.4.1 — como qualquer módulo. Um genérico entra no build de duas formas, e a ferramenta não descobre nenhuma delas sozinha:
 
 - **por uso**, com os corpos `inline` nos headers da instância e os fora de linha no `.c` do módulo que declara `instance` (linguagem §4.3) — um `.k` que o usuário escreveu, com o `.o` e a regra que ele mesmo pôs no build;
 - **por invocação**, com `--instance`, que é a mesma declaração escrita na linha de comando:
@@ -174,7 +174,7 @@ cgen -c --instance "keel.buffer.buffer app.geom.Point" -o keel_buffer_app_geom_P
 
 O argumento é o uso como a declaração `instance` o escreve, com uma exigência a mais: **tudo é qualificado por inteiro** — o modificador, `keel.buffer.buffer` e não `buffer`, e os argumentos, `app.geom.Point` e não `Point` —, porque na linha de comando não há `import`, e é o nome inteiro que fixa sem ambiguidade o módulo, o modificador e o arquivo de saída. O último componente do nome é o modificador; o resto é o módulo, achado pelas raízes como num `import`. A invocação produz os dois headers da instância e o `.c` dela — `gen/coll/coll_stack_i32.c` —, e o `.c` recebe os corpos fora de linha, como receberia o do módulo que declarasse `instance`. O nome do arquivo é o símbolo (backend §4.1), então a regra `%.o: %.c` sobre o destino vale sem exceção.
 
-`--instance` ocupa o lugar do `.k`: uma invocação tem um ou outro, e ter os dois é `fonte-multiplo`. Sobre genérico inteiramente `pub inline` — toda a base —, o `.c` sai só com o include, e o aviso é o `instance-inutil` da linguagem.
+`--instance` ocupa o lugar do `.k`: uma invocação tem um ou outro, e ter os dois é `multiple-sources`. Sobre genérico inteiramente `pub inline` — toda a base —, o `.c` sai só com o include, e o aviso é o `redundant-instance` da linguagem.
 
 **A colisão de símbolos é verificada no que a invocação alcança**, e é isto que a
 linguagem §4.1 promete: o módulo em tradução mais o fecho transitivo dos seus
@@ -214,7 +214,7 @@ cc -c gen/main.c -o main.o -I src -I gen -O2 -Wall
 
 **O fonte e o gerado não se chamam igual, e isso é regra e não descuido**:
 `src/net/http.k` produz `gen/net/net_http.h`. O caminho do `.k` é o nome do
-módulo, cobrado por `module-fora-do-caminho`; o nome do gerado é o símbolo, para
+módulo, cobrado por `module-path-mismatch`; o nome do gerado é o símbolo, para
 que o `#include` seja função do nome do tipo. O backend §4.1 dá a razão dos dois.
 Uma regra de padrão do make sobre esses nomes precisa da transformação, não de
 `%`: é um motivo a mais para o depfile da §4.5 ser a interface com o build.
@@ -548,11 +548,11 @@ Todo diagnóstico tem nome estável em kebab-case, usado por `-Wno-<nome>`. `err
 
 `-W<nome>` e `-Wno-<nome>` são lidos pelo cgen, e o repasse ao compilador C é
 **condicionado**: repassa-se o que **não** é nome de diagnóstico do keel. Um
-`-Wno-` de nome do gcc precisa chegar lá; `-Wtypes-sombreado` não pode, porque
+`-Wno-` de nome do gcc precisa chegar lá; `-Wshadowed-injected-name` não pode, porque
 opção `-W` desconhecida é **erro** no gcc — não aviso — e derrubaria a compilação:
 
 ```plain
-gcc: error: unrecognized command-line option '-Wtypes-sombreado'
+gcc: error: unrecognized command-line option '-Wshadowed-injected-name'
 ```
 
 O filtro é o que a §7 já tem: a [tabela da spec](keel-spec.md#62-catálogo) é a lista dos
@@ -579,18 +579,18 @@ fonte. Restam os que dependem da invocação, e eles são da ferramenta:
 
 | Identificador | Condição |
 | --- | --- |
-| `fonte-multiplo` | mais de um fonte na mesma invocação: dois `.k`, ou um `.k` e um `--instance` (§4.10) |
-| `fonte-generico` | o `.k` da invocação é módulo genérico, e não há `--instance` (§4.3) |
-| `instancia-invalida` | `--instance` que não nomeia modificador de módulo genérico por inteiro, ou cujos argumentos não casam com os parâmetros dele (§4.3) |
-| `base-nao-encontrada` | nenhuma das raízes da §8 contém `keel.k` |
-| `fonte-nao-encontrado` | o `.k` nomeado não existe ou não pode ser lido |
-| `fonte-fora-de-raiz` | o `.k` não está sob nenhuma raiz `-I` (§4.6) |
-| `fonte-em-varias-raizes` | o `.k` está sob mais de uma raiz (§4.6) |
-| `modulo-nao-encontrado` | um `import` que nenhuma raiz resolve (§3) |
-| `main-sem-entrada` | `--main` sobre módulo sem função de entrada pública (§4.7) |
-| `lowering-indisponivel` | `--parallel-lowering=openmp` sem `-fopenmp` na linha (§4.8) |
-| `opcao-invalida` | opção do cgen com valor fora do enumerado |
-| `falha-de-escrita` | E/S falhou ao escrever sob o `--dest-dir` (§6) |
+| `multiple-sources` | mais de um fonte na mesma invocação: dois `.k`, ou um `.k` e um `--instance` (§4.10) |
+| `generic-source-without-instance` | o `.k` da invocação é módulo genérico, e não há `--instance` (§4.3) |
+| `invalid-instance` | `--instance` que não nomeia modificador de módulo genérico por inteiro, ou cujos argumentos não casam com os parâmetros dele (§4.3) |
+| `base-not-found` | nenhuma das raízes da §8 contém `keel.k` |
+| `source-not-found` | o `.k` nomeado não existe ou não pode ser lido |
+| `source-outside-roots` | o `.k` não está sob nenhuma raiz `-I` (§4.6) |
+| `source-in-multiple-roots` | o `.k` está sob mais de uma raiz (§4.6) |
+| `module-not-found` | um `import` que nenhuma raiz resolve (§3) |
+| `missing-entry-point` | `--main` sobre módulo sem função de entrada pública (§4.7) |
+| `lowering-unavailable` | `--parallel-lowering=openmp` sem `-fopenmp` na linha (§4.8) |
+| `invalid-option` | opção do cgen com valor fora do enumerado |
+| `write-failure` | E/S falhou ao escrever sob o `--dest-dir` (§6) |
 
 Quatro regras governam a tabela:
 
@@ -603,12 +603,12 @@ Quatro regras governam a tabela:
 - **Os dois espaços de nome não se cruzam.** Um identificador desta tabela nunca
   aparece na da spec, e vice-versa; é o que permite ao filtro de `-W` da §7
   decidir olhando uma lista só.
-- **A posição é do fonte quando existe uma.** `modulo-nao-encontrado` e
-  `main-sem-entrada` apontam a linha do `import` ou o módulo pedido; os demais
+- **A posição é do fonte quando existe uma.** `module-not-found` e
+  `missing-entry-point` apontam a linha do `import` ou o módulo pedido; os demais
   não têm posição, e saem no formato do gcc para erro de invocação:
 
 ```plain
-cgen: error: mais de um fonte .k na invocação [fonte-multiplo]
+cgen: error: mais de um fonte .k na invocação [multiple-sources]
 ```
 
 ---
@@ -650,7 +650,7 @@ partir da segunda, traz `.k`.
    no macOS, `GetModuleFileNameW` no Windows; `argv[0]` e `PATH` onde não houver
    nenhuma.
 
-Nenhuma das duas contendo `keel.k` é `base-nao-encontrada` (§7.1). **Não há
+Nenhuma das duas contendo `keel.k` é `base-not-found` (§7.1). **Não há
 variável de ambiente**, pela §4.1: o executável sabe onde está, e o que sobra é
 uma base fora da instalação, que é o que `--base-dir` cobre.
 

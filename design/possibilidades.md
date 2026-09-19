@@ -132,8 +132,8 @@ do Duff's device; estes três dão comunicação e sincronização.
 
 - **`keel.atomic type T`** — `modifier atomic byref { _Atomic T v; }`, com
   `init`/`load`/`store`/`swap`. `byref` evita sincronizar com uma cópia.
-  Diagnóstico `atomics-indisponivel` sob `__STDC_NO_ATOMICS__`, no molde de
-  `formato-estreito-indisponivel`.
+  Diagnóstico `atomics-unavailable` sob `__STDC_NO_ATOMICS__`, no molde de
+  `specific-format-unavailable`.
 - **`keel.chan type T`** — `send`/`recv` como `corot`. Duas variantes:
   cooperativa (índice comum, mesmo fio, sem atomics) e SPSC entre threads
   (`acquire`/`release` nos dois índices). MPMC fica fora. Nome em aberto:
@@ -197,7 +197,7 @@ O que se ganha:
 
 1. **Algoritmo genérico escrito pelo usuário sobre um protocolo** — o único
    ganho de expressividade. Hoje o parâmetro de tipo é opaco (spec §4.3,
-   `protocolo-sobre-parametro`), então `media` teria de ser escrita uma vez por
+   `protocol-on-parameter`), então `media` teria de ser escrita uma vez por
    contêiner. Com o bound, o `walk` sobre `C` se resolve na instanciação: o
    bound garante que os verbos existem, e o nome canônico da instância
    (`keel.buffer.buffer f64`) diz em que módulo moram — sem import novo.

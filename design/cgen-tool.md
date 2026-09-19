@@ -74,11 +74,11 @@ Conjunto fechado, o da spec da ferramenta §4.1. Toda opção desta tabela é
 | `--cgen-help` | — | imprime a sinopse e esta tabela, sai 0 | — |
 
 As duas formas (`=` e argumento separado) valem para toda opção longa com valor
-**[D2]**. Valor fora do enumerado é `opcao-invalida` (código 2). Opção que
-exige valor e está no fim da linha também é `opcao-invalida`.
+**[D2]**. Valor fora do enumerado é `invalid-option` (código 2). Opção que
+exige valor e está no fim da linha também é `invalid-option`.
 
 Repetição: a última ocorrência vence, salvo `-I`, que acumula. `--instance`
-repetido é `fonte-multiplo`.
+repetido é `multiple-sources`.
 
 `--version` e `--help`, sem o prefixo, **não são do cgen**: vão para o `cc`.
 `cgen --version` imprime a versão do gcc — é o que um build que sonda `$(CC)
@@ -132,13 +132,13 @@ para cada palavra w de argv[1..], em ordem:
 depois:
     -I (do cgen e do cc) → lista de raízes, em ordem; nenhuma → "."
     fontes = .k registrados + --instance
-    mais de um → fonte-multiplo (código 2)
+    mais de um → multiple-sources (código 2)
 ```
 
 Uma palavra que é `-I` vale para os dois lados: entra nas raízes **e** no
 repasse, na mesma posição. O `.` padrão só existe quando nenhum `-I` é dado:
 se fosse sempre raiz, `cgen -I src src/a.k` seria sempre
-`fonte-em-varias-raizes`, porque `src/a.k` está sob `.` e sob `src`.
+`source-in-multiple-roots`, porque `src/a.k` está sob `.` e sob `src`.
 
 ### 2.6 Modos
 
@@ -159,7 +159,7 @@ Com `--main` e `-c`, a unidade de entrada é **gerada mas não compilada**: `-c`
 com `-o` e dois `.c` é erro do gcc, e a unidade tem regra própria no build
 (`cc -c gen/main_app.c`) **[D3]**.
 
-Um `.k` de módulo genérico sem `--instance` é `fonte-generico` (código 2),
+Um `.k` de módulo genérico sem `--instance` é `generic-source-without-instance` (código 2),
 depois do parse da linha `module`, antes de qualquer escrita.
 
 ### 2.7 A base
@@ -178,7 +178,7 @@ A base é o diretório com `keel.k` e `keel/*.k` (spec §8). Resolução:
    | Windows | `GetModuleFileNameW` |
    | outro | `argv[0]`: com `/`, `realpath`; sem `/`, busca no `PATH` e `realpath` |
 
-Nenhuma das duas contendo `keel.k`: `base-nao-encontrada`. Sem variável de
+Nenhuma das duas contendo `keel.k`: `base-not-found`. Sem variável de
 ambiente.
 
 A base entra como **última** raiz de módulo, depois de todas as `-I`. **Ela não
@@ -198,14 +198,14 @@ app.geom.Point"`, `"blocos.bloco(3) f32"`. Algoritmo:
 2. O primeiro nome qualificado se parte no último `.`: à esquerda, o módulo; à
    direita, o modificador.
 3. `carrega` o módulo pelas raízes, como um `import`. Não achado:
-   `modulo-nao-encontrado`. Achado e não genérico, ou sem esse modificador:
-   `instancia-invalida`.
+   `module-not-found`. Achado e não genérico, ou sem esse modificador:
+   `invalid-instance`.
 4. Os argumentos são resolvidos como num uso, carregando cada módulo que
    qualificam. Aridade ou espécie que não casa com `dim`/`tags`/`type` da linha
-   `module`: `instancia-invalida`.
+   `module`: `invalid-instance`.
 5. A invocação compila a instância: os dois headers dela e o `.c` com o símbolo
    dela (`gen/keel/keel_buffer_i32.c`). Genérico todo `pub inline`:
-   `instance-inutil` (`warning`), e o `.c` sai só com o include.
+   `redundant-instance` (`warning`), e o `.c` sai só com o include.
 
 A identidade da invocação é o símbolo da instância — é ele que nomeia o `.c`, o
 `.o` derivado e o alvo do depfile.
@@ -253,7 +253,7 @@ bool k_process(keel_slice_char source, keel_slice_char module_name, bool compile
 `compiled` diz se o módulo é o da invocação: só então `KArtifacts` recebe o
 `.c`. `K_LOAD_ALREADY` inclui o caso "em carga": `tool.c` sabe que o módulo está
 na pilha e devolve o erro de ciclo com a cadeia; o parser emite
-`import-circular` na posição do `import`.
+`circular-import` na posição do `import`.
 
 ### 3.2 Os tipos de apoio
 
@@ -276,12 +276,12 @@ liberado antes do fim do processo.
 2. Sem fonte: `execvp` do `cc` (modo transparente).
 3. Resolve a base (§2.7).
 4. **Com `.k`:** normaliza o caminho (remove `./`, colapsa `//`, resolve `..`
-   lexicalmente); acha a **única** raiz que o contém (`fonte-fora-de-raiz`,
-   `fonte-em-varias-raizes`). O nome esperado do módulo é o caminho relativo à
+   lexicalmente); acha a **única** raiz que o contém (`source-outside-roots`,
+   `source-in-multiple-roots`). O nome esperado do módulo é o caminho relativo à
    raiz, sem `.k`, com `/` → `.`. **Com `--instance`:** §2.8.
 5. `processa` o fonte com `compiled = true`. O `module` declarado tem de bater
-   com o nome esperado (`module-fora-do-caminho`, da linguagem, código 1).
-   Módulo genérico sem `--instance`: `fonte-generico`.
+   com o nome esperado (`module-path-mismatch`, da linguagem, código 1).
+   Módulo genérico sem `--instance`: `generic-source-without-instance`.
 6. O módulo `keel` é carregado implicitamente antes do primeiro `import`. Cada
    `import` → `carrega`: procura `<raiz>/<a>/<b>.k` em cada raiz, na ordem, base
    por último; o primeiro achado vence; `processa` com `compiled = false`.
@@ -637,7 +637,7 @@ ela que escreve `gen/geom.c`.
 
 ```sh
 $ cgen -std=c23 -c --instance "keel.buffer.buffer i32" -o keel_buffer_i32.o
-cgen: warning: keel.buffer.buffer é inteiramente pub inline; o .c não terá corpo [instance-inutil]
+cgen: warning: keel.buffer.buffer é inteiramente pub inline; o .c não terá corpo [redundant-instance]
 ```
 
 Escreve `gen/keel/keel_buffer_i32.type.h`, `gen/keel/keel_buffer_i32.h`,
@@ -650,28 +650,28 @@ keel_buffer_i32.o -I gen`.
 
 ```sh
 $ cgen a.k b.k
-cgen: error: mais de um fonte na invocação [fonte-multiplo]
+cgen: error: mais de um fonte na invocação [multiple-sources]
 $ echo $?
 2
 
 $ cgen --profile=c99 ola.k
-cgen: error: valor 'c99' inválido para --profile; esperado auto, c11 ou c23 [opcao-invalida]
+cgen: error: valor 'c99' inválido para --profile; esperado auto, c11 ou c23 [invalid-option]
 $ echo $?
 2
 
 $ cgen -I . -I src src/a.k
-cgen: error: src/a.k está sob mais de uma raiz: '.' e 'src' [fonte-em-varias-raizes]
+cgen: error: src/a.k está sob mais de uma raiz: '.' e 'src' [source-in-multiple-roots]
 
 $ cgen --base-dir base base/keel/buffer.k
-cgen: error: keel.buffer é módulo genérico; use --instance [fonte-generico]
+cgen: error: keel.buffer é módulo genérico; use --instance [generic-source-without-instance]
 
 $ cgen --instance "keel.buffer i32"
-cgen: error: 'keel.buffer' não nomeia modificador por inteiro; o módulo 'keel' não é genérico [instancia-invalida]
+cgen: error: 'keel.buffer' não nomeia modificador por inteiro; o módulo 'keel' não é genérico [invalid-instance]
 
 $ cat src/a.k
 module b;
 $ cgen -I src src/a.k
-src/a.k:1:8: error: o módulo declara 'b', mas o caminho sob a raiz 'src' diz 'a' [module-fora-do-caminho]
+src/a.k:1:8: error: o módulo declara 'b', mas o caminho sob a raiz 'src' diz 'a' [module-path-mismatch]
 $ echo $?
 1
 ```
@@ -688,7 +688,7 @@ Cada marco termina com o seu teste passando e o anterior intacto.
 | --- | --- | --- |
 | **M0** driver | `args.c`, modo transparente, `--cgen-version`/`--cgen-help`, erros de invocação, resolução da base | tabela de `argv` → (opções do cgen, repasse, fonte) em teste de unidade; §8.1, §8.2, e os três primeiros de §8.8 |
 | **M1** lexer | `lexer.c` + `--stop-after=lex` | os casos do [lexer-design §8](lexer-design.md#8-casos-de-aceitação) e §8.4; toda a `/base` e todo `.k` de `golden/casos` lexam sem diagnóstico |
-| **M2** módulos | `paths.c`, `tool.c`, parser de nível de arquivo (`module`, `import`, `import_c`, `extern_c`, assinaturas), `--stop-after=parse` sem ilhas | raízes, `sem-module`, `module-fora-do-caminho`, `import-circular`, `modulo-nao-encontrado`, `fonte-generico`; §8.5 até `decl` |
+| **M2** módulos | `paths.c`, `tool.c`, parser de nível de arquivo (`module`, `import`, `import_c`, `extern_c`, assinaturas), `--stop-after=parse` sem ilhas | raízes, `missing-module`, `module-path-mismatch`, `circular-import`, `module-not-found`, `generic-source-without-instance`; §8.5 até `decl` |
 | **M3** geração sem ilhas | `emit.c`, `writer.c`, `#line`, mangling de nível de arquivo, `--main` | §8.3 byte a byte; segunda execução não muda `mtime` |
 | **M4** cc e depfile | `cc.c`, `depfile.c`, critério de atualização | §8.6; editar `geom.k` faz `main` regerar os headers de `geom` e não escrever `gen/geom.c` |
 | **M5** base | módulos genéricos, instâncias de modificador embutido, `--instance`, despacho de builtin, `defer` | `golden/casos/001`; §8.7 |
@@ -729,7 +729,7 @@ transform deixa de ser necessário.
 | D6 | `-I D` vai no fim da linha do `cc` | as raízes do usuário mantêm precedência; a spec §4.4 põe `-I gen` no meio, mas o exemplo é ilustrativo e o efeito é o mesmo |
 | D7 | A classe de token em `--stop-after=lex` é calculada sobre a grafia lógica | é o que o parser vê; imprimir `ident` para `ret\`+`urn` esconderia justamente a emenda que se quer depurar |
 
-(D1, D4 e D5 da primeira versão — o `.` padrão de `-I`, `base-nao-encontrada`
+(D1, D4 e D5 da primeira versão — o `.` padrão de `-I`, `base-not-found`
 e o código de saída do `cc` — subiram para a spec da ferramenta.)
 
 ## 13. Pendências nos normativos
@@ -747,4 +747,4 @@ Resolvida em 2026-09-19: P13 (golden no corte em dois, `.type.h` + `.h`); P4 e P
 casos (`import_c` no `.type.h` com `#line`, `#line` em toda declaração levada a
 header, mapeamento de linha 1:1 nos `.c`, tag sintética, prosa e nomes que não
 vêm do fonte, genérico sem `.c`); P14 (parâmetro de tipo opaco no genérico,
-`protocolo-sobre-parametro`, spec §4.3).
+`protocol-on-parameter`, spec §4.3).

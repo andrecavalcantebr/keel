@@ -7,7 +7,7 @@ Cada caso separa **dois papéis** que não podem se misturar:
                                      observar sai por `pub`. O CAMINHO do arquivo
                                      é o do `module` que ele declara: `module
                                      app.cfg;` mora em `app/cfg.k`, senão o caso
-                                     viola `module-fora-do-caminho` (spec §4.1)
+                                     viola `module-path-mismatch` (spec §4.1)
     casos/<caso>/esperado/c23/       o que o cgen deve produzir, e SÓ isso
     casos/<caso>/esperado/c11/       idem, no outro perfil
     casos/<caso>/prova.c             o arnês; NÃO é saída do transpilador
@@ -28,7 +28,7 @@ dois primeiros (`backend §4.1`, `§4.3.2`):
                               ordem; é o único include de uso
     <módulo>.c         L3     os corpos fora de linha; inclui o próprio .h
 
-Um módulo genérico não tem `.c`: ele não é unidade compilada (`fonte-generico`),
+Um módulo genérico não tem `.c`: ele não é unidade compilada (`generic-source-without-instance`),
 e o corpo fora de linha de uma instância vai para o `.c` de quem declara
 `instance` (`backend §4.4`).
 

@@ -352,7 +352,7 @@ porque `_Float16` e `__bf16` não chegam juntos aos alvos. **Cada arquivo é
 incluído só quando o módulo nomeia o seu tipo**, e o custo recai exatamente sobre
 quem pediu. É a mesma mecânica de `keel/keel_arena.h`, e pela mesma razão.
 
-O diagnóstico `formato-estreito-indisponivel` é a versão do cgen dessa parada, para o caso em que o alvo é
+O diagnóstico `specific-format-unavailable` é a versão do cgen dessa parada, para o caso em que o alvo é
 conhecido na invocação; o `#error` é a rede para quando não é. Os dois dizem a
 mesma coisa, e nenhum dos dois deixa passar.
 
@@ -423,7 +423,7 @@ nomeia, e a derivação acima deixaria de existir.
 
 **O caminho do fonte é outra regra, e a assimetria é de propósito.** O `.k` mora
 no caminho do módulo — `module app.cfg;` em `app/cfg.k` —, sob pena de
-`module-fora-do-caminho` (linguagem §4.1). Ele pode se dar a esse luxo porque
+`module-path-mismatch` (linguagem §4.1). Ele pode se dar a esse luxo porque
 **declara o próprio nome na primeira linha**: o caminho é redundante e serve de
 conferência. O header gerado não declara nada — o nome do arquivo é o único
 identificador que ele tem, e por isso carrega o símbolo inteiro.
@@ -628,7 +628,7 @@ keel_outcome_keel_buffer_keel_outcome_i32  ──L1→L1──▶  keel_buffer_k
 ```
 
 ```keel
-//keel — L1→L1 cíclico: ciclo-de-layout
+//keel — L1→L1 cíclico: layout-cycle
 module lista;
 import keel.outcome as outcome types;
 pub struct No { i32 v; outcome No prox; };
@@ -640,7 +640,7 @@ lista_No ──L1→L1──▶ keel_outcome_lista_No ──L1→L1──▶ lis
 
 Quando a cadeia é toda do fonte, quem diagnostica é o compilador C (princípio 3).
 Quando ela **atravessa instância de modificador**, como acima, keel a diagnostica:
-`ciclo-de-layout`, `error`, com a cadeia na mensagem (linguagem §4.3).
+`layout-cycle`, `error`, com a cadeia na mensagem (linguagem §4.3).
 
 **L3→L3 é chamada entre corpos**, e pode ser cíclica dentro de um módulo: é a
 recursão mútua. Entre arquivos a linguagem não a produz — o grafo de import é
@@ -1488,7 +1488,7 @@ Sete regras de emissão, e cada uma existe por um motivo concreto:
 5. **O operando é lido uma vez, pelo verbo `tag`.** Sobre uma instância de `tagged` isso é o acesso ao campo, e sai como tal; sobre outro tipo que declare `tag` — `corot`, por exemplo — sai a chamada do verbo, e o `switch` é sobre o valor devolvido. O campo da etiqueta é `i32`, e não o `enum`: é o que mantém a largura estável na ABI e o que permite ao `corot` participar sem mudar de representação.
    **Na escrita a assimetria aparece no C:** um parâmetro declarado com o nome do parâmetro `tags` sai com o tipo do `enum` — `void keel_tagged_ast_Kind_ast_Node_mark(… , ast_Kind e)` —, e a atribuição ao campo é a conversão usual de `enum` para `i32`. A verificação de pertinência é da tradução (linguagem §4.3); o C não a faria, porque enum e int se convertem em silêncio.
 6. **Não há verbo de transição no despacho.** `tagged.mark(n, MUL)` é chamada comum, e o que keel faz na constante nua é a reescrita de escopo de enum (§2.1). Escrever a etiqueta não redespacha: o `switch` já executou.
-7. **`default:` sai sempre**, saltando para o fim. Etiqueta fora de faixa é possível quando o valor vem de memória — `memset`, arquivo, rede. Sob `--checks`, um `assert` o precede, e é o `tag-fora-de-faixa`. Ele não é braço: a exaustividade já foi verificada na tradução, sobre a lista declarada.
+7. **`default:` sai sempre**, saltando para o fim. Etiqueta fora de faixa é possível quando o valor vem de memória — `memset`, arquivo, rede. Sob `--checks`, um `assert` o precede, e é o `tag-out-of-range`. Ele não é braço: a exaustividade já foi verificada na tradução, sobre a lista declarada.
 
 **O laço é do usuário, e o backend não o emite.** Um `match` executa um braço por passagem; repetir é `while` escrito no fonte. É a decisão da linguagem §4.9 de não ter opinião sobre a política de avanço, e para o backend significa que não há nada a gerar em volta do despacho.
 
@@ -1579,8 +1579,8 @@ Nove regras de emissão:
 4. **`num_threads(k)` sai sempre**, com o literal. É o que materializa "uma thread por parte"; sem ele o número de partes continuaria certo, mas duas rodariam na mesma thread, o que a linguagem permite e ninguém escreveria à mão.
 5. **`default(none)` é obrigatório**, e é ele que cumpre a promessa da linguagem §4.8: um local não listado na captura vira **erro do compilador C nomeando a variável**, na linha do `.k`. Sem a cláusula, ele entraria como `shared` em silêncio e o programa teria corrida.
 6. **Os temporários gerados e o símbolo de controle entram nas cláusulas junto com os do usuário.** `default(none)` exige atributo para tudo que a região toca, inclusive `keel__c0` e `passo` — e o backend os lista porque escreveu os nomes.
-7. **Captura escalar é `firstprivate`; instância `byref` é `shared`.** É a disciplina da linguagem §4.8 traduzida uma para uma. Escrever num escalar capturado já é o error `captura-escrita` na linguagem, então o backend não precisa de `const` para proibi-lo — e é uma diferença de custo real: com um struct de argumentos, o tipo de cada captura teria que ser escrito, e o backend não o conhece (§5.5).
-8. **`win` e `fail` saltam para o fim do corpo do worker.** Viram `goto keel__end<N>`, com o rótulo dentro do bloco estruturado da iteração — nunca `break`, nunca `return`, nunca saída da região. `return` do usuário é o error `return-em-parallel` na linguagem, exatamente porque não teria como sair daqui: sob OpenMP o GCC recusa a região com `invalid branch to/from OpenMP structured block`. Eles são pontos de saída de escopo, então os `defer` registrados no corpo — inclusive em travessias aninhadas — saem antes do salto, pela regra do §5.5.
+7. **Captura escalar é `firstprivate`; instância `byref` é `shared`.** É a disciplina da linguagem §4.8 traduzida uma para uma. Escrever num escalar capturado já é o error `captured-write` na linguagem, então o backend não precisa de `const` para proibi-lo — e é uma diferença de custo real: com um struct de argumentos, o tipo de cada captura teria que ser escrito, e o backend não o conhece (§5.5).
+8. **`win` e `fail` saltam para o fim do corpo do worker.** Viram `goto keel__end<N>`, com o rótulo dentro do bloco estruturado da iteração — nunca `break`, nunca `return`, nunca saída da região. `return` do usuário é o error `return-in-parallel` na linguagem, exatamente porque não teria como sair daqui: sob OpenMP o GCC recusa a região com `invalid branch to/from OpenMP structured block`. Eles são pontos de saída de escopo, então os `defer` registrados no corpo — inclusive em travessias aninhadas — saem antes do salto, pela regra do §5.5.
    **O fim natural não grava nada**, e é por isso que o rótulo pode ficar na última linha do corpo: quem sai por verbo já contabilizou antes de saltar, e quem chega ao fim apenas termina. Contabilizar o fim natural como vitória tornaria `ANY` satisfeito por workers que não acharam nada (linguagem §4.8).
 9. **Os contadores e a bandeira vivem no símbolo de controle**, nunca em `static`. Um bloco `parallel` numa função chamada duas vezes começa zerado nas duas, e `static` também tornaria o bloco não reentrante.
 
@@ -1771,7 +1771,7 @@ Cinco regras de emissão:
 1. **O teste é sempre a chamada a `failed` da instância**, pelo despacho normal do §5.2 — nunca `if (!x)`. Ponteiro não é falível (linguagem §4.10), então não há segundo caso a emitir, e o backend não classifica tipo nenhum.
 2. **Sai numa linha só**, declaração e `if`, pela regra 2 do §6. É o que faz o corpo continuar mapeando 1:1 e dispensa ressincronizar — ao contrário do `match` e do `parallel`, que não têm como caber. Vale para as duas formas: a de default acrescenta a chamada de ajuste ao próprio objeto.
 3. **O operando é copiado verbatim nas duas formas.** Nada é sintetizado dentro dele: não há desembrulho, não há conversão, não há `return` implícito. O que muda é **onde** ele é colado — dentro do `if` na forma de saída, como segundo argumento de `M_win1(&resultado, …)` na de default.
-4. **Na forma de default, o receptor de `win` é o próprio símbolo.** A chamada recebe seu endereço e o valor de default; o verbo ajusta o objeto. Não há reatribuição obrigatória da cópia retornada, temporário, literal composto nem escrita direta de campo na expansão de `else`. Um tipo falível sem `win` é error `else-default-sem-win` e não chega ao backend.
+4. **Na forma de default, o receptor de `win` é o próprio símbolo.** A chamada recebe seu endereço e o valor de default; o verbo ajusta o objeto. Não há reatribuição obrigatória da cópia retornada, temporário, literal composto nem escrita direta de campo na expansão de `else`. Um tipo falível sem `win` é error `else-default-without-win` e não chega ao backend.
 5. **Nenhum temporário é criado.** O símbolo — declarado ali, ou declarado antes e atribuído aqui — é o que a cláusula lê e o que ela repara, e é ele que já está em escopo.
 
 `corot` não participa do protocolo: declara `faulted`, não `failed`. O predicado emitido é `keel_corot_faulted`, com teste `code > 0`. Não há exclusão adicional baseada na presença de `ongoing`. `outcome.failed` continua testando `code != 0`.
@@ -1895,7 +1895,7 @@ Seis consequências para a emissão:
 3. **Não há campo de valor, e não há aridade com valor.** O que uma passagem produz pertence ao contexto que o programa passou (linguagem §5.5), e por isso o tipo tem um campo só.
 4. **Não há `keel_costatus`.** Um enum de três valores não descreveria FAILURE, que é uma região; expor a constante seria mentira. O `enum` acima é outra coisa: são três **nomes** para as três regiões, e a ponte entre eles é `tag`.
 5. **`tag` normaliza o código para a tag, e é o que põe `corot` no `match`** (§5.6). Ele não é o código: dois códigos de falha diferentes dão a mesma tag.
-6. **`corot.fault` exige código positivo.** Código conhecido zero ou negativo é recusado na tradução pelo diagnóstico `cofault-codigo-invalido`; expressões C não avaliadas por keel têm essa positividade como pré-condição. A emissão avalia o operando uma vez, sem normalizar o sinal — normalizar transformaria um erro do programa em um estado que ele não pediu.
+6. **`corot.fault` exige código positivo.** Código conhecido zero ou negativo é recusado na tradução pelo diagnóstico `invalid-fault-code`; expressões C não avaliadas por keel têm essa positividade como pré-condição. A emissão avalia o operando uma vez, sem normalizar o sinal — normalizar transformaria um erro do programa em um estado que ele não pediu.
 
 **A struct de um campo não custa nada, e é o que o argumento da linguagem §5.5 pressupõe.** Struct de um `i32` é classificada como INTEGER no SysV x86-64 e volta em `EAX`; em AArch64 volta em `X0`; em ARM32 e RISC-V, no primeiro registrador de retorno. O que ela compra é o compilador C recusando `if (r)`, `r == 0` e a mistura com um código de `outcome` — barreira que um `typedef` de inteiro não daria.
 
@@ -2057,15 +2057,15 @@ A ressalva que sobra é a mesma do make: se o próprio gerador mudar, os gerados
 
 | Identificador | Diagnóstico | Sev. |
 | --- | --- | --- |
-| `nome-acima-do-teto` | Nome gerado acima do teto de comprimento (255, ou 63 sob `--pedantic-names`) | `error` |
-| `nome-reservado` | Identificador do usuário no espaço reservado `keel_` | `error` |
-| `set-fora-de-length` | `set` com índice fora de `length` | `debug` |
-| `campo-de-instancia` | Acesso direto a campo de instância de modificador, fora do módulo que a declara | `warning` |
-| `tag-fora-de-faixa` | Etiqueta fora da lista declarada do conjunto | `debug` |
-| `recorte-fora-de-faixa` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` |
-| `formato-estreito-indisponivel` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` |
+| `name-too-long` | Nome gerado acima do teto de comprimento (255, ou 63 sob `--pedantic-names`) | `error` |
+| `reserved-name` | Identificador do usuário no espaço reservado `keel_` | `error` |
+| `set-out-of-length` | `set` com índice fora de `length` | `debug` |
+| `instance-field-access` | Acesso direto a campo de instância de modificador, fora do módulo que a declara | `warning` |
+| `tag-out-of-range` | Etiqueta fora da lista declarada do conjunto | `debug` |
+| `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` |
+| `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` |
 | `alloc-overflow` | `arena.alloc` cujo `n * sizeof(T)` não cabe em `size_t` | `debug` |
-| `ciclo-de-layout` | Cadeia de tipos que se contêm por valor atravessando instância de modificador | `error` |
+| `layout-cycle` | Cadeia de tipos que se contêm por valor atravessando instância de modificador | `error` |
 
 Os identificadores são os do [catálogo da spec](keel-spec.md#62-catálogo). A spec define a condição normativa; esta tabela reúne os casos relacionados ao backend.
 
@@ -2247,10 +2247,10 @@ C23 não pagar nenhum deles e ainda assim aceitar o mesmo conjunto de programas.
 ## 10. Questões abertas do backend
 
 1. **Onde vive o arquivo de instância** — diretório fixo `keel/`, ou por módulo com dedup no build. Inalterada.
-2. **Prefixo nos campos das structs geradas.** `xs.keel_len` em vez de `xs.len` não impede nada, mas torna a invasão legível e libera renomear sem discussão. A linguagem §5.3 — "um modificador que possui uma linearização não expõe o próprio armazenamento" — mais o warning `campo-de-instancia` já dizem que layout não é interface, então o §4.5 responde: prefixar é coerente. O que resta é o atrito com o princípio 2, e ele é menor do que parecia.
-3. **Bounds check por dimensão em `array` de parâmetro.** As dimensões vêm da tabela, não do `sizeof`; a dimensão 0 é uma promessa do chamador. O caso encolheu: a linguagem §4.2 hoje recusa `array T v[N]` 1D em parâmetro (errors `array-1d-em-parametro` e `array-sem-dimensao-em-parametro`), então o que sobra é o nD, onde as dimensões 1..n−1 são de fato conhecidas e só a 0 é promessa.
+2. **Prefixo nos campos das structs geradas.** `xs.keel_len` em vez de `xs.len` não impede nada, mas torna a invasão legível e libera renomear sem discussão. A linguagem §5.3 — "um modificador que possui uma linearização não expõe o próprio armazenamento" — mais o warning `instance-field-access` já dizem que layout não é interface, então o §4.5 responde: prefixar é coerente. O que resta é o atrito com o princípio 2, e ele é menor do que parecia.
+3. **Bounds check por dimensão em `array` de parâmetro.** As dimensões vêm da tabela, não do `sizeof`; a dimensão 0 é uma promessa do chamador. O caso encolheu: a linguagem §4.2 hoje recusa `array T v[N]` 1D em parâmetro (errors `array-1d-as-parameter` e `array-parameter-without-dimension`), então o que sobra é o nD, onde as dimensões 1..n−1 são de fato conhecidas e só a 0 é promessa.
 4. **Composição cooperativa. Fechada:** deixou de ser emissão. `seq`, `par` e `mask` são funções de `keel.routine`, emitidas como qualquer instância (§5.10), e o estado por slot é um `corot` no próprio registro. Não há gestor injetado, região de finalização nem reafirmação de código.
-5. **Largura de `mask`.** O `u64` devolvido por `routine.mask` cobre 64 entradas, e o excedente é o `debug` `mask-acima-de-64`. Falta decidir se o limite fica assim ou se a conveniência passa a receber o destino por parâmetro.
+5. **Largura de `mask`.** O `u64` devolvido por `routine.mask` cobre 64 entradas, e o excedente é o `debug` `mask-above-64-slots`. Falta decidir se o limite fica assim ou se a conveniência passa a receber o destino por parâmetro.
 6. **Ordem das cláusulas no `#pragma` emitido.** `default(none)` obriga a listar todo símbolo tocado, e a lista cresce com os temporários do gestor. A ordem é irrelevante para o compilador e relevante para o determinismo (§7.1): fixar em "temporários do keel, depois capturas na ordem escrita" é o candidato, e falta confirmar contra um caso com aninhamento de `foreach` dentro do corpo.
 7. **A base com corpo fora de linha, pré-compilada na instalação.** Hoje a base é
    toda `pub inline` (§4.4), e o `static inline` é recompilado em cada unidade de

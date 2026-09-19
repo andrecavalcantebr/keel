@@ -601,7 +601,7 @@ argumento (como uma leitura apressada de `slice.of` sugeriria), o lado visão
 precisaria conhecer o tipo do lado memória — e o lado memória já precisa
 conhecer o da visão, para devolvê-la de `partition` e do próprio recorte.
 As duas importações juntas são circulares, e a linguagem já recusa isso
-(`import-circular`, §4.1).
+(`circular-import`, §4.1).
 
 A saída, já implementada antes de estar escrita aqui: cada lado memória
 declara seu próprio verbo de recorte, com o nome que fizer sentido para ele
@@ -719,7 +719,7 @@ escrito na instância, quando o módulo tem parâmetro `tags`; depois, o conjunt
 único do módulo. Com dois conjuntos e sem parâmetro que decida, não existe
 critério, e inventar um — o primeiro declarado, o de mesmo nome do tipo —
 esconderia a ambiguidade num lugar em que o programa não a veria. A recusa é
-`match-conjunto-ambiguo`, e a saída é escrever o parâmetro.
+`ambiguous-match-tags`, e a saída é escrever o parâmetro.
 
 **A escrita da etiqueta é verificada; a leitura, não.** Parece assimétrico e é
 deliberado. A etiqueta armazenada pode não pertencer ao conjunto — veio de
@@ -1318,7 +1318,7 @@ só para isso.
 módulo — `module app.cfg;` em `app/cfg.k` —, e o backend não o segue. A razão é
 que os dois arquivos têm quantidades diferentes de informação: o `.k` **declara o
 próprio nome na primeira linha**, então o caminho é redundante e pode servir de
-conferência barata, que é o que `module-fora-do-caminho` faz. O header gerado não
+conferência barata, que é o que `module-path-mismatch` faz. O header gerado não
 declara nada sobre si; o nome do arquivo é o único identificador que ele tem, e
 gastá-lo com meia informação seria desperdício.
 
@@ -1503,13 +1503,13 @@ observada, agora sobre o conjunto de tags e o despacho.
 
 | Diagnóstico da v2 | Correspondente na v3 |
 | --- | --- |
-| `cofsm-sem-nome` | `tags-sem-nome` |
-| `cofsm-nome-repetido` | `tags-nome-repetido` |
-| `estado-repetido` | `tag-repetida` |
-| `estado-de-outro-tipo` | `tag-de-outro-conjunto` |
-| `estado-fora-da-lista` | `tag-fora-da-lista` |
-| `estado-sem-rotulo` | `tag-sem-rotulo` |
-| `estado-fora-de-faixa` | `tag-fora-de-faixa` |
+| `cofsm-sem-nome` | `unnamed-tags` |
+| `cofsm-nome-repetido` | `duplicate-tags-name` |
+| `estado-repetido` | `duplicate-tag` |
+| `estado-de-outro-tipo` | `tag-from-other-set` |
+| `estado-fora-da-lista` | `tag-not-in-set` |
+| `estado-sem-rotulo` | `tag-without-label` |
+| `estado-fora-de-faixa` | `tag-out-of-range` |
 | `cobreak-fora-de-cofsm` | nenhum: o `break` do braço é a saída, e um `break` fora de braço é C comum |
 
 Os demais **deixaram de existir**, porque a condição que observavam deixou de
@@ -1522,8 +1522,8 @@ passou a ser argumento de execução; e `openmp-indisponivel`, pela razão
 registrada em Políticas e sinalização de interrupção.
 
 Na direção oposta, os diagnósticos novos são de protocolo, e não de forma
-escrita: `nao-particionavel`, `nao-percorrivel-por-cursor`,
-`particao-de-outro-tipo`, `cursor-de-outro-tipo`, `match-sem-tag` e
-`match-sem-conjunto` recusam um tipo que não declara a operação exigida.
+escrita: `not-partitionable`, `not-cursor-iterable`,
+`partition-type-mismatch`, `cursor-type-mismatch`, `match-without-tag` e
+`match-without-tags` recusam um tipo que não declara a operação exigida.
 
 Referência: [spec v3 §5.2](keel-spec.md#62-catálogo).

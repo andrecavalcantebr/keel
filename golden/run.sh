@@ -26,7 +26,7 @@ for d in $(find c23 c11 casos -name '*.proto.h' | sort); do
   printf 'ESTRUT %s — o corte é em dois, .type.h e .h (backend §4.3.2)\n' "$d"; estrutura=$((estrutura+1))
 done
 
-# O caminho do .k é o nome do `module`: é `module-fora-do-caminho` (spec §4.1),
+# O caminho do .k é o nome do `module`: é `module-path-mismatch` (spec §4.1),
 # e a suíte já o violava em 19 dos 22 fontes — todos chamados `caso.k`, enquanto
 # os `#line` do gerado ao lado já citavam o caminho certo.
 for caso in casos/*/; do
@@ -42,7 +42,7 @@ done
 # o diretório dos componentes-pai (backend §4.1). `module app.cfg;` mora em
 # app/cfg.k e gera app/app_cfg.h. E o módulo do caso é o que a invocação compila,
 # então gera também o .c (backend §4.1) — sempre, mesmo que só com o include —,
-# salvo o genérico, que não compila sozinho (`fonte-generico`).
+# salvo o genérico, que não compila sozinho (`generic-source-without-instance`).
 for caso in casos/*/; do
   for perfil in c23 c11; do
     ger="$caso/esperado/$perfil"
@@ -53,7 +53,7 @@ for caso in casos/*/; do
       sim=$(printf '%s' "$mod" | tr '.' '_')
       [ -n "$dir" ] && alvo="$ger/$dir/$sim.h" || alvo="$ger/$sim.h"
       [ -f "$alvo" ] || { printf 'ESTRUT %s — `module %s` deveria gerar %s\n' "$k" "$mod" "$alvo"; estrutura=$((estrutura+1)); }
-      # genérico não é unidade compilada (fonte-generico): tem os headers, não o .c
+      # genérico não é unidade compilada (generic-source-without-instance): tem os headers, não o .c
       if grep -m1 '^module' "$k" | grep -Eq '[[:space:]](type|dim|tags)[[:space:]]'; then
         [ ! -f "${alvo%.h}.c" ] || { printf 'ESTRUT %s — `module %s` é genérico e não gera .c\n' "$k" "$mod"; estrutura=$((estrutura+1)); }
       else

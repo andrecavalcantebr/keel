@@ -142,7 +142,7 @@ Uma região `<opaco>` pode conter construções keel. Essas construções são r
 | Emenda de linha | Uma barra invertida seguida imediatamente de newline une as linhas antes da tokenização. |
 | Espaços e comentários | Separam tokens e não participam das produções. São reconhecidos comentários de múltiplas linhas: `/* … */` e comentários de uma linha: `//` até o fim da linha lógica. Seguem as regras de comentários de C. Seu conteúdo é ignorado, mesmo contendo construções keel ou construções C. |
 | Identificadores | Seguem a forma lexical de identificador C. A classificação como palavra C usa a lista fechada abaixo; o reconhecimento de tipos e palavras contextuais cabe ao parser. |
-| Literais | Strings e caracteres são reconhecidos com escapes e com os prefixos `L`, `u8`, `u` e `U`. O conteúdo é indivisível para o reconhecimento de keel. Um newline não emendado dentro do literal produz o diagnóstico `literal-com-newline`. |
+| Literais | Strings e caracteres são reconhecidos com escapes e com os prefixos `L`, `u8`, `u` e `U`. O conteúdo é indivisível para o reconhecimento de keel. Um newline não emendado dentro do literal produz o diagnóstico `literal-with-newline`. |
 | Números e pontos | Seguem a tokenização numérica de C, com a separação adicional da pontuação `..`: `2..7` produz `NUM`, `'..'`, `NUM`. Entre as pontuações iniciadas por ponto, a prioridade é `'...'`, depois `'..'`, depois `'.'`. |
 | Delimitadores | `()`, `[]` e `{}` são emparelhados sobre os tokens, respeitando as alternativas de pré-processamento (§2.4). Delimitadores dentro de comentários, literais e diretivas não entram no balanceamento. |
 | Diretivas | A diretiva iniciada por `#` em posição de diretiva C estende-se até o newline não emendado. Sua linha lógica forma uma unidade preservada na saída. |
@@ -403,7 +403,7 @@ Um declarador como `int (*f)(void);` não satisfaz a regra de função acima: o 
 
 - Na resolução de `.` consultam-se, nesta ordem, um alias de módulo, um nome de tipo declarado em keel e uma expressão de contêiner reconhecida. As demais formas permanecem acesso a campo ou designador C.
 - Uma declaração local reconhecida que sombreie um qualificador desativa sua interpretação como qualificador naquele escopo. O sombreamento tem os diagnósticos da §2.5.
-- A coexistência de alias de módulo e nome de tipo com a mesma grafia é aceita quando ambos provêm do mesmo módulo. Nos demais casos aplica-se o diagnóstico `alias-e-tipo-colidem`.
+- A coexistência de alias de módulo e nome de tipo com a mesma grafia é aceita quando ambos provêm do mesmo módulo. Nos demais casos aplica-se o diagnóstico `alias-type-collision`.
 - A posição de contêiner usa a produção `contentor` e a informação dos símbolos keel. Uma expressão C desconhecida, como uma chamada C ou um cast arbitrário, não fornece a identidade de contêiner exigida pelo despacho.
 - Índices, valores e demais argumentos continuam sendo regiões opacas, inclusive quando contêm outras construções keel reconhecíveis.
 - A indexação sobre um símbolo C desconhecido permanece C. A reescrita de índices múltiplos de `array` requer um símbolo com esse marcador; os demais contêineres seguem seus contratos de acesso.
@@ -428,7 +428,7 @@ Um declarador como `int (*f)(void);` não satisfaz a regra de função acima: o 
 - Cada alternativa é examinada a partir do mesmo contexto de entrada e produz uma variação de delimitadores `()`, `[]` e `{}`. Todas as alternativas devem concordar nessa variação, mantendo o emparelhamento dos delimitadores.
 - A variação comum é aplicada uma única vez ao contexto que contém o grupo.
 - Grupos aninhados são resolvidos de dentro para fora.
-- Divergência entre alternativas produz o diagnóstico `chaves-em-ramos`. Delimitador sem par produz o diagnóstico `delimitador-sem-par`, inclusive dentro de `extern_c`.
+- Divergência entre alternativas produz o diagnóstico `delimiter-mismatch-across-branches`. Delimitador sem par produz o diagnóstico `unmatched-delimiter`, inclusive dentro de `extern_c`.
 
 Uma alternativa pode abrir um bloco que termina depois do grupo, desde que as demais alternativas produzam a mesma estrutura. Um bloco aberto apenas sob `#ifdef` sem `#else` não satisfaz essa regra, pois a alternativa vazia não abre o bloco. [Justificativa: balanceamento por alternativa](keel-rationale.md#por-que-a-contagem-é-por-alternativa-e-não-sobre-o-texto).
 
@@ -438,23 +438,23 @@ Os diagnósticos abaixo são emitidos por keel durante a tradução. Seus identi
 
 | Condição | Identificador | Severidade |
 | --- | --- | --- |
-| `extern_c` fora do nível de arquivo | `extern-c-aninhado` | `error` |
-| Dois imports com `types` injetam o mesmo nome nu | `types-duplicado` | `error` |
-| Declaração local sombreia nome injetado por `types` | `types-sombreado` | `warning` |
-| Import injeta nomes por `types`; a mensagem lista os nomes | `types-injetados` | `info` |
-| Expressão fora da gramática de contêiner em posição que a exige | `fora-da-gramatica-de-conteiner` | `error` |
-| Padrão local de redeclaração de símbolo conhecido, definido abaixo | `redeclaracao-de-simbolo` | `error` |
-| Delimitador sem par; a mensagem localiza a abertura quando existente | `delimitador-sem-par` | `error` |
-| Alternativas condicionais discordam na estrutura de delimitadores | `chaves-em-ramos` | `error` |
-| `#define` ou `#undef` de palavra contextual keel ou de nome no espaço `keel_` | `define-sobre-keel` | `error` |
-| Newline não emendado em literal de string ou caractere | `literal-com-newline` | `error` |
-| Sombreamento de palavra contextual, verbo ou nome de módulo | `sombreamento` | `warning` |
-| Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `alias-e-tipo-colidem` | `error` |
-| Modificador declarado com o nome `instance` | `modificador-chamado-instance` | `error` |
+| `extern_c` fora do nível de arquivo | `nested-extern-c` | `error` |
+| Dois imports com `types` injetam o mesmo nome nu | `duplicate-injected-name` | `error` |
+| Declaração local sombreia nome injetado por `types` | `shadowed-injected-name` | `warning` |
+| Import injeta nomes por `types`; a mensagem lista os nomes | `injected-names` | `info` |
+| Expressão fora da gramática de contêiner em posição que a exige | `not-a-container-expression` | `error` |
+| Padrão local de redeclaração de símbolo conhecido, definido abaixo | `symbol-redeclaration` | `error` |
+| Delimitador sem par; a mensagem localiza a abertura quando existente | `unmatched-delimiter` | `error` |
+| Alternativas condicionais discordam na estrutura de delimitadores | `delimiter-mismatch-across-branches` | `error` |
+| `#define` ou `#undef` de palavra contextual keel ou de nome no espaço `keel_` | `define-over-keel-name` | `error` |
+| Newline não emendado em literal de string ou caractere | `literal-with-newline` | `error` |
+| Sombreamento de palavra contextual, verbo ou nome de módulo | `keel-name-shadowed` | `warning` |
+| Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `alias-type-collision` | `error` |
+| Modificador declarado com o nome `instance` | `modifier-named-instance` | `error` |
 
-Para o diagnóstico `redeclaracao-de-simbolo`, keel reconhece os padrões `IDENT IDENT` e `IDENT '*' IDENT` no início de statement, quando o segundo identificador é um símbolo keel conhecido. A verificação recusa a possível redeclaração sem precisar resolver o primeiro identificador como tipo C. [Justificativa: recusa de possíveis redeclarações](keel-rationale.md#por-que-a-redeclaração-é-recusada-em-vez-de-classificada).
+Para o diagnóstico `symbol-redeclaration`, keel reconhece os padrões `IDENT IDENT` e `IDENT '*' IDENT` no início de statement, quando o segundo identificador é um símbolo keel conhecido. A verificação recusa a possível redeclaração sem precisar resolver o primeiro identificador como tipo C. [Justificativa: recusa de possíveis redeclarações](keel-rationale.md#por-que-a-redeclaração-é-recusada-em-vez-de-classificada).
 
-Para o diagnóstico `define-sobre-keel`, keel lê o nome alvo de `#define` ou `#undef`. Essa inspeção é adicional à classificação pela palavra da diretiva; não examina semanticamente o corpo da macro, não o expande e não altera a diretiva. A preservação do conteúdo não exclui essa verificação lexical.
+Para o diagnóstico `define-over-keel-name`, keel lê o nome alvo de `#define` ou `#undef`. Essa inspeção é adicional à classificação pela palavra da diretiva; não examina semanticamente o corpo da macro, não o expande e não altera a diretiva. A preservação do conteúdo não exclui essa verificação lexical.
 
 ### 2.6 Pré-condições e limites
 
@@ -954,7 +954,7 @@ Três coisas que o par mostra, e que os contratos detalham:
   guarda uma posição e não depende de `T` (§§4.7 e 5.3).
 - **A saída por worker vai num contêiner indexado por `w`.** Não vai numa
   captura: captura escalar é cópia por worker, e escrever nela é o error
-  `captura-escrita`. `totais` entra por ponteiro porque é instância `byref`, e
+  `captured-write`. `totais` entra por ponteiro porque é instância `byref`, e
   cada worker escreve num índice diferente — a disjunção é do programa, não da
   construção.
 
@@ -1011,7 +1011,7 @@ priv i32 auxiliar(i32 x) { return x; }
 - Declarações públicas compõem a interface; declarações privadas e corpos fora de linha compõem a implementação, conforme o backend. `priv` não muda por si só o linkage C. `static` conserva seu significado C.
 - Um alias muda a escrita usada pelo importador, preservando a identidade de origem. `types` disponibiliza nomes de tipos e modificadores sem o qualificador; não injeta funções, variáveis ou constantes de enum. A forma qualificada permanece disponível. A injeção de nomes por `types` não se propaga por imports.
 - O módulo e o modificador que ele declara têm identidades distintas. Em `import keel.outcome as outcome types;`, `outcome` é o alias do módulo; `outcome.outcome` é o nome qualificado do modificador. `types` permite escrever esse modificador como `outcome` em posição de tipo. Em `outcome.ok(r)`, o prefixo qualifica um verbo do módulo. Essa distinção vale também para módulos cujos nomes não coincidem com seus modificadores.
-- A resolução pode alcançar símbolos públicos de imports transitivos; o uso sem import direto tem o diagnóstico informativo `import-indireto`.
+- A resolução pode alcançar símbolos públicos de imports transitivos; o uso sem import direto tem o diagnóstico informativo `indirect-import`.
 - Colisões são verificadas entre os símbolos exportados do módulo e do fecho transitivo de seus imports. A comparação usa os nomes canônicos efetivos, incluindo tags, typedefs e constantes de enum (§4.2).
 - `import_c` emite a inclusão na interface. `extern_c` preserva o conteúdo na implementação, sem aplicar mangling aos símbolos ali declarados; um tipo declarado em `extern_c` não é visível na interface, e o que precisa ser visível vai num header, por `import_c`.
 - `main` é uma função pública do módulo e recebe seu prefixo. A seleção do módulo de entrada pela ferramenta gera o wrapper C `main`, que chama essa função. Módulos diferentes podem declarar suas próprias funções `main`.
@@ -1026,19 +1026,19 @@ As verificações abaixo pertencem a keel, durante a tradução:
 
 | Condição | Identificador |
 | --- | --- |
-| Ausência de `module` inicial ou divergência do caminho | `sem-module`; `module-fora-do-caminho` |
-| Stem inválido ou arquivos diferenciados somente por caixa | `stem-invalido`; `stem-ambiguo-por-caixa` |
-| Colisão de símbolos exportados no fecho de imports ou ciclo de imports | `simbolo-colidido`; `import-circular` |
-| `extern_c` fora do nível de arquivo | `extern-c-aninhado` |
-| `main` em `extern_c`, privada ou fora das duas assinaturas C de entrada | `main-em-extern-c`; `main-privada`; `main-assinatura` |
-| `as` depois de `types`, ou dois imports injetando o mesmo nome | `import-ordem-trocada`; `types-duplicado` |
-| Alias repetido, ou igual ao qualificador de outro import, inclusive o `keel` implícito | `alias-duplicado` |
-| Nome injetado sombreado; lista dos nomes injetados | `types-sombreado` (`warning`); `types-injetados` (`info`) |
-| `pub static` sem `inline`, `static inline` sem visibilidade explícita, ou `static` sobre tipo | `pub-static`; `inline-sem-visibilidade`; `static-em-tipo` |
-| Uso de símbolo importado somente de modo transitivo | `import-indireto` (`info`) |
+| Ausência de `module` inicial ou divergência do caminho | `missing-module`; `module-path-mismatch` |
+| Stem inválido ou arquivos diferenciados somente por caixa | `invalid-stem`; `case-ambiguous-stem` |
+| Colisão de símbolos exportados no fecho de imports ou ciclo de imports | `symbol-collision`; `circular-import` |
+| `extern_c` fora do nível de arquivo | `nested-extern-c` |
+| `main` em `extern_c`, privada ou fora das duas assinaturas C de entrada | `main-in-extern-c`; `private-main`; `invalid-main-signature` |
+| `as` depois de `types`, ou dois imports injetando o mesmo nome | `import-clause-order`; `duplicate-injected-name` |
+| Alias repetido, ou igual ao qualificador de outro import, inclusive o `keel` implícito | `duplicate-alias` |
+| Nome injetado sombreado; lista dos nomes injetados | `shadowed-injected-name` (`warning`); `injected-names` (`info`) |
+| `pub static` sem `inline`, `static inline` sem visibilidade explícita, ou `static` sobre tipo | `pub-static`; `inline-without-visibility`; `static-on-type` |
+| Uso de símbolo importado somente de modo transitivo | `indirect-import` (`info`) |
 
 A validação semântica das declarações C é do compilador C. Delimitadores de
-`extern_c` continuam sujeitos ao diagnóstico `delimitador-sem-par`.
+`extern_c` continuam sujeitos ao diagnóstico `unmatched-delimiter`.
 
 #### 6. Pré-condições e limites
 
@@ -1152,29 +1152,29 @@ constante em arquivo ou bloco, com inicializador e declarador simples.
 - Os nomes emitidos derivam da identidade nominal, e sua grafia pertence ao
   backend. Três condições sobre eles são verificadas na tradução: duas
   declarações do mesmo módulo que produzam o mesmo nome canônico
-  (`nome-canonico-colidido`), um identificador do programa no espaço reservado
-  `keel_` (`nome-reservado`) e um nome emitido acima do limite de comprimento do
-  alvo (`nome-acima-do-teto`).
+  (`canonical-name-collision`), um identificador do programa no espaço reservado
+  `keel_` (`reserved-name`) e um nome emitido acima do limite de comprimento do
+  alvo (`name-too-long`).
 
 #### 5. Restrições e diagnósticos
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Palavra-chave de tipo aritmético C como argumento de modificador, exceto `char` e `bool`, em vez da grafia keel ou de um tipo nomeado | keel | `tipo-c-como-argumento` |
-| `array` 1D em parâmetro ou sem dimensão nesse contexto | keel | `array-1d-em-parametro`; `array-sem-dimensao-em-parametro` |
-| Indexação parcial de `array` multidimensional | keel | `array-indexacao-parcial` |
-| `keel.ptr`, `buffer.of` ou `slice.of` sobre `array` multidimensional | keel | `view-sobre-array-nd` |
-| `keel.dim(v,k)` sem valor decimal conhecido para `k` | keel | `dim-k-nao-constante` |
-| `ref` sem inicializador | keel | `ref-sem-inicializador` |
-| Operador aditivo binário, `+=`, `-=`, incremento, decremento ou índice aplicado ao símbolo `ref` | keel | `ref-aritmetica` |
-| Qualificação de enum omite o nível do tipo | keel | `enum-sem-o-tipo` |
-| `restrict` antes de modificador | keel | `restrict-em-conteiner` |
-| Formato `f16` ou `bf16` indisponível | backend/compilador C | `formato-estreito-indisponivel` |
-| Nome enterrado em declarador que precisa ser reconstruído | keel | `declarador-enterrado` |
-| `constexpr` com vetor ou inicializador entre chaves | keel | `constexpr-agregado` |
-| Endereço ou uso como lvalue de `constexpr` | keel | `constexpr-endereco` |
+| Palavra-chave de tipo aritmético C como argumento de modificador, exceto `char` e `bool`, em vez da grafia keel ou de um tipo nomeado | keel | `c-type-as-argument` |
+| `array` 1D em parâmetro ou sem dimensão nesse contexto | keel | `array-1d-as-parameter`; `array-parameter-without-dimension` |
+| Indexação parcial de `array` multidimensional | keel | `partial-array-index` |
+| `keel.ptr`, `buffer.of` ou `slice.of` sobre `array` multidimensional | keel | `flat-view-of-n-dim-array` |
+| `keel.dim(v,k)` sem valor decimal conhecido para `k` | keel | `nonconstant-dim-index` |
+| `ref` sem inicializador | keel | `ref-without-initializer` |
+| Operador aditivo binário, `+=`, `-=`, incremento, decremento ou índice aplicado ao símbolo `ref` | keel | `ref-arithmetic` |
+| Qualificação de enum omite o nível do tipo | keel | `enum-constant-without-type` |
+| `restrict` antes de modificador | keel | `restrict-on-container` |
+| Formato `f16` ou `bf16` indisponível | backend/compilador C | `specific-format-unavailable` |
+| Nome enterrado em declarador que precisa ser reconstruído | keel | `hidden-declarator` |
+| `constexpr` com vetor ou inicializador entre chaves | keel | `nonscalar-constexpr` |
+| Endereço ou uso como lvalue de `constexpr` | keel | `constexpr-as-lvalue` |
 
-Conflitos de nomes seguem §§2.5 e 5. O diagnóstico `ref-aritmetica` inclui `q - p` quando
+Conflitos de nomes seguem §§2.5 e 5. O diagnóstico `ref-arithmetic` inclui `q - p` quando
 `p` é `ref`, sem determinar o tipo de `q`.
 
 #### 6. Pré-condições e limites
@@ -1294,7 +1294,7 @@ o segundo identifica o modificador nele declarado. O nome abreviado vem de
 - Um parâmetro de função declarado com o nome do parâmetro `tags` — `mark(m *t, E e)` —
   é verificado no ponto de chamada: se o argumento escrito é uma constante de tag
   que keel reconhece, ela tem de pertencer ao conjunto daquela instância, sob pena
-  de `tag-de-outro-conjunto`. Argumento que não seja constante reconhecida segue
+  de `tag-from-other-set`. Argumento que não seja constante reconhecida segue
   para o compilador C, que o aceita como inteiro. A regra é do protocolo, e vale
   para qualquer módulo com parâmetro `tags`.
 - `type` liga um parâmetro, como `T`, ao argumento de tipo escrito. Na expansão,
@@ -1347,21 +1347,21 @@ Todas as verificações desta tabela são de keel:
 
 | Condição | Identificador |
 | --- | --- |
-| Cópia por atribuição entre instâncias `byref` | `byref-atribuido` (`warning`) |
-| `modifier` fora de módulo genérico | `modifier-fora-de-generico` |
-| Declaração que reutiliza nome de parâmetro genérico | `nome-de-parametro` |
-| Dependência de instanciação circular entre módulos genéricos | `generico-circular` |
-| Cadeia de tipos que se contêm por valor atravessando instância de modificador | `ciclo-de-layout` |
-| Construção keel aplicada a valor de tipo parâmetro | `protocolo-sobre-parametro` |
-| `instance` fora de arquivo ou sobre tipo que não é modificador genérico | `instance-fora-de-arquivo`; `instance-nao-modificador` |
-| `instance` sem corpos fora de linha a colocar | `instance-inutil` (`warning`) |
-| Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `generico-fora-de-linha` |
+| Cópia por atribuição entre instâncias `byref` | `byref-assignment` (`warning`) |
+| `modifier` fora de módulo genérico | `modifier-outside-generic` |
+| Declaração que reutiliza nome de parâmetro genérico | `parameter-name-reuse` |
+| Dependência de instanciação circular entre módulos genéricos | `circular-generic` |
+| Cadeia de tipos que se contêm por valor atravessando instância de modificador | `layout-cycle` |
+| Construção keel aplicada a valor de tipo parâmetro | `protocol-on-parameter` |
+| `instance` fora de arquivo ou sobre tipo que não é modificador genérico | `instance-outside-file-scope`; `instance-not-modifier` |
+| `instance` sem corpos fora de linha a colocar | `redundant-instance` (`warning`) |
+| Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `nonparametric-out-of-line` |
 | Parâmetro por valor de instância `byref` | `byref-param` |
-| Argumento de `dim` sem valor decimal conhecido | `dim-nao-constante` |
-| Argumento de `tags` que não nomeia conjunto declarado | `tags-nao-declarado` |
-| Uso de `dim` para gerar declarações, em vez de substituir o número | `dim-gera-declaracao` |
-| Modificador com nome `instance` | `modificador-chamado-instance` |
-| Argumento conhecido de `dim` menor que um | `dim-abaixo-de-um` |
+| Argumento de `dim` sem valor decimal conhecido | `nonconstant-dim` |
+| Argumento de `tags` que não nomeia conjunto declarado | `undeclared-tags` |
+| Uso de `dim` para gerar declarações, em vez de substituir o número | `dim-generates-declaration` |
+| Modificador com nome `instance` | `modifier-named-instance` |
+| Argumento conhecido de `dim` menor que um | `dim-below-one` |
 
 #### 6. Pré-condições e limites
 
@@ -1512,10 +1512,10 @@ símbolos. Uma chamada C desconhecida não fornece essa informação.
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Argumento de contêiner fora da gramática reconhecida | keel | `fora-da-gramatica-de-conteiner` |
-| Acesso direto a campo de instância | keel | `campo-de-instancia` (`warning`) |
-| Qualificador não corresponde ao receptor ou produto do verbo | keel | `qualificador-errado` |
-| Construtor dependente do alvo fora de inicialização, atribuição a símbolo ou retorno com tipo conhecido | keel | `from-sem-alvo` |
+| Argumento de contêiner fora da gramática reconhecida | keel | `not-a-container-expression` |
+| Acesso direto a campo de instância | keel | `instance-field-access` (`warning`) |
+| Qualificador não corresponde ao receptor ou produto do verbo | keel | `wrong-qualifier` |
+| Construtor dependente do alvo fora de inicialização, atribuição a símbolo ou retorno com tipo conhecido | keel | `from-without-target` |
 | Tipos ou argumentos C incompatíveis depois da resolução | compilador C | Diagnóstico do compilador C |
 
 #### 6. Pré-condições e limites
@@ -1604,14 +1604,14 @@ são operações dos módulos que os implementam.
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Indexação parcial de `array` | keel | `array-indexacao-parcial` |
-| Tipo não possui `ptr` da aridade escrita | keel | `aridade-sem-ptr` |
-| Tipo não possui o verbo de recorte necessário à aridade | keel | `recorte-sem-of` |
-| Limites numericamente conhecidos com início maior que fim | keel | `recorte-invertido` |
-| Limites violam `a <= b <= length(x)` | backend, em execução debug | `recorte-fora-de-faixa` |
-| Fim omitido sobre caminho que contém índice ou verbo | keel | `recorte-aberto-com-indice` |
+| Indexação parcial de `array` | keel | `partial-array-index` |
+| Tipo não possui `ptr` da aridade escrita | keel | `no-ptr-for-arity` |
+| Tipo não possui o verbo de recorte necessário à aridade | keel | `no-range-index-verb` |
+| Limites numericamente conhecidos com início maior que fim | keel | `inverted-range-index` |
+| Limites violam `a <= b <= length(x)` | backend, em execução debug | `range-index-out-of-bounds` |
+| Fim omitido sobre caminho que contém índice ou verbo | keel | `open-range-index-on-complex-path` |
 
-O diagnóstico `recorte-invertido` admite literais e valores decimais conhecidos de `constexpr`.
+O diagnóstico `inverted-range-index` admite literais e valores decimais conhecidos de `constexpr`.
 Não exige calcular expressões C.
 
 #### 6. Pré-condições e limites
@@ -1697,15 +1697,15 @@ Todas as verificações desta tabela são de keel:
 
 | Condição | Identificador |
 | --- | --- |
-| `defer` como corpo de controle sem chaves | `defer-sem-bloco` |
-| Registro em escopo de arquivo | `defer-em-escopo-de-arquivo` |
-| Entrada externa por cima de registro, inclusive por `case`/`default` | `salto-sobre-defer` |
-| Lista de captura depois de `later` | `later-com-captura` |
-| Registro em corpo de `if`, `else` ou `switch` | `defer-em-bloco-de-controle` (`warning`) |
-| Nome enterrado em declarador de captura ou retorno que precisa ser reconstruído | `declarador-enterrado` |
-| Símbolo de captura tardia redeclarado em escopo interno com saída que executaria o cleanup | `defer-later-sombreado` |
+| `defer` como corpo de controle sem chaves | `defer-without-braces` |
+| Registro em escopo de arquivo | `defer-at-file-scope` |
+| Entrada externa por cima de registro, inclusive por `case`/`default` | `jump-over-defer` |
+| Lista de captura depois de `later` | `later-with-capture` |
+| Registro em corpo de `if`, `else` ou `switch` | `defer-in-control-block` (`warning`) |
+| Nome enterrado em declarador de captura ou retorno que precisa ser reconstruído | `hidden-declarator` |
+| Símbolo de captura tardia redeclarado em escopo interno com saída que executaria o cleanup | `defer-later-shadowed` |
 
-O diagnóstico `declarador-enterrado` indica o uso de um `typedef`. Para `defer-later-sombreado`, a captura explícita
+O diagnóstico `hidden-declarator` indica o uso de um `typedef`. Para `defer-later-shadowed`, a captura explícita
 `[now]` ou um ponto de saída fora do escopo que sombreia preserva a ligação.
 
 #### 6. Pré-condições e limites
@@ -1760,7 +1760,7 @@ programa.
 - Dois binders exigem `length` e `get` para valor, ou `length` e `ptr` para
   ponteiro. Um binder exige `first` e `limit`, ou um literal `a..b`.
 - `walk` tem uma forma só, de dois binders. A forma de um binder é reconhecida
-  para ser recusada por `walk-sem-cursor`, com a mensagem que a falta pede, em
+  para ser recusada por `walk-without-cursor`, com a mensagem que a falta pede, em
   vez de um erro de sintaxe sobre a vírgula.
 - `walk` exige `begin`, `has_next` e `next`. O tipo do cursor escrito deve ser
   o produto declarado de `begin`; o tipo do elemento é o produto declarado de
@@ -1820,17 +1820,17 @@ Todas as verificações desta tabela são de keel:
 
 | Condição | Identificador |
 | --- | --- |
-| Ausência dos verbos exigidos na forma de dois binders | `nao-percorrivel` |
-| Ausência de `begin`, `has_next` ou `next` em `walk` | `nao-percorrivel-por-cursor` |
-| `walk` sem binder de cursor | `walk-sem-cursor` |
-| Tipo do binder de cursor diferente do produto de `begin` | `cursor-de-outro-tipo` |
-| Binder por valor copia elemento que é instância de modificador | `binder-copia-conteiner` |
-| `push`, `pop` ou `clear` do contêiner percorrido no corpo | `mutacao-na-travessia` |
-| Binder de índice de tipo diferente de `size_t` | `indice-nao-size-t` |
-| Ausência de `first` ou `limit` na forma de um binder | `nao-contavel` |
-| Dois binders sobre literal de intervalo | `foreach-dois-binders-em-literal` |
-| Binder por ponteiro na forma de intervalo | `binder-ponteiro-em-intervalo` |
-| Literal aberto fora de índice | `recorte-aberto` |
+| Ausência dos verbos exigidos na forma de dois binders | `not-iterable` |
+| Ausência de `begin`, `has_next` ou `next` em `walk` | `not-cursor-iterable` |
+| `walk` sem binder de cursor | `walk-without-cursor` |
+| Tipo do binder de cursor diferente do produto de `begin` | `cursor-type-mismatch` |
+| Binder por valor copia elemento que é instância de modificador | `binder-copies-container` |
+| `push`, `pop` ou `clear` do contêiner percorrido no corpo | `mutation-during-traversal` |
+| Binder de índice de tipo diferente de `size_t` | `index-not-size-t` |
+| Ausência de `first` ou `limit` na forma de um binder | `not-countable` |
+| Dois binders sobre literal de intervalo | `foreach-two-binders-on-literal` |
+| Binder por ponteiro na forma de intervalo | `pointer-binder-on-range` |
+| Literal aberto fora de índice | `open-range-outside-index` |
 
 #### 6. Pré-condições e limites
 
@@ -1934,7 +1934,7 @@ depois do bloco; o contrato do módulo `keel.parallel` está na §5.7.
   vazio. `range` declara a divisão análoga sobre `[first,limit)`.
 - O binder de partição recebe uma instância por valor quando o módulo assim a
   declara, como `slice T`. Essa é a forma prevista desta construção e não
-  incorre em `binder-copia-conteiner`. Um módulo cujo produto de `partition`
+  incorre em `binder-copies-container`. Um módulo cujo produto de `partition`
   seja `byref` entrega a parte por ponteiro.
 
 ##### Execução e política
@@ -1975,16 +1975,16 @@ depois do bloco; o contrato do módulo `keel.parallel` está na §5.7.
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Contêiner que não declara `partition` | keel | `nao-particionavel` |
-| Tipo do binder de partição diferente do produto de `partition` | keel | `particao-de-outro-tipo` |
-| Mutação estrutural reconhecida no contêiner particionado | keel | `mutacao-na-travessia` |
-| Ausência de nome | keel | `parallel-sem-nome` |
-| `win` ou `fail` de fluxo fora do corpo de worker | keel | `verbo-fora-de-parallel` |
-| `parallel` aninhado | keel | `parallel-aninhado` |
-| Nome repetido na mesma função | keel | `parallel-nome-repetido` |
-| Quantidade de workers ou política sem constante admitida | keel | `parallel-nao-constante` |
-| Atribuição a escalar capturado | keel | `captura-escrita` |
-| `return` escrito no corpo | keel | `return-em-parallel` |
+| Contêiner que não declara `partition` | keel | `not-partitionable` |
+| Tipo do binder de partição diferente do produto de `partition` | keel | `partition-type-mismatch` |
+| Mutação estrutural reconhecida no contêiner particionado | keel | `mutation-during-traversal` |
+| Ausência de nome | keel | `unnamed-parallel` |
+| `win` ou `fail` de fluxo fora do corpo de worker | keel | `flow-verb-outside-parallel` |
+| `parallel` aninhado | keel | `nested-parallel` |
+| Nome repetido na mesma função | keel | `duplicate-parallel-name` |
+| Quantidade de workers ou política sem constante admitida | keel | `nonconstant-parallel` |
+| Atribuição a escalar capturado | keel | `captured-write` |
+| `return` escrito no corpo | keel | `return-in-parallel` |
 
 Os requisitos dos binders de uma travessia escrita no corpo do worker seguem
 a §4.7 e incidem sobre a parte, não sobre o todo. O compilador C verifica
@@ -2073,7 +2073,7 @@ Uma constante de tag é escrita com o nível do conjunto quando o nome não esti
 - O conjunto de tags do operando vem de sua declaração conhecida. keel não deduz o conjunto de uma expressão C arbitrária.
 - O operando não precisa ser uma instância de `tagged`: basta declarar a operação `tag`, pela resolução comum da §4.4. A verificação não se restringe aos nomes dos módulos da base.
 - O conjunto exaustivo vem de um de dois lugares, nesta ordem. Se o tipo do operando é instância de um modificador cujo módulo tem parâmetro `tags`, o conjunto é o **argumento escrito naquela instância** — em `tagged Ciclo void`, é `Ciclo`. Caso contrário, é o conjunto declarado pelo **módulo** do operando, como em `corot`.
-- No segundo caso o módulo tem de declarar **exatamente um** conjunto: com dois, não há critério para escolher, e é o error `match-conjunto-ambiguo`. Um operando cujo módulo não declara conjunto nenhum não admite `match`, e é o `match-sem-conjunto`. As duas recusas são de tradução, e nenhuma delas impede o programa de escrever `switch`.
+- No segundo caso o módulo tem de declarar **exatamente um** conjunto: com dois, não há critério para escolher, e é o error `ambiguous-match-tags`. Um operando cujo módulo não declara conjunto nenhum não admite `match`, e é o `match-without-tags`. As duas recusas são de tradução, e nenhuma delas impede o programa de escrever `switch`.
 
 #### 4. Semântica
 
@@ -2104,20 +2104,20 @@ Uma constante de tag é escrita com o nível do conjunto quando o nome não esti
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| `tags` sem nome | keel | `tags-sem-nome` (`error`) |
-| Nome de conjunto repetido no módulo | keel | `tags-nome-repetido` (`error`) |
-| Tag repetida no mesmo conjunto | keel | `tag-repetida` (`error`) |
-| Conjunto que mistura tags com e sem valor escrito | keel | `tags-valores-parciais` (`error`) |
-| Valor de tag sem literal ou constante conhecida | keel | `tag-valor-nao-constante` (`error`) |
-| Conjunto vazio | keel | `tags-lista-vazia` (`error`) |
-| Operando de `match` sobre tipo que não declara `tag` | keel | `match-sem-tag` (`error`) |
-| Operando cujo módulo não declara conjunto de tags | keel | `match-sem-conjunto` (`error`) |
-| Operando cujo módulo declara mais de um conjunto, sem parâmetro `tags` que decida | keel | `match-conjunto-ambiguo` (`error`) |
-| Rótulo repetido no mesmo `match` | keel | `rotulo-de-tag-repetido` (`error`) |
-| Rótulo ausente da lista, ou tag listada sem rótulo | keel | `tag-fora-da-lista`; `tag-sem-rotulo` (`error`) |
-| Rótulo que não pertence ao conjunto do operando | keel | `tag-de-outro-conjunto` (`error`) |
-| Valor de etiqueta fora da lista | backend, em execução debug | `tag-fora-de-faixa` (`debug`) |
-| Constante de tag escrita sem o nível do conjunto, quando exigida | keel | `enum-sem-o-tipo` (`error`) |
+| `tags` sem nome | keel | `unnamed-tags` (`error`) |
+| Nome de conjunto repetido no módulo | keel | `duplicate-tags-name` (`error`) |
+| Tag repetida no mesmo conjunto | keel | `duplicate-tag` (`error`) |
+| Conjunto que mistura tags com e sem valor escrito | keel | `partial-tag-values` (`error`) |
+| Valor de tag sem literal ou constante conhecida | keel | `nonconstant-tag-value` (`error`) |
+| Conjunto vazio | keel | `empty-tags` (`error`) |
+| Operando de `match` sobre tipo que não declara `tag` | keel | `match-without-tag` (`error`) |
+| Operando cujo módulo não declara conjunto de tags | keel | `match-without-tags` (`error`) |
+| Operando cujo módulo declara mais de um conjunto, sem parâmetro `tags` que decida | keel | `ambiguous-match-tags` (`error`) |
+| Rótulo repetido no mesmo `match` | keel | `duplicate-tag` (`error`) |
+| Rótulo ausente da lista, ou tag listada sem rótulo | keel | `tag-not-in-set`; `tag-without-label` (`error`) |
+| Rótulo que não pertence ao conjunto do operando | keel | `tag-from-other-set` (`error`) |
+| Valor de etiqueta fora da lista | backend, em execução debug | `tag-out-of-range` (`debug`) |
+| Constante de tag escrita sem o nível do conjunto, quando exigida | keel | `enum-constant-without-type` (`error`) |
 
 A verificação de exaustividade alcança os rótulos presentes antes do pré-processamento C. Rótulos ocultos por macro não satisfazem o contrato da §1.2.
 
@@ -2125,8 +2125,8 @@ O `break` do braço é reescrito por keel como salto para a saída do despacho. 
 
 #### 6. Pré-condições e limites
 
-- keel não prova que a etiqueta armazenada pertence ao conjunto. A verificação `tag-fora-de-faixa` é de execução em perfil debug.
-- Um conjunto declarado em keel é conhecido na tradução. Constantes vindas de `extern_c` ou de header não formam um conjunto: não há lista para verificar, e `match` sobre elas é recusado por `match-sem-conjunto`. O programa continua podendo usar `switch`.
+- keel não prova que a etiqueta armazenada pertence ao conjunto. A verificação `tag-out-of-range` é de execução em perfil debug.
+- Um conjunto declarado em keel é conhecido na tradução. Constantes vindas de `extern_c` ou de header não formam um conjunto: não há lista para verificar, e `match` sobre elas é recusado por `match-without-tags`. O programa continua podendo usar `switch`.
 - O operando conserva sua representação: `match` lê a etiqueta por `tag`, e não impõe como ela é armazenada.
 
 #### 7. Exemplo mínimo
@@ -2209,7 +2209,7 @@ A primeira forma usa default; as outras executam o tratamento escrito quando o r
 
 - O protocolo de tratamento de resultado exige `failed`. A forma de default exige também `win`, na forma que recebe o resultado e o valor de default e ajusta o objeto para sucesso. A presença de `ongoing` não é um critério de exclusão.
 - O tipo do símbolo declarado vem de sua declaração escrita. O parser não deduz o tipo de uma expressão C arbitrária para escolher o protocolo.
-- Na forma de atribuição, o alvo tem de ser um identificador simples cuja declaração keel seja conhecida, e o tipo vem dessa declaração, como na forma de declaração. Campo, índice, deref, cast e símbolo C desconhecido não fornecem o tipo, e produzem `else-alvo-complexo`. A distinção é da tabela de símbolos, não de análise de expressão.
+- Na forma de atribuição, o alvo tem de ser um identificador simples cuja declaração keel seja conhecida, e o tipo vem dessa declaração, como na forma de declaração. Campo, índice, deref, cast e símbolo C desconhecido não fornecem o tipo, e produzem `else-on-complex-target`. A distinção é da tabela de símbolos, não de análise de expressão.
 - O `else` do `if` pertence à gramática de controle C. O `else` de resultado pertence à declaração reconhecida. Depois dele, `{` ou uma palavra de salto C (`return`, `break`, `continue`, `goto`) identifica tratamento; os demais inícios identificam uma expressão de default.
 - Expressões de default e corpos de tratamento permanecem C opaco quanto à análise semântica, com reconhecimento normal das construções keel e dos pontos de saída.
 - Os verbos `failed` e `win` são procurados pelo protocolo da §4.4. A verificação não se restringe aos módulos da base: `keel.outcome` (§5.5) é a implementação distribuída, não uma exigência.
@@ -2230,11 +2230,11 @@ A primeira forma usa default; as outras executam o tratamento escrito quando o r
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Cláusula `else` sem inicializador | keel | `else-sem-inicializador` (`error`) |
-| Tipo declarado não fornece o protocolo `failed` | keel | `else-tipo-nao-falivel` (`error`) |
-| `else` sobre alvo que não é identificador declarado em keel | keel | `else-alvo-complexo` (`error`) |
-| Mais de um declarador na declaração com `else` | keel | `else-multiplos-declaradores` (`error`) |
-| Default sobre tipo que não fornece `win` | keel | `else-default-sem-win` (`error`) |
+| Cláusula `else` sem inicializador | keel | `else-without-initializer` (`error`) |
+| Tipo declarado não fornece o protocolo `failed` | keel | `else-on-infallible-type` (`error`) |
+| `else` sobre alvo que não é identificador declarado em keel | keel | `else-on-complex-target` (`error`) |
+| Mais de um declarador na declaração com `else` | keel | `else-multiple-declarators` (`error`) |
+| Default sobre tipo que não fornece `win` | keel | `else-default-without-win` (`error`) |
 | Argumento, retorno ou atribuição com tipos C incompatíveis | compilador C | Diagnóstico do compilador C |
 
 #### 6. Pré-condições e limites
@@ -2293,11 +2293,11 @@ void ocupar(soa position *p, size_t n);
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Tipo de campo não nomeado (`struct`/`union` anônima inline) | keel | `soa-tipo-anonimo` |
-| Campo marcado `array` com declarador que não seja tipo nomeado seguido de `*` | keel | `soa-declarador-nao-simples` |
-| `var[i]`/`param[i]` sem `.campo` imediatamente seguinte | keel | `soa-elemento-nao-existente` |
+| Tipo de campo não nomeado (`struct`/`union` anônima inline) | keel | `soa-anonymous-type` |
+| Campo marcado `array` com declarador que não seja tipo nomeado seguido de `*` | keel | `soa-complex-declarator` |
+| `var[i]`/`param[i]` sem `.campo` imediatamente seguinte | keel | `soa-element-without-field` |
 | Parâmetro `soa NOME` por valor | keel | `byref-param` (mesmo diagnóstico de §4.3, estendido a `soa`) |
-| Cópia por atribuição de instância `soa` | keel | `byref-atribuido` (`warning`, mesmo diagnóstico de §4.3) |
+| Cópia por atribuição de instância `soa` | keel | `byref-assignment` (`warning`, mesmo diagnóstico de §4.3) |
 
 #### 6. Pré-condições e limites
 
@@ -2496,14 +2496,14 @@ admitida por keel. As demais operações são chamadas com resolução da §4.4.
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Tamanho de `from_stack` não é constante conhecida | keel | `arena-stack-nao-constante` |
-| Origem de `from_array` não é `array u8` | keel | `arena-from-array-nao-u8` |
+| Tamanho de `from_stack` não é constante conhecida | keel | `nonconstant-arena-stack` |
+| Origem de `from_array` não é `array u8` | keel | `arena-from-array-not-u8` |
 | Retorno de contêiner com procedência conhecida em armazenamento local | keel | `arena-escape` |
-| Uso conhecido de filha após reset/restore do pai, na varredura do mesmo escopo | keel | `arena-filha-apos-reset` |
+| Uso conhecido de filha após reset/restore do pai, na varredura do mesmo escopo | keel | `child-arena-after-reset` |
 | Multiplicação do tamanho de alocação transborda | backend, em execução debug | `alloc-overflow` |
 
 A recusa de parâmetros por valor de `arena` segue o diagnóstico `byref-param`. O
-diagnóstico `arena-filha-apos-reset` incide no uso posterior, inclusive `reset(filha)`, e não na
+diagnóstico `child-arena-after-reset` incide no uso posterior, inclusive `reset(filha)`, e não na
 operação que reutiliza a memória do pai.
 
 #### 6. Pré-condições e limites
@@ -2651,12 +2651,12 @@ prazo de validade da arena de destino.
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Construção de buffer sobre vetor `const` | keel | `buffer-sobre-const` |
-| `get` ou `set` copia elemento que é instância de modificador | keel | `get-copia-conteiner` |
-| `set` fora do comprimento | backend, em execução debug | `set-fora-de-length` |
-| `buffer.of` sem origem conhecida como `array` | keel | `buffer-of-tamanho` |
-| `slice.from` sobre símbolo `ref` | keel | `slice-from-sobre-ref` |
-| Intervalo aberto fora de índice | keel | `recorte-aberto` |
+| Construção de buffer sobre vetor `const` | keel | `buffer-over-const` |
+| `get` ou `set` copia elemento que é instância de modificador | keel | `element-copy-in-get-set` |
+| `set` fora do comprimento | backend, em execução debug | `set-out-of-length` |
+| `buffer.of` sem origem conhecida como `array` | keel | `buffer-of-unknown-size` |
+| `slice.from` sobre símbolo `ref` | keel | `slice-from-ref` |
+| Intervalo aberto fora de índice | keel | `open-range-outside-index` |
 
 Indexação, recortes e suas verificações seguem a §4.5. Qualificadores dos
 objetos e compatibilidade das cópias continuam sujeitos ao compilador C.
@@ -2732,7 +2732,7 @@ ponto em que a pertinência pode ser exigida, e o parâmetro tipado pelo conjunt
 #### 3. Reconhecimento
 
 - O modificador é aplicado a dois argumentos, na ordem da assinatura do módulo: o conjunto de tags e o tipo associado (§4.3).
-- O conjunto escrito deve nomear uma declaração `tags` conhecida; caso contrário aplica-se `tags-nao-declarado` (§4.3).
+- O conjunto escrito deve nomear uma declaração `tags` conhecida; caso contrário aplica-se `undeclared-tags` (§4.3).
 - Os verbos são resolvidos pela §4.4, com o objeto no primeiro argumento.
 
 #### 4. Semântica
@@ -2747,9 +2747,9 @@ ponto em que a pertinência pode ser exigida, e o parâmetro tipado pelo conjunt
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
 | Parâmetro por valor, se o modificador for declarado `byref` | keel | `byref-param` |
-| Acesso direto ao campo da etiqueta ou do valor | keel | `campo-de-instancia` (`warning`) |
-| Constante escrita em `mark` ou `set` que não pertence ao conjunto da instância | keel | `tag-de-outro-conjunto` |
-| Valor de etiqueta fora da lista | backend, em execução debug | `tag-fora-de-faixa` (`debug`) |
+| Acesso direto ao campo da etiqueta ou do valor | keel | `instance-field-access` (`warning`) |
+| Constante escrita em `mark` ou `set` que não pertence ao conjunto da instância | keel | `tag-from-other-set` |
+| Valor de etiqueta fora da lista | backend, em execução debug | `tag-out-of-range` (`debug`) |
 
 #### 6. Pré-condições e limites
 
@@ -2909,11 +2909,11 @@ objeto. O setter `value(r, valor)` modifica apenas o valor e tem retorno `void`.
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
-| Código conhecido de `corot.fault` é zero ou negativo | keel | `cofault-codigo-invalido` (`error`) |
-| Primeiro argumento não fornece objeto reconhecido exigido pelo verbo | keel | `fora-da-gramatica-de-conteiner` (`error`) |
+| Código conhecido de `corot.fault` é zero ou negativo | keel | `invalid-fault-code` (`error`) |
+| Primeiro argumento não fornece objeto reconhecido exigido pelo verbo | keel | `not-a-container-expression` (`error`) |
 | Argumento, retorno ou atribuição com tipos C incompatíveis | compilador C | Diagnóstico do compilador C |
 
-O diagnóstico `cofault-codigo-invalido` cobre todo código conhecido não positivo. A verificação usa literais e valores de constantes conhecidos nos limites da §4.2; não calcula expressões C para descobrir o sinal.
+O diagnóstico `invalid-fault-code` cobre todo código conhecido não positivo. A verificação usa literais e valores de constantes conhecidos nos limites da §4.2; não calcula expressões C para descobrir o sinal.
 
 #### 6. Pré-condições e limites
 
@@ -3083,8 +3083,8 @@ O alvo de `par` é um valor de execução. Zero significa todos os slots; `1` co
 | --- | --- | --- |
 | Entrada por valor de instância `byref` em parâmetro | keel | `byref-param` (`error`) |
 | Tipo da função escrita incompatível com `routine` da instância | compilador C | Diagnóstico do compilador C |
-| Alvo de `par` maior que o número de slots | backend, em execução debug | `par-alvo-acima-do-total` (`debug`) |
-| `mask` sobre recorte com mais de 64 entradas | backend, em execução debug | `mask-acima-de-64` (`debug`) |
+| Alvo de `par` maior que o número de slots | backend, em execução debug | `par-target-above-total` (`debug`) |
+| `mask` sobre recorte com mais de 64 entradas | backend, em execução debug | `mask-above-64-slots` (`debug`) |
 
 A composição não acrescenta verificações de fluxo ao corpo das participantes. Ela é uma função: saltos, retornos e cleanup do chamador seguem os contratos das §§4.6 e 5.5.
 
@@ -3206,135 +3206,134 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 
 | Identificador | Condição | Severidade | Responsável | Contrato |
 | --- | --- | --- | --- | --- |
-| `sem-module` | Arquivo sem `module` como primeiro token significativo | `error` | keel | §4.1 |
-| `module-fora-do-caminho` | Nome declarado em `module` divergente do caminho relativo à raiz | `error` | keel | §4.1 |
-| `stem-invalido` | Stem de arquivo que não é identificador C válido | `error` | keel | §4.1 |
-| `stem-ambiguo-por-caixa` | Nomes de arquivo diferindo apenas por caixa | `error` | keel | §4.1 |
-| `simbolo-colidido` | Colisão de símbolos exportados no módulo e no fecho transitivo de imports | `error` | keel | §4.1 |
-| `import-circular` | Import circular, com a cadeia completa na mensagem | `error` | keel | §4.1 |
-| `extern-c-aninhado` | `extern_c` em posição aninhada, isto é, fora do nível de arquivo | `error` | keel | §4.1 |
-| `main-em-extern-c` | `main` definida dentro de `extern_c` | `error` | keel | §4.1 |
-| `main-privada` | `priv` aplicado a `main` | `error` | keel | §4.1 |
-| `main-assinatura` | `main` assinada fora das duas formas do C | `error` | keel | §4.1 |
-| `import-ordem-trocada` | `import M types as m;` — a mensagem dá a forma correta | `error` | keel | §4.1 |
-| `types-duplicado` | Dois imports com `types` injetando o mesmo nome nu | `error` | keel | §4.1 |
-| `alias-duplicado` | Dois imports com o mesmo alias, ou alias que coincide com o qualificador de outro import (inclusive o `keel` implícito); a mensagem cita os dois imports | `error` | keel | §4.1 |
-| `types-sombreado` | Nome injetado por `types` sombreado por declaração local | `warning` | keel | §4.1 |
-| `types-injetados` | Lista dos nomes que `types` injetou, no ponto do import | `info` | keel | §4.1 |
+| `missing-module` | Arquivo sem `module` como primeiro token significativo | `error` | keel | §4.1 |
+| `module-path-mismatch` | Nome declarado em `module` divergente do caminho relativo à raiz | `error` | keel | §4.1 |
+| `invalid-stem` | Stem de arquivo que não é identificador C válido | `error` | keel | §4.1 |
+| `case-ambiguous-stem` | Nomes de arquivo diferindo apenas por caixa | `error` | keel | §4.1 |
+| `symbol-collision` | Colisão de símbolos exportados no módulo e no fecho transitivo de imports | `error` | keel | §4.1 |
+| `circular-import` | Import circular, com a cadeia completa na mensagem | `error` | keel | §4.1 |
+| `nested-extern-c` | `extern_c` em posição aninhada, isto é, fora do nível de arquivo | `error` | keel | §4.1 |
+| `main-in-extern-c` | `main` definida dentro de `extern_c` | `error` | keel | §4.1 |
+| `private-main` | `priv` aplicado a `main` | `error` | keel | §4.1 |
+| `invalid-main-signature` | `main` assinada fora das duas formas do C | `error` | keel | §4.1 |
+| `import-clause-order` | `import M types as m;` — a mensagem dá a forma correta | `error` | keel | §4.1 |
+| `duplicate-injected-name` | Dois imports com `types` injetando o mesmo nome nu | `error` | keel | §4.1 |
+| `duplicate-alias` | Dois imports com o mesmo alias, ou alias que coincide com o qualificador de outro import (inclusive o `keel` implícito); a mensagem cita os dois imports | `error` | keel | §4.1 |
+| `shadowed-injected-name` | Nome injetado por `types` sombreado por declaração local | `warning` | keel | §4.1 |
+| `injected-names` | Lista dos nomes que `types` injetou, no ponto do import | `info` | keel | §4.1 |
 | `pub-static` | `pub static` sem `inline` em escopo de arquivo | `error` | keel | §4.1 |
-| `inline-sem-visibilidade` | `static inline` sem `pub`/`priv` em nível de módulo | `error` | keel | §4.1 |
-| `static-em-tipo` | `static` aplicada a tipo | `error` | keel | §4.1 |
-| `nome-acima-do-teto` | Nome gerado acima do teto de comprimento do alvo | `error` | Backend / compilador C | §4.2 |
-| `fora-da-gramatica-de-conteiner` | Expressão fora da gramática de contêiner em posição de contêiner | `error` | keel | §4.4 |
-| `tipo-c-como-argumento` | Palavra-chave de tipo aritmético C como argumento de modificador, exceto `char` e `bool` | `error` | keel | §4.2 |
-| `nome-reservado` | Identificador do usuário no espaço reservado `keel_` | `error` | Backend / compilador C | §4.2 |
-| `redeclaracao-de-simbolo` | Padrão local de possível redeclaração de símbolo conhecido, conforme §2.5 | `error` | keel | §2.5 |
-| `buffer-sobre-const` | `buffer` sobre vetor C `const` — a mensagem indica `slice const T` | `error` | keel | §5.3 |
-| `get-copia-conteiner` | `get` ou `set` sobre elemento que é instância de modificador | `error` | keel | §5.3 |
-| `set-fora-de-length` | `set` com índice fora de `length` | `debug` | Backend, em execução | §5.3 |
-| `buffer-of-tamanho` | `buffer.of` de um argumento sobre símbolo que não é `array` | `error` | keel | §5.3 |
-| `array-1d-em-parametro` | `array` unidimensional em parâmetro de função | `error` | keel | §4.2 |
-| `array-sem-dimensao-em-parametro` | `array T v[]` sem dimensão em parâmetro | `error` | keel | §4.2 |
-| `array-indexacao-parcial` | Indexação parcial de `array` multidimensional | `error` | keel | §4.2 |
-| `view-sobre-array-nd` | `keel.ptr`, `buffer.of` ou `slice.of` sobre `array` multidimensional | `error` | keel | §4.2 |
-| `dim-k-nao-constante` | Índice de `keel.dim(v,k)` sem valor decimal conhecido | `error` | keel | §4.2 |
-| `ref-sem-inicializador` | `ref` sem inicializador | `error` | keel | §4.2 |
-| `ref-aritmetica` | Aritmética ou indexação sobre `ref` | `error` | keel | §4.2 |
-| `slice-from-sobre-ref` | `slice.from` sobre `ref` | `error` | keel | §5.3 |
-| `arena-stack-nao-constante` | `arena.from_stack` com tamanho não constante; a mensagem indica `arena.from_parent` | `error` | keel | §5.2 |
-| `arena-from-array-nao-u8` | `arena.from_array` sobre símbolo que não é `array u8` | `error` | keel | §5.2 |
+| `inline-without-visibility` | `static inline` sem `pub`/`priv` em nível de módulo | `error` | keel | §4.1 |
+| `static-on-type` | `static` aplicada a tipo | `error` | keel | §4.1 |
+| `name-too-long` | Nome gerado acima do teto de comprimento do alvo | `error` | Backend / compilador C | §4.2 |
+| `not-a-container-expression` | Expressão fora da gramática de contêiner em posição de contêiner | `error` | keel | §4.4 |
+| `c-type-as-argument` | Palavra-chave de tipo aritmético C como argumento de modificador, exceto `char` e `bool` | `error` | keel | §4.2 |
+| `reserved-name` | Identificador do usuário no espaço reservado `keel_` | `error` | Backend / compilador C | §4.2 |
+| `symbol-redeclaration` | Padrão local de possível redeclaração de símbolo conhecido, conforme §2.5 | `error` | keel | §2.5 |
+| `buffer-over-const` | `buffer` sobre vetor C `const` — a mensagem indica `slice const T` | `error` | keel | §5.3 |
+| `element-copy-in-get-set` | `get` ou `set` sobre elemento que é instância de modificador | `error` | keel | §5.3 |
+| `set-out-of-length` | `set` com índice fora de `length` | `debug` | Backend, em execução | §5.3 |
+| `buffer-of-unknown-size` | `buffer.of` de um argumento sobre símbolo que não é `array` | `error` | keel | §5.3 |
+| `array-1d-as-parameter` | `array` unidimensional em parâmetro de função | `error` | keel | §4.2 |
+| `array-parameter-without-dimension` | `array T v[]` sem dimensão em parâmetro | `error` | keel | §4.2 |
+| `partial-array-index` | Indexação parcial de `array` multidimensional | `error` | keel | §4.2 |
+| `flat-view-of-n-dim-array` | `keel.ptr`, `buffer.of` ou `slice.of` sobre `array` multidimensional | `error` | keel | §4.2 |
+| `nonconstant-dim-index` | Índice de `keel.dim(v,k)` sem valor decimal conhecido | `error` | keel | §4.2 |
+| `ref-without-initializer` | `ref` sem inicializador | `error` | keel | §4.2 |
+| `ref-arithmetic` | Aritmética ou indexação sobre `ref` | `error` | keel | §4.2 |
+| `slice-from-ref` | `slice.from` sobre `ref` | `error` | keel | §5.3 |
+| `nonconstant-arena-stack` | `arena.from_stack` com tamanho não constante; a mensagem indica `arena.from_parent` | `error` | keel | §5.2 |
+| `arena-from-array-not-u8` | `arena.from_array` sobre símbolo que não é `array u8` | `error` | keel | §5.2 |
 | `arena-escape` | Retorno de contêiner cuja procedência conhecida é armazenamento local | `error` | keel | §5.2 |
-| `defer-sem-bloco` | `defer` como corpo de statement de controle sem chaves | `error` | keel | §4.6 |
-| `defer-em-escopo-de-arquivo` | `defer` em escopo de arquivo | `error` | keel | §4.6 |
-| `salto-sobre-defer` | Entrada externa em escopo por cima de registro de `defer`, inclusive `case`/`default` posterior no mesmo corpo de `switch` | `error` | keel | §4.6 |
-| `later-com-captura` | `later` seguido de lista de captura, dentro do colchete do `defer` | `error` | keel | §4.6 |
-| `delimitador-sem-par` | Chave, parêntese ou colchete sem par — inclusive dentro de `extern_c` | `error` | keel | §2.5 |
-| `chaves-em-ramos` | Alternativas de um grupo condicional que discordam na contagem de delimitadores | `error` | keel | §2.5 |
-| `define-sobre-keel` | `#define` ou `#undef` de palavra contextual keel ou nome `keel_` | `error` | keel | §2.5 |
-| `literal-com-newline` | Literal de string ou char com newline não-emendado | `error` | keel | §2.5 |
-| `sombreamento` | Sombreamento de palavra contextual, de verbo ou de nome de módulo | `warning` | keel | §2.5 |
-| `byref-atribuido` | Atribuição entre instâncias de modificador `byref`, nomeando o aliasing | `warning` | keel | §4.3 |
-| `defer-em-bloco-de-controle` | `defer` registrado em corpo de `if`, `else` ou `switch` | `warning` | keel | §4.6 |
-| `campo-de-instancia` | Acesso direto a campo de instância de modificador | `warning` | Backend / compilador C | §4.4 |
-| `import-indireto` | Uso de símbolo de módulo não importado diretamente | `info` | keel | §4.1 |
-| `modifier-fora-de-generico` | `modifier` fora de módulo genérico | `error` | keel | §4.3 |
-| `nome-de-parametro` | Declaração de símbolo com o nome de um parâmetro do módulo | `error` | keel | §4.3 |
-| `generico-circular` | Módulo genérico que se instancia, com a cadeia na mensagem | `error` | keel | §4.3 |
-| `ciclo-de-layout` | Cadeia de tipos que se contêm por valor atravessando instância de modificador, com a cadeia na mensagem | `error` | keel | §4.3 |
-| `protocolo-sobre-parametro` | Construção keel aplicada a valor cujo tipo é parâmetro do módulo genérico, com a construção na mensagem | `error` | keel | §4.3 |
-| `instance-fora-de-arquivo` | `instance` fora de escopo de arquivo | `error` | keel | §4.3 |
-| `instance-nao-modificador` | Argumento de `instance` que não é modificador de módulo genérico | `error` | keel | §4.3 |
-| `instance-inutil` | `instance` sobre genérico inteiramente `pub inline` | `warning` | keel | §4.3 |
-| `generico-fora-de-linha` | Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `error` | keel | §4.3 |
+| `defer-without-braces` | `defer` como corpo de statement de controle sem chaves | `error` | keel | §4.6 |
+| `defer-at-file-scope` | `defer` em escopo de arquivo | `error` | keel | §4.6 |
+| `jump-over-defer` | Entrada externa em escopo por cima de registro de `defer`, inclusive `case`/`default` posterior no mesmo corpo de `switch` | `error` | keel | §4.6 |
+| `later-with-capture` | `later` seguido de lista de captura, dentro do colchete do `defer` | `error` | keel | §4.6 |
+| `unmatched-delimiter` | Chave, parêntese ou colchete sem par — inclusive dentro de `extern_c` | `error` | keel | §2.5 |
+| `delimiter-mismatch-across-branches` | Alternativas de um grupo condicional que discordam na contagem de delimitadores | `error` | keel | §2.5 |
+| `define-over-keel-name` | `#define` ou `#undef` de palavra contextual keel ou nome `keel_` | `error` | keel | §2.5 |
+| `literal-with-newline` | Literal de string ou char com newline não-emendado | `error` | keel | §2.5 |
+| `keel-name-shadowed` | Sombreamento de palavra contextual, de verbo ou de nome de módulo | `warning` | keel | §2.5 |
+| `byref-assignment` | Atribuição entre instâncias de modificador `byref`, nomeando o aliasing | `warning` | keel | §4.3 |
+| `defer-in-control-block` | `defer` registrado em corpo de `if`, `else` ou `switch` | `warning` | keel | §4.6 |
+| `instance-field-access` | Acesso direto a campo de instância de modificador | `warning` | Backend / compilador C | §4.4 |
+| `indirect-import` | Uso de símbolo de módulo não importado diretamente | `info` | keel | §4.1 |
+| `modifier-outside-generic` | `modifier` fora de módulo genérico | `error` | keel | §4.3 |
+| `parameter-name-reuse` | Declaração de símbolo com o nome de um parâmetro do módulo | `error` | keel | §4.3 |
+| `circular-generic` | Módulo genérico que se instancia, com a cadeia na mensagem | `error` | keel | §4.3 |
+| `layout-cycle` | Cadeia de tipos que se contêm por valor atravessando instância de modificador, com a cadeia na mensagem | `error` | keel | §4.3 |
+| `protocol-on-parameter` | Construção keel aplicada a valor cujo tipo é parâmetro do módulo genérico, com a construção na mensagem | `error` | keel | §4.3 |
+| `instance-outside-file-scope` | `instance` fora de escopo de arquivo | `error` | keel | §4.3 |
+| `instance-not-modifier` | Argumento de `instance` que não é modificador de módulo genérico | `error` | keel | §4.3 |
+| `redundant-instance` | `instance` sobre genérico inteiramente `pub inline` | `warning` | keel | §4.3 |
+| `nonparametric-out-of-line` | Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `error` | keel | §4.3 |
 | `byref-param` | Instância `byref` por valor em parâmetro — `arena`, `buffer`, todo modificador marcado, e `soa` (§4.11) | `error` | keel | §4.3 |
-| `arena-filha-apos-reset` | Uso de arena filha depois de `reset`/`restore` do pai, no mesmo escopo | `error` | keel | §5.2 |
-| `tags-sem-nome` | `tags` sem nome | `error` | keel | §4.9 |
-| `tags-nome-repetido` | Dois conjuntos de tags com o mesmo nome no módulo | `error` | keel | §4.9 |
-| `tags-lista-vazia` | Conjunto de tags sem nenhuma tag | `error` | keel | §4.9 |
-| `tags-valores-parciais` | Conjunto que mistura tags com e sem valor escrito | `error` | keel | §4.9 |
-| `tag-valor-nao-constante` | Valor de tag sem literal decimal ou constante conhecida | `error` | keel | §4.9 |
-| `tags-nao-declarado` | Argumento de parâmetro `tags` que não nomeia conjunto declarado | `error` | keel | §4.3 |
-| `tag-de-outro-conjunto` | Tag escrita que não pertence ao conjunto exigido — rótulo de `match`, ou constante em verbo com parâmetro `tags` | `error` | keel | §4.9 |
-| `tag-repetida` | Tag repetida no mesmo conjunto | `error` | keel | §4.9 |
-| `rotulo-de-tag-repetido` | Rótulo repetido no mesmo `match` | `error` | keel | §4.9 |
-| `match-sem-tag` | Operando de `match` sobre tipo que não declara `tag` | `error` | keel | §4.9 |
-| `match-sem-conjunto` | Operando cujo módulo não declara conjunto de tags | `error` | keel | §4.9 |
-| `match-conjunto-ambiguo` | Operando cujo módulo declara mais de um conjunto, sem parâmetro `tags` que decida | `error` | keel | §4.9 |
-| `cofault-codigo-invalido` | `corot.fault(r,c)` com código conhecido zero ou negativo | `error` | keel | §5.5 |
-| `tag-fora-de-faixa` | Etiqueta fora da lista declarada | `debug` | Backend, em execução | §4.9 |
-| `aridade-sem-ptr` | Índice de aridade N sobre modificador sem `ptr` dessa aridade — a mensagem lista as que existem | `error` | keel | §4.5 |
-| `nao-percorrivel` | `foreach` sobre tipo que não declara `length`, ou `get`/`ptr` conforme o binder | `error` | keel | §4.7 |
-| `nao-percorrivel-por-cursor` | `walk` sobre tipo que não declara `begin`, `has_next` e `next` | `error` | keel | §4.7 |
-| `walk-sem-cursor` | `walk` sem o binder de cursor | `error` | keel | §4.7 |
-| `cursor-de-outro-tipo` | Tipo do binder de cursor diferente do produto declarado de `begin` | `error` | keel | §4.7 |
-| `nao-particionavel` | `parallel` sobre tipo que não declara `partition` | `error` | keel | §4.8 |
-| `particao-de-outro-tipo` | Tipo do binder de partição diferente do produto declarado de `partition` | `error` | keel | §4.8 |
-| `binder-copia-conteiner` | Binder por valor de `foreach` ou `walk` sobre elemento que é instância de modificador — a mensagem indica `T *`. Não se aplica ao binder de partição de `parallel` | `error` | keel | §4.7 |
-| `mutacao-na-travessia` | `push`, `pop` ou `clear` sobre o contêiner percorrido ou particionado, no corpo do `foreach`, do `walk` ou do `parallel` | `error` | keel | §4.7 |
-| `indice-nao-size-t` | Binder de índice cujo tipo não é `size_t` | `error` | keel | §4.7 |
-| `nao-contavel` | `foreach` de um binder sobre tipo que não declara `first` e `limit` | `error` | keel | §4.7 |
-| `recorte-sem-of` | Índice por intervalo sobre tipo que não declara o verbo de recorte da aridade que a forma exige | `error` | keel | §4.5 |
-| `recorte-invertido` | Recorte com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
-| `recorte-fora-de-faixa` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
-| `foreach-dois-binders-em-literal` | `foreach` de dois binders sobre literal de intervalo — a mensagem indica nomear o intervalo | `error` | keel | §4.7 |
-| `binder-ponteiro-em-intervalo` | Binder por ponteiro na forma de intervalo | `error` | keel | §4.7 |
-| `recorte-aberto` | Recorte com ponta aberta fora de índice | `error` | keel | §4.7 |
-| `recorte-aberto-com-indice` | `x[a..]` sobre caminho que contém índice ou verbo | `error` | keel | §4.5 |
-| `enum-sem-o-tipo` | Constante de enum escrita sem o nível do tipo | `error` | keel | §4.2 |
-| `alias-e-tipo-colidem` | Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `error` | keel | §2.5 |
-| `parallel-sem-nome` | `parallel` sem nome | `error` | keel | §4.8 |
-| `verbo-fora-de-parallel` | `win` ou `fail` de fluxo fora do corpo de worker | `error` | keel | §4.8 |
-| `parallel-aninhado` | `parallel` aninhado em corpo de `parallel` | `error` | keel | §4.8 |
-| `parallel-nome-repetido` | Dois `parallel` com o mesmo nome na mesma função | `error` | keel | §4.8 |
-| `parallel-nao-constante` | `k` ou política de `parallel` que não é constante de compilação | `error` | keel | §4.8 |
-| `tag-fora-da-lista` | Rótulo que não está na lista declarada do conjunto | `error` | keel | §4.9 |
-| `tag-sem-rotulo` | Tag na lista declarada sem rótulo correspondente no corpo | `error` | keel | §4.9 |
-| `par-alvo-acima-do-total` | Alvo de `routine.par` maior que o número de slots | `debug` | Backend, em execução | §5.6 |
-| `mask-acima-de-64` | `routine.mask` sobre recorte com mais de 64 entradas | `debug` | Backend, em execução | §5.6 |
-| `restrict-em-conteiner` | `restrict` escrito antes de um modificador — a `note` dá a forma com ponteiro | `error` | keel | §4.2 |
-| `formato-estreito-indisponivel` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` | Backend / compilador C | §4.2 |
-| `dim-nao-constante` | Argumento de `dim` sem literal decimal ou `constexpr` de inicializador decimal conhecido | `error` | keel | §4.3 |
-| `dim-gera-declaracao` | Uso de `dim` para gerar declarações em vez de substituir um número | `error` | keel | §4.3 |
+| `child-arena-after-reset` | Uso de arena filha depois de `reset`/`restore` do pai, no mesmo escopo | `error` | keel | §5.2 |
+| `unnamed-tags` | `tags` sem nome | `error` | keel | §4.9 |
+| `duplicate-tags-name` | Dois conjuntos de tags com o mesmo nome no módulo | `error` | keel | §4.9 |
+| `empty-tags` | Conjunto de tags sem nenhuma tag | `error` | keel | §4.9 |
+| `partial-tag-values` | Conjunto que mistura tags com e sem valor escrito | `error` | keel | §4.9 |
+| `nonconstant-tag-value` | Valor de tag sem literal decimal ou constante conhecida | `error` | keel | §4.9 |
+| `undeclared-tags` | Argumento de parâmetro `tags` que não nomeia conjunto declarado | `error` | keel | §4.3 |
+| `tag-from-other-set` | Tag escrita que não pertence ao conjunto exigido — rótulo de `match`, ou constante em verbo com parâmetro `tags` | `error` | keel | §4.9 |
+| `duplicate-tag` | Tag repetida no mesmo conjunto, ou rótulo repetido no mesmo `match` | `error` | keel | §4.9 |
+| `match-without-tag` | Operando de `match` sobre tipo que não declara `tag` | `error` | keel | §4.9 |
+| `match-without-tags` | Operando cujo módulo não declara conjunto de tags | `error` | keel | §4.9 |
+| `ambiguous-match-tags` | Operando cujo módulo declara mais de um conjunto, sem parâmetro `tags` que decida | `error` | keel | §4.9 |
+| `invalid-fault-code` | `corot.fault(r,c)` com código conhecido zero ou negativo | `error` | keel | §5.5 |
+| `tag-out-of-range` | Etiqueta fora da lista declarada | `debug` | Backend, em execução | §4.9 |
+| `no-ptr-for-arity` | Índice de aridade N sobre modificador sem `ptr` dessa aridade — a mensagem lista as que existem | `error` | keel | §4.5 |
+| `not-iterable` | `foreach` sobre tipo que não declara `length`, ou `get`/`ptr` conforme o binder | `error` | keel | §4.7 |
+| `not-cursor-iterable` | `walk` sobre tipo que não declara `begin`, `has_next` e `next` | `error` | keel | §4.7 |
+| `walk-without-cursor` | `walk` sem o binder de cursor | `error` | keel | §4.7 |
+| `cursor-type-mismatch` | Tipo do binder de cursor diferente do produto declarado de `begin` | `error` | keel | §4.7 |
+| `not-partitionable` | `parallel` sobre tipo que não declara `partition` | `error` | keel | §4.8 |
+| `partition-type-mismatch` | Tipo do binder de partição diferente do produto declarado de `partition` | `error` | keel | §4.8 |
+| `binder-copies-container` | Binder por valor de `foreach` ou `walk` sobre elemento que é instância de modificador — a mensagem indica `T *`. Não se aplica ao binder de partição de `parallel` | `error` | keel | §4.7 |
+| `mutation-during-traversal` | `push`, `pop` ou `clear` sobre o contêiner percorrido ou particionado, no corpo do `foreach`, do `walk` ou do `parallel` | `error` | keel | §4.7 |
+| `index-not-size-t` | Binder de índice cujo tipo não é `size_t` | `error` | keel | §4.7 |
+| `not-countable` | `foreach` de um binder sobre tipo que não declara `first` e `limit` | `error` | keel | §4.7 |
+| `no-range-index-verb` | Índice por intervalo sobre tipo que não declara o verbo de recorte da aridade que a forma exige | `error` | keel | §4.5 |
+| `inverted-range-index` | Recorte com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
+| `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
+| `foreach-two-binders-on-literal` | `foreach` de dois binders sobre literal de intervalo — a mensagem indica nomear o intervalo | `error` | keel | §4.7 |
+| `pointer-binder-on-range` | Binder por ponteiro na forma de intervalo | `error` | keel | §4.7 |
+| `open-range-outside-index` | Recorte com ponta aberta fora de índice | `error` | keel | §4.7 |
+| `open-range-index-on-complex-path` | `x[a..]` sobre caminho que contém índice ou verbo | `error` | keel | §4.5 |
+| `enum-constant-without-type` | Constante de enum escrita sem o nível do tipo | `error` | keel | §4.2 |
+| `alias-type-collision` | Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `error` | keel | §2.5 |
+| `unnamed-parallel` | `parallel` sem nome | `error` | keel | §4.8 |
+| `flow-verb-outside-parallel` | `win` ou `fail` de fluxo fora do corpo de worker | `error` | keel | §4.8 |
+| `nested-parallel` | `parallel` aninhado em corpo de `parallel` | `error` | keel | §4.8 |
+| `duplicate-parallel-name` | Dois `parallel` com o mesmo nome na mesma função | `error` | keel | §4.8 |
+| `nonconstant-parallel` | `k` ou política de `parallel` que não é constante de compilação | `error` | keel | §4.8 |
+| `tag-not-in-set` | Rótulo que não está na lista declarada do conjunto | `error` | keel | §4.9 |
+| `tag-without-label` | Tag na lista declarada sem rótulo correspondente no corpo | `error` | keel | §4.9 |
+| `par-target-above-total` | Alvo de `routine.par` maior que o número de slots | `debug` | Backend, em execução | §5.6 |
+| `mask-above-64-slots` | `routine.mask` sobre recorte com mais de 64 entradas | `debug` | Backend, em execução | §5.6 |
+| `restrict-on-container` | `restrict` escrito antes de um modificador — a `note` dá a forma com ponteiro | `error` | keel | §4.2 |
+| `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` | Backend / compilador C | §4.2 |
+| `nonconstant-dim` | Argumento de `dim` sem literal decimal ou `constexpr` de inicializador decimal conhecido | `error` | keel | §4.3 |
+| `dim-generates-declaration` | Uso de `dim` para gerar declarações em vez de substituir um número | `error` | keel | §4.3 |
 | `alloc-overflow` | `arena.alloc` cujo `n * sizeof(T)` não cabe em `size_t` | `debug` | Backend, em execução | §5.2 |
-| `nome-canonico-colidido` | Duas declarações do mesmo módulo produzindo o mesmo nome canônico | `error` | keel | §4.2 |
-| `modificador-chamado-instance` | Modificador declarado com o nome `instance` | `error` | keel | §4.3 |
-| `qualificador-errado` | Qualificador incompatível com o receptor ou produto do verbo | `error` | keel | §4.4 |
-| `from-sem-alvo` | Verbo que depende do tipo do alvo fora de inicialização, atribuição a símbolo conhecido ou retorno | `error` | keel | §4.4 |
-| `captura-escrita` | Atribuição a escalar capturado, no corpo de um `parallel` | `error` | keel | §4.8 |
-| `else-sem-inicializador` | Cláusula `else` em declaração sem inicializador | `error` | keel | §4.10 |
-| `else-tipo-nao-falivel` | Cláusula `else` sobre tipo que não declara `failed`, inclusive ponteiro ou escalar | `error` | keel | §4.10 |
-| `else-alvo-complexo` | Cláusula `else` sobre alvo que não é identificador declarado em keel — campo, índice, deref, cast ou símbolo C | `error` | keel | §4.10 |
-| `else-multiplos-declaradores` | Cláusula `else` em declaração com mais de um declarador | `error` | keel | §4.10 |
-| `else-default-sem-win` | Cláusula `else` na forma de default sobre tipo falível que não declara `win` | `error` | keel | §4.10 |
-| `declarador-enterrado` | Declarador cujo nome não é o último token, onde keel precisa reconstruir a declaração — `constexpr`, captura de `[now]`, tipo de retorno sob `defer`. A `note` manda usar `typedef` | `error` | keel | §4.2 |
-| `constexpr-agregado` | `constexpr` com declarador de vetor ou inicializador entre chaves | `error` | keel | §4.2 |
-| `return-em-parallel` | `return` no corpo de um `parallel`: o corpo do worker não sai da função que o contém | `error` | keel | §4.8 |
-| `defer-later-sombreado` | `defer` sem `[now]` cujo corpo nomeia símbolo redeclarado em escopo mais interno com ponto de saída — a `note` dá as duas saídas, `[now]` ou `goto` | `error` | keel | §4.6 |
-| `constexpr-endereco` | `&` sobre símbolo `constexpr`, ou uso que exija lvalue — a `note` dá a saída, `static const T k = K;` | `error` | keel | §4.2 |
-| `dim-abaixo-de-um` | Argumento de `dim` que resolve para valor menor que 1 — a mensagem dá a cadeia de instanciação | `error` | keel | §4.3 |
-| `soa-tipo-anonimo` | Campo de `soa struct` com tipo `struct`/`union` anônima escrita inline | `error` | keel | §4.11 |
-| `soa-declarador-nao-simples` | Campo marcado `array` em `soa struct` com declarador além de tipo nomeado seguido de `*` | `error` | keel | §4.11 |
-| `soa-elemento-nao-existente` | `var[i]`/`param[i]` de instância `soa` sem `.campo` imediatamente seguinte | `error` | keel | §4.11 |
+| `canonical-name-collision` | Duas declarações do mesmo módulo produzindo o mesmo nome canônico | `error` | keel | §4.2 |
+| `modifier-named-instance` | Modificador declarado com o nome `instance` | `error` | keel | §4.3 |
+| `wrong-qualifier` | Qualificador incompatível com o receptor ou produto do verbo | `error` | keel | §4.4 |
+| `from-without-target` | Verbo que depende do tipo do alvo fora de inicialização, atribuição a símbolo conhecido ou retorno | `error` | keel | §4.4 |
+| `captured-write` | Atribuição a escalar capturado, no corpo de um `parallel` | `error` | keel | §4.8 |
+| `else-without-initializer` | Cláusula `else` em declaração sem inicializador | `error` | keel | §4.10 |
+| `else-on-infallible-type` | Cláusula `else` sobre tipo que não declara `failed`, inclusive ponteiro ou escalar | `error` | keel | §4.10 |
+| `else-on-complex-target` | Cláusula `else` sobre alvo que não é identificador declarado em keel — campo, índice, deref, cast ou símbolo C | `error` | keel | §4.10 |
+| `else-multiple-declarators` | Cláusula `else` em declaração com mais de um declarador | `error` | keel | §4.10 |
+| `else-default-without-win` | Cláusula `else` na forma de default sobre tipo falível que não declara `win` | `error` | keel | §4.10 |
+| `hidden-declarator` | Declarador cujo nome não é o último token, onde keel precisa reconstruir a declaração — `constexpr`, captura de `[now]`, tipo de retorno sob `defer`. A `note` manda usar `typedef` | `error` | keel | §4.2 |
+| `nonscalar-constexpr` | `constexpr` com declarador de vetor ou inicializador entre chaves | `error` | keel | §4.2 |
+| `return-in-parallel` | `return` no corpo de um `parallel`: o corpo do worker não sai da função que o contém | `error` | keel | §4.8 |
+| `defer-later-shadowed` | `defer` sem `[now]` cujo corpo nomeia símbolo redeclarado em escopo mais interno com ponto de saída — a `note` dá as duas saídas, `[now]` ou `goto` | `error` | keel | §4.6 |
+| `constexpr-as-lvalue` | `&` sobre símbolo `constexpr`, ou uso que exija lvalue — a `note` dá a saída, `static const T k = K;` | `error` | keel | §4.2 |
+| `dim-below-one` | Argumento de `dim` que resolve para valor menor que 1 — a mensagem dá a cadeia de instanciação | `error` | keel | §4.3 |
+| `soa-anonymous-type` | Campo de `soa struct` com tipo `struct`/`union` anônima escrita inline | `error` | keel | §4.11 |
+| `soa-complex-declarator` | Campo marcado `array` em `soa struct` com declarador além de tipo nomeado seguido de `*` | `error` | keel | §4.11 |
+| `soa-element-without-field` | `var[i]`/`param[i]` de instância `soa` sem `.campo` imediatamente seguinte | `error` | keel | §4.11 |
 
 ### 6.3 Implementação conforme
 

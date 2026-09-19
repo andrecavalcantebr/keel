@@ -7,7 +7,7 @@ encerra o laço com `else break`; `read_address` e `read_birth` faltam em
 índices próprios e caem no default.
 
 Escrever `people[i].address = read_address(i) else …` seria
-`else-alvo-complexo`: o alvo não é identificador declarado, e o keel não
+`else-on-complex-target`: o alvo não é identificador declarado, e o keel não
 deduz tipo de expressão C. Vale mesmo com o campo declarado em keel, e é por
 isso que os resultados são locais. A suíte ainda não roda diagnóstico do
 keel, então isso aqui é a nota, não um caso xfail.

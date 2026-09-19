@@ -105,7 +105,7 @@ token preserva a linha inteira, então uma mensagem ainda pode distinguir a
 grafia concreta, como `#ifdef`, sem acrescentar classes ao fluxo.
 
 Em `define` e `undef`, o lexer lê o identificador alvo. Se começa por `keel_`
-ou pertence à lista contextual, emite `define-sobre-keel`. Não examina nem
+ou pertence à lista contextual, emite `define-over-keel-name`. Não examina nem
 expande o corpo:
 
 ```c
@@ -178,7 +178,7 @@ de símbolos.
 
 `scan_quoted` reconhece prefixos `u8`, `u`, `U`, `L`, aspas e escapes, mas não
 decodifica. Newline não emendada antes do fechamento emite
-`literal-com-newline`; a recuperação termina a token antes da newline.
+`literal-with-newline`; a recuperação termina a token antes da newline.
 Literais adjacentes continuam tokens distintos.
 
 `scan_punct` usa maior grafia primeiro. Não há enum: o parser pergunta por
@@ -210,13 +210,13 @@ guarda seu ponteiro de fronteira.
 O consumidor estrutural recebe tokens e `TKPpKind` de `take`. O lexer não
 balanceia `()`, `[]` ou `{}`. Para abertura, o consumidor guarda a própria
 `KToken` e o tipo deduzido do pontuador; para fechamento, compara o topo e
-emite `delimitador-sem-par` quando necessário.
+emite `unmatched-delimiter` quando necessário.
 
 Em `TK_PP_IF`, salva a pilha de aberturas. Em `TK_PP_ELSE`, finaliza e
 compara a alternativa corrente, restaura a pilha de entrada e inicia a
 seguinte. Em `TK_PP_ENDIF`, finaliza a última alternativa, compara-a e aplica
 uma única pilha comum. Sem `#else`, compara também com a pilha de entrada, a
-alternativa vazia. Divergência emite `chaves-em-ramos`. Pilhas e snapshots
+alternativa vazia. Divergência emite `delimiter-mismatch-across-branches`. Pilhas e snapshots
 usam `buffer Open` e arena do parser, não o lexer.
 
 ## 8. Casos de aceitação
@@ -228,12 +228,12 @@ usam `buffer Open` e arena do parser, não o lexer.
 | `// x \\\nmodule y;` | `module` ainda está no comentário lógico. |
 | `2..7 1.5..3 2...7` | Número, intervalo e elipse separados. |
 | `u8"x\\\n y" 'z'` | Literal após emenda; char separado. |
-| `"x\ny"` | `literal-com-newline` e recuperação na newline. |
+| `"x\ny"` | `literal-with-newline` e recuperação na newline. |
 | `/*x*/ # if 1` | Diretiva `if`, pois comentário é espaço. |
-| `#define keel_x 1` | Diretiva preservada e `define-sobre-keel`. |
+| `#define keel_x 1` | Diretiva preservada e `define-over-keel-name`. |
 | `#undef constexpr` | O mesmo diagnóstico, embora seja palavra C. |
 | `#define F(x) match(x)` | Sem diagnóstico; corpo da macro opaco. |
-| `#if X ( #else [ #endif` | `chaves-em-ramos`. |
+| `#if X ( #else [ #endif` | `delimiter-mismatch-across-branches`. |
 
 Testes de limite cobrem EOF após `\\`, `//`, `/*`, prefixo `u8` sem aspas,
 literal sem fechamento, CRLF, CR, diretiva no EOF e NUL. Em todos, o cursor

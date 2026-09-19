@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "keel (injeção)",
+  "name": "keel (injection)",
   "scopeName": "keel.injection",
   "injectionSelector": "L:source.keel -comment -string",
   "patterns": [

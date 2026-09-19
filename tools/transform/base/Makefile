@@ -1,13 +1,13 @@
-# Gera a base keel a partir dos .k, no par .type.h / .h
-# O corte em dois e o do backend 4.3.2: tipos; prototipos e corpos.
+# Generates the keel base from the .k files, as .type.h / .h pairs.
+# The two-way cut is backend 4.3.2's: types; prototypes and bodies.
 
 CG    := ../transform.out
 SRC   := .
-# local por padrao (validacao/uso proprio do transform); o Makefile do cgen
-# sobrepoe com DEST=<absoluto>/gen ao chamar daqui, para alimentar tools/cgen
+# local by default (the transform's own validation/use); the cgen Makefile
+# overrides it with DEST=<absolute>/gen when calling from here, to feed tools/cgen
 DEST  := ../gen
 
-# os tipos para os quais a base e instanciada
+# the types the base is instantiated for
 TYPES := i32 u32 char
 
 all:

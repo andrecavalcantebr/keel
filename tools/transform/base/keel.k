@@ -28,7 +28,7 @@ typedef uint64_t u64;
 typedef float  f32;
 typedef double f64;
 
-//floats extras
+//extra floats
 #if defined(__FLT16_MANT_DIG__)
     typedef _Float16 f16;
 #endif
@@ -37,12 +37,12 @@ typedef double f64;
     typedef _Float128 f128;
 #endif
 
-// OK e NONE nao mencionam o parametro do modulo keel.outcome, entao sao do
-// modulo e nao da instancia (backend 4.4.1), e constante de modulo e L1
-// (backend 4.3.1). Aqui moram no prelude, que e o unico modulo que existe
-// uma vez so nesta ferramenta.
-// enum, e nao constexpr: constante de enum nao tem ligacao e pode viver em
-// header incluido por muitas unidades.
+// OK and NONE do not mention keel.outcome's parameter, so they belong to the
+// module, not the instance (backend 4.4.1), and a module constant is L1
+// (backend 4.3.1). They live in the prelude here, the only module this tool
+// emits just once.
+// enum, not constexpr: an enum constant has no linkage and can live in a
+// header included by many translation units.
 enum {
     keel_outcome_OK   = 0,
     keel_outcome_NONE = INT32_MIN

@@ -18,8 +18,9 @@ typedef struct keel_slice_$T {
     $T *ptr;
 } keel_slice_$T;
 
-// o cursor nao menciona o parametro, entao e do modulo e nao da instancia
-// (backend 5.11). Esta ferramenta nao separa os dois, entao o guard e manual.
+// the cursor does not mention the parameter, so it belongs to the module,
+// not the instance (backend 5.11). This tool does not separate the two, so
+// the guard is manual.
 #ifndef KEEL_SLICE_CURSOR
 #define KEEL_SLICE_CURSOR
 typedef struct keel_slice_cursor { size_t i; } keel_slice_cursor;
@@ -83,7 +84,7 @@ static inline keel_outcome_keel_slice_$T keel_slice_$T_clone(keel_arena *a, cons
     return keel_outcome_keel_slice_$T_win_1(&r, out);
 }
 
-// travessia por cursor
+// cursor traversal
 static inline keel_slice_cursor keel_slice_$T_begin(const keel_slice_$T *s) {
     (void)s;
     return (keel_slice_cursor){ .i = 0 };
@@ -97,7 +98,7 @@ static inline $T *keel_slice_$T_next(const keel_slice_$T *s, keel_slice_cursor *
     return &s->ptr[c->i++];
 }
 
-// parte w de uma divisao em k partes disjuntas
+// part w of a split into k disjoint parts
 static inline keel_slice_$T keel_slice_$T_partition(const keel_slice_$T *s, size_t k, size_t w) {
     keel_slice_$T part = { .len = 0, .ptr = s->ptr };
     if(k == 0) return part;

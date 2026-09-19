@@ -31,10 +31,10 @@ static inline i32 *keel_slice_i32_next(keel_slice_i32 s, keel_slice_cursor *c) {
     return &s.ptr[c->i++];
 }
 static inline keel_slice_i32 keel_slice_i32_partition(keel_slice_i32 s, size_t k, size_t w) {
-    size_t n = s.len, passo = k ? (n + k - 1) / k : n;
-    size_t lo = w * passo, hi;
+    size_t n = s.len, step = k ? (n + k - 1) / k : n;
+    size_t lo = w * step, hi;
     if (lo > n) lo = n;
-    hi = lo + passo; if (hi > n) hi = n;
+    hi = lo + step; if (hi > n) hi = n;
     return (keel_slice_i32){ hi - lo, s.ptr + lo };
 }
 #endif /* KEEL_KEEL_SLICE_I32_H */

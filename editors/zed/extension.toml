@@ -3,11 +3,12 @@ name = "keel"
 version = "0.0.1"
 schema_version = 1
 authors = ["Andre Cavalcante <andre.d.cavalcante@gmail.com>"]
-description = "Realce de sintaxe para keel, sobre a gramática do C."
+description = "Syntax highlighting for keel, on top of the C grammar."
 repository = "https://github.com/andrecavalcante/keel"
 
-# Zed exige o commit fixado. Este é a tag v0.24.2 de tree-sitter-c, resolvida
-# com `git ls-remote --tags` — não é HEAD, para o realce não mudar sozinho.
+# Zed requires a pinned commit. This is tree-sitter-c's v0.24.2 tag, resolved
+# with `git ls-remote --tags` — not HEAD, so the highlighting does not change
+# on its own.
 [grammars.c]
 repository = "https://github.com/tree-sitter/tree-sitter-c"
 commit = "c9ff62c7ef293ccd6129318f638327dfd6ade7df"

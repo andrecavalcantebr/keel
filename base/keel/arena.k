@@ -1,26 +1,26 @@
 /*
  * module keel.arena
  *
- * DESC: keel arena — armazenamento por região (spec §5.2, backend §5.4)
+ * DESC: keel arena — region-based storage (spec §5.2, backend §5.4)
  * AUTHOR: andre cavalcante
  * DATE: Sep, 2026
- * LICENSE: GPL v3 + Keel Base Library Exception — ver /LICENSE.md
+ * LICENSE: GPL v3 + Keel Base Library Exception — see /LICENSE.md
  */
 
 module keel.arena;
 
-// `arena` é um tipo comum, não um modificador — tem passagem por referência
-// pela mesma regra dos verbos abaixo, sem que isso o torne `byref` (spec
-// §4.3: "isso não o torna um modificador").
+// `arena` is an ordinary type, not a modifier — it is passed by reference
+// by the same rule as the verbs below, which does not make it `byref` (spec
+// §4.3).
 pub typedef struct { size_t top, cap; u8 *ptr; } arena;
 
-// `from_stack(a, N)` cria armazenamento automático no escopo do chamador e
-// não é redutível a uma função: `N` vira o tamanho de um vetor local. É
-// C puro passando opaco por este arquivo, como qualquer macro do usuário.
+// `from_stack(a, N)` creates automatic storage in the caller's scope and
+// cannot be reduced to a function: `N` becomes the size of a local array.
+// It is plain C passing opaquely through this file, like any user macro.
 #define from_stack(a, N) u8 keel__arr[N]; from_array((a), keel__arr, (N))
 
-// `alloc(a, T, n)` lê `T` no ponto de chamada para obter `sizeof`/`_Alignof`;
-// nenhuma função ordinária alcança isso para um `T` escolhido a cada uso.
+// `alloc(a, T, n)` reads `T` at the call site to get `sizeof`/`_Alignof`;
+// no ordinary function can do that for a `T` chosen at each use.
 #define alloc(a, T, n) ((T *)alloc_((a), sizeof(T), _Alignof(T), (n)))
 
 pub inline bool from_array(arena *a, u8 arr[], size_t len) {
@@ -41,9 +41,9 @@ pub inline bool from_memory(arena *a, u8 *ptr, size_t len) {
     return a->cap > 0;
 }
 
-pub inline bool from_parent(arena *a, arena *pai, size_t n) {
+pub inline bool from_parent(arena *a, arena *parent, size_t n) {
     *a = (arena){0};
-    u8 *base = alloc(pai, u8, n);
+    u8 *base = alloc(parent, u8, n);
     if (base) {
         a->cap = n;
         a->ptr = base;
@@ -51,16 +51,16 @@ pub inline bool from_parent(arena *a, arena *pai, size_t n) {
     return a->cap > 0;
 }
 
-// alinha o ENDEREÇO, não o deslocamento — a base pode estar em qualquer
-// lugar (backend §5.4). `n * sz` transbordando devolve NULL (§5.2 §5, backend
-// diagnóstico `alloc-overflow`).
+// aligns the ADDRESS, not the offset — the base may be anywhere (backend
+// §5.4). An overflowing `n * sz` returns NULL (§5.2 §5, backend diagnostic
+// `alloc-overflow`).
 priv inline void *alloc_(arena *a, size_t sz, size_t align, size_t n) {
     if (sz == 0 || n > SIZE_MAX / sz) return NULL;
     size_t need = n * sz;
     uintptr_t base = (uintptr_t)(a->ptr + a->top);
     size_t pad = (size_t)(-(uintptr_t)base & (align - 1));
-    size_t livre = a->cap - a->top;
-    if (pad > livre || need > livre - pad) return NULL;
+    size_t avail = a->cap - a->top;
+    if (pad > avail || need > avail - pad) return NULL;
     a->top += pad + need;
     return a->ptr + a->top - need;
 }

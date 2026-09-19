@@ -2,7 +2,7 @@
 
 Duas extensões, com o vocabulário keel gerado a partir de `keel-spec.md`:
 
-    python3 editors/gerar.py
+    python3 editors/generate.py
 
 **A lista de palavras não é digitada aqui** — o gerador lê a tabela do §2.2 do
 documento. Se a spec ganhar ou perder uma palavra, rodar o gerador é o que
@@ -41,13 +41,13 @@ injeção vence por posição.
 ## VSCode — como instalar
 
 ```sh
-./editors/instalar-vscode.sh              # link para editors/vscode/
-./editors/instalar-vscode.sh --copiar     # cópia, para levar a outra máquina
+./editors/install-vscode.sh              # link para editors/vscode/
+./editors/install-vscode.sh --copy       # cópia, para levar a outra máquina
 ```
 
 O script cria `~/.vscode/extensions/<publisher>.<name>-<version>` a partir do
 `package.json`. Por padrão é um **link simbólico**, e o VSCode segue link: rodar
-`gerar.py` de novo atualiza a extensão instalada sem reinstalar. Depois:
+`generate.py` de novo atualiza a extensão instalada sem reinstalar. Depois:
 
 1. Paleta de comandos → **`Developer: Reload Window`**.
 2. Abrir um `.k`. A linguagem aparece como `keel` no rodapé.
@@ -68,8 +68,8 @@ Zed não tem comando de linha para isso: a instalação é pela interface.
 > resolve.
 
 ```sh
-./editors/instalar-zed.sh                 # → ~/.local/share/keel-zed
-./editors/instalar-zed.sh /outro/lugar
+./editors/install-zed.sh                 # → ~/.local/share/keel-zed
+./editors/install-zed.sh /outro/lugar
 ```
 
 Ele copia `editors/zed/` para um diretório próprio e faz `git init` ali. Depois:
@@ -79,7 +79,7 @@ Ele copia `editors/zed/` para um diretório próprio e faz `git init` ali. Depoi
 2. Escolher o diretório que o script criou.
 3. Abrir um `.k`. A linguagem aparece como `keel` no seletor do rodapé.
 
-Mexeu no `highlights.scm` ou rodou o `gerar.py`? Rode o script de novo e
+Mexeu no `highlights.scm` ou rodou o `generate.py`? Rode o script de novo e
 `zed: reload extensions`.
 
 Na primeira instalação o Zed **baixa e compila o `tree-sitter-c`** fixado no
@@ -95,7 +95,7 @@ Se algo falhar, `zed: open log` mostra o erro; `zed --foreground` a partir do
 terminal mostra mais.
 
 **Por que `editors/` não mora fora do repositório do keel.** Seria a saída
-óbvia para o problema do repositório próprio, e não funciona: `gerar.py` lê a
+óbvia para o problema do repositório próprio, e não funciona: `generate.py` lê a
 tabela do §2.2 de `keel-spec.md`, que fica ao lado. Fora daqui o gerador quebra,
 e a lista de palavras volta a ser digitada à mão — que é exatamente o que ele
 existe para evitar. Por isso a fonte fica no repositório e o que sai é uma
@@ -129,12 +129,12 @@ reconhecimento completo dessas construções exigiria uma gramática de keel.
 A extensão instalada pode estar em uma cópia diferente de `editors/zed/`.
 No Linux, o link `~/.local/share/zed/extensions/installed/keel` mostra o destino
 usado pelo Zed. Atualize essa cópia e execute `zed: reload extensions` na
-paleta de comandos. Rodar apenas `gerar.py` atualiza os arquivos deste
+paleta de comandos. Rodar apenas `generate.py` atualiza os arquivos deste
 repositório.
 
 ## O que foi verificado, e o que não foi
 
-**VSCode: medido.** `editors/verifica.mjs` carrega a gramática real do C do
+**VSCode: medido.** `editors/verify.mjs` carrega a gramática real do C do
 VSCode, aplica a injeção e tokeniza todos os `.k` de `golden/casos/`. O
 cabeçalho do arquivo tem como rodar.
 
@@ -144,7 +144,7 @@ Verificado também o inverso — nada realçado dentro de comentário ou string 
 que `x.foreach` continua sendo acesso a campo, não palavra.
 
 **Zed: consultas verificadas com Tree-sitter.** O teste
-`editors/verifica-zed.py` carrega `tree-sitter-c` v0.24.2, a versão fixada no
+`editors/verify-zed.py` carrega `tree-sitter-c` v0.24.2, a versão fixada no
 manifesto, e compila o `highlights.scm` gerado. Verifica capturas de C e keel no
 caso `006-dim`, uma amostra C com diretivas e escapes, a exclusão de palavras
 dentro de comentários e strings, e a execução das consultas em todos os `.k`
@@ -153,8 +153,8 @@ de `golden/casos/`.
 ```sh
 python3 -m venv /tmp/keel-highlight-venv
 /tmp/keel-highlight-venv/bin/pip install tree-sitter==0.25.2 tree-sitter-c==0.24.2
-python3 editors/gerar.py
-/tmp/keel-highlight-venv/bin/python editors/verifica-zed.py
+python3 editors/generate.py
+/tmp/keel-highlight-venv/bin/python editors/verify-zed.py
 ```
 
 Esse teste verifica capturas, não a cor escolhida pelo tema nem o resultado

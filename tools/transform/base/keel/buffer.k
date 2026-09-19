@@ -18,8 +18,9 @@ typedef struct keel_buffer_$T {
     $T *ptr;
 } keel_buffer_$T;
 
-// o cursor nao menciona o parametro, entao e do modulo e nao da instancia
-// (backend 5.11). Esta ferramenta nao separa os dois, entao o guard e manual.
+// the cursor does not mention the parameter, so it belongs to the module,
+// not the instance (backend 5.11). This tool does not separate the two, so
+// the guard is manual.
 #ifndef KEEL_BUFFER_CURSOR
 #define KEEL_BUFFER_CURSOR
 typedef struct keel_buffer_cursor { size_t i; } keel_buffer_cursor;
@@ -126,7 +127,7 @@ static inline keel_outcome_keel_buffer_$T keel_buffer_$T_clone(keel_arena *a, co
     return keel_outcome_keel_buffer_$T_win_1(&r, out);
 }
 
-// o recorte e verbo do buffer, nao do slice: e o buffer que conhece os dois
+// slicing is a buffer verb, not a slice verb: the buffer knows both modules
 static inline keel_slice_$T keel_buffer_$T_as_slice(const keel_buffer_$T *b) {
     keel_slice_$T s;
     s.ptr = b->ptr;
@@ -142,7 +143,7 @@ static inline keel_slice_$T keel_buffer_$T_as_slice_2(const keel_buffer_$T *b, s
     return s;
 }
 
-// travessia por cursor
+// cursor traversal
 static inline keel_buffer_cursor keel_buffer_$T_begin(const keel_buffer_$T *b) {
     (void)b;
     return (keel_buffer_cursor){ .i = 0 };
@@ -156,7 +157,7 @@ static inline $T *keel_buffer_$T_next(const keel_buffer_$T *b, keel_buffer_curso
     return &b->ptr[c->i++];
 }
 
-// parte w de uma divisao em k partes disjuntas; o produto e slice
+// part w of a split into k disjoint parts; the product is a slice
 static inline keel_slice_$T keel_buffer_$T_partition(const keel_buffer_$T *b, size_t k, size_t w) {
     keel_slice_$T part = { .len = 0, .ptr = b->ptr };
     if(k == 0) return part;

@@ -1,19 +1,20 @@
-# Cada árvore de header tem o seu banco de compilação, porque o repositório tem
-# várias com os MESMOS nomes e conteúdos diferentes — `gen/keel/keel_buffer_i32.type.h`
-# não é o de `golden/c23/keel/`. O clangd acha o certo subindo a partir do arquivo
-# aberto: `golden/compile_commands.json` para a suíte, o da raiz para o resto.
+# Each header tree has its own compilation database, because the repository
+# has several with the SAME names and different contents —
+# `gen/keel/keel_buffer_i32.type.h` is not the one in `golden/c23/keel/`.
+# clangd finds the right one walking up from the open file:
+# `golden/compile_commands.json` for the suite, the root one for the rest.
 #
-# NÃO fixar `CompilationDatabase:` aqui. Fixando, uma das árvores passa a valer
-# para o repositório inteiro e as outras recebem flags erradas em silêncio.
+# Do NOT pin `CompilationDatabase:` here. Pinning makes one of the trees apply
+# to the whole repository, and the others silently get wrong flags.
 #
-# Gerar/atualizar:  ./gerar-ccjson.sh
+# Generate/update:  ./gen-ccjson.sh
 
-# O IncludeCleaner está errado neste projeto POR CONSTRUÇÃO. Ele marca
-# `keel/prelude.h` como "não usado diretamente" em todo `.h` gerado, porque o
-# que o cabeçalho usa — `bool`, `size_t` — ele atribui aos headers que o
-# prelúdio inclui, e não ao prelúdio. Só que o prelúdio é NORMATIVO no topo de
-# todo `.type.h` de módulo (backend §4.2): seguir o conselho quebraria a forma
-# que os casos existem para fixar.
+# The IncludeCleaner is wrong in this project BY CONSTRUCTION. It flags the
+# prelude `keel.type.h` as "not used directly" in every generated header,
+# because what the header uses — `bool`, `size_t` — it attributes to the
+# headers the prelude includes, not to the prelude. But the prelude is
+# NORMATIVE at the top of every module `.type.h` (backend §4.2): following
+# the advice would break the shape the cases exist to pin down.
 Diagnostics:
   UnusedIncludes: None
   MissingIncludes: None

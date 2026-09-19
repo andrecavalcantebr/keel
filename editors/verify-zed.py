@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Verifica as consultas do Zed com o parser real de C.
+"""Checks the Zed queries against the real C parser.
 
-Dependências de teste: tree-sitter==0.25.2 e tree-sitter-c==0.24.2.
-Uso: python3 editors/verifica-zed.py
+Test dependencies: tree-sitter==0.25.2 and tree-sitter-c==0.24.2.
+Usage: python3 editors/verify-zed.py
 """
 from pathlib import Path
 
@@ -24,13 +24,13 @@ def captures(source):
 def require(source, result, text, scope):
     expected = text.encode()
     assert any(source[n.start_byte:n.end_byte] == expected for n in result.get(scope, [])), (
-        f"{text!r} sem captura {scope}"
+        f"{text!r} without capture {scope}"
     )
 
 
-# Regressão do arquivo mostrado no editor: C e keel no mesmo módulo,
-# mesmo quando as declarações modificadas produzem ERROR no parser de C.
-source = (ROOT / "golden/casos/006-dim/caso.k").read_bytes()
+# Regression on a file shown in the editor: C and keel in the same module,
+# even when the modified declarations produce ERROR in the C parser.
+source = (ROOT / "golden/casos/006-dim/app/g.k").read_bytes()
 _, result = captures(source)
 for text, scope in [
     ("module", "keyword"), ("import", "keyword"), ("pub", "keyword"),
@@ -43,30 +43,30 @@ for text, scope in [
     ("dims", "property"), ("!=", "operator"),
 ]:
     require(source, result, text, scope)
-assert result.get("comment"), "comentários do caso 006 sem realce"
+assert result.get("comment"), "case 006 comments not highlighted"
 
-# Cobertura de C fora das construções keel e exclusão de literais/comentários.
+# C coverage outside keel constructs, and exclusion of literals/comments.
 source = br'''
 #include <stdio.h>
-#define LIMITE 3
-typedef struct Item { int valor; } Item;
-static int soma(Item *p) {
+#define LIMIT 3
+typedef struct Item { int value; } Item;
+static int sum(Item *p) {
     // module buffer defer i32
     const char *s = "module buffer defer i32\n";
     char c = 'x';
-    for (int i = 0; i < LIMITE; ++i) {
-        if (p->valor != 0) return p->valor + c;
+    for (int i = 0; i < LIMIT; ++i) {
+        if (p->value != 0) return p->value + c;
     }
     return 0;
 }
 '''
 tree, result = captures(source)
-assert not tree.root_node.has_error, "amostra C inválida"
+assert not tree.root_node.has_error, "invalid C sample"
 for text, scope in [
     ("#include", "preproc"), ("#define", "preproc"),
     ("static", "keyword"), ("for", "keyword"), ("const", "keyword"),
-    ("Item", "type"), ("int", "type.builtin"), ("soma", "function"),
-    ("valor", "property"), ("0", "number"), ("'x'", "string"),
+    ("Item", "type"), ("int", "type.builtin"), ("sum", "function"),
+    ("value", "property"), ("0", "number"), ("'x'", "string"),
     (r"\n", "string.escape"), ("++", "operator"),
 ]:
     require(source, result, text, scope)
@@ -74,11 +74,11 @@ protected = result["comment"] + result["string"]
 for scope in ("keyword", "type", "type.builtin", "function", "number"):
     for node in result.get(scope, []):
         assert not any(p.start_byte <= node.start_byte < p.end_byte for p in protected), (
-            f"captura {scope} dentro de comentário ou literal"
+            f"{scope} capture inside a comment or literal"
         )
 
-# Todos os arquivos golden passam pela consulta sem exigir que keel seja C válido.
+# Every golden file goes through the query without requiring keel to be valid C.
 files = sorted((ROOT / "golden/casos").glob("**/*.k"))
 for path in files:
     captures(path.read_bytes())
-print(f"Zed: C + keel no caso 006, literais/comentários protegidos; {len(files)} arquivos consultados.")
+print(f"Zed: C + keel in case 006, literals/comments protected; {len(files)} files queried.")

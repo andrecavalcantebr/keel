@@ -509,9 +509,9 @@ typedef int64_t i64;  typedef uint64_t u64;
 typedef float   f32;  typedef double   f64;
 
 static_assert(FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128
-              && sizeof(f32) == 4, "keel: f32 exige IEEE 754 binary32 neste alvo");
+              && sizeof(f32) == 4, "keel: f32 requires IEEE 754 binary32 on this target");
 static_assert(FLT_RADIX == 2 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024
-              && sizeof(f64) == 8, "keel: f64 exige IEEE 754 binary64 neste alvo");
+              && sizeof(f64) == 8, "keel: f64 requires IEEE 754 binary64 on this target");
 ```
 
 **Gerado, mas não variável.** `keel.type.h` não é hand-maintained fora do
@@ -1162,8 +1162,8 @@ typedef struct keel_arena {
     size_t need = n * sz;
     uintptr_t base = (uintptr_t)(a->buf + a->top);
     size_t pad   = (size_t)(((base + (align - 1)) & ~(uintptr_t)(align - 1)) - base);
-    size_t livre = a->cap - a->top;
-    if (pad > livre || need > livre - pad) return NULL;
+    size_t avail = a->cap - a->top;
+    if (pad > avail || need > avail - pad) return NULL;
     a->top += pad + need;
     return a->buf + a->top - need;
 }
@@ -1172,7 +1172,7 @@ typedef struct keel_arena {
 Quatro coisas nessa função são normativas, e as quatro vêm da linguagem §4.4:
 
 1. **Contagem e tamanho do elemento entram separados**, e o produto é feito aqui. É a forma do `calloc`, e existe para que `n * sizeof(T)` que transborda devolva `NULL` em vez de uma região pequena que o programa acredita ser grande. **É o único ponto do backend que emite essa multiplicação.**
-2. **A soma final não transborda**, porque é escrita como `need > livre - pad` e nunca como `pad + need > livre`.
+2. **A soma final não transborda**, porque é escrita como `need > avail - pad` e nunca como `pad + need > avail`.
 3. **O alinhamento é do endereço, não do deslocamento**, e é o que dispensa o campo `base_align` que esta struct tinha. Alinhar `top` só serviria se `buf` já estivesse alinhado — e keel não tem como saber se está, porque `alignas(64)` é copiado verbatim e nunca avaliado (linguagem §1.3). Alinhando o endereço que se vai entregar, a base pode estar em qualquer lugar e **toda alocação sai alinhada**, inclusive de tipo sobre-alinhado sobre um `array u8` nu.
 4. **`[[nodiscard]]`**, porque o `NULL` é o único canal de falha.
 
@@ -1213,7 +1213,7 @@ keel_arena h = {0};  keel_arena_from_memory(&h, mem, cap);
 
 - **Nenhum construtor recebe alinhamento**, e é a consequência de a alocação alinhar o endereço. A tentativa anterior era `alignof(<símbolo>)` para levar o `alignas` do usuário ao descritor, e ela **não é C**: `alignof` exige nome de tipo, e o GCC recusa com `ISO C does not allow 'alignof (expression)'`. Não havia substituto — keel copia `alignas(64)` verbatim e não avalia o argumento —, e a saída foi tirar a necessidade em vez de procurar a grafia.
 - **`from_stack` é o único construtor sem função C própria**: ele gera o vetor no frame e chama `keel_arena_from_array`. A origem "pilha" está no vetor emitido, não numa inicialização diferente. O `alignas(alignof(max_align_t))` continua saindo, mas agora é **economia e não correção**: sem ele a arena funciona igual, e apenas gasta até `alignof(max_align_t) - 1` bytes de padding na primeira alocação.
-- **`from_parent` recorta com `keel_arena_alloc_n(&pai, n, 1, 1)`** — alinhamento 1, porque a filha alinha as próprias alocações. Ela não herda nem precisa herdar alinhamento nenhum.
+- **`from_parent` recorta com `keel_arena_alloc_n(&parent, n, 1, 1)`** — alinhamento 1, porque a filha alinha as próprias alocações. Ela não herda nem precisa herdar alinhamento nenhum.
 
 #### 5.4.1 O respaldo de tipo-caractere
 

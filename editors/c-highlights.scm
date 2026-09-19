@@ -1,6 +1,6 @@
-; Regras de C para tree-sitter-c v0.24.2, com capturas reconhecidas pelo Zed.
-; O gerador insere o vocabulário da spec no filtro de tipos para evitar
-; que uma regra genérica de C dispute a mesma palavra com o realce de keel.
+; C rules for tree-sitter-c v0.24.2, with captures Zed recognizes.
+; The generator inserts the spec's vocabulary into the type filter so that a
+; generic C rule does not compete with keel's highlighting for the same word.
 
 (comment) @comment
 (string_literal) @string

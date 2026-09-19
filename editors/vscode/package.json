@@ -1,7 +1,7 @@
 {
   "name": "keel",
   "displayName": "keel",
-  "description": "Realce de sintaxe para keel — herda a gramática do C e acrescenta as palavras do §3.7.",
+  "description": "Syntax highlighting for keel — inherits the C grammar and adds the words of spec §2.2.",
   "version": "0.0.1",
   "publisher": "andrecavalcante",
   "engines": {

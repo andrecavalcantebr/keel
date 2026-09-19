@@ -86,10 +86,10 @@ static inline i32 *keel_buffer_i32_next(const keel_buffer_i32 *b, keel_buffer_cu
 /* partição: as `k` partes são disjuntas e cobrem o contêiner; a de índice alto
    pode sair vazia. O produto é `slice i32` (linguagem §5.3) */
 static inline keel_slice_i32 keel_buffer_i32_partition(const keel_buffer_i32 *b, size_t k, size_t w) {
-    size_t n = b->len, passo = k ? (n + k - 1) / k : n;
-    size_t lo = w * passo, hi;
+    size_t n = b->len, step = k ? (n + k - 1) / k : n;
+    size_t lo = w * step, hi;
     if (lo > n) lo = n;
-    hi = lo + passo; if (hi > n) hi = n;
+    hi = lo + step; if (hi > n) hi = n;
     return (keel_slice_i32){ hi - lo, b->ptr + lo };
 }
 /* `slice.of(x,a,b)` — sufixo 2: dois argumentos além do contêiner (§2.1).

@@ -42,14 +42,14 @@ $(PRJ): $(objects)
 run:
 	./$(PRJ)
 
-# bancos de compilação do clangd (Zed, VSCode, vim); veja ./gerar-ccjson.sh
+# clangd compilation databases (Zed, VSCode, vim); see ./gen-ccjson.sh
 ccjson:
-	@../../gerar-ccjson.sh
+	@../../gen-ccjson.sh
 
-# a base do bootstrap: fonte em tools/transform/base (meta-linguagem $T, não
-# keel de verdade — /base, na raiz, é o alvo final), gerada aqui em gen/ pelo
-# transform. O mesmo fonte também gera tools/transform/gen/, para validação
-# própria da ferramenta; ver tools/transform/base/Makefile.
+# the bootstrap base: source in tools/transform/base (the $T meta-language,
+# not real keel — /base, at the root, is the final target), generated here in
+# gen/ by the transform. The same source also generates tools/transform/gen/,
+# for the tool's own validation; see tools/transform/base/Makefile.
 TRANSFORM := ../transform
 
 base:

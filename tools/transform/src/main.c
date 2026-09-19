@@ -6,40 +6,36 @@
  */
 
 /*
- * Gera o arquivo .h a partir de um arquivo .k de módulo
- * Faz apenas subtituição de strings
+ * Generates the .type.h and .h pair from a module's .k file.
+ * Plain string substitution only.
  *
  * SPECS:
- * 1. chamada:
- * transform -m qualified_module_name -i input_dir -d output_dir -t type -n dimension -e "[enum_list]"
+ * 1. invocation:
+ * transform -m qualified_module_name -i input_dir -d output_dir -t type -n dimension -e "[enum_list]" -a "arg_headers"
  *
- * 2. variáveis globais reconhecidas:
- * 2.1. o tipo: via opção -t
- * 2.2. a dimensão: via opção -n
- * 2.3. a lista de enums: via opção -e
+ * 2. recognized parameters:
+ * 2.1. the type: option -t
+ * 2.2. the dimension: option -n
+ * 2.3. the enum list: option -e
+ * 2.4. the argument's headers: option -a, comma-separated
  *
- * 3. geração do .h
- * 3.1. o cabeçalho inicial é copiador verbatim
+ * 3. generation:
+ * 3.1. the leading header comment is copied verbatim into each output file
+ * 3.2. the output name is the mangled symbol of the module, under the module's
+ *      parent directories (backend 4.1)
+ * 3.3. an include guard is inserted
+ * 3.4. section marks, at column zero, route the text:
+ *      %type -> .type.h; %h and %impl -> .h, in that order
+ * 3.5. substitution marks:
+ * 3.5.1. $T is replaced by the module's type
+ * 3.5.2. $N is replaced by the module's dimension
+ * 3.5.3. $E is replaced by the enum list
+ * 3.5.4. $A is replaced by one #include per argument header
  *
- * 3.2. a linha module é detectada:
- *
- * 3.2.1. o nome qualificado do módulo é reconhecido
- * 3.2.2. o nome do arquivo de saída é obtido a partir do nome qualificado do módulo e acrescentando .h
- * 3.2.3. o nome do arquivo de entrada é obtido a partir do nome qualificado do módulo e acrescentando .k
- * 3.2.4. a linha inteira é copiada verbatim para o .h dentro de um comentário //
- *
- * 3.3. é inserido o define guard
- *
- * 3.4. os imports são transformados em #include <module_name_to_path_name.h>
- *
- * 3.5. todas as substituições das marcas são substituídas:
- * 3.5.1. $T é substituído pelo tipo do módulo
- * 3.5.2. $N é substituído pela dimensão do módulo
- * 3.5.3. $E é substituído pela lista de enums
- *
- * Detalhes:
- *  - nome qualifficado de módulo para nome de arquivo (module_name_to_path_name): subistitui o '.' por '/' e acrescenta a extensão
- *  - Cada marca é substituída no máximo uma vez; o texto produzido pela substituição não contém novas marcas semânticas para o gerador.
+ * Details:
+ *  - qualified module name to file name: '.' becomes '/'
+ *  - each mark is replaced at most once; the replacement text carries no new
+ *    marks for the generator.
  */
 
 #include <assert.h>
@@ -73,11 +69,11 @@ void *arena_alloc(arena *a, size_t len) {
     return ptr;
 }
 
-// o primeiro MEGA e do strbuf de entrada; o resto e da arena
+// the first MEGA belongs to the input strbuf; the rest to the arena
 arena a = {.top = 0, .cap = 2*MEGA, .ptr = memory + MEGA};
 
 //---------
-// strings : strbuf e string
+// strings: strbuf and string
 //---------
 
 typedef struct {
@@ -143,7 +139,7 @@ strbuf strbuf_from_arena(arena *a, size_t cap) {
     return sb;
 }
 
-// NULL se nao coube: e aqui que o transbordo silencioso dos append vira visivel
+// NULL if it did not fit: this is where the appends' silent overflow becomes visible
 char *strbuf_cstr(strbuf *sb) {
     if (!sb->ptr || sb->len + 1 > sb->cap) return NULL;
     sb->ptr[sb->len] = '\0';
@@ -171,25 +167,26 @@ char *output_dir = NULL;
 char *t_type = NULL;
 char *e_list = NULL;
 char *n_dim = NULL;
-char *a_list = NULL;   // headers do argumento, separados por virgula
+char *a_list = NULL;   // the argument's headers, comma-separated
 
-// as linhas de #include que $A produz, montadas uma vez em main
+// the #include lines that $A produces, built once in main
 strbuf arg_includes = {0};
 
-// o texto antes da primeira marca: comentario de cabecalho, que sai acima do
-// include guard em cada um dos dois arquivos
+// the text before the first mark: the header comment, emitted above the
+// include guard in each of the two files
 strbuf preamble = {0};
 
 strbuf input_buffer = {.len = 0, .cap = MEGA, .ptr = memory};
 
-// as tres secoes de entrada, na ordem das camadas do backend 4.3.1
+// the three input sections, in the layer order of backend 4.3.1
 enum { SEC_TYPE, SEC_DECL, SEC_IMPL, SEC_COUNT };
 
 const char *section_mark[SEC_COUNT] = { "%type", "%h", "%impl" };
 
-// os dois arquivos de saida (backend 4.3.2): %type e o L0+L1, o .type.h;
-// %h (L2) e %impl (L3) vao juntos, nessa ordem, para o .h que se inclui para
-// usar -- os prototipos antes dos #include dos .h chamados e dos corpos
+// the two output files (backend 4.3.2): %type is L0+L1, the .type.h;
+// %h (L2) and %impl (L3) go together, in that order, into the .h one
+// includes to use the module -- prototypes before the callees' #include
+// lines and the bodies
 enum { OUT_TYPE, OUT_H, OUT_COUNT };
 
 const char *out_ext[OUT_COUNT]   = { ".type.h", ".h" };
@@ -216,7 +213,7 @@ bool path_of(char *out, size_t out_size, const char *filename) {
     return true;
 }
 
-// "src" ou "src/" -> "src/";  "" -> ""
+// "src" or "src/" -> "src/";  "" -> ""
 void strbuf_append_dir(strbuf *sb, const char *dir) {
     if (!dir || !dir[0]) return;
     strbuf_append_pchar(sb, dir);
@@ -256,22 +253,23 @@ void strbuf_append_upper(strbuf *sb, const char *text) {
     }
 }
 
-// o fonte mora no caminho do modulo:  <dir>/keel/buffer.k
+// the source lives at the module's path:  <dir>/keel/buffer.k
 void build_source_name(strbuf *out, const char *dir, const char *module, const char *ext) {
     strbuf_append_dir(out, dir);
     strbuf_append_qualified_path(out, module);
     strbuf_append_pchar(out, ext);
 }
 
-// O nome do alvo e sempre o simbolo manglado do modulo, sob o caminho dele:
+// The target name is always the module's mangled symbol, under its path:
 //
 //   keel.arena              ->  <dir>/keel/keel_arena.h
 //   keel.buffer   -t i32    ->  <dir>/keel/keel_buffer_i32.h
 //   keel                    ->  <dir>/keel.h
 //
-// Sem -t muda so o sufixo do argumento, nao a regra: o arquivo leva o mesmo
-// nome do tipo que ele declara, e e isso que torna o #include derivavel do
-// nome do tipo, sem saber se ele veio de modulo ou de instancia.
+// Without -t only the argument suffix changes, not the rule: the file carries
+// the name of the type it declares, which is what makes the #include
+// derivable from the type name without knowing whether it came from a
+// module or an instance.
 void build_target_name(strbuf *out, const char *dir, const char *module,
                        const char *type, const char *ext) {
     strbuf_append_dir(out, dir);
@@ -291,7 +289,7 @@ bool mkdir_p(const char *path) {
     for (; path[i] && i + 1 < sizeof buffer; i++) {
         buffer[i] = path[i];
     }
-    if (path[i] != '\0') return false;  // caminho longo demais
+    if (path[i] != '\0') return false;  // path too long
     buffer[i] = '\0';
 
     for (char *p = buffer + 1; *p; p++) {
@@ -345,7 +343,7 @@ void save_file(char *file, strbuf *sb) {
 // parser and code generation
 //---------
 
-// emite no destino corrente; cur < 0 e o preambulo, que e comum aos dois
+// emits into the current target; cur < 0 is the preamble, shared by both
 void emit_char(strbuf *out[SEC_COUNT], int cur, char c) {
     strbuf_append_char(cur < 0 ? &preamble : out[cur], c);
 }
@@ -354,7 +352,7 @@ void emit_string(strbuf *out[SEC_COUNT], int cur, string v) {
     strbuf_append_string(cur < 0 ? &preamble : out[cur], v);
 }
 
-// a marca ocupa a linha inteira e so vale em coluna zero
+// a mark takes the whole line and only counts at column zero
 int section_at(const char *prog, const char *end) {
     for (int s = 0; s < SEC_COUNT; s++) {
         size_t n = strlen(section_mark[s]);
@@ -380,7 +378,7 @@ void transform(strbuf *input, strbuf *out[SEC_COUNT]) {
 
     char *prog = input->ptr;
     char *end  = input->ptr + input->len;
-    int  cur   = -1;         // antes da primeira marca: preambulo
+    int  cur   = -1;         // before the first mark: preamble
     bool bol   = true;       // begin of line
 
     while (prog < end) {
@@ -388,7 +386,7 @@ void transform(strbuf *input, strbuf *out[SEC_COUNT]) {
             int s = section_at(prog, end);
             if (s >= 0) {
                 cur = s;
-                while (prog < end && *prog != '\n') prog++;   // a linha da marca nao sai
+                while (prog < end && *prog != '\n') prog++;   // the mark's line is not emitted
                 if (prog < end) prog++;
                 continue;
             }
@@ -396,8 +394,8 @@ void transform(strbuf *input, strbuf *out[SEC_COUNT]) {
 
         if (*prog == '$' && prog + 1 < end) {
             if (prog[1] == 'A') {
-                // sem -a a marca some, e leva junto a quebra de linha dela,
-                // para nao deixar linha em branco solta no gerado
+                // without -a the mark vanishes, taking its newline along,
+                // so that no stray blank line is left in the output
                 emit_string(out, cur, (string){.len = arg_includes.len, .ptr = arg_includes.ptr});
                 prog += 2;
                 if (arg_includes.len == 0 && prog < end && *prog == '\n') prog++;
@@ -487,7 +485,7 @@ int main(int argc, char *argv[]) {
     printf("- Dimension: %s \n", n_dim ? n_dim : "not set");
     printf("- Arg headers: %s \n", a_list[0] ? a_list : "not set");
 
-    // uma linha de #include por entrada da lista; $A emite o bloco inteiro
+    // one #include line per list entry; $A emits the whole block
     arg_includes = strbuf_from_arena(&a, 4096);
     for (const char *p = a_list; *p; ) {
         while (*p == ' ' || *p == ',') p++;
@@ -519,13 +517,13 @@ int main(int argc, char *argv[]) {
     load_file(source_file, &input_buffer);
     transform(&input_buffer, section);
 
-    // %h e %impl no mesmo .h, nessa ordem
+    // %h and %impl in the same .h, in that order
     if (section[SEC_DECL]->len && section[SEC_IMPL]->len) strbuf_append_char(section[SEC_DECL], '\n');
     strbuf_append_strbuf(section[SEC_DECL], section[SEC_IMPL]);
     strbuf *output[OUT_COUNT] = { section[SEC_TYPE], section[SEC_DECL] };
 
     for (int s = 0; s < OUT_COUNT; s++) {
-        // o caminho de escrita leva o --dest-dir; o de include, nao
+        // the write path carries the --dest-dir; the include path does not
         strbuf target = strbuf_from_arena(&a, 512);
         strbuf include = strbuf_from_arena(&a, 512);
         strbuf head = strbuf_from_arena(&a, 1024);
@@ -533,10 +531,10 @@ int main(int argc, char *argv[]) {
 
         build_target_name(&target, output_dir, module_name, t_type, out_ext[s]);
 
-        // o guard vem do nome do alvo sem diretorio de destino, em caixa alta
+        // the guard comes from the target name without the destination directory, upper-cased
         build_target_name(&include, "", module_name, t_type, "");
 
-        // o comentario de cabecalho vem primeiro; o guard, abaixo dele
+        // the header comment comes first; the guard, below it
         strbuf_append_strbuf(&head, &preamble);
         strbuf_append_pchar(&head, "#ifndef ");
         strbuf_append_upper(&head, strbuf_cstr(&include) ? include.ptr : "");
@@ -546,7 +544,7 @@ int main(int argc, char *argv[]) {
         strbuf_append_pchar(&head, out_guard[s]);
         strbuf_append_pchar(&head, "\n\n");
 
-        // auto-include: o .h puxa o proprio .type.h (backend 4.3.2, regra 2)
+        // auto-include: the .h pulls its own .type.h (backend 4.3.2, rule 2)
         if (s == OUT_H) {
             strbuf_append_pchar(&head, "#include \"");
             strbuf_append_pchar(&head, include.ptr);

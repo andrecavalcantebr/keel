@@ -1,6 +1,4 @@
-/* resultados.proto.h — gerado de resultados/resultados.k, perfil C23.
-   `corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
-   (backend §5.14). */
+/* resultados.proto.h — gerado de resultados.k pelo cgen, perfil C23. */
 #ifndef RESULTADOS_PROTO_H
 #define RESULTADOS_PROTO_H
 #include "resultados.type.h"

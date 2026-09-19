@@ -1,5 +1,4 @@
-/* keel/keel_buffer_size_t.proto.h — instância de `buffer size_t`.
-   Recortada ao que o caso usa: `of` e `set` (backend §5.2). */
+/* keel/keel_buffer_size_t.proto.h — gerado de keel/buffer.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_BUFFER_SIZE_T_PROTO_H
 #define KEEL_KEEL_BUFFER_SIZE_T_PROTO_H
 #include "keel/keel_buffer_size_t.type.h"

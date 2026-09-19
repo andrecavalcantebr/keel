@@ -1,0 +1,69 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`instancias.c`** (c23, c11)
+
+gerado de instancias.k: os corpos extern da instância.
+É este `.k` do usuário que dá ao build o `.o` e a regra, e é o que mantém a
+invariante de nenhum alvo sem fonte (backend §4.3).
+
+**`instancias.h`** (c23, c11)
+
+o par de instancias.k. `instance` coloca, não declara
+nome: não há nada de `pub` aqui (linguagem §4.9).
+
+**`instancias.proto.h`** (c23, c11)
+
+o par de instancias.k. `instance` coloca, não declara
+nome: não há nada de `pub` aqui (linguagem §4.9).
+
+**`instancias.type.h`** (c23, c11)
+
+o par de instancias.k. `instance` coloca, não declara
+nome: não há nada de `pub` aqui (linguagem §4.9).
+
+**`pilha.c`** (c23, c11)
+
+o par do genérico. A constante é `pub` e vive no `.h`; não há
+corpo a emitir aqui (backend §4.3).
+
+**`pilha.h`** (c23, c11)
+
+o `.h` do módulo genérico, uma vez. A constante não menciona
+parâmetro nem modificador, então não pertence a instância nenhuma e o nome
+não leva o argumento (backend §4.4.1).
+
+**`pilha.proto.h`** (c23, c11)
+
+o `.h` do módulo genérico, uma vez. A constante não menciona
+parâmetro nem modificador, então não pertence a instância nenhuma e o nome
+não leva o argumento (backend §4.4.1).
+
+**`pilha.type.h`** (c23, c11)
+
+o `.h` do módulo genérico, uma vez. A constante não menciona
+parâmetro nem modificador, então não pertence a instância nenhuma e o nome
+não leva o argumento (backend §4.4.1).
+
+**`pilha_stack_i32.h`** (c23, c11)
+
+instância de `stack i32`.
+Inclui o `.h` do genérico, e não o contrário: a constante é dele, a struct é
+da instância (backend §4.4.1).
+
+**`pilha_stack_i32.proto.h`** (c23, c11)
+
+instância de `stack i32`.
+O `.h` do genérico chega a quem usa a constante dele — aqui ninguém usa, e
+o include segue a necessidade (backend §4.3.2, regra 2).
+
+**`pilha_stack_i32.type.h`** (c23, c11)
+
+instância de `stack i32`.
+Inclui o `.h` do genérico, e não o contrário: a constante é dele, a struct é
+da instância (backend §4.4.1).

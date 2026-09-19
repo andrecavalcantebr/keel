@@ -1,5 +1,4 @@
-/* app/app_p.c — gerado de app/p.k, perfil C23. */
-
+/* app/app_p.c — gerado de app/p.k pelo cgen, perfil C23. */
 #include "keel.type.h"
 #include "app/app_p.h"
 #include "pilha.h"

@@ -1,7 +1,4 @@
-/* app/app_g.c — gerado de app/g.k, perfil C23.
-   Os dois parâmetros são a MESMA instância: se fossem tipos distintos, passar
-   o mesmo objeto nas duas posições não compilaria. */
-
+/* app/app_g.c — gerado de app/g.k pelo cgen, perfil C23. */
 #include "keel.type.h"
 #include "app/app_g.h"
 #include "grid_grade_3_f32.h"

@@ -1,10 +1,4 @@
-/* app/app_val.c — gerado de app/val.k, perfil C11.
-   O rótulo de término vem DEPOIS da contabilidade do fim natural (backend
-   §5.9, regra 8): quem chega ao fim conta uma vitória e cai no rótulo; quem
-   saltou já contou a sua. Invertido, o `fail` seria apagado.
-   O símbolo de controle é declarado FORA do bloco: a linguagem §4.8 o torna
-   legível depois dele. */
-
+/* app/app_val.c — gerado de app/val.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_val.h"
 #include "keel/keel_buffer_i32.h"

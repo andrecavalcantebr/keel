@@ -1,7 +1,4 @@
-/* app/app_cx.c — gerado de app/cx.k, perfil C23: `constexpr` sai verbatim e os
-   usos não mudam. Sob C11 o de bloco vira macro de nome gerado, com os usos
-   reescritos — e `c->N` fica intacto (§9.2). */
-
+/* app/app_cx.c — gerado de app/cx.k pelo cgen, perfil C23. */
 #include "keel.type.h"
 #include "app/app_cx.h"
 #include <stdio.h>

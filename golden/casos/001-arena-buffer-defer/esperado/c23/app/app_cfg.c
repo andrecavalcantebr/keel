@@ -1,5 +1,4 @@
-/* app/app_cfg.c — gerado de app/cfg.k, perfil C23. */
-
+/* app/app_cfg.c — gerado de app/cfg.k pelo cgen, perfil C23. */
 #include "keel.type.h"
 #include "app/app_cfg.h"
 #include "keel/keel_arena.h"

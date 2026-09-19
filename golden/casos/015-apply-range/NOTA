@@ -1,0 +1,12 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_ap.c`** (c23, c11)
+
+`apply` é o mesmo laço do `foreach` com corpo fixo, e os índices saem na
+família `keel__i<N>` porque não há binder escrito (backend §5.7, regra 2).

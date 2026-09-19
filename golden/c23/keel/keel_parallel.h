@@ -1,6 +1,4 @@
-/* keel/keel_parallel.h — o símbolo de controle de um bloco `parallel` (backend §5.9).
-   O nome escrito no fonte declara um objeto deste tipo no escopo que contém o
-   bloco; o gestor escreve nos campos, e o programa lê pelos verbos. */
+/* keel/keel_parallel.h — gerado de keel/parallel.k pelo cgen, perfil C23. */
 #ifndef KEEL_KEEL_PARALLEL_H
 #define KEEL_KEEL_PARALLEL_H
 #include "keel/keel_parallel.proto.h"

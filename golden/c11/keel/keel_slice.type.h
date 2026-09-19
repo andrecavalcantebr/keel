@@ -1,4 +1,4 @@
-/* keel/keel_slice.type.h — idem para `keel.slice` (backend §5.11). */
+/* keel/keel_slice.type.h — gerado de keel/slice.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_SLICE_TYPE_H
 #define KEEL_KEEL_SLICE_TYPE_H
 #include "keel.type.h"

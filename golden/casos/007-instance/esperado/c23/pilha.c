@@ -1,4 +1,2 @@
-/* pilha.c — o par do genérico. A constante é `pub` e vive no `.h`; não há
-   corpo a emitir aqui (backend §4.3). */
-
+/* pilha.c — gerado de pilha.k pelo cgen, perfil C23. */
 #include "keel.type.h"

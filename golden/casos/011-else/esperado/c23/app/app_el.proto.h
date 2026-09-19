@@ -1,4 +1,4 @@
-/* app/app_el.proto.h — gerado de app/el.k, perfil C23. */
+/* app/app_el.proto.h — gerado de app/el.k pelo cgen, perfil C23. */
 #ifndef APP_APP_EL_PROTO_H
 #define APP_APP_EL_PROTO_H
 #include "app/app_el.type.h"

@@ -1,4 +1,4 @@
-/* keel/keel_outcome_i32.h — instância de `outcome i32` (backend §5.12). */
+/* keel/keel_outcome_i32.h — gerado de keel/outcome.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_OUTCOME_I32_H
 #define KEEL_KEEL_OUTCOME_I32_H
 #include "keel/keel_outcome_i32.proto.h"

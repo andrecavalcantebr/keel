@@ -1,7 +1,4 @@
-/* app/app_el.c — gerado de app/el.k, perfil C11.
-   §5.12: a declaração sai como estava, seguida de um `if` cujo teste é o
-   `failed` da instância — nunca `if (!x)`. Tudo numa linha só (regra 2 do §6). */
-
+/* app/app_el.c — gerado de app/el.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_el.h"
 #include "keel/keel_outcome_i32.h"

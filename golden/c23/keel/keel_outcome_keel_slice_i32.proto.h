@@ -1,5 +1,4 @@
-/* keel/keel_outcome_keel_slice_i32.proto.h — instância de `outcome slice i32`.
-   Mangling recursivo: `outcome` sobre `slice i32` (backend §2.2). */
+/* keel/keel_outcome_keel_slice_i32.proto.h — gerado de keel/outcome.k pelo cgen, perfil C23. */
 #ifndef KEEL_KEEL_OUTCOME_KEEL_SLICE_I32_PROTO_H
 #define KEEL_KEEL_OUTCOME_KEEL_SLICE_I32_PROTO_H
 #include "keel/keel_outcome_keel_slice_i32.type.h"

@@ -12,6 +12,9 @@ Cada caso separa **dois papéis** que não podem se misturar:
     casos/<caso>/esperado/c11/       idem, no outro perfil
     casos/<caso>/prova.c             o arnês; NÃO é saída do transpilador
     casos/<caso>/VERIFICA            quando o que se afirma não é "compila"
+    casos/<caso>/NOTA                o que o caso encontrou, e a explicação de cada
+                                     esperado; o esperado em si abre só com o
+                                     cabeçalho de uma linha que o cgen gera
 
 **`esperado/`** responde *o cgen produziu o que devia?* — é o alvo de comparação
 quando o transpiler existir. O módulo do caso é o que a invocação compila, então
@@ -98,7 +101,7 @@ Confirmado na prática: o GCC 13 reporta `__STDC_VERSION__ == 202000L` sob
 `-std=c2x`, não `202311L`, então detectar C23 pelo pré-processador não funciona.
 É a razão de `cgen-tool-spec.md §4.9` ler o perfil da linha de comando.
 
-Os headers do prelúdio (`keel.type.h`, `keel.proto.h`, `keel.h` — gerados de
+A explicação dos headers da base mora em `NOTA`, pela mesma razão. Os headers do prelúdio (`keel.type.h`, `keel.proto.h`, `keel.h` — gerados de
 `keel.k`, mas determinísticos: mesmo conteúdo sempre, para um dado perfil) vivem
 na raiz de `c23/` e `c11/`, porque `module keel;` não tem componente-pai
 (`backend §4.1`); os de módulo e instância da base, em `c23/keel/` e

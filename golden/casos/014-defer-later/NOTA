@@ -1,0 +1,12 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_dl.c`** (c23, c11)
+
+Sem `[now]` o corpo referencia as variáveis direto e NENHUMA struct de
+captura é gerada (backend §5.5); o valor lido é o da saída.

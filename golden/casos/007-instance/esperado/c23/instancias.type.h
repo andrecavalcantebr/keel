@@ -1,5 +1,4 @@
-/* instancias.type.h — o par de instancias.k. `instance` coloca, não declara
-   nome: não há nada de `pub` aqui (linguagem §4.9). */
+/* instancias.type.h — gerado de instancias.k pelo cgen, perfil C23. */
 #ifndef INSTANCIAS_TYPE_H
 #define INSTANCIAS_TYPE_H
 #include "keel.type.h"

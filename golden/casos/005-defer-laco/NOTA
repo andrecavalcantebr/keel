@@ -1,0 +1,13 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_lc.c`** (c23, c11)
+
+Alguma saída é `break`/`continue` → forma INLINE (backend §5.5.2). Um rótulo
+só não serviria às três: `continue` cai no incremento, `break` deixa o laço,
+`return` deixa a função.

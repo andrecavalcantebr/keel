@@ -32,3 +32,48 @@ cai no statement seguinte ao bloco.
 O laço. O `match` executa um braço por passagem, e quem repete é o chamador: a
 `prova.c` chama `ag_passo` cinco vezes. Não é do `match` ter opinião sobre
 política de avanço (linguagem §4.9).
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`ag.c`** (c23, c11)
+
+Despacho por `goto` e blocos rotulados, nunca um `switch` com o corpo do
+usuário dentro. O rótulo vai ANTES da chave, e as chaves são o escopo do
+braço que a linguagem §4.9 exige (backend §5.6, regra 2).
+
+**`ag.h`** (c23, c11)
+
+O `enum` sai da declaração `tags`, e `pub` o põe no `.h` (backend §5.6).
+
+**`ag.proto.h`** (c23, c11)
+
+O `enum` sai da declaração `tags`, e `pub` o põe no `.h` (backend §5.6).
+
+**`ag.type.h`** (c23, c11)
+
+O `enum` sai da declaração `tags`, e `pub` o põe no `.h` (backend §5.6).
+
+**`keel/keel_tagged_ag_Ciclo_void.h`** (c23, c11)
+
+instância de `tagged Ciclo void`.
+`void` omite o campo do valor: resta a etiqueta (backend §5.2, §5.6).
+A etiqueta é `i32`, e não o `enum`: largura estável, e o header de instância
+não passa a depender do header do módulo que declarou o conjunto.
+
+**`keel/keel_tagged_ag_Ciclo_void.proto.h`** (c23, c11)
+
+instância de `tagged Ciclo void`.
+`void` omite o campo do valor: resta a etiqueta (backend §5.2, §5.6).
+A etiqueta é `i32`, e não o `enum`: largura estável, e o header de instância
+não passa a depender do header do módulo que declarou o conjunto.
+
+**`keel/keel_tagged_ag_Ciclo_void.type.h`** (c23, c11)
+
+instância de `tagged Ciclo void`.
+`void` omite o campo do valor: resta a etiqueta (backend §5.2, §5.6).
+A etiqueta é `i32`, e não o `enum`: largura estável, e o header de instância
+não passa a depender do header do módulo que declarou o conjunto.

@@ -1,5 +1,4 @@
-/* grid.type.h — o par do módulo genérico, praticamente vazio: tudo que ele
-   declara menciona um parâmetro, então pertence à instância (backend §4.3). */
+/* grid.type.h — gerado de grid.k pelo cgen, perfil C23. */
 #ifndef GRID_TYPE_H
 #define GRID_TYPE_H
 #include "keel.type.h"

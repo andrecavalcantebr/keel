@@ -1,8 +1,4 @@
-/* lst.c — gerado de lst/lst.k, perfil C11.
-   `walk` emite `begin` uma vez na entrada, testa com `has_next` e liga o
-   elemento com `next` — uma chamada por iteração, depois do teste
-   (backend §5.11, linguagem §4.7). */
-
+/* lst.c — gerado de lst.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "keel/keel_buffer.type.h"
 #include "keel/keel_buffer_i32.h"

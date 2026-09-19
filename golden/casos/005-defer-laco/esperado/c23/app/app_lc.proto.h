@@ -1,4 +1,4 @@
-/* app/app_lc.proto.h — gerado de app/lc.k, perfil C23. */
+/* app/app_lc.proto.h — gerado de app/lc.k pelo cgen, perfil C23. */
 #ifndef APP_APP_LC_PROTO_H
 #define APP_APP_LC_PROTO_H
 #include "app/app_lc.type.h"

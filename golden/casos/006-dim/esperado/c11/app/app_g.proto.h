@@ -1,4 +1,4 @@
-/* app/app_g.proto.h — gerado de app/g.k, perfil C11. */
+/* app/app_g.proto.h — gerado de app/g.k pelo cgen, perfil C11. */
 #ifndef APP_APP_G_PROTO_H
 #define APP_APP_G_PROTO_H
 #include "app/app_g.type.h"

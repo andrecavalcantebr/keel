@@ -1,0 +1,15 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_val.c`** (c23, c11)
+
+O rótulo de término vem DEPOIS da contabilidade do fim natural (backend
+§5.9, regra 8): quem chega ao fim conta uma vitória e cai no rótulo; quem
+saltou já contou a sua. Invertido, o `fail` seria apagado.
+O símbolo de controle é declarado FORA do bloco: a linguagem §4.8 o torna
+legível depois dele.

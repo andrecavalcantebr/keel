@@ -1,5 +1,4 @@
-/* app/app_cfg.type.h — gerado de app/cfg.k, perfil C11.
-   Só o que é `pub`: o tipo, a constante e os protótipos (backend §4.1). */
+/* app/app_cfg.type.h — gerado de app/cfg.k pelo cgen, perfil C11. */
 #ifndef APP_APP_CFG_TYPE_H
 #define APP_APP_CFG_TYPE_H
 #include "keel.type.h"

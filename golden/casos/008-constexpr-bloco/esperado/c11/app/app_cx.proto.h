@@ -1,4 +1,4 @@
-/* app/app_cx.proto.h — gerado de app/cx.k, perfil C11. */
+/* app/app_cx.proto.h — gerado de app/cx.k pelo cgen, perfil C11. */
 #ifndef APP_APP_CX_PROTO_H
 #define APP_APP_CX_PROTO_H
 #include "app/app_cx.type.h"

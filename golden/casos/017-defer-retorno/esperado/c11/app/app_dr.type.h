@@ -1,4 +1,4 @@
-/* app/app_dr.type.h — gerado de app/dr.k, perfil C11. */
+/* app/app_dr.type.h — gerado de app/dr.k pelo cgen, perfil C11. */
 #ifndef APP_APP_DR_TYPE_H
 #define APP_APP_DR_TYPE_H
 #include "keel.type.h"

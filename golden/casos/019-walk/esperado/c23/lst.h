@@ -1,5 +1,4 @@
-/* lst.h — gerado de lst/lst.k, perfil C23.
-   `pub inline` sai `static inline` no header, com corpo (backend §4.1). */
+/* lst.h — gerado de lst.k pelo cgen, perfil C23. */
 #ifndef LST_H
 #define LST_H
 #include "lst.proto.h"

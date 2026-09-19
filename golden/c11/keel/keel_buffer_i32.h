@@ -1,4 +1,4 @@
-/* keel/keel_buffer_i32.h — instância de `buffer i32` (backend §5.2, §5.13). */
+/* keel/keel_buffer_i32.h — gerado de keel/buffer.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_BUFFER_I32_H
 #define KEEL_KEEL_BUFFER_I32_H
 #include "keel/keel_buffer_i32.proto.h"

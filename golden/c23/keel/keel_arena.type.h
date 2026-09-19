@@ -1,5 +1,4 @@
-/* keel/keel_arena.type.h — perfil C23. O `.h` do módulo keel.arena; C comum.
-   Normativo: keel-c-backend.md §5.4 e §5.4.1. */
+/* keel/keel_arena.type.h — gerado de keel/arena.k pelo cgen, perfil C23. */
 #ifndef KEEL_KEEL_ARENA_TYPE_H
 #define KEEL_KEEL_ARENA_TYPE_H
 #include "keel.type.h"

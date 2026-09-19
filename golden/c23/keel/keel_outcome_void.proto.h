@@ -1,4 +1,4 @@
-/* Instância sem payload: spec v2 §4.12. */
+/* keel/keel_outcome_void.proto.h — gerado de keel/outcome.k pelo cgen, perfil C23. */
 #ifndef KEEL_KEEL_OUTCOME_VOID_PROTO_H
 #define KEEL_KEEL_OUTCOME_VOID_PROTO_H
 #include "keel/keel_outcome_void.type.h"

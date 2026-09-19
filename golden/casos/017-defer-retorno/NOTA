@@ -1,0 +1,13 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_dr.c`** (c23, c11)
+
+Toda saída é `return` ou fim natural → escada de rótulos (backend §5.5.2),
+um degrau por registro, na ordem inversa. O temporário do `return expr` é
+declarado com o tipo de retorno ESCRITO na função (§4.7).

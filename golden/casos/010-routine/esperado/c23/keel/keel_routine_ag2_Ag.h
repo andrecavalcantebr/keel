@@ -1,6 +1,4 @@
-/* keel/keel_routine_ag2_Ag.h — instância de `keel.routine` sobre o contexto
-   `ag2.Ag` (backend §5.10). O typedef da participante é da instância; o estado
-   por slot é um `corot`, e não um inteiro nu. */
+/* keel/keel_routine_ag2_Ag.h — gerado de keel/routine.k pelo cgen, perfil C23. */
 #ifndef KEEL_KEEL_ROUTINE_AG2_AG_H
 #define KEEL_KEEL_ROUTINE_AG2_AG_H
 #include "keel/keel_routine_ag2_Ag.proto.h"

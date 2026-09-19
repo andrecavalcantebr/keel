@@ -1,7 +1,4 @@
-/* ag2.c — gerado de ag2/ag2.k, perfil C23.
-   Nenhuma região é injetada: `seq` e `par` são funções da instância, e a
-   tabela é um vetor do programa (backend §5.10). */
-
+/* ag2.c — gerado de ag2.k pelo cgen, perfil C23. */
 #include "keel.type.h"
 #include "ag2.h"
 #include "keel/keel_corot.h"

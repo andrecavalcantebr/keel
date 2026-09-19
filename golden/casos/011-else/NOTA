@@ -14,3 +14,14 @@ Prova também `slice.length(outcome.value(s))` — verbo aplicado a verbo que
 devolve valor. Ela funciona porque `slice` não é `byref` e o acessor recebe
 cópia (§4.11). Enquanto os acessores de `slice` recebiam ponteiro, esta forma
 dava `incompatible type for argument 1`, e não havia lowering especificado.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_el.c`** (c23, c11)
+
+§5.12: a declaração sai como estava, seguida de um `if` cujo teste é o
+`failed` da instância — nunca `if (!x)`. Tudo numa linha só (regra 2 do §6).

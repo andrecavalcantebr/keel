@@ -1,7 +1,4 @@
-/* app/app_ap.c — gerado de app/ap.k, perfil C11.
-   `apply` é o mesmo laço do `foreach` com corpo fixo, e os índices saem na
-   família `keel__i<N>` porque não há binder escrito (backend §5.7, regra 2). */
-
+/* app/app_ap.c — gerado de app/ap.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_ap.h"
 #include "keel/keel_buffer_i32.h"

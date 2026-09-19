@@ -1,6 +1,4 @@
-/* keel/keel_range.type.h — o `.h` do módulo keel.range.
-   `range` NÃO é `byref`: os verbos recebem cópia (linguagem §4.11). Declara os
-   quatro que fazem dele contável e percorrível: first, limit, length, get. */
+/* keel/keel_range.type.h — gerado de keel/range.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_RANGE_TYPE_H
 #define KEEL_KEEL_RANGE_TYPE_H
 #include "keel.type.h"

@@ -1,7 +1,4 @@
-/* keel/keel_corot.proto.h — o tipo `corot` e seu conjunto de tags (backend §5.14).
-   Tipo verdadeiro, não modificador: um campo, e três estados por sinal do
-   código — <0 SUCCESS, 0 ONGOING, >0 FAILED. Sai uma vez no módulo, sem
-   header de instância: não há valor associado a parametrizar. */
+/* keel/keel_corot.proto.h — gerado de keel/corot.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_COROT_PROTO_H
 #define KEEL_KEEL_COROT_PROTO_H
 #include "keel/keel_corot.type.h"

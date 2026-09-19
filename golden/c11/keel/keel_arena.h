@@ -1,5 +1,4 @@
-/* keel/keel_arena.h — perfil C11. O `.h` do módulo keel.arena; C comum.
-   Normativo: keel-c-backend.md §5.4 e §5.4.1. */
+/* keel/keel_arena.h — gerado de keel/arena.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_ARENA_H
 #define KEEL_KEEL_ARENA_H
 #include "keel/keel_arena.proto.h"

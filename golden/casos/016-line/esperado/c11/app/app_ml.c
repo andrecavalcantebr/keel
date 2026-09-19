@@ -1,8 +1,4 @@
-/* app/app_ml.c — perfil C11. NÃO COMPILA de propósito: ver VERIFICA.
-   O §6 é uma invariante sobre dois contadores — a linha do .k em tradução e a
-   do arquivo de saída — e `#line` sai SEMPRE que eles divergem. Este arquivo
-   emite os que a invariante exige, e nenhum a mais. */
-
+/* app/app_ml.c — gerado de app/ml.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_ml.h"
 #include "keel/keel_buffer_i32.h"

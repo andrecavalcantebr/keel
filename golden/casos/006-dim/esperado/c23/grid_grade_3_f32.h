@@ -1,7 +1,4 @@
-/* grid_grade_3_f32.h — instância de `grade(3) f32`.
-   `grade(3) f32` e `grade(DIM) f32` com DIM==3 pedem ESTE arquivo, com este
-   nome e este conteúdo: o nome canônico carrega o VALOR, e não a grafia
-   (linguagem §4.9, backend §2.2). */
+/* grid_grade_3_f32.h — gerado de grid.k pelo cgen, perfil C23. */
 #ifndef GRID_GRADE_3_F32_H
 #define GRID_GRADE_3_F32_H
 #include "grid_grade_3_f32.proto.h"

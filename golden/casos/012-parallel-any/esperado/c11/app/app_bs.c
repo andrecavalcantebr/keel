@@ -1,8 +1,4 @@
-/* app/app_bs.c — gerado de app/bs.k, perfil C11.
-   Sob política diferente de `ALL` a vitória arma a bandeira, e o alvo sai como
-   literal (backend §5.9). `interrupted` é consulta: devolve `bool` onde foi
-   escrita, não salta e não grava status. */
-
+/* app/app_bs.c — gerado de app/bs.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_bs.h"
 #include "keel/keel_buffer_i32.h"

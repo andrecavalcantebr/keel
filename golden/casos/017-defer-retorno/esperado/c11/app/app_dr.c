@@ -1,8 +1,4 @@
-/* app/app_dr.c — gerado de app/dr.k, perfil C11.
-   Toda saída é `return` ou fim natural → escada de rótulos (backend §5.5.2),
-   um degrau por registro, na ordem inversa. O temporário do `return expr` é
-   declarado com o tipo de retorno ESCRITO na função (§4.7). */
-
+/* app/app_dr.c — gerado de app/dr.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_dr.h"
 #line 6 "app/dr.k"

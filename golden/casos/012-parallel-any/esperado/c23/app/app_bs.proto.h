@@ -1,4 +1,4 @@
-/* app/app_bs.proto.h — gerado de app/bs.k, perfil C23. */
+/* app/app_bs.proto.h — gerado de app/bs.k pelo cgen, perfil C23. */
 #ifndef APP_APP_BS_PROTO_H
 #define APP_APP_BS_PROTO_H
 #include "app/app_bs.type.h"

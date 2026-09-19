@@ -1,7 +1,4 @@
-/* app/app_dl.c — gerado de app/dl.k, perfil C11.
-   Sem `[now]` o corpo referencia as variáveis direto e NENHUMA struct de
-   captura é gerada (backend §5.5); o valor lido é o da saída. */
-
+/* app/app_dl.c — gerado de app/dl.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_dl.h"
 #line 3 "app/dl.k"

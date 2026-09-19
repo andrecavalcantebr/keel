@@ -7,3 +7,29 @@ interface pública e os headers dos dois perfis.
 
 A avaliação do argumento de cofault ocorre uma vez e antes do defer: o
 código retornado é um e o contador externo termina em dois.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`resultados.c`** (c23, c11)
+
+Os produtores de `corot` são verbos: ajustam o receptor e devolvem a cópia.
+Quem sai da função é o `return` escrito no fonte (backend §5.14).
+
+**`resultados.h`** (c23, c11)
+
+`corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
+(backend §5.14).
+
+**`resultados.proto.h`** (c23, c11)
+
+`corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
+(backend §5.14).
+
+**`resultados.type.h`** (c23, c11)
+
+`corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
+(backend §5.14).

@@ -1,7 +1,4 @@
-/* keel/keel_slice_i32.proto.h — instância de `slice i32` (backend §5.2).
-   `slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro
-   (linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
-   temporário: `of` devolve valor e `length` consome valor. */
+/* keel/keel_slice_i32.proto.h — gerado de keel/slice.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_SLICE_I32_PROTO_H
 #define KEEL_KEEL_SLICE_I32_PROTO_H
 #include "keel/keel_slice_i32.type.h"

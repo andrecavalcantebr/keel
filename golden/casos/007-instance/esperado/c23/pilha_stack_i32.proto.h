@@ -1,6 +1,4 @@
-/* pilha_stack_i32.proto.h — instância de `stack i32`.
-   O `.h` do genérico chega a quem usa a constante dele — aqui ninguém usa, e
-   o include segue a necessidade (backend §4.3.2, regra 2). */
+/* pilha_stack_i32.proto.h — gerado de pilha.k pelo cgen, perfil C23. */
 #ifndef PILHA_STACK_I32_PROTO_H
 #define PILHA_STACK_I32_PROTO_H
 #include "pilha_stack_i32.type.h"

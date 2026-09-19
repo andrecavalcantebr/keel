@@ -1,6 +1,4 @@
-/* app/app_pool.c — gerado de app/pool.k, perfil C23.
-   O construtor não recebe alinhamento: quem alinha é a alocação (backend §5.4). */
-
+/* app/app_pool.c — gerado de app/pool.k pelo cgen, perfil C23. */
 #include "keel.type.h"
 #include "app/app_pool.h"
 #include "keel/keel_arena.h"

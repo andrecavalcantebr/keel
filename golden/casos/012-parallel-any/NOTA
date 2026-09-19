@@ -25,3 +25,15 @@ confere `9`, que é a posição local mais um, e não `41`.
 
 Sem OpenMP o mesmo C compila e roda em série, e a série é uma das execuções
 permitidas: o runner compila as duas formas.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_bs.c`** (c23, c11)
+
+Sob política diferente de `ALL` a vitória arma a bandeira, e o alvo sai como
+literal (backend §5.9). `interrupted` é consulta: devolve `bool` onde foi
+escrita, não salta e não grava status.

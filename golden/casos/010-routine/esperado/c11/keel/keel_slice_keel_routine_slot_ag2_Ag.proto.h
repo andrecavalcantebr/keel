@@ -1,5 +1,4 @@
-/* keel/keel_slice_keel_routine_slot_ag2_Ag.proto.h — instância de `slice slot`.
-   Arrastada pela instanciação de `keel.routine` (backend §4.3). */
+/* keel/keel_slice_keel_routine_slot_ag2_Ag.proto.h — gerado de keel/slice.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_PROTO_H
 #define KEEL_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_PROTO_H
 #include "keel/keel_slice_keel_routine_slot_ag2_Ag.type.h"

@@ -1,5 +1,4 @@
-/* keel/keel_outcome.proto.h — perfil C11. O `.h` do módulo, uma vez: as duas constantes
-   não mencionam parâmetro nem modificador (keel-c-backend.md §4.4.1). */
+/* keel/keel_outcome.proto.h — gerado de keel/outcome.k pelo cgen, perfil C11. */
 #ifndef KEEL_KEEL_OUTCOME_PROTO_H
 #define KEEL_KEEL_OUTCOME_PROTO_H
 #include "keel/keel_outcome.type.h"

@@ -1,8 +1,4 @@
-/* app/app_lc.c — gerado de app/lc.k, perfil C11.
-   Alguma saída é `break`/`continue` → forma INLINE (backend §5.5.2). Um rótulo
-   só não serviria às três: `continue` cai no incremento, `break` deixa o laço,
-   `return` deixa a função. */
-
+/* app/app_lc.c — gerado de app/lc.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_lc.h"
 #line 3 "app/lc.k"

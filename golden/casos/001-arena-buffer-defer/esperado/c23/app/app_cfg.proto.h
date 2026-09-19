@@ -1,5 +1,4 @@
-/* app/app_cfg.proto.h — gerado de app/cfg.k, perfil C23.
-   Só o que é `pub`: o tipo, a constante e os protótipos (backend §4.1). */
+/* app/app_cfg.proto.h — gerado de app/cfg.k pelo cgen, perfil C23. */
 #ifndef APP_APP_CFG_PROTO_H
 #define APP_APP_CFG_PROTO_H
 #include "app/app_cfg.type.h"

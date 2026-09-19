@@ -1,5 +1,4 @@
-/* lst.type.h — gerado de lst/lst.k, perfil C11.
-   `pub inline` sai `static inline` no header, com corpo (backend §4.1). */
+/* lst.type.h — gerado de lst.k pelo cgen, perfil C11. */
 #ifndef LST_TYPE_H
 #define LST_TYPE_H
 #include "keel.type.h"

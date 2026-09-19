@@ -1,4 +1,4 @@
-/* app/app_ml.proto.h — gerado de app/ml.k, perfil C11. */
+/* app/app_ml.proto.h — gerado de app/ml.k pelo cgen, perfil C11. */
 #ifndef APP_APP_ML_PROTO_H
 #define APP_APP_ML_PROTO_H
 #include "app/app_ml.type.h"

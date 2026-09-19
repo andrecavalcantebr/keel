@@ -1,9 +1,4 @@
-/* app/app_pos.c — gerado de app/pos.k, perfil C11.
-   `p[i].campo` (spec §4.11) reescreve para `p->campo[i]` — é o que aparece
-   em `app_pos_linha`, saindo de `p[p->len].x = vx;` no fonte. Nenhum verbo
-   sintetizado: `ocupar` aloca à mão, `somar_x` usa `slice.from`, já
-   existente (§5.3), pra entrar em `foreach`. */
-
+/* app/app_pos.c — gerado de app/pos.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_pos.h"
 #include "keel/keel_arena.h"

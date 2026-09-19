@@ -1,6 +1,4 @@
-/* app/app_al.c — gerado de app/al.k, perfil C11.
-   `main` do keel é função comum e sai manglada como qualquer outra (§5.8). */
-
+/* app/app_al.c — gerado de app/al.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_al.h"
 #include "keel/keel_arena.h"

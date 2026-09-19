@@ -1,7 +1,4 @@
-/* app/app_ac.c — gerado de app/ac.k, perfil C11.
-   §5.3: o açúcar baixa por função `static inline`, nunca por macro — é o que
-   garante avaliação única —, e o par `&*` colapsa na geração. */
-
+/* app/app_ac.c — gerado de app/ac.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "app/app_ac.h"
 #include "keel/keel_buffer_i32.h"

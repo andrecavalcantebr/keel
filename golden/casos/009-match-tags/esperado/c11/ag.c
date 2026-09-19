@@ -1,8 +1,4 @@
-/* ag.c — gerado de ag/ag.k, perfil C11.
-   Despacho por `goto` e blocos rotulados, nunca um `switch` com o corpo do
-   usuário dentro. O rótulo vai ANTES da chave, e as chaves são o escopo do
-   braço que a linguagem §4.9 exige (backend §5.6, regra 2). */
-
+/* ag.c — gerado de ag.k pelo cgen, perfil C11. */
 #include "keel.type.h"
 #include "ag.h"
 #include "keel/keel_corot.h"

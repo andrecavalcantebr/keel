@@ -1,5 +1,4 @@
-/* ag2.h — gerado de ag2/ag2.k, perfil C23.
-   As tabelas são locais das funções, então o `.h` não menciona `routine`. */
+/* ag2.h — gerado de ag2.k pelo cgen, perfil C23. */
 #ifndef AG2_H
 #define AG2_H
 #include "ag2.proto.h"

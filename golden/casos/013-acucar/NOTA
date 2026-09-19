@@ -1,0 +1,12 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_ac.c`** (c23, c11)
+
+§5.3: o açúcar baixa por função `static inline`, nunca por macro — é o que
+garante avaliação única —, e o par `&*` colapsa na geração.

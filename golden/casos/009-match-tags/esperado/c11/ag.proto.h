@@ -1,5 +1,4 @@
-/* ag.proto.h — gerado de ag/ag.k, perfil C11.
-   O `enum` sai da declaração `tags`, e `pub` o põe no `.h` (backend §5.6). */
+/* ag.proto.h — gerado de ag.k pelo cgen, perfil C11. */
 #ifndef AG_PROTO_H
 #define AG_PROTO_H
 #include "ag.type.h"

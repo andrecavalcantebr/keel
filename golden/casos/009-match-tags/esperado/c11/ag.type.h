@@ -1,5 +1,4 @@
-/* ag.type.h — gerado de ag/ag.k, perfil C11.
-   O `enum` sai da declaração `tags`, e `pub` o põe no `.h` (backend §5.6). */
+/* ag.type.h — gerado de ag.k pelo cgen, perfil C11. */
 #ifndef AG_TYPE_H
 #define AG_TYPE_H
 #include "keel.type.h"

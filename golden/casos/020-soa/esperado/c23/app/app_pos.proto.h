@@ -1,5 +1,4 @@
-/* app/app_pos.proto.h — gerado de app/pos.k, perfil C23.
-   Só o que é `pub`: o tipo e os três protótipos (backend §4.1). */
+/* app/app_pos.proto.h — gerado de app/pos.k pelo cgen, perfil C23. */
 #ifndef APP_APP_POS_PROTO_H
 #define APP_APP_POS_PROTO_H
 #include "app/app_pos.type.h"

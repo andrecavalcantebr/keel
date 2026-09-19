@@ -1,0 +1,19 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_cfg.h`** (c23, c11)
+
+Só o que é `pub`: o tipo, a constante e os protótipos (backend §4.1).
+
+**`app/app_cfg.proto.h`** (c23, c11)
+
+Só o que é `pub`: o tipo, a constante e os protótipos (backend §4.1).
+
+**`app/app_cfg.type.h`** (c23, c11)
+
+Só o que é `pub`: o tipo, a constante e os protótipos (backend §4.1).

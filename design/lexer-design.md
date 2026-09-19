@@ -32,7 +32,7 @@ typedef struct {
 } KLexer;
 
 KToken k_lexer_next(KLexer *lexer, TKPpKind *pp_kind);
-/* slice vazia é EOF; pp_kind é TK_PP_OTHER fora de diretiva estrutural */
+/* an empty slice is EOF; pp_kind is TK_PP_OTHER outside a structural directive */
 ```
 
 Não há enum de token, span separado, tabela de linhas ou `buffer KToken` no

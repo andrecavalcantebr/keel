@@ -44,7 +44,7 @@ pelo compilador C do projeto. [Justificativa: macros e sintaxe do PPC](keel-rati
 keel é um parser de ilhas em um mar de C. keel reconhece suas construções e seus símbolos no código-fonte, inclusive quando aparecem dentro de expressões. Não realiza análise semântica de expressões C puras nem resolve o sistema de tipos do C.
 
 Um modificador atua sobre o tipo que o segue e define sua representação e suas
-operações. Em `buffer struct Person pessoas;`, `buffer` modifica `struct Person`
+operações. Em `buffer struct Person people;`, `buffer` modifica `struct Person`
 para representar uma sequência desse tipo com seus metadados de controle.
 `outcome T` associa ao valor de `T` um código de resultado; `tagged E T`
 associa a ele uma etiqueta de um conjunto declarado. O PPC expande essas declarações para
@@ -128,12 +128,12 @@ A gramática descreve as construções keel e a estrutura C necessária para loc
 | `IDENT` | Identificador que não pertence ao conjunto de palavras C desta seção. |
 | `NUM` | Token numérico; a construção consumidora restringe sua forma e seu valor. |
 | `STRING` | Literal de string, incluindo seu prefixo quando houver. |
-| `<opaco>` | Sequência de tokens delimitada pelo contexto, sem análise semântica de C. |
-| `<opaco-sem-parenteses>` | Região opaca sem `(` no nível externo da região. |
+| `<opaque>` | Sequência de tokens delimitada pelo contexto, sem análise semântica de C. |
+| `<opaque-no-parens>` | Região opaca sem `(` no nível externo da região. |
 
 “Nível externo” ou “de topo” refere-se à profundidade de delimitadores da produção em análise, não necessariamente ao escopo de arquivo. Separadores dentro de parênteses, colchetes, chaves, literais ou diretivas não encerram uma região externa.
 
-Uma região `<opaco>` pode conter construções keel. Essas construções são reconhecidas e traduzidas; os demais trechos são preservados. O corpo de `extern_c`, os literais e o conteúdo das diretivas têm as regras específicas da §2.3. [Justificativa: papel da região opaca](keel-rationale.md#por-que-opaco-é-o-terminal-central).
+Uma região `<opaque>` pode conter construções keel. Essas construções são reconhecidas e traduzidas; os demais trechos são preservados. O corpo de `extern_c`, os literais e o conteúdo das diretivas têm as regras específicas da §2.3. [Justificativa: papel da região opaca](keel-rationale.md#por-que-opaque-é-o-terminal-central).
 
 #### Elementos léxicos
 
@@ -194,173 +194,173 @@ Essas palavras não casam `IDENT`. Uma produção as aceita quando nomeia sua gr
 #### Unidade e declarações de topo
 
 ```ebnf
-unidade      ::= decl-modulo { item-topo }
+unit      ::= decl-module { top-item }
 
-decl-modulo  ::= 'module' nome-modulo [ binder-dim ] [ binder-tags ]
-                 [ binder-tipo ] ';'
-nome-modulo  ::= IDENT { '.' IDENT }
-binder-dim   ::= 'dim' IDENT { ',' IDENT }
-binder-tags  ::= 'tags' IDENT { ',' IDENT }
-binder-tipo  ::= 'type' IDENT { ',' IDENT }
+decl-module  ::= 'module' module-name [ dim-binder ] [ tags-binder ]
+                 [ type-binder ] ';'
+module-name  ::= IDENT { '.' IDENT }
+dim-binder   ::= 'dim' IDENT { ',' IDENT }
+tags-binder  ::= 'tags' IDENT { ',' IDENT }
+type-binder  ::= 'type' IDENT { ',' IDENT }
 
-item-topo    ::= import | import-c | extern-c | decl-topo | <opaco>
+top-item    ::= import | import-c | extern-c | top-decl | <opaque>
 
-import       ::= 'import' nome-modulo [ 'as' IDENT ] [ 'types' ] ';'
-import-c     ::= 'import_c' ( cabecalho-sistema | STRING ) ';'
-extern-c     ::= 'extern_c' '{' <opaco> '}'
+import       ::= 'import' module-name [ 'as' IDENT ] [ 'types' ] ';'
+import-c     ::= 'import_c' ( system-header | STRING ) ';'
+extern-c     ::= 'extern_c' '{' <opaque> '}'
 
-decl-topo    ::= [ 'pub' | 'priv' ]
-                 ( decl-modificador | decl-instancia | decl-tags
-                 | decl-funcao | decl-keel | <opaco> )
+top-decl    ::= [ 'pub' | 'priv' ]
+                 ( decl-modifier | decl-instance | decl-tags
+                 | decl-function | decl-keel | <opaque> )
 
-decl-modificador ::= 'modifier' IDENT [ 'byref' ] '{' <opaco> '}'
-decl-instancia   ::= 'instance' tipo-conhecido ';'
-decl-tags        ::= 'tags' IDENT lista-tags ';'
-lista-tags       ::= '[' item-tag { ',' item-tag } ']'
-item-tag         ::= IDENT [ '=' valor-tag ]
-valor-tag        ::= [ '-' ] NUM | nome-qualificado
+decl-modifier ::= 'modifier' IDENT [ 'byref' ] '{' <opaque> '}'
+decl-instance   ::= 'instance' known-type ';'
+decl-tags        ::= 'tags' IDENT tags-list ';'
+tags-list       ::= '[' tag-item { ',' tag-item } ']'
+tag-item         ::= IDENT [ '=' tag-value ]
+tag-value        ::= [ '-' ] NUM | qualified-name
 
-decl-funcao   ::= retorno declarador-fn ( bloco | ';' )
-retorno       ::= { spec-c } ( tipo-conhecido | <opaco-sem-parenteses> )
-declarador-fn ::= { '*' { qual-c } } IDENT '(' [ params ] ')'
+decl-function   ::= return-type fn-declarator ( block | ';' )
+return-type       ::= { spec-c } ( known-type | <opaque-no-parens> )
+fn-declarator ::= { '*' { qual-c } } IDENT '(' [ params ] ')'
 params        ::= 'void' | param { ',' param } [ ',' '...' ]
 param         ::= param-array
-                | ( tipo-conhecido | <opaco-sem-parenteses> )
-                  { '*' { qual-c } } [ IDENT ] { sufixo }
+                | ( known-type | <opaque-no-parens> )
+                  { '*' { qual-c } } [ IDENT ] { suffix }
 spec-c        ::= 'inline' | 'static' | 'extern' | '_Noreturn'
-                | '_Thread_local' | 'alignas' '(' <opaco> ')'
-                | '[[' <opaco> ']]' | qual-c
-param-array  ::= { spec-c } 'array' argumento { '*' } IDENT dimensoes
+                | '_Thread_local' | 'alignas' '(' <opaque> ')'
+                | '[[' <opaque> ']]' | qual-c
+param-array  ::= { spec-c } 'array' argument { '*' } IDENT dimensions
 ```
 
-`cabecalho-sistema` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `param-array` usa as dimensões de `array`; as restrições de rank em parâmetros pertencem ao contrato do marcador.
+`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `param-array` usa as dimensões de `array`; as restrições de rank em parâmetros pertencem ao contrato do marcador.
 
 #### Tipos e declarações
 
 ```ebnf
-decl-keel    ::= { spec-c } especificador declarador [ '=' <opaco> ]
-                 { ',' declarador [ '=' <opaco> ] } ';'
-               | { spec-c } especificador declarador '=' <opaco> cauda-else
+decl-keel    ::= { spec-c } specifier declarator [ '=' <opaque> ]
+                 { ',' declarator [ '=' <opaque> ] } ';'
+               | { spec-c } specifier declarator '=' <opaque> else-tail
                | decl-array | decl-constexpr
 
-cauda-else   ::= 'else' ( bloco | <opaco> ';' )
+else-tail   ::= 'else' ( block | <opaque> ';' )
 
-especificador ::= tipo-conhecido
-tipo-conhecido     ::= modificador argumento { argumento } | tipo-nomeado
-tipo-nomeado  ::= nome-qualificado
-modificador   ::= nome-qualificado [ '(' valor-dim { ',' valor-dim } ')' ]
-valor-dim     ::= NUM | IDENT
-argumento     ::= { qual-arg } ( tipo-conhecido | nome-qualificado
-                  | tipo-com-tag | tipo-base | 'void' ) { qual-arg }
-tipo-com-tag  ::= ( 'struct' | 'union' | 'enum' ) nome-qualificado
+specifier ::= known-type
+known-type     ::= modifier argument { argument } | named-type
+named-type  ::= qualified-name
+modifier   ::= qualified-name [ '(' dim-value { ',' dim-value } ')' ]
+dim-value     ::= NUM | IDENT
+argument     ::= { qual-arg } ( known-type | qualified-name
+                  | tagged-type | base-type | 'void' ) { qual-arg }
+tagged-type  ::= ( 'struct' | 'union' | 'enum' ) qualified-name
 qual-arg      ::= 'const' | 'volatile' | '_Atomic'
-tipo-base     ::= 'char' | 'bool'
-nome-qualificado ::= IDENT { '.' IDENT }
+base-type     ::= 'char' | 'bool'
+qualified-name ::= IDENT { '.' IDENT }
 
-declarador   ::= { '*' { qual-c } } declarador-direto
-declarador-direto ::= IDENT { sufixo }
-                    | '(' declarador ')' { sufixo }
-sufixo       ::= '[' [ <opaco> ] ']' | '(' <opaco> ')'
+declarator   ::= { '*' { qual-c } } direct-declarator
+direct-declarator ::= IDENT { suffix }
+                    | '(' declarator ')' { suffix }
+suffix       ::= '[' [ <opaque> ] ']' | '(' <opaque> ')'
 qual-c       ::= 'const' | 'volatile' | 'restrict' | '_Atomic' | 'ref'
 
-decl-constexpr ::= 'constexpr' <opaco> ';'
+decl-constexpr ::= 'constexpr' <opaque> ';'
 
-decl-array   ::= { spec-c } 'array' argumento decl-array-1 { ',' decl-array-1 } ';'
-decl-array-1 ::= { '*' } IDENT dimensoes [ '=' <opaco> ]
-dimensoes    ::= '[' [ <opaco> { ',' <opaco> } ] ']'
-               | '[' [ <opaco> ] ']' { '[' <opaco> ']' }
+decl-array   ::= { spec-c } 'array' argument decl-array-1 { ',' decl-array-1 } ';'
+decl-array-1 ::= { '*' } IDENT dimensions [ '=' <opaque> ]
+dimensions    ::= '[' [ <opaque> { ',' <opaque> } ] ']'
+               | '[' [ <opaque> ] ']' { '[' <opaque> ']' }
 ```
 
 `void` em posição de argumento de modificador segue o protocolo de omissão de campos parametrizados; não declara um objeto C de tipo `void`. `outcome void` representa um resultado sem valor associado (§5.5).
 
-`tipo-com-tag` consome a palavra C e o nome como um único argumento de tipo:
-`buffer struct Person pessoas;` aplica `buffer` a `struct Person`, e `pessoas`
+`tagged-type` consome a palavra C e o nome como um único argumento de tipo:
+`buffer struct Person people;` aplica `buffer` a `struct Person`, e `people`
 é o declarador. O PPC preserva a forma C do tipo na substituição, com a
 qualificação dos nomes que reconhece; não precisa interpretar os campos do
 agregado para substituir esse argumento.
 
-`tipo-nomeado` só casa um nome registrado como tipo, como `arena`. Um nome registrado como modificador, como `buffer`, exige o tipo ao qual será aplicado: `buffer T` é o tipo resultante. O número de argumentos de um modificador é determinado pelo módulo declarado, não pela repetição livre da EBNF. Qualificadores de argumento são aceitos dos dois lados do tipo; a identidade canônica segue o contrato de tipos e genéricos.
+`named-type` só casa um nome registrado como tipo, como `arena`. Um nome registrado como modificador, como `buffer`, exige o tipo ao qual será aplicado: `buffer T` é o tipo resultante. O número de argumentos de um modificador é determinado pelo módulo declarado, não pela repetição livre da EBNF. Qualificadores de argumento são aceitos dos dois lados do tipo; a identidade canônica segue o contrato de tipos e genéricos.
 
-`valor-dim` admite um literal ou uma constante nomeada conhecida nas condições da §4.2. A validade de um valor como dimensão não decorre apenas de sua classificação como `NUM` ou `IDENT`. [Justificativa: constantes nomeadas](keel-rationale.md#constantes-nomeadas).
+`dim-value` admite um literal ou uma constante nomeada conhecida nas condições da §4.2. A validade de um valor como dimensão não decorre apenas de sua classificação como `NUM` ou `IDENT`. [Justificativa: constantes nomeadas](keel-rationale.md#constantes-nomeadas).
 
 #### Statements e blocos
 
 ```ebnf
-stmt         ::= stmt-keel | stmt-c | rotulo | bloco | <opaco> ';'
-bloco        ::= '{' { stmt } '}'
+stmt         ::= stmt-keel | stmt-c | label | block | <opaque> ';'
+block        ::= '{' { stmt } '}'
 
-rotulo       ::= IDENT ':' stmt | 'case' <opaco> ':' stmt | 'default' ':' stmt
+label       ::= IDENT ':' stmt | 'case' <opaque> ':' stmt | 'default' ':' stmt
 
-stmt-c       ::= 'if' '(' <opaco> ')' stmt [ 'else' stmt ]
-               | ( 'while' | 'switch' ) '(' <opaco> ')' stmt
-               | 'for' '(' <opaco> ')' stmt
-               | 'do' stmt 'while' '(' <opaco> ')' ';'
-               | 'return' [ <opaco> ] ';'
+stmt-c       ::= 'if' '(' <opaque> ')' stmt [ 'else' stmt ]
+               | ( 'while' | 'switch' ) '(' <opaque> ')' stmt
+               | 'for' '(' <opaque> ')' stmt
+               | 'do' stmt 'while' '(' <opaque> ')' ';'
+               | 'return' [ <opaque> ] ';'
                | ( 'break' | 'continue' ) ';'
                | 'goto' IDENT ';'
                | ';'
 
 stmt-keel    ::= decl-keel | decl-tags
                | defer | foreach | walk | apply | parallel
-               | match | saida-worker
+               | match | worker-exit
 
-defer        ::= 'defer' [ '[' opcoes-defer ']' ] corpo-defer
-opcoes-defer ::= 'later' | 'now' captura-tipada
-captura-tipada ::= entrada { ',' entrada }
-entrada      ::= <opaco> IDENT
-corpo-defer  ::= bloco | <opaco> ';'
-captura      ::= '(' IDENT { ',' IDENT } ')'
+defer        ::= 'defer' [ '[' defer-options ']' ] defer-body
+defer-options ::= 'later' | 'now' typed-capture
+typed-capture ::= entry { ',' entry }
+entry      ::= <opaque> IDENT
+defer-body  ::= block | <opaque> ';'
+capture      ::= '(' IDENT { ',' IDENT } ')'
 
-foreach      ::= 'foreach' '(' binder ',' binder ':' contentor ')' stmt
-               | 'foreach' '(' binder ':' contavel ')' stmt
-binder       ::= tipo-binder IDENT
-tipo-binder  ::= ( tipo-conhecido | nome-qualificado | tipo-base | 'auto' ) { '*' }
-apply        ::= 'apply' '(' tipo-binder ',' contentor ',' IDENT
-                 { ',' <opaco> } ')' ';'
-walk         ::= 'walk' '(' binder [ ',' binder ] ':' contentor ')' stmt
+foreach      ::= 'foreach' '(' binder ',' binder ':' container ')' stmt
+               | 'foreach' '(' binder ':' countable ')' stmt
+binder       ::= binder-type IDENT
+binder-type  ::= ( known-type | qualified-name | base-type | 'auto' ) { '*' }
+apply        ::= 'apply' '(' binder-type ',' container ',' IDENT
+                 { ',' <opaque> } ')' ';'
+walk         ::= 'walk' '(' binder [ ',' binder ] ':' container ')' stmt
 
-parallel     ::= 'parallel' IDENT politica
-                 '(' binder ':' contavel ';'
-                     binder ':' contentor
-                     [ ';' captura ] ')' bloco
-politica     ::= 'ALL' | 'ANY' | NUM | nome-qualificado
-saida-worker ::= ( 'win' | 'fail' ) ';'
+parallel     ::= 'parallel' IDENT policy
+                 '(' binder ':' countable ';'
+                     binder ':' container
+                     [ ';' capture ] ')' block
+policy     ::= 'ALL' | 'ANY' | NUM | qualified-name
+worker-exit ::= ( 'win' | 'fail' ) ';'
 
-match        ::= 'match' '(' contentor ')' bloco-tags
-bloco-tags   ::= '{' { braco-tag } '}'
-braco-tag    ::= rotulo-tag { rotulo-tag } { stmt }
-rotulo-tag   ::= IDENT ':'
+match        ::= 'match' '(' container ')' tags-block
+tags-block   ::= '{' { tag-arm } '}'
+tag-arm    ::= tag-label { tag-label } { stmt }
+tag-label   ::= IDENT ':'
 ```
 
-`stmt-c` descreve a estrutura necessária para localizar corpos, escopos e pontos de saída; suas expressões permanecem opacas. Dentro de `bloco-tags`, os rótulos externos identificam tags, e cada braço abre um escopo até o próximo rótulo ou até a chave final. Rótulos consecutivos, sem statements entre eles, compartilham o braço seguinte.
+`stmt-c` descreve a estrutura necessária para localizar corpos, escopos e pontos de saída; suas expressões permanecem opacas. Dentro de `tags-block`, os rótulos externos identificam tags, e cada braço abre um escopo até o próximo rótulo ou até a chave final. Rótulos consecutivos, sem statements entre eles, compartilham o braço seguinte.
 
-Um argumento de tipo pode nomear um conjunto de tags declarado por `decl-tags`, como em `tagged Ciclo void`. A produção `argumento` já admite essa forma por `nome-qualificado`; o papel do nome vem do parâmetro correspondente na assinatura do módulo. O contrato completo está na §4.9.
+Um argumento de tipo pode nomear um conjunto de tags declarado por `decl-tags`, como em `tagged Cycle void`. A produção `argument` já admite essa forma por `qualified-name`; o papel do nome vem do parâmetro correspondente na assinatura do módulo. O contrato completo está na §4.9.
 
 #### Contêineres, intervalos e recortes
 
 ```ebnf
-contentor    ::= IDENT
-               | contentor '[' <opaco> { ',' <opaco> } ']'
-               | contentor '[' recorte ']'
-               | contentor '.'  IDENT
-               | contentor '->' IDENT
-               | verbo '(' contentor { ',' <opaco> } ')'
-               | '*' contentor | '&' contentor | '(' contentor ')'
+container    ::= IDENT
+               | container '[' <opaque> { ',' <opaque> } ']'
+               | container '[' range-index ']'
+               | container '.'  IDENT
+               | container '->' IDENT
+               | verb '(' container { ',' <opaque> } ')'
+               | '*' container | '&' container | '(' container ')'
 
-contavel     ::= intervalo | contentor
-intervalo    ::= <opaco> '..' <opaco>
-recorte      ::= [ <opaco> ] '..' [ <opaco> ]
-verbo        ::= nome-modulo '.' IDENT
+countable     ::= interval | container
+interval    ::= <opaque> '..' <opaque>
+range-index      ::= [ <opaque> ] '..' [ <opaque> ]
+verb        ::= module-name '.' IDENT
 ```
 
-A produção `contentor` descreve as formas em que keel pode consultar a identidade de um contêiner a partir de símbolos conhecidos. Não atribui tipos a expressões C arbitrárias. A assinatura da operação determina qual argumento ocupa essa posição. [Justificativa: limite da análise de contêiner](keel-rationale.md#a-posição-de-contêiner-não-é-um-sistema-de-tipos).
+A produção `container` descreve as formas em que keel pode consultar a identidade de um contêiner a partir de símbolos conhecidos. Não atribui tipos a expressões C arbitrárias. A assinatura da operação determina qual argumento ocupa essa posição. [Justificativa: limite da análise de contêiner](keel-rationale.md#a-posição-de-contêiner-não-é-um-sistema-de-tipos).
 
 ### 2.3 Reconhecimento
 
 #### Regiões opacas e pontos de parada
 
 - O reconhecimento percorre as expressões e os corpos C para localizar as construções keel, nos limites da §1.3. Não deduz o tipo das expressões C que as envolvem.
-- Em uma lista, `<opaco>` termina no separador ou delimitador exigido pela produção, no nível externo daquela região. Grupos internos são atravessados como unidades balanceadas.
+- Em uma lista, `<opaque>` termina no separador ou delimitador exigido pela produção, no nível externo daquela região. Grupos internos são atravessados como unidades balanceadas.
 - Em posição de statement, a varredura distingue blocos e as formas de controle de `stmt-c`. A região opaca termina no `;` externo; não absorve o início de um bloco ou de uma construção keel reconhecida em posição inicial de statement.
 - O `else` associado a um `if` pertence a `stmt-c`. A cauda `else` de keel pertence a uma declaração reconhecida, sujeita ao contrato de tratamento de resultado (§4.10).
 - Dentro de `extern_c`, construções keel não são traduzidas. O balanceamento de delimitadores permanece ativo; o registro dos nomes declarados segue a §4.1.
@@ -392,7 +392,7 @@ Nomes que apareçam apenas em headers C ou que sejam produzidos pela expansão d
 | `tags` | Em linha `module`, introduz parâmetros do módulo. Em declaração, o nome é seguido de `[` e da lista de tags. |
 | `match` | Seguido de `(`, identifica o despacho; o corpo entre `{` e `}` contém rótulos de tag. |
 | `walk` | Seguido de `(`, identifica a travessia por cursor; o segundo binder declara o cursor. |
-| `foreach` | Dois binders são separados por `,` antes de `:`; a forma com um binder usa `contavel`. |
+| `foreach` | Dois binders são separados por `,` antes de `:`; a forma com um binder usa `countable`. |
 | `instance` | Em posição de declaração, inicia uma declaração de instância. É proibido declarar um modificador com esse nome. [Justificativa da reserva](keel-rationale.md#por-que-instance-é-a-única-ressalva-do-documento). |
 
 Uma sequência de identificadores pode indicar uma forma candidata, mas a aceitação do tipo depende dos símbolos e da aridade. A varredura até um delimitador pode ter comprimento variável; o reconhecimento não é descrito como lookahead de tamanho fixo.
@@ -404,7 +404,7 @@ Um declarador como `int (*f)(void);` não satisfaz a regra de função acima: o 
 - Na resolução de `.` consultam-se, nesta ordem, um alias de módulo, um nome de tipo declarado em keel e uma expressão de contêiner reconhecida. As demais formas permanecem acesso a campo ou designador C.
 - Uma declaração local reconhecida que sombreie um qualificador desativa sua interpretação como qualificador naquele escopo. O sombreamento tem os diagnósticos da §2.5.
 - A coexistência de alias de módulo e nome de tipo com a mesma grafia é aceita quando ambos provêm do mesmo módulo. Nos demais casos aplica-se o diagnóstico `alias-type-collision`.
-- A posição de contêiner usa a produção `contentor` e a informação dos símbolos keel. Uma expressão C desconhecida, como uma chamada C ou um cast arbitrário, não fornece a identidade de contêiner exigida pelo despacho.
+- A posição de contêiner usa a produção `container` e a informação dos símbolos keel. Uma expressão C desconhecida, como uma chamada C ou um cast arbitrário, não fornece a identidade de contêiner exigida pelo despacho.
 - Índices, valores e demais argumentos continuam sendo regiões opacas, inclusive quando contêm outras construções keel reconhecíveis.
 - A indexação sobre um símbolo C desconhecido permanece C. A reescrita de índices múltiplos de `array` requer um símbolo com esse marcador; os demais contêineres seguem seus contratos de acesso.
 
@@ -471,11 +471,11 @@ O marcador `array` identifica o símbolo sobre o qual a indexação multidimensi
 
 ```keel
 //keel
-void exemplo(void) {
+void example(void) {
     array char grade[2,3];
     grade[1,2] = 'x';
-    const char *texto = "grade[1,2] .. defer";
-    /* grade[1,2] permanece texto neste comentário. */
+    const char *text = "grade[1,2] .. defer";
+    /* grid[1,2] stays text inside this comment. */
 }
 ```
 
@@ -483,11 +483,11 @@ C correspondente à operação essencial:
 
 ```c
 //C gerado
-void exemplo(void) {
+void example(void) {
     char grade[2][3];
     grade[1][2] = 'x';
-    const char *texto = "grade[1,2] .. defer";
-    /* grade[1,2] permanece texto neste comentário. */
+    const char *text = "grade[1,2] .. defer";
+    /* grid[1,2] stays text inside this comment. */
 }
 ```
 
@@ -495,14 +495,14 @@ O par mostra um corpo de função; a declaração de módulo foi omitida. Detalh
 
 ### 2.8 Referências
 
-- [Rationale](keel-rationale.md): “Fronteira com C e conflitos léxicos”, “Prelúdio e base mínima”, “Constantes nomeadas”, e as justificativas de reconhecimento — “Por que `<opaco>` é o terminal central”, “Por que a contagem é por alternativa” e “Por que a redeclaração é recusada em vez de classificada”.
+- [Rationale](keel-rationale.md): “Fronteira com C e conflitos léxicos”, “Prelúdio e base mínima”, “Constantes nomeadas”, e as justificativas de reconhecimento — “Por que `<opaque>` é o terminal central”, “Por que a contagem é por alternativa” e “Por que a redeclaração é recusada em vez de classificada”.
 - [Backend](keel-c-backend.md): §§2, 5, 6 e 9, para nomes, emissão das construções, mapeamento de linhas e perfis de geração.
 
 ## 3. keel por exemplos
 
 Os pares mostram a operação essencial da tradução. O C usa representações locais dos tipos necessários para tornar os exemplos legíveis; a organização em headers, os nomes internos exatos, o mapeamento de linhas e as verificações de debug pertencem ao backend. Nos exemplos cooperativos, o código `1` representa uma falha sem estabelecer a codificação detalhada de diagnóstico por participante.
 
-Os exemplos §§3.1–3.4 e 3.7 são módulos independentes. Os exemplos §§3.5 e 3.6 compõem o mesmo módulo `cooperacao`: as funções auxiliares são apresentadas uma vez na §3.5. Nenhum import da base, além de `import keel types;`, é implícito.
+Os exemplos §§3.1–3.4 e 3.7 são módulos independentes. Os exemplos §§3.5 e 3.6 compõem o mesmo módulo `coop`: as funções auxiliares são apresentadas uma vez na §3.5. Nenhum import da base, além de `import keel types;`, é implícito.
 
 ### 3.1 Módulo completo e chamada C
 
@@ -514,8 +514,8 @@ module ola;
 import_c <stdio.h>;
 
 int main(void) {
-    array char mensagem[] = "Ola, keel!";
-    puts(mensagem);
+    array char message[] = "Ola, keel!";
+    puts(message);
     return 0;
 }
 ```
@@ -525,12 +525,12 @@ int main(void) {
 #include <stdio.h>
 
 int ola_main(void) {
-    char mensagem[] = "Ola, keel!";
-    puts(mensagem);
+    char message[] = "Ola, keel!";
+    puts(message);
     return 0;
 }
 
-/* Wrapper de entrada, emitido pelo build para o módulo selecionado. */
+/* Entry wrapper, emitted by the build for the selected module. */
 int main(void) { return ola_main(); }
 ```
 
@@ -544,14 +544,14 @@ A função devolve o primeiro caractere lido e fecha o arquivo antes de retornar
 
 ```keel
 //keel
-module leitura;
+module reading;
 import_c <stdio.h>;
 
-pub int primeiro(const char *caminho) {
-    FILE *arquivo = fopen(caminho, "rb");
-    if (!arquivo) return EOF;
-    defer fclose(arquivo);
-    return fgetc(arquivo);
+pub int first(const char *path) {
+    FILE *file = fopen(path, "rb");
+    if (!file) return EOF;
+    defer fclose(file);
+    return fgetc(file);
 }
 ```
 
@@ -559,12 +559,12 @@ pub int primeiro(const char *caminho) {
 //C gerado
 #include <stdio.h>
 
-int leitura_primeiro(const char *caminho) {
-    FILE *arquivo = fopen(caminho, "rb");
-    if (!arquivo) return EOF;
-    int resultado = fgetc(arquivo);
-    fclose(arquivo);
-    return resultado;
+int reading_first(const char *path) {
+    FILE *file = fopen(path, "rb");
+    if (!file) return EOF;
+    int result = fgetc(file);
+    fclose(file);
+    return result;
 }
 ```
 
@@ -578,20 +578,20 @@ Um `slice` de dois elementos aponta para parte de um vetor. Alterar seus element
 
 ```keel
 //keel
-module trecho;
+module span;
 import keel.slice as slice types;
 import keel.range as range types;
 
-pub i16 somar(void) {
+pub i16 sum(void) {
     array i16 dados[3] = {1, 2, 3};
-    slice i16 parte = slice.of(dados, 1, 3);
-    parte[0] = 20;
-    *(slice.ptr(parte) + 1) = 30;
+    slice i16 part = slice.of(dados, 1, 3);
+    part[0] = 20;
+    *(slice.ptr(part) + 1) = 30;
 
     range indices = 0..2;
     i16 total = 0;
     foreach (size_t i : indices) {
-        total += parte[i];
+        total += part[i];
     }
     return total;
 }
@@ -606,16 +606,16 @@ typedef int16_t i16;
 typedef struct { size_t len; i16 *ptr; } keel_slice_i16;
 typedef struct { size_t first, limit; } keel_range;
 
-i16 trecho_somar(void) {
+i16 span_sum(void) {
     i16 dados[3] = {1, 2, 3};
-    keel_slice_i16 parte = {2, dados + 1};
-    parte.ptr[0] = 20;
-    *(parte.ptr + 1) = 30;
+    keel_slice_i16 part = {2, dados + 1};
+    part.ptr[0] = 20;
+    *(part.ptr + 1) = 30;
 
     keel_range indices = {0, 2};
     i16 total = 0;
     for (size_t i = indices.first; i < indices.limit; ++i) {
-        total += parte.ptr[i];
+        total += part.ptr[i];
     }
     return total;
 }
@@ -631,17 +631,17 @@ A função aceita um valor não negativo e ajusta um resultado explicitamente de
 
 ```keel
 //keel
-module resultado;
+module result;
 import keel.outcome as outcome types;
 
-pub outcome i16 aceitar(i16 entrada) {
+pub outcome i16 accept(i16 entry) {
     outcome i16 r = {0};
-    if (entrada < 0) return outcome.fail(r, entrada);
-    return outcome.win(r, entrada);
+    if (entry < 0) return outcome.fail(r, entry);
+    return outcome.win(r, entry);
 }
 
-pub i16 obter(i16 entrada) {
-    outcome i16 res = aceitar(entrada) else 0;
+pub i16 get_value(i16 entry) {
+    outcome i16 res = accept(entry) else 0;
     return outcome.value(res);
 }
 ```
@@ -653,18 +653,18 @@ pub i16 obter(i16 entrada) {
 typedef int16_t i16;
 typedef struct { int32_t code; i16 value; } keel_outcome_i16;
 
-keel_outcome_i16 resultado_aceitar(i16 entrada) {
+keel_outcome_i16 result_accept(i16 entry) {
     keel_outcome_i16 r = {0};
-    if (entrada < 0) { r.code = entrada; return r; }
+    if (entry < 0) { r.code = entry; return r; }
     r.code = 0;
-    r.value = entrada;
+    r.value = entry;
     return r;
 }
 
-i16 resultado_obter(i16 entrada) {
-    keel_outcome_i16 res = resultado_aceitar(entrada);
+i16 result_get_value(i16 entry) {
+    keel_outcome_i16 res = result_accept(entry);
     if (res.code != 0) {
-        /* outcome.win(res, 0): ajusta o próprio res. */
+        /* outcome.win(res, 0): adjusts res itself. */
         res.code = 0;
         res.value = 0;
     }
@@ -672,51 +672,51 @@ i16 resultado_obter(i16 entrada) {
 }
 ```
 
-`obter(7)` devolve `7`; `obter(-7)` devolve `0`. A declaração de `res` continua tendo tipo `outcome i16`; a extração para `i16` só ocorre na chamada explícita a `outcome.value`.
+`get_value(7)` devolve `7`; `get_value(-7)` devolve `0`. A declaração de `res` continua tendo tipo `outcome i16`; a extração para `i16` só ocorre na chamada explícita a `outcome.value`.
 
 Contratos: §§4.10 e 5.5. [Justificativa: resultados finais](keel-rationale.md#resultados-finais-e-estados-cooperativos).
 
 ### 3.5 `match`: o laço pertence à função
 
-A função `anotar`, declarada abaixo, é usada também no exemplo seguinte. `contar` mantém seu progresso no contador passado pelo programa. Cada chamada retorna normalmente: `corot.again` entrega `ONGOING`; `corot.win` entrega `SUCCESS`; `corot.fault(r, 1)` entrega `FAILED`. O retorno é `corot`, que carrega o estado e o código, e nenhum valor: o que a passagem produz fica no contador que o programa passou. `anotar` é uma função comum de retorno `void`.
+A função `note`, declarada abaixo, é usada também no exemplo seguinte. `count` mantém seu progresso no contador passado pelo programa. Cada chamada retorna normalmente: `corot.again` entrega `ONGOING`; `corot.win` entrega `SUCCESS`; `corot.fault(r, 1)` entrega `FAILED`. O retorno é `corot`, que carrega o estado e o código, e nenhum valor: o que a passagem produz fica no contador que o programa passou. `note` é uma função comum de retorno `void`.
 
 ```keel
 //keel
-module cooperacao;
+module coop;
 import keel.corot as corot types;
 import keel.outcome as outcome types;
 import keel.tagged as tagged types;
 
-priv corot contar(i16 *contador, i16 limite, bool falha) {
+priv corot count(i16 *counter, i16 limit, bool failure) {
     corot r = {0};
-    ++*contador;
-    if (*contador < limite) return corot.again(r);
-    if (falha)              return corot.fault(r, 1);
+    ++*counter;
+    if (*counter < limit) return corot.again(r);
+    if (failure)              return corot.fault(r, 1);
     return corot.win(r);
 }
 
-priv void anotar(i16 *contador) {
-    ++*contador;
+priv void note(i16 *counter) {
+    ++*counter;
 }
 
-pub tags Ciclo [ESPERA, FIM];
+pub tags Cycle [WAIT, END];
 
 pub i16 manual(void) {
-    tagged Ciclo void state = {0};
-    tagged.mark(state, ESPERA);
-    i16 chamadas = 0;
-    bool terminou = false;
+    tagged Cycle void state = {0};
+    tagged.mark(state, WAIT);
+    i16 calls = 0;
+    bool finished = false;
 
-    while (!terminou) {
+    while (!finished) {
         match (state) {
-            ESPERA:
-                corot r = contar(&chamadas, 2, false);
-                if (corot.faulted(r) || corot.ok(r)) tagged.mark(state, FIM);
-            FIM:
-                terminou = true;
+            WAIT:
+                corot r = count(&calls, 2, false);
+                if (corot.faulted(r) || corot.ok(r)) tagged.mark(state, END);
+            END:
+                finished = true;
         }
     }
-    return chamadas;
+    return calls;
 }
 ```
 
@@ -729,59 +729,59 @@ typedef int16_t i16;
 typedef struct { int32_t code; } keel_corot;
 typedef struct { int32_t code; i16 value; } keel_outcome_i16;
 
-typedef enum { cooperacao_ESPERA, cooperacao_FIM } cooperacao_Ciclo;
-typedef struct { int32_t tag; } keel_tagged_cooperacao_Ciclo_void;
+typedef enum { coop_WAIT, coop_END } coop_Cycle;
+typedef struct { int32_t tag; } keel_tagged_coop_Cycle_void;
 
-static keel_corot cooperacao_contar(i16 *contador,
-                                         i16 limite, bool falha) {
+static keel_corot coop_count(i16 *counter,
+                                         i16 limit, bool failure) {
     keel_corot r = {0};
-    ++*contador;
-    if (*contador < limite) { r.code =  0; return r; }
-    if (falha)              { r.code =  1; return r; }
+    ++*counter;
+    if (*counter < limit) { r.code =  0; return r; }
+    if (failure)              { r.code =  1; return r; }
     r.code = -1; return r;
 }
 
-static void cooperacao_anotar(i16 *contador) {
-    ++*contador;
+static void coop_note(i16 *counter) {
+    ++*counter;
 }
 
-i16 cooperacao_manual(void) {
-    keel_tagged_cooperacao_Ciclo_void state = {0};
-    state.tag = cooperacao_ESPERA;
-    i16 chamadas = 0;
-    bool terminou = false;
+i16 coop_manual(void) {
+    keel_tagged_coop_Cycle_void state = {0};
+    state.tag = coop_WAIT;
+    i16 calls = 0;
+    bool finished = false;
 
-    while (!terminou) {
+    while (!finished) {
         switch (state.tag) {
-        case cooperacao_ESPERA: goto keel__m0_ESPERA;
-        case cooperacao_FIM:    goto keel__m0_FIM;
+        case coop_WAIT: goto keel__m0_WAIT;
+        case coop_END:    goto keel__m0_END;
         default:                goto keel__m0_end;
         }
-        keel__m0_ESPERA: {
-            keel_corot r = cooperacao_contar(&chamadas, 2, false);
-            if (r.code > 0 || r.code < 0) state.tag = cooperacao_FIM;
+        keel__m0_WAIT: {
+            keel_corot r = coop_count(&calls, 2, false);
+            if (r.code > 0 || r.code < 0) state.tag = coop_END;
         }
         goto keel__m0_end;
-        keel__m0_FIM: {
-            terminou = true;
+        keel__m0_END: {
+            finished = true;
         }
         keel__m0_end: ;
     }
-    return chamadas;
+    return calls;
 }
 ```
 
-`manual()` devolve `2`. A mudança para `FIM` só é observada no próximo despacho do laço escrito pelo usuário; não há passagem automática de um braço ao seguinte. O teste `corot.faulted(r) || corot.ok(r)` significa que a chamada terminou, com falha ou sucesso; não é o predicado de falha de `outcome`.
+`manual()` devolve `2`. A mudança para `END` só é observada no próximo despacho do laço escrito pelo usuário; não há passagem automática de um braço ao seguinte. O teste `corot.faulted(r) || corot.ok(r)` significa que a chamada terminou, com falha ou sucesso; não é o predicado de falha de `outcome`.
 
 O C usa `switch` somente para escolher um rótulo; os corpos dos braços ficam fora dele. Isso preserva a associação de controles escritos pelo usuário aos seus próprios laços. `match` não produz o valor retornado por `manual`: esse retorno é um statement da função.
 
-A variável de estado é um `tagged Ciclo void`: um valor etiquetado sem valor associado. É a mesma construção usada para despachar um `corot`, que é um valor etiquetado com três tags e valor associado.
+A variável de estado é um `tagged Cycle void`: um valor etiquetado sem valor associado. É a mesma construção usada para despachar um `corot`, que é um valor etiquetado com três tags e valor associado.
 
 Contratos: §§4.9 e 5.4. [Justificativa: controle e máquina completa](keel-rationale.md#estrutura-de-controle-e-máquina-completa).
 
 ### 3.6 `routine.par`: tabela de slots e política
 
-Esta função continua o módulo `cooperacao` da §3.5, acrescentando os imports de
+Esta função continua o módulo `coop` da §3.5, acrescentando os imports de
 `keel.routine` e `keel.slice`. As participantes são descritas em um vetor de
 `routine.slot`, montado pelo programa. `routine.par` percorre esse recorte em
 ciclos e devolve um `outcome u32` cujo valor associado é a quantidade de
@@ -792,23 +792,23 @@ sucessos. O estado de cada slot fica no próprio slot e é lido depois.
 import keel.routine as routine types;
 import keel.slice   as slice   types;
 
-priv corot etapa(i16 *contador) {
+priv corot stage(i16 *counter) {
     corot r = {0};
-    ++*contador;
-    if (*contador < 2) return corot.again(r);
+    ++*counter;
+    if (*counter < 2) return corot.again(r);
     return corot.win(r);
 }
 
-pub outcome u32 conjunto(i16 *a, i16 *b) {
-    array routine.slot i16 passos[2] = {
-        { .f = etapa, .ctx = a },
-        { .f = etapa, .ctx = b },
+pub outcome u32 set_of(i16 *a, i16 *b) {
+    array routine.slot i16 steps[2] = {
+        { .f = stage, .ctx = a },
+        { .f = stage, .ctx = b },
     };
 
-    outcome u32 r = routine.par(slice.of(passos), 1);
+    outcome u32 r = routine.par(slice.of(steps), 1);
 
-    foreach (routine.slot i16 *sl, size_t i : passos) {
-        if (corot.ok(routine.state(sl))) anotar(a);
+    foreach (routine.slot i16 *sl, size_t i : steps) {
+        if (corot.ok(routine.state(sl))) note(a);
     }
     return r;
 }
@@ -831,17 +831,17 @@ typedef struct {
 
 typedef struct { int32_t code; uint32_t value; } keel_outcome_u32;
 
-static keel_corot cooperacao_etapa(i16 *contador) {
+static keel_corot coop_stage(i16 *counter) {
     keel_corot r = {0};
-    ++*contador;
-    if (*contador < 2) { r.code = 0; return r; }
+    ++*counter;
+    if (*counter < 2) { r.code = 0; return r; }
     r.code = -1; return r;
 }
 
 static inline keel_outcome_u32
-keel_routine_par_i16(keel_slice_keel_routine_slot_i16 s, uint32_t alvo) {
+keel_routine_par_i16(keel_slice_keel_routine_slot_i16 s, uint32_t target) {
     uint32_t m = (uint32_t)s.len, S = 0, F = 0;
-    uint32_t q = alvo ? alvo : m;
+    uint32_t q = target ? target : m;
     for (size_t i = 0; i < s.len; ++i) s.ptr[i].state.code = 0;
     for (;;) {
         for (size_t i = 0; i < s.len; ++i) {
@@ -855,17 +855,17 @@ keel_routine_par_i16(keel_slice_keel_routine_slot_i16 s, uint32_t alvo) {
     }
 }
 
-keel_outcome_u32 cooperacao_conjunto(i16 *a, i16 *b) {
-    keel_routine_slot_i16 passos[2] = {
-        { cooperacao_etapa, a, {0} },
-        { cooperacao_etapa, b, {0} },
+keel_outcome_u32 coop_set_of(i16 *a, i16 *b) {
+    keel_routine_slot_i16 steps[2] = {
+        { coop_stage, a, {0} },
+        { coop_stage, b, {0} },
     };
-    keel_slice_keel_routine_slot_i16 s = { 2, passos };
+    keel_slice_keel_routine_slot_i16 s = { 2, steps };
     keel_outcome_u32 r = keel_routine_par_i16(s, 1);
 
     for (size_t i = 0; i < 2u; ++i) {
-        keel_routine_slot_i16 *sl = &passos[i];
-        if (sl->state.code < 0) cooperacao_anotar(a);
+        keel_routine_slot_i16 *sl = &steps[i];
+        if (sl->state.code < 0) coop_note(a);
     }
     return r;
 }
@@ -874,7 +874,7 @@ keel_outcome_u32 cooperacao_conjunto(i16 *a, i16 *b) {
 Com `*a` e `*b` em zero, o alvo `1` é alcançado no **fim** do segundo ciclo, e
 não na primeira vitória: as duas entradas são chamadas nesse ciclo e as duas
 terminam em `SUCCESS`. O resultado é válido, com valor `2`; a travessia
-seguinte chama `anotar` duas vezes, e os contadores terminam `*a == 4` e
+seguinte chama `note` duas vezes, e os contadores terminam `*a == 4` e
 `*b == 2`.
 
 O estado é lido pelos verbos de `corot`, e não pelo campo: `routine.state(s)`
@@ -904,40 +904,40 @@ contêiner de saída, e cada um escreve num índice diferente.
 
 ```keel
 //keel
-module varredura;
+module scan;
 import keel.buffer   as buffer   types;
 import keel.slice    as slice    types;
 import keel.parallel as parallel;
 
-pub void somar(buffer i32 *xs, buffer u32 *totais) {
-    parallel soma ALL (size_t w : 0..4; slice i32 parte : xs; (totais)) {
+pub void sum(buffer i32 *xs, buffer u32 *totals) {
+    parallel sum ALL (size_t w : 0..4; slice i32 part : xs; (totals)) {
         u32 t = 0;
-        walk (i32 *p, slice.cursor c : parte) {
+        walk (i32 *p, slice.cursor c : part) {
             t += (u32)*p;
         }
-        totais[w] = t;
+        totals[w] = t;
     }
 }
 ```
 
 ```c
 //C gerado
-void varredura_somar(keel_buffer_i32 *xs, keel_buffer_u32 *totais) {
-    keel_parallel_control soma = { .workers = 4, .target = 0 };
+void scan_sum(keel_buffer_i32 *xs, keel_buffer_u32 *totals) {
+    keel_parallel_control sum = { .workers = 4, .target = 0 };
     {   keel_buffer_i32 *keel__c0 = xs;
 
         #pragma omp parallel for num_threads(4) default(none) \
-                shared(keel__c0, soma, totais)
+                shared(keel__c0, sum, totals)
         for (size_t w = 0; w < 4; w++) {
-            keel_slice_i32 parte = keel_buffer_i32_partition(keel__c0, 4, w);
+            keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
             u32 t = 0;
-            keel_slice_cursor c = keel_slice_i32_begin(&parte);
-            while (keel_slice_i32_has_next(&parte, &c)) {
-                i32 *p = keel_slice_i32_next(&parte, &c);
+            keel_slice_cursor c = keel_slice_i32_begin(&part);
+            while (keel_slice_i32_has_next(&part, &c)) {
+                i32 *p = keel_slice_i32_next(&part, &c);
                 t += (u32)*p;
             }
-            *keel_buffer_u32_ptr(totais, w) = t;
-            atomic_fetch_add_explicit(&soma.wins, 1, memory_order_relaxed);
+            *keel_buffer_u32_ptr(totals, w) = t;
+            atomic_fetch_add_explicit(&sum.wins, 1, memory_order_relaxed);
             keel__end0: ;
         }
     }
@@ -954,7 +954,7 @@ Três coisas que o par mostra, e que os contratos detalham:
   guarda uma posição e não depende de `T` (§§4.7 e 5.3).
 - **A saída por worker vai num contêiner indexado por `w`.** Não vai numa
   captura: captura escalar é cópia por worker, e escrever nela é o error
-  `captured-write`. `totais` entra por ponteiro porque é instância `byref`, e
+  `captured-write`. `totals` entra por ponteiro porque é instância `byref`, e
   cada worker escreve num índice diferente — a disjunção é do programa, não da
   construção.
 
@@ -985,11 +985,11 @@ Organizar declarações em módulos e integrar interfaces e implementações C.
 ```keel
 module geom;
 import util;
-import formas as f types;
+import shapes as f types;
 import_c <stdio.h>;
-extern_c { int operacao_externa(int); }
-pub i32 contador;
-priv i32 auxiliar(i32 x) { return x; }
+extern_c { int external_op(int); }
+pub i32 counter;
+priv i32 helper(i32 x) { return x; }
 ```
 
 `module`, `import`, `import_c` e `extern_c` ocupam o nível de arquivo.
@@ -1070,17 +1070,17 @@ Declarar tipos e símbolos e registrar as propriedades usadas pelas construçõe
 
 ```keel
 buffer i32 dados;
-buffer struct Person pessoas;
-slice const char texto;
-array i32 matriz[2,3];
-array char mensagem[] = "keel";
-i32 *ref elemento = origem;
+buffer struct Person people;
+slice const char text;
+array i32 matrix[2,3];
+array char message[] = "keel";
+i32 *ref element = origin;
 constexpr size_t N = 3;
 ```
 
 A aplicação de um modificador ao tipo forma o especificador que precede o
-declarador C. Em `buffer struct Person pessoas;`, o modificador é `buffer`,
-o tipo modificado é `struct Person` e o objeto declarado é `pessoas`.
+declarador C. Em `buffer struct Person people;`, o modificador é `buffer`,
+o tipo modificado é `struct Person` e o objeto declarado é `people`.
 Ponteiros, qualificadores de ponteiro e extensões de vetor pertencem ao declarador. `array` marca uma declaração de
 vetor em arquivo, bloco, campo ou parâmetro, com as restrições abaixo. `ref`
 ocupa a posição de qualificador depois de `*`. `constexpr` declara uma
@@ -1126,7 +1126,7 @@ constante em arquivo ou bloco, com inicializador e declarador simples.
 - Qualificadores de argumento aceitos antes ou depois do tipo normalizam para
   a mesma identidade. Qualificadores e especificadores C antes do modificador
   qualificam a declaração externa e são preservados; não mudam o argumento.
-- Constantes de enum nomeado recebem o escopo do tipo: `M.Estado.PARADO`.
+- Constantes de enum nomeado recebem o escopo do tipo: `M.State.STOPPED`.
   Enum sem nome usa o escopo do módulo. Dentro do módulo, a constante pode
   ser escrita sem qualificação; de fora, não se omite o nível do tipo.
 - `array` não cria tipo: `array T v[2,3]` traduz para `T v[2][3]`.
@@ -1192,13 +1192,13 @@ Conflitos de nomes seguem §§2.5 e 5. O diagnóstico `ref-arithmetic` inclui `q
 ```keel
 //keel
 array i32 m[2,3];
-i32 *ref p = origem;
+i32 *ref p = origin;
 ```
 
 ```c
 //C gerado
 i32 m[2][3];
-i32 *p = origem;
+i32 *p = origin;
 ```
 
 As declarações não acrescentam alocação nem representação além das formas C.
@@ -1220,25 +1220,25 @@ Definir modificadores de tipos e expandir suas declarações para os argumentos 
 module coll type T;
 pub modifier stack byref { size_t cap, len; T *ptr; }
 
-// Em outro módulo, depois de importar coll:
-coll.stack i32 pilha;
+// In another module, after importing coll:
+coll.stack i32 stack;
 instance coll.stack i32;
 ```
 
 ```keel
-module blocos dim N type T;
-pub modifier bloco { T dados[N]; }
-pub inline void preencher(bloco *b, T valores[static N]) { /* ... */ }
+module blocks dim N type T;
+pub modifier block { T dados[N]; }
+pub inline void fill(block *b, T values[static N]) { /* ... */ }
 ```
 
 ```keel
-module marcados tags E type T;
-pub modifier marcado { i32 tag; T value; }
+module marked tags E type T;
+pub modifier mark { i32 tag; T value; }
 ```
 
 Os parâmetros pertencem à linha `module`, nesta ordem: `dim`, `tags`, `type`.
 Cada um admite lista separada por vírgulas. O uso espelha a assinatura:
-`blocos.bloco(3) i32`, `marcados.marcado Kind i32`. `modifier` e `instance` são declarações de arquivo;
+`blocos.bloco(3) i32`, `marked.mark Kind i32`. `modifier` e `instance` são declarações de arquivo;
 `byref` segue o nome do modificador.
 
 Um módulo parametrizado contém as declarações que serão expandidas. Cada
@@ -1380,17 +1380,17 @@ próprios para cada uso:
 
 ```keel
 //keel
-module pessoas;
+module people;
 import keel.buffer as buffer types;
 import keel.outcome as outcome types;
 import keel.tagged as tagged types;
 
-pub tags Estado [NOVO, ATIVO];
+pub tags State [NEW, ACTIVE];
 
-struct Person { i32 idade; };
-buffer struct Person grupo = {0};
-outcome struct Person resultado = {0};
-tagged Estado struct Person marcado = {0};
+struct Person { i32 age; };
+buffer struct Person group = {0};
+outcome struct Person result = {0};
+tagged State struct Person mark = {0};
 ```
 
 C da representação essencial, com as operações omitidas:
@@ -1401,34 +1401,34 @@ C da representação essencial, com as operações omitidas:
 #include <stdint.h>
 
 typedef int32_t i32;
-struct pessoas_Person { i32 idade; };
+struct people_Person { i32 age; };
 
 typedef struct {
     size_t cap, len;
-    struct pessoas_Person *ptr;
-} keel_buffer_pessoas_Person;
+    struct people_Person *ptr;
+} keel_buffer_people_Person;
 
 typedef struct {
     i32 code;
-    struct pessoas_Person value;
-} keel_outcome_pessoas_Person;
+    struct people_Person value;
+} keel_outcome_people_Person;
 
-typedef enum { pessoas_Estado_NOVO, pessoas_Estado_ATIVO } pessoas_Estado;
+typedef enum { people_State_NEW, people_State_ACTIVE } people_State;
 
 typedef struct {
     i32 tag;
-    struct pessoas_Person value;
-} keel_tagged_pessoas_Estado_pessoas_Person;
+    struct people_Person value;
+} keel_tagged_people_State_people_Person;
 
-keel_buffer_pessoas_Person pessoas_grupo = {0};
-keel_outcome_pessoas_Person pessoas_resultado = {0};
-keel_tagged_pessoas_Estado_pessoas_Person pessoas_marcado = {0};
+keel_buffer_people_Person people_group = {0};
+keel_outcome_people_Person people_result = {0};
+keel_tagged_people_State_people_Person people_mark = {0};
 ```
 
 O tipo `struct Person` é o mesmo nos três usos. O buffer acrescenta o controle
 da sequência; os outros dois acrescentam um inteiro ao valor — um código de
-resultado e uma etiqueta. Em `resultado`, código zero indica resultado válido;
-em `marcado`, a etiqueta é a primeira do conjunto declarado. A disposição exata
+resultado e uma etiqueta. Em `result`, código zero indica resultado válido;
+em `mark`, a etiqueta é a primeira do conjunto declarado. A disposição exata
 dos campos e seus nomes pertencem ao backend.
 
 Para a substituição numérica, em `blocos.bloco(3) i32`, `T dados[N]` torna-se
@@ -1470,7 +1470,7 @@ A resolução aplica, nesta ordem:
 3. Diagnóstico de qualificador incompatível, se o verbo pertence a outro
    módulo; caso contrário, emissão da chamada qualificada para validação C.
 
-A posição de contêiner exige a produção `contentor` da §2.2 e informação de
+A posição de contêiner exige a produção `container` da §2.2 e informação de
 símbolos. Uma chamada C desconhecida não fornece essa informação.
 
 #### 4. Semântica
@@ -1562,7 +1562,7 @@ x[..b]
 x[..]
 ```
 
-São formas de expressão sobre `contentor`. Índices e limites são regiões
+São formas de expressão sobre `container`. Índices e limites são regiões
 C opacas. O recorte por intervalo usa uma dimensão; recortes multidimensionais
 são operações dos módulos que os implementam.
 
@@ -1651,10 +1651,10 @@ Registrar operações de limpeza para as saídas de um escopo léxico.
 #### 2. Sintaxe
 
 ```keel
-defer liberar(p);
-defer { fechar(a); fechar(b); }
-defer [later] liberar(p);
-defer [now int fd, FILE *saida] { relatar(saida); fechar(fd); }
+defer release(p);
+defer { close(a); close(b); }
+defer [later] release(p);
+defer [now int fd, FILE *out] { report(out); close(fd); }
 ```
 
 `defer` é statement de corpo de função, dentro de bloco explícito. Sem lista,
@@ -1735,12 +1735,12 @@ Percorrer elementos ou valores contáveis em ordem sequencial, por índice ou po
 #### 2. Sintaxe
 
 ```keel
-foreach (i32 valor, size_t i : xs) { usar(valor, i); }
+foreach (i32 valor, size_t i : xs) { use(valor, i); }
 foreach (i32 *p, size_t i : xs) { *p += 1; }
-foreach (auto i : 0..n) { usar_indice(i); }
-apply(i32, xs, usar);
-apply(i32 *, xs, visitar, contexto);
-walk (i32 *p, buffer.cursor c : xs) { usar(*p); }
+foreach (auto i : 0..n) { use_index(i); }
+apply(i32, xs, use);
+apply(i32 *, xs, visit, context);
+walk (i32 *p, buffer.cursor c : xs) { use(*p); }
 ```
 
 São statements de corpo de função. Em `foreach`, dois binders separados por
@@ -1855,7 +1855,7 @@ A travessia por cursor produz o laço abaixo:
 keel_buffer_cursor c = keel_buffer_i32_begin(&xs);
 while (keel_buffer_i32_has_next(&xs, &c)) {
     i32 *p = keel_buffer_i32_next(&xs, &c);
-    exemplo_usar(*p);
+    example_use(*p);
 }
 ```
 
@@ -1875,10 +1875,10 @@ Distribuir um contêiner em partes disjuntas, executar um corpo de worker sobre 
 
 ```keel
 //keel
-parallel atualizar ALL (size_t w : 0..4; slice i32 parte : xs) {
-    foreach (i32 *p, size_t i : parte) { *p += 1; }
+parallel update ALL (size_t w : 0..4; slice i32 part : xs) {
+    foreach (i32 *p, size_t i : part) { *p += 1; }
 }
-if (parallel.failed(atualizar)) tratar();
+if (parallel.failed(update)) handle();
 ```
 
 A forma é `parallel nome politica (workers; particao [; (capturas)]) { corpo }`,
@@ -2015,11 +2015,11 @@ auxiliares e consultas de resultado:
 
 ```c
 //C gerado
-keel_parallel_control atualizar = {0};
+keel_parallel_control update = {0};
 for (size_t w = 0; w < 4; ++w) {
-    keel_slice_i32 parte = keel_buffer_i32_partition(&xs, 4, w);
-    for (size_t i = 0; i < parte.len; ++i) {
-        i32 *p = &parte.ptr[i];
+    keel_slice_i32 part = keel_buffer_i32_partition(&xs, 4, w);
+    for (size_t i = 0; i < part.len; ++i) {
+        i32 *p = &part.ptr[i];
         *p += 1;
     }
 }
@@ -2045,25 +2045,25 @@ Declarar conjuntos fechados de etiquetas e despachar o controle pela etiqueta co
 A declaração de um conjunto de tags e o despacho são formas distintas:
 
 ```keel
-pub tags Ciclo [ESPERA, FIM];
+pub tags Cycle [WAIT, END];
 pub tags Status [SUCCESS = -1, ONGOING = 0, FAILED = 1];
 
-tagged Ciclo void state = {0};
+tagged Cycle void state = {0};
 tagged Kind struct Node no = {0};
 
 match (state) {
-    ESPERA:
-        preparar(ctx);
-    FIM:
-        concluir(ctx);
+    WAIT:
+        prepare(ctx);
+    END:
+        finish(ctx);
 }
 ```
 
-`tags` é declaração de arquivo ou de bloco. Em arquivo, sua visibilidade segue `pub`/`priv`. O nome declarado é um argumento de tipo: `tagged Ciclo void` aplica o modificador `tagged` ao conjunto `Ciclo` e ao tipo associado `void`. O modificador é do módulo `keel.tagged` (§5.4); o conjunto e o despacho são do núcleo.
+`tags` é declaração de arquivo ou de bloco. Em arquivo, sua visibilidade segue `pub`/`priv`. O nome declarado é um argumento de tipo: `tagged Cycle void` aplica o modificador `tagged` ao conjunto `Cycle` e ao tipo associado `void`. O modificador é do módulo `keel.tagged` (§5.4); o conjunto e o despacho são do núcleo.
 
 Os valores das tags são opcionais. Quando ausentes, keel atribui ordinais a partir de zero, na ordem escrita. Quando presentes, admitem literal decimal com sinal opcional ou constante nomeada conhecida nas condições da §4.2. Um conjunto não mistura tags com e sem valor escrito.
 
-Uma constante de tag é escrita com o nível do conjunto quando o nome não estiver injetado no arquivo: `Ciclo.FIM`. Dentro de um `match`, os rótulos são escritos sem qualificação, porque o conjunto vem do operando.
+Uma constante de tag é escrita com o nível do conjunto quando o nome não estiver injetado no arquivo: `Cycle.END`. Dentro de um `match`, os rótulos são escritos sem qualificação, porque o conjunto vem do operando.
 
 #### 3. Reconhecimento
 
@@ -2072,7 +2072,7 @@ Uma constante de tag é escrita com o nível do conjunto quando o nome não esti
 - Dentro do corpo, os rótulos externos identificam tags, e cada braço abre um escopo até o próximo rótulo ou até a chave final. Rótulos consecutivos sem statements entre eles compartilham o braço seguinte.
 - O conjunto de tags do operando vem de sua declaração conhecida. keel não deduz o conjunto de uma expressão C arbitrária.
 - O operando não precisa ser uma instância de `tagged`: basta declarar a operação `tag`, pela resolução comum da §4.4. A verificação não se restringe aos nomes dos módulos da base.
-- O conjunto exaustivo vem de um de dois lugares, nesta ordem. Se o tipo do operando é instância de um modificador cujo módulo tem parâmetro `tags`, o conjunto é o **argumento escrito naquela instância** — em `tagged Ciclo void`, é `Ciclo`. Caso contrário, é o conjunto declarado pelo **módulo** do operando, como em `corot`.
+- O conjunto exaustivo vem de um de dois lugares, nesta ordem. Se o tipo do operando é instância de um modificador cujo módulo tem parâmetro `tags`, o conjunto é o **argumento escrito naquela instância** — em `tagged Cycle void`, é `Cycle`. Caso contrário, é o conjunto declarado pelo **módulo** do operando, como em `corot`.
 - No segundo caso o módulo tem de declarar **exatamente um** conjunto: com dois, não há critério para escolher, e é o error `ambiguous-match-tags`. Um operando cujo módulo não declara conjunto nenhum não admite `match`, e é o `match-without-tags`. As duas recusas são de tradução, e nenhuma delas impede o programa de escrever `switch`.
 
 #### 4. Semântica
@@ -2140,13 +2140,13 @@ import keel.buffer as buffer types;
 struct Node { u32 a, b; };
 pub tags Kind [LIT, ADD, MUL];
 
-pub void avaliar(tagged Kind struct Node *n) {
+pub void eval(tagged Kind struct Node *n) {
     match (n) {
         LIT:
-            folha(tagged.value(n));
+            leaf(tagged.value(n));
         ADD:
         MUL:
-            binario(tagged.value(n));
+            binary(tagged.value(n));
     }
 }
 ```
@@ -2162,17 +2162,17 @@ typedef struct {
     struct ast_Node value;
 } keel_tagged_ast_Kind_ast_Node;
 
-void ast_avaliar(keel_tagged_ast_Kind_ast_Node *n) {
+void ast_eval(keel_tagged_ast_Kind_ast_Node *n) {
     switch (n->tag) {
     case ast_Kind_LIT: goto keel__m0_LIT;
     case ast_Kind_ADD: goto keel__m0_ADD;
     case ast_Kind_MUL: goto keel__m0_MUL;
     default:      goto keel__m0_end;
     }
-    keel__m0_LIT: { ast_folha(n->value); }
+    keel__m0_LIT: { ast_leaf(n->value); }
     goto keel__m0_end;
     keel__m0_ADD:
-    keel__m0_MUL: { ast_binario(n->value); }
+    keel__m0_MUL: { ast_binary(n->value); }
     keel__m0_end: ;
 }
 ```
@@ -2197,10 +2197,10 @@ A cláusula `else` é cauda de declaração com um único declarador e
 inicializador, ou de atribuição simples a um identificador já declarado:
 
 ```keel
-outcome i16 r = produzir() else 0;
-outcome i16 s = produzir() else return -1;
-outcome i16 t = produzir() else { tratar(t); }
-r = produzir() else break;
+outcome i16 r = produce() else 0;
+outcome i16 s = produce() else return -1;
+outcome i16 t = produce() else { handle(t); }
+r = produce() else break;
 ```
 
 A primeira forma usa default; as outras executam o tratamento escrito quando o resultado falha. A declaração conserva seu tipo `outcome i16`. A extração é uma operação explícita: `i16 valor = outcome.value(r);`.
@@ -2264,12 +2264,12 @@ Declarar um struct cujos campos marcados `array` são invertidos para colunas pa
 soa struct position {
     array f32 x;
     array f32 y;
-    bool ativo;
+    bool active;
     size_t len, cap;
 };
 
 soa position s;
-void ocupar(soa position *p, size_t n);
+void reserve(soa position *p, size_t n);
 ```
 
 `soa struct NOME { ... }` é declaração de arquivo. Um campo escrito `array T campo;` torna-se `T *campo;`; qualquer outro campo — inclusive `len`, `cap`, ou o que o programa quiser rastrear — passa como escrito, sem alteração alguma. `soa NOME var;` declara uma instância por valor; um parâmetro que a recebe repete a marca e é sempre ponteiro: `soa NOME *param`.
@@ -2309,25 +2309,25 @@ void ocupar(soa position *p, size_t n);
 
 ```keel
 //keel
-module jogo;
+module game;
 import keel.arena as arena types;
 import keel.slice as slice types;
 
 soa struct position {
     array f32 x;
     array f32 y;
-    bool ativo;
+    bool active;
     size_t len, cap;
 };
 
-void ocupar(soa position *p, arena *a, size_t n) {
+void reserve(soa position *p, arena *a, size_t n) {
     p->x = arena.alloc(a, f32, n);
     p->y = arena.alloc(a, f32, n);
     p->cap = n;
     p->len = 0;
 }
 
-bool linha(soa position *p, f32 vx, f32 vy) {
+bool row(soa position *p, f32 vx, f32 vy) {
     if (p->len == p->cap) return false;
     p[p->len].x = vx;
     p[p->len].y = vy;
@@ -2335,9 +2335,9 @@ bool linha(soa position *p, f32 vx, f32 vy) {
     return true;
 }
 
-/* a ponte: slice.from bridging pra foreach/walk/partition/parallel — nenhum
-   deles precisa saber que `xs` veio de um soa. */
-f32 somar_x(soa position *p) {
+/* the bridge: slice.from feeds foreach/walk/partition/parallel — none of
+   them needs to know that `xs` came from a soa. */
+f32 sum_x(soa position *p) {
     slice f32 xs = slice.from(f32, p->x, p->len);
     f32 total = 0;
     foreach (f32 v, size_t i : xs) total += v;
@@ -2440,9 +2440,9 @@ Fornecer armazenamento por região e delimitar a validade dos dados derivados.
 arena a;
 arena.from_array(a, bytes);
 arena.from_stack(a, N);
-arena.from_parent(a, pai, n);
+arena.from_parent(a, parent, n);
 arena.from_memory(a, p, n);
-T *dados = arena.alloc(a, T, quantidade);
+T *dados = arena.alloc(a, T, count_of);
 ```
 
 `arena` é um tipo que representa uma estrutura de controle de memória em
@@ -2533,18 +2533,18 @@ Com os tipos e as funções da base já declarados:
 ```keel
 //keel
 arena a;
-arena.from_memory(a, memoria, bytes);
+arena.from_memory(a, memory, bytes);
 i32 *dados = arena.alloc(a, i32, n);
 ```
 
 ```c
 //C gerado
 arena a;
-keel_arena_from_memory(&a, memoria, bytes);
+keel_arena_from_memory(&a, memory, bytes);
 i32 *dados = keel_arena_alloc_n(&a, n, sizeof(i32), _Alignof(i32));
 ```
 
-A região externa permanece sob o contrato de quem forneceu `memoria`.
+A região externa permanece sob o contrato de quem forneceu `memory`.
 
 #### 8. Referências
 
@@ -2561,11 +2561,11 @@ Representar sequências de comprimento variável, trechos de extensão fixa e in
 #### 2. Sintaxe
 
 ```keel
-buffer i32 b = buffer.of(vetor);
-buffer i32 vazio = buffer.from(p, capacidade);
-slice i32 s = slice.of(b, inicio, fim);
-slice i32 externa = slice.from(i32, p, n);
-range r = inicio..fim;
+buffer i32 b = buffer.of(vec);
+buffer i32 empty = buffer.from(p, capacity);
+slice i32 s = slice.of(b, start, end);
+slice i32 external = slice.from(i32, p, n);
+range r = start..end;
 ```
 
 `buffer` e `slice` modificam o tipo `T` para representar, respectivamente,
@@ -2697,7 +2697,7 @@ Associar uma etiqueta de um conjunto declarado a um valor, e consultá-la ou esc
 ```keel
 import keel.tagged as tagged types;
 
-tagged Ciclo void state = {0};
+tagged Cycle void state = {0};
 tagged Kind struct Node no = {0};
 ```
 
@@ -2721,7 +2721,7 @@ pub inline void set(tagged *t, E e, T v);
 | Escrever a etiqueta, preservando o valor | `tagged.mark(t, E)` | Mesma forma |
 | Escrever etiqueta e valor | `tagged.set(t, E, v)` | Não disponível |
 
-`void` indica ausência de valor associado, conforme §4.3: a instanciação omite o campo declarado com o parâmetro de tipo. `tagged Ciclo void` contém somente a etiqueta.
+`void` indica ausência de valor associado, conforme §4.3: a instanciação omite o campo declarado com o parâmetro de tipo. `tagged Cycle void` contém somente a etiqueta.
 
 **A leitura devolve `i32` e a escrita recebe `E`, e a assimetria é deliberada:**
 a etiqueta armazenada pode não pertencer ao conjunto — é o que a verificação de
@@ -2781,9 +2781,9 @@ Representar resultados finais e retornos cooperativos, e consultar ou ajustar se
 import keel.outcome as outcome types;
 import keel.corot   as corot   types;
 
-outcome i16 resultado;
-outcome void concluido;
-corot passo;
+outcome i16 result;
+outcome void done;
+corot step;
 ```
 
 `outcome T` é o tipo `T` modificado para ter um valor associado a um código em
@@ -2928,11 +2928,11 @@ O receptor determina a operação, inclusive quando não há atribuição:
 
 ```keel
 outcome i16 r = {0};
-outcome.value(r, 12);       // valor 12, código preservado
-outcome.fail(r, -7);       // código -7, valor 12 preservado
-outcome.win(r);            // código 0, valor 12 preservado
-outcome.win(r, 42);        // código 0, valor 42
-outcome.none(r);           // código NONE, valor 42 preservado
+outcome.value(r, 12);       // value 12, code preserved
+outcome.fail(r, -7);       // code -7, value 12 preserved
+outcome.win(r);            // code 0, value 12 preserved
+outcome.win(r, 42);        // code 0, value 42
+outcome.none(r);           // code NONE, value 42 preserved
 ```
 
 A emissão dos verbos está no backend §5.14. O par completo da §3.4 mostra
@@ -2942,19 +2942,19 @@ O par de produção e consulta cooperativa é distinto do protocolo de resultado
 
 ```keel
 //keel
-priv corot tentar(bool indisponivel) {
+priv corot attempt(bool unavailable) {
     corot r = {0};
-    if (indisponivel) return corot.fault(r, 7);
+    if (unavailable) return corot.fault(r, 7);
     return corot.win(r);
 }
 
-pub bool houve_falha(bool indisponivel) {
-    corot passo = tentar(indisponivel);
-    return corot.faulted(passo);
+pub bool had_failure(bool unavailable) {
+    corot step = attempt(unavailable);
+    return corot.faulted(step);
 }
 ```
 
-C da operação essencial, em um módulo `exemplo`:
+C da operação essencial, em um módulo `example`:
 
 ```c
 //C gerado
@@ -2963,14 +2963,14 @@ C da operação essencial, em um módulo `exemplo`:
 
 typedef struct { int32_t code; } keel_corot;
 
-static keel_corot exemplo_tentar(bool indisponivel) {
-    if (indisponivel) return (keel_corot){7};
+static keel_corot example_attempt(bool unavailable) {
+    if (unavailable) return (keel_corot){7};
     return (keel_corot){-1};
 }
 
-bool exemplo_houve_falha(bool indisponivel) {
-    keel_corot passo = exemplo_tentar(indisponivel);
-    return passo.code > 0;
+bool example_had_failure(bool unavailable) {
+    keel_corot step = example_attempt(unavailable);
+    return step.code > 0;
 }
 ```
 
@@ -3014,14 +3014,14 @@ pub inline u64         mask(slice slot s);
 No uso, o programa escreve a tabela e chama a composição:
 
 ```keel
-array routine.slot Ctx passos[3] = {
-    { .f = preparar, .ctx = &ctx },
-    { .f = medir,    .ctx = &ctx },
-    { .f = gravar,   .ctx = &ctx },
+array routine.slot Ctx steps[3] = {
+    { .f = prepare, .ctx = &ctx },
+    { .f = measure,    .ctx = &ctx },
+    { .f = write,   .ctx = &ctx },
 };
 
-outcome u32 r = routine.par(slice.of(passos), 2);
-if (outcome.ok(r)) concluir(&ctx);
+outcome u32 r = routine.par(slice.of(steps), 2);
+if (outcome.ok(r)) finish(&ctx);
 ```
 
 O parâmetro do módulo é o tipo do contexto, e só ele. O estado de saída não é parametrizado: `corot` é tipo, e não modificador (§5.5).

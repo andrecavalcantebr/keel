@@ -67,7 +67,7 @@ A separação é de responsabilidade, não de empacotamento: são módulos do me
 Um ponto de entrada de cada lado:
 
 ```plain
-ferramenta → parser:  processa(fonte, nome_do_módulo) → artefatos, diagnósticos
+ferramenta → parser:  process(source, module_name) → artefatos, diagnósticos
 parser → ferramenta:  carrega(nome_do_módulo) → ok | já_carregado | não_encontrado | erro
 ```
 
@@ -608,7 +608,7 @@ Quatro regras governam a tabela:
   não têm posição, e saem no formato do gcc para erro de invocação:
 
 ```plain
-cgen: error: mais de um fonte .k na invocação [multiple-sources]
+cgen: error: more than one .k source in the invocation [multiple-sources]
 ```
 
 ---

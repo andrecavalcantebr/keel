@@ -142,7 +142,7 @@ module sim;
 
 typedef struct { f32 x, y; } Vec2;
 struct No { struct No *prox; };
-enum Estado { PARADO, ANDANDO };
+enum State { STOPPED, WALKING };
 enum { MAX = 64 };
 ```
 
@@ -150,16 +150,16 @@ enum { MAX = 64 };
 //C gerado
 typedef struct sim_Vec2 { f32 x, y; } sim_Vec2;
 struct sim_No { struct sim_No *prox; };
-enum sim_Estado { sim_Estado_PARADO, sim_Estado_ANDANDO };
+enum sim_State { sim_State_STOPPED, sim_State_WALKING };
 enum { sim_MAX = 64 };
 ```
 
-A **constante de enum** é a que mais importa: ela vive no espaço de identificadores comuns e é definida no header. Sem prefixo, dois módulos que declarem `PARADO` não podem ser importados pelo mesmo terceiro.
+A **constante de enum** é a que mais importa: ela vive no espaço de identificadores comuns e é definida no header. Sem prefixo, dois módulos que declarem `STOPPED` não podem ser importados pelo mesmo terceiro.
 
-E ela leva **dois** níveis, não um: o escopo da constante é o enum, não o módulo (linguagem §4.2), de modo que `Estado.PARADO` e `Tarefa.PARADO` do mesmo módulo não se encontram no `.h`. Enum sem nome não tem escopo próprio e fica com o prefixo do módulo, como qualquer outro símbolo.
+E ela leva **dois** níveis, não um: o escopo da constante é o enum, não o módulo (linguagem §4.2), de modo que `State.STOPPED` e `Task.STOPPED` do mesmo módulo não se encontram no `.h`. Enum sem nome não tem escopo próprio e fica com o prefixo do módulo, como qualquer outro símbolo.
 
 - Vale só em escopo de arquivo. `enum` em escopo de bloco não aparece em header nenhum e não é tocado.
-- Nada de novo é exigido do parser além de **ler o corpo do `enum`** para colher os nomes. A reescrita já existe — é a mesma que troca `Point` por `geom_Point` —, e por isso `ANDANDO = PARADO + 1` sai certo sem tratamento especial: dentro do corpo os dois nomes são nus e os dois são reescritos para o símbolo escopado.
+- Nada de novo é exigido do parser além de **ler o corpo do `enum`** para colher os nomes. A reescrita já existe — é a mesma que troca `Point` por `geom_Point` —, e por isso `WALKING = STOPPED + 1` sai certo sem tratamento especial: dentro do corpo os dois nomes são nus e os dois são reescritos para o símbolo escopado.
 - Dentro de `extern_c` nada disso vale: ali os nomes são do C.
 
 ### 2.2 Normalização do argumento
@@ -304,7 +304,7 @@ O que **não** se faz é condicionar o `typedef` ao alvo:
 
 ```c
 #ifdef __STDC_IEC_60559_TYPES__
-typedef _Float32 f32;      /* NÃO */
+typedef _Float32 f32;      /* NO */
 #else
 typedef float f32;
 #endif
@@ -323,25 +323,25 @@ identidade única:
 > sem o formato, a compilação para com mensagem, antes do `typedef`.
 
 ```c
-/* keel/f16.h — incluído apenas quando o módulo nomeia f16 */
+/* keel/f16.h — included only when the module names f16 */
 #include "keel.type.h"
 
 #if !defined(__FLT16_MANT_DIG__)
-#  error "keel: f16 exige _Float16, que este alvo nao oferece"
+#  error "keel: f16 requires _Float16, which this target does not offer"
 #endif
 typedef _Float16 f16;
-static_assert(sizeof(f16) == 2, "keel: f16 exige binary16 de 16 bits neste alvo");
+static_assert(sizeof(f16) == 2, "keel: f16 requires 16-bit binary16 on this target");
 ```
 
 ```c
-/* keel/bf16.h — incluído apenas quando o módulo nomeia bf16 */
+/* keel/bf16.h — included only when the module names bf16 */
 #include "keel.type.h"
 
 #if !defined(__BFLT16_MANT_DIG__) && !defined(__ARM_BF16_FORMAT_ALTERNATIVE)
-#  error "keel: bf16 exige __bf16, que este alvo nao oferece"
+#  error "keel: bf16 requires __bf16, which this target does not offer"
 #endif
 typedef __bf16 bf16;
-static_assert(sizeof(bf16) == 2, "keel: bf16 exige 16 bits neste alvo");
+static_assert(sizeof(bf16) == 2, "keel: bf16 requires 16 bits on this target");
 ```
 
 **Um header por formato, e é por isso que a guarda não incomoda ninguém.** Se os
@@ -406,7 +406,7 @@ símbolo manglado do §2.1, com o argumento quando há:
 | `module net.http;` | `net/` | `net_http.h` |
 | `module lst;` | — | `lst.h` |
 | instância `buffer i32` de `keel.buffer` | `keel/` | `keel_buffer_i32.h` |
-| instância `stack i32` de `pilha` | — | `pilha_stack_i32.h` |
+| instância `stack i32` de `stack` | — | `pilha_stack_i32.h` |
 
 **A regra é uma só para módulo e para instância**, e é o que ela compra que a
 justifica ([justificativa: o nome do arquivo gerado é o símbolo](keel-rationale.md#o-nome-do-arquivo-gerado-é-o-símbolo)):
@@ -464,12 +464,12 @@ Variável pública **nunca** vai para o `.h` como `static`. Isso compila e linka
 **`extern_c` vai para o `.c`, inteiro.** O conteúdo é opaco e pode misturar tipo com corpo de função; num header, os corpos dariam definição múltipla, e o keel não tem como separar um do outro sem entender o C. Um tipo declarado ali é, portanto, privado do `.c`. **Tipo C que atravessa a interface mora num header, e entra por `import_c`**:
 
 ```keel
-import_c "legado.h";            // typedef struct legado legado_t;  → .type.h
-pub void usa(legado_t *x);      // o tipo chega antes do protótipo
+import_c "legacy.h";            // typedef struct legado legado_t;  → .type.h
+pub void usa(legacy_t *x);      // the type arrives before the prototype
 
-extern_c {                      // → .c: C privado, sem mangling
-    static legado_t cache;
-    void legado_init(void) { /* ... */ }
+extern_c {                      // → .c: private C, no mangling
+    static legacy_t cache;
+    void legacy_init(void) { /* ... */ }
 }
 ```
 
@@ -498,7 +498,7 @@ o que só acontece no desenvolvimento da própria base — gera também `keel.c`
 com o `#include` do `.h` e nada mais.
 
 ```c
-/* keel.type.h — incluído no topo de todo .type.h de módulo */
+/* keel.type.h — included at the top of every module .type.h */
 #include <stdint.h>
 #include <stddef.h>
 #include <float.h>
@@ -572,7 +572,7 @@ buffer slice char lines;
 ```c
 //C gerado
 /* keel/keel_buffer_keel_slice_char.type.h */
-typedef struct keel_slice_char keel_slice_char;   /* basta o nome: o campo é ponteiro */
+typedef struct keel_slice_char keel_slice_char;   /* the name is enough: the field is a pointer */
 
 typedef struct keel_buffer_keel_slice_char {
     size_t           cap;
@@ -618,7 +618,7 @@ Toda aresta desce de camada, salvo L1→L1 e L3→L3.
 O grafo de L1→L1 tem de ser acíclico; um ciclo é tipo de tamanho infinito.
 
 ```keel
-//keel — L1→L1 finito: o campo externo é por valor, o interno por ponteiro
+//keel — finite L1→L1: the outer field is by value, the inner one by pointer
 outcome buffer outcome i32 r;
 ```
 
@@ -628,8 +628,8 @@ keel_outcome_keel_buffer_keel_outcome_i32  ──L1→L1──▶  keel_buffer_k
 ```
 
 ```keel
-//keel — L1→L1 cíclico: layout-cycle
-module lista;
+//keel — cyclic L1→L1: layout-cycle
+module list;
 import keel.outcome as outcome types;
 pub struct No { i32 v; outcome No prox; };
 ```
@@ -650,9 +650,9 @@ chamada preceda o corpo que a chama na unidade de tradução, e o §4.3.2 fixa a
 ordem que o garante.
 
 ```keel
-//keel — L3→L3 cíclico dentro do módulo
-pub inline bool par(u32 n)   { return n == 0 ? true  : impar(n - 1); }
-pub inline bool impar(u32 n) { return n == 0 ? false : par(n - 1); }
+//keel — cyclic L3→L3 inside the module
+pub inline bool par(u32 n)   { return n == 0 ? true  : odd(n - 1); }
+pub inline bool odd(u32 n) { return n == 0 ? false : par(n - 1); }
 ```
 
 As duas arestas que atravessam instância podem correr em sentidos opostos entre
@@ -734,13 +734,13 @@ adiantada de `keel_arena`:
 /* keel_outcome_i32.type.h */
 typedef struct keel_outcome_i32 { i32 code; i32 value; } keel_outcome_i32;
 
-/* keel_buffer_keel_outcome_i32.type.h — regra 1: por ponteiro, L0 */
+/* keel_buffer_keel_outcome_i32.type.h — rule 1: by pointer, L0 */
 typedef struct keel_outcome_i32 keel_outcome_i32;
 typedef struct keel_buffer_keel_outcome_i32 {
     size_t cap, len; keel_outcome_i32 *ptr;
 } keel_buffer_keel_outcome_i32;
 
-/* keel_outcome_keel_buffer_keel_outcome_i32.type.h — regra 1: por valor */
+/* keel_outcome_keel_buffer_keel_outcome_i32.type.h — rule 1: by value */
 #include "keel_buffer_keel_outcome_i32.type.h"
 typedef struct keel_outcome_keel_buffer_keel_outcome_i32 {
     i32 code; keel_buffer_keel_outcome_i32 value;
@@ -757,9 +757,9 @@ static inline keel_outcome_keel_buffer_keel_outcome_i32
 #include "keel_outcome_keel_buffer_keel_outcome_i32.h"          /* 2.3 clone chama win */
 /* 2.4 corpos */
 
-/* keel_outcome_keel_buffer_keel_outcome_i32.h — não inclui keel_buffer_…h */
+/* keel_outcome_keel_buffer_keel_outcome_i32.h — does not include keel_buffer_…h */
 #include "keel_outcome_keel_buffer_keel_outcome_i32.type.h"
-/* protótipos, corpos */
+/* prototypes, bodies */
 ```
 
 Entrando por qualquer um dos `.h`, os tipos chegam completos antes dos
@@ -801,13 +801,13 @@ permite `slice Val` dentro de `struct Val` (linguagem §4.3):
 
 ```keel
 //keel
-pub struct Val { Kind tag; slice Val itens; };
+pub struct Val { Kind tag; slice Val items; };
 ```
 
 ```c
 //C gerado
 /* keel/keel_slice_val_Val.type.h */
-struct val_Val;                                 /* basta o nome: o campo é ponteiro */
+struct val_Val;                                 /* the name is enough: the field is a pointer */
 
 typedef struct keel_slice_val_Val {
     size_t           len;
@@ -815,13 +815,13 @@ typedef struct keel_slice_val_Val {
 } keel_slice_val_Val;
 
 /* val.type.h */
-#include "keel/keel_slice_val_Val.type.h"       /* itens é por valor */
+#include "keel/keel_slice_val_Val.type.h"       /* items is by value */
 
-struct val_Val { val_Kind tag; keel_slice_val_Val itens; };
+struct val_Val { val_Kind tag; keel_slice_val_Val items; };
 
 /* keel/keel_slice_val_Val.h */
 #include "keel/keel_slice_val_Val.type.h"
-#include "val.type.h"                           /* get devolve Val por valor */
+#include "val.type.h"                           /* get returns Val by value */
 ```
 
 O `.h` da instância alcança `Val` pelo `val.type.h`, e não pelo `val.h`.
@@ -846,7 +846,7 @@ instance coll.stack geom.Point;
 /* gen/instances.c — os corpos */
 #include "coll/coll_stack_i32.h"
 #include "coll/coll_stack_geom_Point.h"
-/* definições extern das funções não-inline de cada instância */
+/* extern definitions of each instance's non-inline functions */
 ```
 
 É a disciplina de definição única do C, explicitada: o header da instância é o `extern int g;`, e `instance` é o `int g;`. E é `instances.k` — um fonte que o usuário escreveu — que dá ao build o `.o` e a regra, o que mantém a invariante do §4.1 intacta.
@@ -882,11 +882,11 @@ pub constexpr i32 NONE = INT32_MIN;
 ```
 
 ```c
-/* keel/keel_outcome.type.h — do módulo, uma vez; sob C23 */
+/* keel/keel_outcome.type.h — from the module, once; under C23 */
 constexpr i32 keel_outcome_OK   = 0;
 constexpr i32 keel_outcome_NONE = (-2147483647 - 1);
 
-/* keel/keel_outcome_i32.type.h — por instância */
+/* keel/keel_outcome_i32.type.h — per instance */
 typedef struct keel_outcome_i32 { i32 code; i32 value; } keel_outcome_i32;
 ```
 
@@ -928,7 +928,7 @@ Acesso direto a campo de símbolo conhecido como instância é detectável no fo
 
 ### 5.1 Declarações: substituição local de nome
 
-`<modificador> <argumento>` é um especificador de tipo, e o lowering é troca de nome, **local**. O backend nunca precisa da gramática de declaradores do C:
+`<modifier> <argument>` é um especificador de tipo, e o lowering é troca de nome, **local**. O backend nunca precisa da gramática de declaradores do C:
 
 ```keel
 buffer i32 x;
@@ -936,7 +936,7 @@ buffer i32 *x;
 buffer i32 x[10];
 buffer i32 (*f)(void);
 void (*g)(slice char s);
-typedef slice u8 (*Leitor)(i32);
+typedef slice u8 (*Reader)(i32);
 ```
 
 ```c
@@ -945,7 +945,7 @@ keel_buffer_i32 *x;
 keel_buffer_i32 x[10];
 keel_buffer_i32 (*f)(void);
 void (*g)(keel_slice_char s);
-typedef keel_slice_u8 (*Leitor)(i32);
+typedef keel_slice_u8 (*Reader)(i32);
 ```
 
 `array` e `ref` **somem**:
@@ -981,16 +981,16 @@ instância, não é reordenado.
 ```keel
 alignas(64) array f32 canal[1024];
 static      buffer i32 pool;
-_Atomic     buffer u32 compartilhado;
-buffer _Atomic u32 contadores;
+_Atomic     buffer u32 shared;
+buffer _Atomic u32 counters;
 [[maybe_unused]] slice char s;
 ```
 
 ```c
 alignas(64) f32 canal[1024];
 static      keel_buffer_i32 pool;
-_Atomic     keel_buffer_u32 compartilhado;
-keel_buffer_atomic_u32 contadores;
+_Atomic     keel_buffer_u32 shared;
+keel_buffer_atomic_u32 counters;
 [[maybe_unused]] keel_slice_char s;
 ```
 
@@ -1136,7 +1136,7 @@ porque é a premissa do desenho:
 
 ```c
 /* -O2, x86-64: o corpo de _ptr3 colapsa em */
-t->ptr + idx0 * t->passos[0] + idx1 * t->passos[1] + idx2 * t->passos[2]
+t->ptr + idx0 * t->steps[0] + idx1 * t->steps[1] + idx2 * t->steps[2]
 ```
 
 Em `-O0` não colapsa: o vetor é escrito na pilha e o laço roda. É o custo
@@ -1149,7 +1149,7 @@ decidiu não gerar.
 A arena é o `.h` do módulo `keel.arena` — C comum, utilizável inclusive a partir de código que não passa pelo keel. Ela chega ao módulo pelo `import`, como qualquer outro (§4.2).
 
 ```c
-/* keel/keel_arena — o typedef no .type.h, os corpos no .h */
+/* keel/keel_arena — the typedef in the .type.h, the bodies in the .h */
 typedef struct keel_arena {
     size_t         cap;
     size_t         top;
@@ -1158,7 +1158,7 @@ typedef struct keel_arena {
 
 [[nodiscard]] static inline void *keel_arena_alloc_n(keel_arena *a, size_t n,
                                                      size_t sz, size_t align) {
-    if (n > SIZE_MAX / sz) return NULL;                   /* diagnóstico 109 */
+    if (n > SIZE_MAX / sz) return NULL;                   /* diagnostic 109 */
     size_t need = n * sz;
     uintptr_t base = (uintptr_t)(a->buf + a->top);
     size_t pad   = (size_t)(((base + (align - 1)) & ~(uintptr_t)(align - 1)) - base);
@@ -1298,8 +1298,8 @@ priv int process(arena *a, const char *path) {
 #line 24 "app/main.k"
 static int app_main_process(keel_arena *a, const char *path) {
     FILE *fp = fopen(path, "r");
-    if (!fp) return -1;                     /* nada a limpar: o defer ainda não foi registrado */
-    struct { FILE *fp; } keel__c0 = { fp };  /* [now]: cópia no ponto de registro */
+    if (!fp) return -1;                     /* nothing to clean up: the defer is not registered yet */
+    struct { FILE *fp; } keel__c0 = { fp };  /* [now]: copy at the registration point */
 
     keel_arena s = {0};
     keel_arena_from_parent(&s, a, 4096);
@@ -1316,20 +1316,20 @@ Três coisas nesse par são normativas, e as três sustentam o §6:
 - o cleanup de cada ponto de saída sai **numa linha só**, pela regra 2 do §6;
 - o `return -1` não recebe cleanup, porque naquele ponto nenhum `defer` havia sido registrado.
 
-Em `return expr;`, `expr` é avaliada para um temporário gerado **antes** de o cleanup rodar, e o temporário é retornado depois. Ele é declarado com o **tipo de retorno escrito na função**, copiado como sequência de token da produção `decl-funcao` (linguagem §2.2) — `size_t f(…)` dá `{ size_t keel__rv0 = expr; … }`, e o `*` de `char *f(…)` está no declarador, que também está capturado.
+Em `return expr;`, `expr` é avaliada para um temporário gerado **antes** de o cleanup rodar, e o temporário é retornado depois. Ele é declarado com o **tipo de retorno escrito na função**, copiado como sequência de token da produção `decl-function` (linguagem §2.2) — `size_t f(…)` dá `{ size_t keel__rv0 = expr; … }`, e o `*` de `char *f(…)` está no declarador, que também está capturado.
 
 > **O `auto` do C23 saiu daqui**, e por isso este lowering é o mesmo nos dois perfis (§9). Enquanto não havia produção de função na gramática, o backend genuinamente não tinha o tipo em lugar nenhum. O que o `auto` acrescentava era a conversão de lvalue, inofensiva num temporário inicializado uma vez e devolvido em seguida. O que ele escondia era o caso do declarador que enterra o nome — `int (*f(void))[10]` não tem corrida contígua de tokens que seja o tipo de retorno —, e esse caso passou a ser o error 120 da linguagem, em vez de um lowering que só funcionava sob C23.
 
 **Captura.** A lista de `[now]` já vem com os tipos escritos (linguagem §4.6), então ela **é** a lista de membros: o backend copia cada entrada verbatim para uma struct local gerada no ponto de registro, e o corpo referencia as cópias.
 
 ```keel
-defer [now int fd, FILE *saida] { relata(saida, fd); }
+defer [now int fd, FILE *out] { report(out, fd); }
 ```
 
 ```c
-struct { int fd; FILE *saida; } keel__c0 = { fd, saida };
-/* ... em cada ponto de saída: */
-app_relata(keel__c0.saida, keel__c0.fd);
+struct { int fd; FILE *out; } keel__c0 = { fd, out };
+/* ... at each exit point: */
+app_report(keel__c0.out, keel__c0.fd);
 ```
 
 Nada é interpretado: a entrada da captura entra como membro sem uma reescrita. **O `typeof_unqual` saiu junto com o `auto`**, pelo mesmo motivo — o tipo agora está escrito, e escrito ele serve aos dois perfis. Sem `[now]`, o corpo referencia as variáveis diretamente e não há struct.
@@ -1392,7 +1392,7 @@ O cleanup sai de duas maneiras, e **a condição é léxica**:
 > em cada uma delas.
 
 ```c
-/* escada: 3 registros, 6 saídas */
+/* ladder: 3 registrations, 6 exits */
     if (a==1) { rv=1; goto keel__e2; }
     ...
 keel__e2: s3(r);
@@ -1441,13 +1441,13 @@ O conjunto de tags sai como `enum`; o despacho sai como **salto por `goto` e blo
 //keel
 pub tags Kind [LIT, ADD, MUL];
 
-pub void avaliar(tagged Kind struct Node *n) {
+pub void eval(tagged Kind struct Node *n) {
     match (n) {
         LIT:
-            folha(tagged.value(n));
+            leaf(tagged.value(n));
         ADD:
         MUL:
-            binario(tagged.value(n));
+            binary(tagged.value(n));
     }
 }
 ```
@@ -1455,25 +1455,25 @@ pub void avaliar(tagged Kind struct Node *n) {
 ```c
 //C gerado
 typedef enum ast_Kind {
-    ast_Kind_LIT,            /* 0 — ordinal da posição escrita */
+    ast_Kind_LIT,            /* 0 — ordinal of the written position */
     ast_Kind_ADD,
     ast_Kind_MUL
 } ast_Kind;
 
-void ast_avaliar(keel_tagged_ast_Kind_ast_Node *n) {
-    switch (n->tag) {                                 /* só saltos: nada do usuário aqui */
+void ast_eval(keel_tagged_ast_Kind_ast_Node *n) {
+    switch (n->tag) {                                 /* jumps only: nothing of the user's here */
     case ast_Kind_LIT: goto keel__m0_LIT;
     case ast_Kind_ADD: goto keel__m0_ADD;
     case ast_Kind_MUL: goto keel__m0_MUL;
     default:           goto keel__m0_end;
     }
     keel__m0_LIT: {
-        ast_folha(keel_tagged_ast_Kind_ast_Node_value(n));
+        ast_leaf(keel_tagged_ast_Kind_ast_Node_value(n));
     }
     goto keel__m0_end;
     keel__m0_ADD:
     keel__m0_MUL: {
-        ast_binario(keel_tagged_ast_Kind_ast_Node_value(n));
+        ast_binary(keel_tagged_ast_Kind_ast_Node_value(n));
     }
     keel__m0_end: ;
 }
@@ -1504,13 +1504,13 @@ Cabeçalho numa linha, corpo copiado, nenhuma diretiva `#line`.
 
 ```keel
 foreach (i32 v, size_t i : xs) {
-    soma += v * pesos[i];
+    sum += v * pesos[i];
 }
 ```
 
 ```c
 { keel_buffer_i32 *keel__c0 = &xs; size_t keel__n0 = keel_buffer_i32_length(keel__c0); for (size_t i = 0; i < keel__n0; i++) { i32 v = keel_buffer_i32_get(keel__c0, i);
-    soma += v * pesos[i];
+    sum += v * pesos[i];
 } }
 ```
 
@@ -1543,23 +1543,23 @@ O que sai são **o gestor, um laço de workers e a chamada de partição** — e
 //keel
 f32 dt = 1.0f / 60.0f;
 
-parallel passo ALL (size_t w : 0..4; slice Particle parte : ps; (dt)) {
-    foreach (Particle *p, size_t i : parte) { p->v += dt * p->a; }
+parallel step ALL (size_t w : 0..4; slice Particle part : ps; (dt)) {
+    foreach (Particle *p, size_t i : part) { p->v += dt * p->a; }
 }
-if (parallel.failed(passo)) trata();
+if (parallel.failed(step)) handle();
 ```
 
 ```c
 //C gerado
-keel_parallel_control passo = { .workers = 4, .target = 0 };
+keel_parallel_control step = { .workers = 4, .target = 0 };
 {   keel_buffer_sim_Particle *keel__c0 = &ps;
 
     #pragma omp parallel for num_threads(4) default(none) \
-            shared(keel__c0, passo) firstprivate(dt)
+            shared(keel__c0, step) firstprivate(dt)
     for (size_t w = 0; w < 4; w++) {
-        keel_slice_sim_Particle parte =
+        keel_slice_sim_Particle part =
             keel_buffer_sim_Particle_partition(keel__c0, 4, w);
-        { keel_slice_sim_Particle *keel__c1 = &parte;
+        { keel_slice_sim_Particle *keel__c1 = &part;
           size_t keel__n1 = keel_slice_sim_Particle_length(keel__c1);
           for (size_t i = 0; i < keel__n1; i++) {
             sim_Particle *p = keel_slice_sim_Particle_ptr(keel__c1, i);
@@ -1568,7 +1568,7 @@ keel_parallel_control passo = { .workers = 4, .target = 0 };
         keel__end0: ;
     }
 }
-if (keel_parallel_failed(&passo)) sim_trata();
+if (keel_parallel_failed(&step)) sim_handle();
 ```
 
 Nove regras de emissão:
@@ -1578,7 +1578,7 @@ Nove regras de emissão:
 3. **A parte é ligada ao binder por valor**, com o tipo que o módulo declarou como produto de `partition` — aqui `keel_slice_sim_Particle`. Percorrer é do corpo, que é código comum: o `foreach` acima saiu pela regra do §5.7, sobre a parte, e não sobre o todo.
 4. **`num_threads(k)` sai sempre**, com o literal. É o que materializa "uma thread por parte"; sem ele o número de partes continuaria certo, mas duas rodariam na mesma thread, o que a linguagem permite e ninguém escreveria à mão.
 5. **`default(none)` é obrigatório**, e é ele que cumpre a promessa da linguagem §4.8: um local não listado na captura vira **erro do compilador C nomeando a variável**, na linha do `.k`. Sem a cláusula, ele entraria como `shared` em silêncio e o programa teria corrida.
-6. **Os temporários gerados e o símbolo de controle entram nas cláusulas junto com os do usuário.** `default(none)` exige atributo para tudo que a região toca, inclusive `keel__c0` e `passo` — e o backend os lista porque escreveu os nomes.
+6. **Os temporários gerados e o símbolo de controle entram nas cláusulas junto com os do usuário.** `default(none)` exige atributo para tudo que a região toca, inclusive `keel__c0` e `step` — e o backend os lista porque escreveu os nomes.
 7. **Captura escalar é `firstprivate`; instância `byref` é `shared`.** É a disciplina da linguagem §4.8 traduzida uma para uma. Escrever num escalar capturado já é o error `captured-write` na linguagem, então o backend não precisa de `const` para proibi-lo — e é uma diferença de custo real: com um struct de argumentos, o tipo de cada captura teria que ser escrito, e o backend não o conhece (§5.5).
 8. **`win` e `fail` saltam para o fim do corpo do worker.** Viram `goto keel__end<N>`, com o rótulo dentro do bloco estruturado da iteração — nunca `break`, nunca `return`, nunca saída da região. `return` do usuário é o error `return-in-parallel` na linguagem, exatamente porque não teria como sair daqui: sob OpenMP o GCC recusa a região com `invalid branch to/from OpenMP structured block`. Eles são pontos de saída de escopo, então os `defer` registrados no corpo — inclusive em travessias aninhadas — saem antes do salto, pela regra do §5.5.
    **O fim natural não grava nada**, e é por isso que o rótulo pode ficar na última linha do corpo: quem sai por verbo já contabilizou antes de saltar, e quem chega ao fim apenas termina. Contabilizar o fim natural como vitória tornaria `ANY` satisfeito por workers que não acharam nada (linguagem §4.8).
@@ -1587,7 +1587,7 @@ Nove regras de emissão:
 **O tipo do símbolo é do módulo, e sai no header dele** — `keel.parallel` é módulo comum (linguagem §5.7), e o gestor apenas escreve nos seus campos:
 
 ```c
-/* keel/keel_parallel — o typedef no .type.h, os corpos no .h */
+/* keel/keel_parallel — the typedef in the .type.h, the bodies in the .h */
 #include <stdatomic.h>
 
 typedef struct keel_parallel_control {
@@ -1615,16 +1615,16 @@ static inline bool keel_parallel_ok(keel_parallel_control *c) {
 
 ```c
 /* win;  — sob ANY, alvo 1 */
-if (atomic_fetch_add_explicit(&passo.wins, 1, memory_order_relaxed) + 1 >= 1)
-    atomic_store_explicit(&passo.flag, true, memory_order_relaxed);
+if (atomic_fetch_add_explicit(&step.wins, 1, memory_order_relaxed) + 1 >= 1)
+    atomic_store_explicit(&step.flag, true, memory_order_relaxed);
 goto keel__end0;
 
 /* fail; */
-atomic_fetch_add_explicit(&passo.fails, 1, memory_order_relaxed);
+atomic_fetch_add_explicit(&step.fails, 1, memory_order_relaxed);
 goto keel__end0;
 
 /* parallel.interrupted(passo) */
-atomic_load_explicit(&passo.flag, memory_order_relaxed)
+atomic_load_explicit(&step.flag, memory_order_relaxed)
 ```
 
 A terceira linha é a diferença de modelo em relação à revisão anterior: **`interrupted` é consulta, não saída**. Ela devolve `bool` onde foi escrita, não salta, não grava status e não dispara cleanup; o que o worker faz com a resposta é código dele. Sob `ALL` a bandeira nunca é armada, e a consulta é sempre falsa — legal, e sem caso especial na emissão.
@@ -1640,13 +1640,13 @@ A terceira linha é a diferença de modelo em relação à revisão anterior: **
 `apply(T, c, fn, …)` é o mesmo laço com o corpo fixo, e os argumentos de contexto atravessam opacos, na ordem escrita, depois do elemento e do índice:
 
 ```keel
-apply(i32, xs, dobra);
-apply(Node *, p->ns, visita, pool, sb);
+apply(i32, xs, doubler);
+apply(Node *, p->ns, visit, pool, sb);
 ```
 
 ```c
-{ keel_buffer_i32 *keel__c0 = &xs; size_t keel__n0 = keel_buffer_i32_length(keel__c0); for (size_t keel__i0 = 0; keel__i0 < keel__n0; keel__i0++) { m_dobra(keel_buffer_i32_get(keel__c0, keel__i0), keel__i0); } }
-{ keel_buffer_ast_Node *keel__c1 = &p->ns; size_t keel__n1 = keel_buffer_ast_Node_length(keel__c1); for (size_t keel__i1 = 0; keel__i1 < keel__n1; keel__i1++) { lift_visita(keel_buffer_ast_Node_ptr(keel__c1, keel__i1), keel__i1, pool, sb); } }
+{ keel_buffer_i32 *keel__c0 = &xs; size_t keel__n0 = keel_buffer_i32_length(keel__c0); for (size_t keel__i0 = 0; keel__i0 < keel__n0; keel__i0++) { m_doubler(keel_buffer_i32_get(keel__c0, keel__i0), keel__i0); } }
+{ keel_buffer_ast_Node *keel__c1 = &p->ns; size_t keel__n1 = keel_buffer_ast_Node_length(keel__c1); for (size_t keel__i1 = 0; keel__i1 < keel__n1; keel__i1++) { lift_visit(keel_buffer_ast_Node_ptr(keel__c1, keel__i1), keel__i1, pool, sb); } }
 ```
 
 `fn` recebe elemento e índice, nessa ordem, e depois o contexto. A chamada é direta: se `fn` é função keel, sai manglada; se vem de `extern_c`, sai como está. O backend **não conta nem examina os argumentos de contexto** — quem confere o parâmetro é o compilador C, pelo princípio 3.
@@ -1678,11 +1678,11 @@ A composição deixou de ser construção: `seq` e `par` são funções de um m�
 
 ```keel
 //keel
-array routine.slot Ctx passos[2] = {
-    { .f = preparar, .ctx = &ctx },
-    { .f = medir,    .ctx = &ctx },
+array routine.slot Ctx steps[2] = {
+    { .f = prepare, .ctx = &ctx },
+    { .f = measure,    .ctx = &ctx },
 };
-outcome u32 r = routine.par(slice.of(passos), 1);
+outcome u32 r = routine.par(slice.of(steps), 1);
 ```
 
 ```c
@@ -1695,12 +1695,12 @@ typedef struct keel_routine_slot_Ctx {
     keel_corot       state;
 } keel_routine_slot_Ctx;
 
-keel_routine_slot_Ctx app_passos[2] = {
-    { app_preparar, &app_ctx, {0} },
-    { app_medir,    &app_ctx, {0} },
+keel_routine_slot_Ctx app_steps[2] = {
+    { app_prepare, &app_ctx, {0} },
+    { app_measure,    &app_ctx, {0} },
 };
 keel_outcome_u32 r =
-    keel_routine_par_Ctx(keel_slice_keel_routine_slot_Ctx_of(app_passos, 2), 1);
+    keel_routine_par_Ctx(keel_slice_keel_routine_slot_Ctx_of(app_steps, 2), 1);
 ```
 
 Quatro regras de emissão:
@@ -1717,10 +1717,10 @@ Quatro regras de emissão:
 Os dois protocolos que a linguagem §5.1 exige de `walk` e de `parallel` saem como funções de instância comuns (§5.2). O que é próprio deles é onde o tipo do cursor mora e o que a partição devolve.
 
 ```c
-/* keel/keel_buffer.type.h — do módulo, não da instância */
+/* keel/keel_buffer.type.h — from the module, not the instance */
 typedef struct keel_buffer_cursor { size_t i; } keel_buffer_cursor;
 
-/* keel/keel_buffer_i32.h — da instância; os protótipos, e depois os corpos */
+/* keel/keel_buffer_i32.h — from the instance; the prototypes, then the bodies */
 static inline keel_buffer_cursor keel_buffer_i32_begin(keel_buffer_i32 *b);
 static inline bool  keel_buffer_i32_has_next(keel_buffer_i32 *b, keel_buffer_cursor *c);
 static inline i32  *keel_buffer_i32_next(keel_buffer_i32 *b, keel_buffer_cursor *c);
@@ -1743,14 +1743,14 @@ O lowering é uma linha, e é o que a linguagem §4.10 define: a declaração, o
 ```keel
 //keel
 outcome Cfg c = cfg.le(path) else return -1;
-outcome u32 n = cfg.porta(path) else { log(path); return -1; }
+outcome u32 n = cfg.port(path) else { log(path); return -1; }
 r = cfg.le(path) else break;
 ```
 
 ```c
 //C gerado
 keel_outcome_cfg_Cfg c = cfg_le(path); if (keel_outcome_cfg_Cfg_failed(c)) return -1;
-keel_outcome_u32 n = cfg_porta(path); if (keel_outcome_u32_failed(n)) { log(path); return -1; }
+keel_outcome_u32 n = cfg_port(path); if (keel_outcome_u32_failed(n)) { log(path); return -1; }
 r = cfg_le(path); if (keel_outcome_cfg_Cfg_failed(r)) break;
 ```
 
@@ -1810,7 +1810,7 @@ representação e operações para cada aplicação, constantes uma vez no módu
 
 ```keel
 //keel
-pub outcome u32 porta(const char *path);
+pub outcome u32 port(const char *path);
 ```
 
 ```c
@@ -1838,7 +1838,7 @@ static inline keel_outcome_u32 keel_outcome_u32_none(keel_outcome_u32 *r) {
     return *r;
 }
 
-keel_outcome_u32 cfg_porta(const char *path);
+keel_outcome_u32 cfg_port(const char *path);
 ```
 
 Quatro regras:
@@ -1863,7 +1863,7 @@ o setter recebe endereço, conforme sua assinatura escrita.
 **`corot` tem o mesmo layout de um `outcome void` e outra leitura do zero.** Ele é tipo, e não modificador (linguagem §5.5): sai **uma vez** no `.type.h` do módulo, sem header de instância e sem sufixo de argumento.
 
 ```c
-/* keel/keel_corot — os typedef no .type.h, os corpos no .h */
+/* keel/keel_corot — the typedefs in the .type.h, the bodies in the .h */
 typedef struct keel_corot { i32 code; } keel_corot;
 
 typedef enum keel_corot_Status {
@@ -1979,7 +1979,7 @@ Só que essa posição sozinha não diz **qual** instanciação quebrou, e um ge
 
 ```plain
 coll.k:14:12: error: invalid operands to binary + [...]
-sim.k:7:1: note: na instanciação de coll.stack em geom.Point
+sim.k:7:1: note: in the instantiation of coll.stack at geom.Point
 ```
 
 O `note:` é do cgen, não do compilador C, e é a única informação que o mapeamento de linhas sozinho não alcança.
@@ -2020,8 +2020,8 @@ linguagem já nomeia: o `&` de adaptação vem do **parâmetro declarado no call
 lendo a assinatura de lá.
 
 ```keel
-/* b.k */  pub void consume(slice i32 s);     →  A emite  b_consume(s)
-/* b.k */  pub void consume(slice i32 *s);    →  A emite  b_consume(&s)
+/* b.k */  pub void consume(slice i32 s);     →  A emit  b_consume(s)
+/* b.k */  pub void consume(slice i32 *s);    →  A emit  b_consume(&s)
 ```
 
 Editar `b.k` muda o `.c` de `A` sem que `A.k` seja tocado. **O critério de
@@ -2146,7 +2146,7 @@ priv constexpr int K = 1 << 4;
 ```c
 //C gerado
 #define app_K ((int)(1 << 4))
-static const int app_K__chk = (1 << 4);      /* confere restrição e constância */
+static const int app_K__chk = (1 << 4);      /* checks the restriction and the constancy */
 ```
 
 **O cast é obrigatório**, e é ele que preserva o sentido. Sem ele, quatro classes
@@ -2214,7 +2214,7 @@ static void app_f(struct S *s) {
 
 Três regras, e as três existem por um caso concreto:
 
-1. **O nome é `keel__<símbolo>_<ordinal do bloco>`.** O prefixo reservado (§2)
+1. **O nome é `keel__<símbolo>_<ordinal do block>`.** O prefixo reservado (§2)
    garante que ele não colida com símbolo do usuário nem com macro vinda de
    header; o nome do usuário no meio é o que mantém o gerado legível, que é o
    princípio 2; o ordinal separa dois blocos irmãos que declarem o mesmo `N`.

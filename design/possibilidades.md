@@ -79,7 +79,7 @@ Abertos:
   `slice`.
 - `stack` é `buffer` com os verbos restritos: vale o tipo à parte pela
   intenção, ou basta documentar o uso de `buffer.push`/`pop`? O caso golden
-  007 já tem um `pilha.stack` do usuário.
+  007 já tem um `coll.stack` do usuário.
 
 ### `keel.strbuf` / `keel.string`
 
@@ -106,13 +106,13 @@ bitset clássico, sem tipo à parte.
 
 ```keel
 module keel.bitbuffer dim W type T;
-pub modifier bitbuffer byref { u8 *palavras; size_t len, cap; }
-// get/set convertem entre o empacotamento de W bits e o T da chamada
+pub modifier bitbuffer byref { u8 *words; size_t len, cap; }
+// get/set convert between the W-bit packing and the call's T
 ```
 
 ```keel
-bitbuffer(3) u8 grupos;
-bitbuffer(1) u8 marcados;   // bitmask
+bitbuffer(3) u8 groups;
+bitbuffer(1) u8 marked;   // bitmask
 ```
 
 Uso já à vista: a tabela de estados de `keel.routine` (spec §5.6) poderia ser
@@ -181,11 +181,11 @@ Os protocolos da spec §5.1 são estruturais: quem declara `begin`/`has_next`/
 quase não pede peça nova:
 
 ```keel
-module Traversable type T;          // só protótipos sobre T: é o contrato
+module Traversable type T;          // prototypes over T only: that is the contract
 
-module keel.buffer type T [protocol Traversable];   // o módulo declara que cumpre
+module keel.buffer type T [protocol Traversable];   // the module declares that it complies
 
-module stats type C [protocol Traversable];         // o genérico exige (bound)
+module stats type C [protocol Traversable];         // the generic requires it (bound)
 pub f64 media(C *c) {
     f64 s = 0; size_t n = 0;
     walk (f64 *x, cursor k : c) { s += *x; n++; }

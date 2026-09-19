@@ -293,17 +293,17 @@ qualquer fonte C sem adaptação.
 
 Referência: spec v3 §§1.1, 1.3 e 1.4.
 
-## Por que `<opaco>` é o terminal central
+## Por que `<opaque>` é o terminal central
 
 Uma gramática de ilha não é uma gramática de C com buracos: é o inverso — uma
-gramática pequena com um terminal enorme. `<opaco>` é o que torna o contrato de
+gramática pequena com um terminal enorme. `<opaque>` é o que torna o contrato de
 análise da §1.3 verificável em vez de aspiracional, porque toda produção que não
 sabe o que fazer com um trecho **tem para onde reduzi-lo**.
 
 A consequência é medível: a gramática tem setenta e duas produções, e nenhuma
 delas descreve expressão, precedência ou a gramática completa de declaradores do
 C. A ambiguidade clássica — `(a)(b)` é chamada ou conversão? — não aparece,
-porque as duas leituras reduzem ao mesmo `<opaco>`.
+porque as duas leituras reduzem ao mesmo `<opaque>`.
 
 Referência: [spec v3 §2.2](keel-spec.md#22-sintaxe).
 
@@ -323,9 +323,9 @@ Referência: [spec v3 §2.2](keel-spec.md#22-sintaxe).
 
 ## A posição de contêiner não é um sistema de tipos
 
-`contentor` parece tipagem e não é: é uma **tabela fixa de tipos de retorno**
+`container` parece tipagem e não é: é uma **tabela fixa de tipos de retorno**
 avaliada sobre símbolos que keel mesmo declarou. Cada nó tem tipo em função apenas
-do primeiro argumento, e a avaliação nunca entra em `<opaco>`. É o preço mínimo da
+do primeiro argumento, e a avaliação nunca entra em `<opaque>`. É o preço mínimo da
 resolução de verbo — sem ele, `buffer.push(x, v)` não teria como escolher a função
 —, e é o único lugar em que ele é pago.
 
@@ -355,7 +355,7 @@ existe em código de plataforma:
 #else
     if ((v = digitalRead(port))) {
 #endif
-    /* muito código */
+    /* lots of code */
     }
 ```
 
@@ -430,9 +430,9 @@ um objeto cujo declarador ou inicializador também contenha parênteses.
 Os três casos mostram por que a presença de `(` não basta:
 
 ```c
-int f(void);       /* declaração de função */
-int (*f)(void);    /* declaração de ponteiro para função */
-int x = f(1);      /* declaração de objeto com chamada no inicializador */
+int f(void);       /* function declaration */
+int (*f)(void);    /* declaration of a pointer to function */
+int x = f(1);      /* object declaration with a call in the initializer */
 ```
 
 No primeiro, o grupo final `(void)` vem imediatamente depois do identificador
@@ -739,7 +739,7 @@ verificação existe para mostrar. O `default` presente no C emitido não é bra
 `tagged E T` associa a etiqueta ao valor. O modificador é comum: um `i32` de
 etiqueta e um campo do tipo associado, com `void` omitindo o campo pela regra
 geral de omissão. Isso permite que a mesma construção sirva a uma variável de
-estado sem valor, `tagged Ciclo void`, e a um valor etiquetado de verdade,
+estado sem valor, `tagged Cycle void`, e a um valor etiquetado de verdade,
 `tagged Kind struct Node`.
 
 O despacho não exige `tagged`. `match` pede o verbo `tag` pela resolução
@@ -1210,7 +1210,7 @@ essa substituição. Chamar um tipo comum de “tipo sem parâmetros” mistura
 o tipo com o mecanismo usado para produzir outras declarações.
 
 A leitura de `long int` fornece a analogia: um especificador modifica o sentido
-do tipo com que se combina. Em `buffer struct Person pessoas;`, `buffer`
+do tipo com que se combina. Em `buffer struct Person people;`, `buffer`
 modifica `struct Person` para produzir a representação de uma sequência de
 pessoas, com ponteiro, comprimento e capacidade. O modificador define também
 as operações que consultam e ajustam esses metadados.
@@ -1350,7 +1350,7 @@ static inline obuf buf_clone(buf *b) { obuf r = {0}; r.value = *b; return r; }
 /* obuf.h — outcome buffer outcome i32 */
 #ifndef OBUF_H
 #define OBUF_H
-#include "buf.h"                                   /* o campo value é por valor */
+#include "buf.h"                                   /* the value field is by value */
 typedef struct obuf { i32 code; buf value; } obuf;
 static inline obuf *obuf_win(obuf *r, buf v) { r->code = 0; r->value = v; return r; }
 #endif
@@ -1372,11 +1372,11 @@ de entrada é de quem inclui. A saída é notar que as duas arestas são de
 arquivos (guardas omitidas):
 
 ```c
-/* buf.type.h — só layout; o elemento é ponteiro, basta o nome */
+/* buf.type.h — layout only; the element is a pointer, the name is enough */
 typedef struct outcome_i32 outcome_i32;
 typedef struct buf { size_t cap, len; outcome_i32 *ptr; } buf;
 
-/* obuf.type.h — só layout; value é por valor, inclui o .type.h, não o .h */
+/* obuf.type.h — layout only; value is by value, includes the .type.h, not the .h */
 #include "buf.type.h"
 typedef struct obuf { i32 code; buf value; } obuf;
 
@@ -1389,7 +1389,7 @@ static inline obuf *obuf_win(obuf *r, buf v) { r->code = 0; r->value = v; return
 #include "buf.type.h"
 #include "outcome_i32.type.h"                      /* get devolve outcome_i32 */
 #include "obuf.type.h"                             /* clone devolve obuf      */
-static inline obuf buf_clone(buf *b);              /* protótipos */
+static inline obuf buf_clone(buf *b);              /* prototypes */
 #include "obuf.h"                                  /* clone chama obuf_win    */
 static inline obuf buf_clone(buf *b) {             /* corpos */
     obuf r = {0}; return *obuf_win(&r, *b);

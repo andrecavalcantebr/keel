@@ -203,7 +203,7 @@ app.geom.Point"`, `"blocos.bloco(3) f32"`. Algoritmo:
 4. Os argumentos são resolvidos como num uso, carregando cada módulo que
    qualificam. Aridade ou espécie que não casa com `dim`/`tags`/`type` da linha
    `module`: `instancia-invalida`.
-5. A invocação compila a instância: os três headers dela e o `.c` com o símbolo
+5. A invocação compila a instância: os dois headers dela e o `.c` com o símbolo
    dela (`gen/keel/keel_buffer_i32.c`). Genérico todo `pub inline`:
    `instance-inutil` (`warning`), e o `.c` sai só com o include.
 
@@ -226,7 +226,7 @@ Em `tools/cgen/src/`, um par `.c`/`.h` por responsabilidade:
 | `tool.c` | `carrega`/`processa` (spec §3), pilha de carga, memoização, fecho de mtime | não parseia |
 | `lexer.c` | [`lexer-design.md`](lexer-design.md) | — |
 | `parser.c`, `symtab.c` | ilhas, declarações, tabela de símbolos | não abre arquivo, não escreve |
-| `emit.c` | backend: `.type.h`, `.proto.h`, `.h` de tudo que é alcançado; `.c` só do compilado | não escreve em disco |
+| `emit.c` | backend: `.type.h` e `.h` de tudo que é alcançado; `.c` só do compilado | não escreve em disco |
 | `writer.c` | spec da ferramenta §6: comparar, temporário, `rename` | não gera conteúdo |
 | `depfile.c` | §7 | — |
 | `cc.c` | monta o `argv` do `cc`, `posix_spawnp` + `waitpid` | — |
@@ -372,12 +372,12 @@ Escreve os arquivos e não chama o `cc`. Sob `--dest-dir D` (backend §4.1):
 
 | Quem | Arquivos |
 | --- | --- |
-| módulo compilado `a.b` | `D/a/a_b.type.h`, `D/a/a_b.proto.h`, `D/a/a_b.h`, `D/a/a_b.c` |
-| módulo importado `a.b` | `D/a/a_b.type.h`, `D/a/a_b.proto.h`, `D/a/a_b.h` |
-| o prelúdio `keel`, sempre importado | `D/keel.type.h`, `D/keel.proto.h`, `D/keel.h` |
-| genérico importado `keel.buffer` | `D/keel/keel_buffer.{type,proto}.h`, `D/keel/keel_buffer.h` — só o que não menciona parâmetro (backend §4.4.1) |
-| instância usada `buffer i32` | `D/keel/keel_buffer_i32.{type,proto}.h`, `D/keel/keel_buffer_i32.h` |
-| instância compilada por `--instance` | os três headers e `D/keel/keel_buffer_i32.c` |
+| módulo compilado `a.b` | `D/a/a_b.type.h`, `D/a/a_b.h`, `D/a/a_b.c` |
+| módulo importado `a.b` | `D/a/a_b.type.h`, `D/a/a_b.h` |
+| o prelúdio `keel`, sempre importado | `D/keel.type.h`, `D/keel.h` |
+| genérico importado `keel.buffer` | `D/keel/keel_buffer.type.h`, `D/keel/keel_buffer.h` — só o que não menciona parâmetro (backend §4.4.1) |
+| instância usada `buffer i32` | `D/keel/keel_buffer_i32.type.h`, `D/keel/keel_buffer_i32.h` |
+| instância compilada por `--instance` | os dois headers e `D/keel/keel_buffer_i32.c` |
 | `--main a.b` | `D/main_a_b.c` |
 
 Todo arquivo gerado começa com uma linha de cabeçalho, sem versão nem data
@@ -388,7 +388,7 @@ Todo arquivo gerado começa com uma linha de cabeçalho, sem versão nem data
 ```
 
 O include guard é o caminho relativo a `D` em maiúsculas, com todo caractere
-fora de `[A-Z0-9]` virando `_`: `app/app_cfg.proto.h` → `APP_APP_CFG_PROTO_H`.
+fora de `[A-Z0-9]` virando `_`: `app/app_cfg.type.h` → `APP_APP_CFG_TYPE_H`.
 
 ---
 
@@ -483,8 +483,8 @@ Raiz `.` (nenhum `-I`); módulo esperado `ola`, declarado `ola`. Perfil C23
 por `-std=c23`. Arquivos escritos:
 
 ```plain
-gen/keel.type.h  gen/keel.proto.h  gen/keel.h            (keel.k, importado)
-gen/ola.type.h   gen/ola.proto.h   gen/ola.h   gen/ola.c (ola.k, compilado)
+gen/keel.type.h  gen/keel.h            (keel.k, importado)
+gen/ola.type.h   gen/ola.h   gen/ola.c (ola.k, compilado)
 gen/main_ola.c
 ```
 
@@ -501,27 +501,16 @@ gen/main_ola.c
 #endif /* OLA_TYPE_H */
 ```
 
-`gen/ola.proto.h` — o protótipo é declaração levada a header, e ganha `#line`
-com a linha dela:
-
-```c
-/* ola.proto.h — gerado de ola.k pelo cgen, perfil C23. */
-#ifndef OLA_PROTO_H
-#define OLA_PROTO_H
-#include "ola.type.h"
-#line 4 "ola.k"
-int ola_main(int argc, char **argv);
-#endif /* OLA_PROTO_H */
-```
-
-`gen/ola.h` — nenhum corpo `inline`, então só o include:
+`gen/ola.h` — o protótipo é declaração levada a header, e ganha `#line`
+com a linha dela; nenhum corpo `inline` depois dele:
 
 ```c
 /* ola.h — gerado de ola.k pelo cgen, perfil C23. */
 #ifndef OLA_H
 #define OLA_H
-#include "ola.proto.h"
-
+#include "ola.type.h"
+#line 4 "ola.k"
+int ola_main(int argc, char **argv);
 #endif /* OLA_H */
 ```
 
@@ -538,7 +527,7 @@ int ola_main(int argc, char **argv) {
 }
 ```
 
-`gen/main_ola.c` — inclui o `.h` do módulo, como qualquer `.c` (regra 4 do
+`gen/main_ola.c` — inclui o `.h` do módulo, como qualquer `.c` (regra 3 do
 backend §4.3.2):
 
 ```c
@@ -620,7 +609,7 @@ ilha	builtin	outcome.fail → keel_outcome_i32_fail	app/cfg.k:14:21
 $ cgen -I src -MMD -c src/main.k -o main.o -O2
 ```
 
-Escreve `gen/main.{type,proto}.h`, `gen/main.h`, `gen/main.c`; os três headers
+Escreve `gen/main.type.h`, `gen/main.h`, `gen/main.c`; os dois headers
 de `geom` se desatualizados — **nunca `gen/geom.c`** —; e os do prelúdio.
 Executa:
 
@@ -631,8 +620,8 @@ cc -I src -MMD -c gen/main.c -o main.o -O2 -MF main.d.tmp.<pid> -I gen
 e escreve `main.d`:
 
 ```make
-main.o: gen/main.c gen/main.h gen/main.proto.h gen/main.type.h \
- gen/keel.type.h gen/geom.h gen/geom.proto.h gen/geom.type.h \
+main.o: gen/main.c gen/main.h gen/main.type.h \
+ gen/keel.type.h gen/geom.h gen/geom.type.h \
  src/main.k src/geom.k /opt/keel/lib/base/keel.k
 ```
 
@@ -646,7 +635,7 @@ $ cgen -std=c23 -c --instance "keel.buffer.buffer i32" -o keel_buffer_i32.o
 cgen: warning: keel.buffer.buffer é inteiramente pub inline; o .c não terá corpo [instance-inutil]
 ```
 
-Escreve `gen/keel/keel_buffer_i32.{type,proto}.h`, `gen/keel/keel_buffer_i32.h`,
+Escreve `gen/keel/keel_buffer_i32.type.h`, `gen/keel/keel_buffer_i32.h`,
 `gen/keel/keel_buffer_i32.c` (só `#include "keel/keel_buffer_i32.h"`), os
 headers de `keel.buffer`, `keel.slice`, `keel.outcome`, `keel.arena` e do
 prelúdio. Executa `cc -std=c23 -c gen/keel/keel_buffer_i32.c -o
@@ -744,6 +733,7 @@ e o código de saída do `cc` — subiram para a spec da ferramenta.)
 | --- | --- | --- |
 | P4 | golden × backend §4.1/§6 | o golden põe `import_c` no `.c`, sem `#line`, e não põe `#line` nas declarações levadas a header; o backend põe `import_c` no `.type.h` e `#line` nos dois. Resolve-se na auditoria dos casos |
 | P5 | golden | comentários de abertura com prosa que o cgen não pode gerar; `003` tem `(void)argc; (void)argv;` que não está no fonte — comparação byte a byte falha até o golden ser regularizado |
+| P13 | golden × backend §4.3.2 | o golden ainda tem `.proto.h` em todo módulo e instância, `constexpr` de módulo no `.proto.h`, e o `run.sh`/`README.md` checam o corte em três; o backend corta em dois (`.type.h` + `.h`). Resolve-se na re-derivação do golden |
 
 Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão
 da §4.10), P3 (`--base-dir`, sem `KEEL_HOME`), P8 (o `.c` só da invocação), P9

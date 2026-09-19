@@ -1298,7 +1298,7 @@ diagnóstico do compilador C, ou quem precisa emitir o `#include` que traz esse
 tipo, tem de saber antes se ele nasceu de um módulo ou de uma instância, porque
 a resposta muda a regra. É uma pergunta que o nome já podia ter respondido.
 
-E é uma pergunta que o **cgen** faz o tempo todo. As regras 3 e 4 do backend
+E é uma pergunta que o **cgen** faz o tempo todo. As regras 2 e 3 do backend
 §4.3.2 mandam cada arquivo com corpo incluir o `.h` de quem ele chama; o gerador
 descobre quem é chamado resolvendo o nome manglado, e o que ele tem em mãos,
 naquele ponto, é exatamente um símbolo. Com a regra uniforme, o include é
@@ -1317,6 +1317,120 @@ Instância nunca teve escolha: `buffer i32` não é módulo e não tem caminho d
 módulo para herdar, então o nome dela sempre foi o símbolo. A decisão aqui não
 foi inventar uma convenção — foi **parar de manter duas**, estendendo ao módulo
 a que a instância já obrigava.
+
+## Dois headers, tipo e uso
+
+Um módulo C comum é um `.h` e um `.c`. keel gera um arquivo a mais — o
+`.type.h` — e a razão é uma só: **instância cria dependência no sentido
+contrário do import.** `keel.buffer` importa `keel.outcome` para que `clone`
+devolva `outcome buffer T`; e o layout de `outcome buffer T` contém o de
+`buffer T` por valor, que é o caminho de volta. O caso de borda
+`outcome buffer outcome i32` mostra os dois sentidos no mesmo par de
+instâncias. Com um header só por instância (nomes abreviados):
+
+```c
+/* buf.h — buffer outcome i32 */
+#ifndef BUF_H
+#define BUF_H
+typedef struct outcome_i32 { i32 code; i32 v; } outcome_i32;
+typedef struct buf { size_t cap, len; outcome_i32 *ptr; } buf;
+#include "obuf.h"                                  /* clone devolve obuf */
+static inline obuf buf_clone(buf *b) { obuf r = {0}; r.v = *b; return r; }
+#endif
+
+/* obuf.h — outcome buffer outcome i32 */
+#ifndef OBUF_H
+#define OBUF_H
+#include "buf.h"                                   /* o campo v é por valor */
+typedef struct obuf { i32 code; buf v; } obuf;
+static inline obuf *obuf_win(obuf *r, buf v) { r->code = 0; r->v = v; return r; }
+#endif
+```
+
+Entrando por `buf.h`, compila. Entrando por `obuf.h`, a guarda pula o
+`obuf.h` de volta, e o corpo de `buf_clone` chega antes de `obuf` existir:
+
+```plain
+In file included from obuf.h:3,
+                 from b.c:1:
+buf.h:8:15: error: unknown type name 'obuf'
+```
+
+Ordenar arquivos não é saída: o backend não vê o grafo do projeto, e a ordem
+de entrada é de quem inclui. A saída é notar que as duas arestas são de
+**espécies diferentes** — `obuf → buf` é de layout (o campo `v`), e
+`buf → obuf` é de chamada e de assinatura (`clone`) — e separar as espécies em
+arquivos (guardas omitidas):
+
+```c
+/* buf.type.h — só layout; o elemento é ponteiro, basta o nome */
+typedef struct outcome_i32 outcome_i32;
+typedef struct buf { size_t cap, len; outcome_i32 *ptr; } buf;
+
+/* obuf.type.h — só layout; v é por valor, inclui o .type.h, não o .h */
+#include "buf.type.h"
+typedef struct obuf { i32 code; buf v; } obuf;
+
+/* obuf.h */
+#include "obuf.type.h"
+static inline obuf *obuf_win(obuf *r, buf v);
+static inline obuf *obuf_win(obuf *r, buf v) { r->code = 0; r->v = v; return r; }
+
+/* buf.h */
+#include "buf.type.h"
+#include "outcome_i32.type.h"                      /* get devolve outcome_i32 */
+#include "obuf.type.h"                             /* clone devolve obuf      */
+static inline obuf buf_clone(buf *b);              /* protótipos */
+#include "obuf.h"                                  /* clone chama obuf_win    */
+static inline obuf buf_clone(buf *b) {             /* corpos */
+    obuf r = {0}; return *obuf_win(&r, *b);
+}
+```
+
+A aresta de layout agora corre só entre `.type.h`, e `obuf.type.h` não volta
+a `buf` por nenhum caminho de `.h`. A de chamada corre só entre `.h`, e
+`obuf.h` não inclui `buf.h`. Os dois grafos são acíclicos cada um por conta
+própria, e as duas ordens de entrada compilam — verificado com
+`gcc -std=c11 -Wall -Wextra -pedantic`, entrando por `buf.h` e por `obuf.h`.
+
+**Por que o corte cai entre L1 e o resto.** Layout é a única dependência que
+ordem nenhuma dentro de um arquivo resolve: uma `struct` precisa do agregado que
+contém por valor **completo, antes dela**, e arquivos que se incluem em ciclo não
+garantem isso. Protótipo e corpo toleram ciclo: um `static inline` só precisa
+estar declarado antes da chamada, e protótipo repetido é C legal. Então basta
+uma fronteira de arquivo — a de layout — e o resto se resolve por ordem de
+seção.
+
+**Por que não há `.proto.h`.** A revisão anterior separava também as
+assinaturas, num terceiro header, para que um arquivo com corpo pudesse pegar
+os protótipos de outro sem os corpos. Mas a ordem das seções do `.h` — os
+próprios protótipos antes de incluir o `.h` de quem os corpos chamam — já
+entrega o mesmo: qualquer que seja a porta de entrada, todo protótipo alcançável
+chega antes do primeiro corpo. O terceiro arquivo não comprava nada que a ordem
+não comprasse, e custava um idioma que nenhum programador C escreve.
+
+**Por que não separar no fonte.** A alternativa era deixar o gerador com um
+header por módulo e empurrar a separação para a arquitetura da base — um
+`keel/basetypes.k` com os modificadores, e os verbos nos módulos de sempre, como
+o programador C faz com um `types.h` à mão. Resolve a base, mas custa à
+linguagem: o modificador deixaria de morar no módulo dos seus verbos, e a
+resolução por tipo (linguagem §4.4), a instanciação e os protocolos todos
+supõem que mora. E o usuário, com o mesmo problema no próprio genérico, teria de
+redescobrir a mesma arquitetura. O `.type.h` é esse `types.h`, escrito sempre
+pelo backend, para todo módulo — e o programador nunca precisa.
+
+**Por que ainda é C de sempre.** O par tipo/uso é o que o C já tem para
+contêiner gerado — `KHASH_DECLARE` e `KHASH_INIT` no klib —, e o que o
+programador C escreve quando dois headers precisam dos tipos um do outro. O
+include de uso continua um só, `modulo.h`, e o `.type.h` existe para os
+gerados; quem escreve o `.c` à mão não precisa saber que ele existe.
+
+**Por que `constexpr` de módulo é tipo.** Ele pode dimensionar um campo —
+`i32 itens[MAX];` — e ser argumento de `dim`. Se morasse junto com os
+protótipos, o `.type.h` precisaria alcançar o `.h`, e o corte deixaria de
+valer.
+
+Referência: [backend §4.3](keel-c-backend.md#43-headers-de-instância).
 
 ## Arena é um tipo
 

@@ -1428,7 +1428,7 @@ mantendo um único parâmetro.
 
 - [Rationale: modificador e tipo modificado](keel-rationale.md#modificador-e-tipo-modificado).
 - [Rationale: substituição e aridade fixa](keel-rationale.md#substituição-e-aridade-fixa).
-- [Backend: headers de instância](keel-c-backend.md#43-headers-de-instância), [camadas de emissão](keel-c-backend.md#431-camadas-de-emissão), [os quatro artefatos](keel-c-backend.md#432-os-quatro-artefatos) e [definição fora de linha](keel-c-backend.md#44-definição-fora-de-linha-de-instância).
+- [Backend: headers de instância](keel-c-backend.md#43-headers-de-instância), [camadas de emissão](keel-c-backend.md#431-camadas-de-emissão), [os três artefatos](keel-c-backend.md#432-os-três-artefatos) e [definição fora de linha](keel-c-backend.md#44-definição-fora-de-linha-de-instância).
 
 ### 4.4 Resolução de operações
 
@@ -2334,7 +2334,7 @@ f32 somar_x(soa position *p) {
 #### 8. Referências
 
 - [Rationale: soa, da recusa à admissão](keel-rationale.md#soa-da-recusa-à-admissão).
-- [Backend: os quatro artefatos](keel-c-backend.md#432-os-quatro-artefatos).
+- [Backend: os três artefatos](keel-c-backend.md#432-os-três-artefatos).
 
 ## 5. Protocolos e módulos da base
 

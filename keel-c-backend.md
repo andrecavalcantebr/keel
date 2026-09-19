@@ -370,14 +370,14 @@ mesma coisa, e nenhum dos dois deixa passar.
 ### 4.1 Um `.c` por invocação, e nenhum alvo além dele
 
 **O que a invocação compila** — o `.k` da linha de comando, ou a instância pedida
-por `--instance` (ferramenta §4.3) — produz sempre **quatro** arquivos: três
+por `--instance` (ferramenta §4.3) — produz sempre **três** arquivos: dois
 headers e um `.c`, ainda que o `.c` contenha apenas o `#include` do próprio `.h`
 e que um header contenha apenas as guardas. É o que permite ao build usar uma
 regra de padrão `%.o: %.c` sem exceção. Não existe alvo sem fonte correspondente
 para o build descobrir por glob, manifesto ou arquivo agregador.
 
 **O que a invocação só alcança** — os módulos importados, inclusive o `keel`
-implícito, e as instâncias que os usos pedem — produz **os três headers, e
+implícito, e as instâncias que os usos pedem — produz **os dois headers, e
 nenhum `.c`**. Headers não compilam e não geram objeto, então não são alvos — é
 justamente por isso que a invariante se sustenta. O `.c` de um módulo importado é
 escrito pela invocação **dele**, na regra que o build já tem para ele.
@@ -385,14 +385,13 @@ escrito pela invocação **dele**, na regra que o build já tem para ele.
 > **Todo corpo fora de linha termina no `.c` da invocação, e em nenhum outro.** O
 > do próprio módulo, e o das instâncias que ele declara com `instance` (§4.4).
 
-O corte dos três headers é do §4.3.2, e a razão dele é evitar ciclo de inclusão.
+O corte dos dois headers é do §4.3.2, e a razão dele é evitar ciclo de inclusão.
 
 ```text
 app/cfg.k  →  app/app_cfg.type.h                tipos
-              app/app_cfg.proto.h               protótipos
-              app/app_cfg.h                     corpos inline         → o que se inclui para usar
-              app/app_cfg.c                     corpos fora de linha  → app_cfg.o
-              keel/keel_buffer_f32.type.h  .proto.h  .h   instância   → (nenhum objeto)
+              app/app_cfg.h                     protótipos e corpos inline → o que se inclui para usar
+              app/app_cfg.c                     corpos fora de linha       → app_cfg.o
+              keel/keel_buffer_f32.type.h  .h   instância                  → (nenhum objeto)
 ```
 
 #### O nome do arquivo é o símbolo; o diretório é o módulo
@@ -415,7 +414,7 @@ o header de um tipo passa a ser **função do nome do tipo**, sem que
 se precise saber de qual dos dois ele veio. `keel_arena` mora em
 `keel_arena.h` como `keel_buffer_i32` mora em `keel_buffer_i32.h`. Quem precisa
 emitir um `#include` a partir de um nome de tipo — o próprio cgen, ao resolver a
-regras 3 e 4 do §4.3.2 — concatena, em vez de consultar uma tabela.
+regras 2 e 3 do §4.3.2 — concatena, em vez de consultar uma tabela.
 
 O preço é a repetição em `net/net_http.h`, e ela é deliberada: o diretório existe
 para agrupar, o nome para identificar, e um não substitui o outro. Sem ela,
@@ -431,34 +430,34 @@ identificador que ele tem, e por isso carrega o símbolo inteiro.
 
 **O que vai em cada arquivo:**
 
-O `.type.h` recebe os `import_c`, as definições de tipo e as declarações adiantadas que os campos por ponteiro exigem.
-O `.proto.h` recebe os protótipos de função, as declarações `extern` de variáveis e os `constexpr` de módulo.
-O `.h` recebe os corpos `inline`, e traz os outros dois por inclusão: é o arquivo que se inclui para usar o módulo.
+O `.type.h` recebe os `import_c`, as definições de tipo, as declarações adiantadas que os campos por ponteiro exigem e os `constexpr` de módulo.
+O `.h` recebe os protótipos de função e as declarações `extern` de variáveis, depois os corpos `inline`, e traz o `.type.h` por inclusão: é o arquivo que se inclui para usar o módulo.
 O `.c` recebe os corpos fora de linha, as definições de variáveis e os blocos `extern_c`.
 
 Quem decide em qual deles cada declaração vai é `pub`/`priv` (linguagem §4.1) **e a camada** (§4.3.1). A tabela do posicionamento é deste documento, porque é ela que fala de arquivo:
 
-| Escrita no `.k` | `.type.h` | `.proto.h` | `.h` | `.c` |
-| --- | --- | --- | --- | --- |
-| função (`pub` implícito) | — | protótipo | — | corpo |
-| função `pub inline` | — | protótipo | `static inline` + corpo | — |
-| variável (`pub` implícito) | — | `extern T var;` | — | `T var = ...;` |
-| tipo (`pub` implícito) | definição | — | — | — |
-| função `priv` | — | — | — | corpo, com `static` |
-| variável `priv` | — | — | — | definição, com `static` |
-| tipo `priv` | definição | — | — | — |
-| `import_c` | `#include` | — | — | — |
-| `extern_c { … }` | — | — | — | o conteúdo, intacto |
+| Escrita no `.k` | `.type.h` | `.h` | `.c` |
+| --- | --- | --- | --- |
+| função (`pub` implícito) | — | protótipo | corpo |
+| função `pub inline` | — | protótipo, e depois `static inline` + corpo | — |
+| variável (`pub` implícito) | — | `extern T var;` | `T var = ...;` |
+| `constexpr` de módulo | definição (§9.2) | — | — |
+| tipo (`pub` implícito) | definição | — | — |
+| função `priv` | — | — | corpo, com `static` |
+| variável `priv` | — | — | definição, com `static` |
+| tipo `priv` | definição | — | — |
+| `import_c` | `#include` | — | — |
+| `extern_c { … }` | — | — | o conteúdo, intacto |
 
 O mapeamento nem é monotônico: `pub inline` sai como `static inline` no `.h`. Público no keel virou `static` no C.
 
 **Tipo `priv` vai para o `.type.h` como o público**, e não para o `.c`: o `.type.h` é L1, e um tipo privado que aparecesse só no `.c` não poderia ser campo de nada que o módulo declare. A privacidade é do keel, que recusa o nome fora do módulo; o arquivo não é o mecanismo.
 
-Função `pub inline` leva protótipo no `.proto.h` **e** corpo no `.h`, e não só o corpo. É o que permite a um módulo declarar a interface completa sem arrastar implementação nenhuma, e é o que sustenta a regra 2 do §4.3.2.
+Função `pub inline` leva protótipo **e** corpo no `.h`, nessa ordem, e não só o corpo. A seção de protótipos vem antes de qualquer corpo, e é o que deixa os corpos do módulo se chamarem em qualquer ordem, inclusive por recursão mútua (regra 2 do §4.3.2).
 
-Variável pública **nunca** vai para o `.proto.h` como `static`. Isso compila e linka, mas produz uma cópia independente por unidade de tradução: um módulo escreve, outro lê e não enxerga nada, sem erro nem aviso.
+Variável pública **nunca** vai para o `.h` como `static`. Isso compila e linka, mas produz uma cópia independente por unidade de tradução: um módulo escreve, outro lê e não enxerga nada, sem erro nem aviso.
 
-`const` não precisa de exceção: `pub const float PI = 3.14f;` sai como `extern const float PI;` no `.proto.h` e a definição no `.c` — símbolo único, sem duplicação.
+`const` não precisa de exceção: `pub const float PI = 3.14f;` sai como `extern const float PI;` no `.h` e a definição no `.c` — símbolo único, sem duplicação.
 
 **`import_c` vai para o `.type.h`, a camada mais baixa**, porque é o único lugar de onde todas as outras o enxergam, e um tipo do módulo pode precisar do header: `pub struct Log { FILE *f; };` não compila se `<stdio.h>` chega depois do `.type.h`, e `FILE` não admite declaração adiantada. O header é de fora, não é gerado, e a regra 1 do §4.3.2 não fala dele. O preço é um contrato que o keel não verifica, porque não abre o header (linguagem §4.1): **o header de um `import_c` não inclui gerado do próprio módulo**. Se incluir, o ciclo passa pela guarda com o módulo pela metade, e a falha é do compilador C, pelo princípio 3 — é o mesmo ciclo que o C já tem entre dois headers que se incluem.
 
@@ -491,11 +490,10 @@ qualquer outro**, e o único privilégio dele é o import implícito (linguagem
 do módulo é o caminho; pela mesma regra do §4.1, os gerados saem na raiz do
 destino, sem diretório.
 
-Importado, gera os três headers do §4.3.2, dois deles quase vazios:
+Importado, gera os dois headers do §4.3.2, um deles quase vazio:
 `keel.type.h` (L0+L1, os `typedef` e as guardas C que o backend deve porque o
-alvo não tem os tipos nativamente), `keel.proto.h` (L2, só o `#include` do
-`.type.h`: não há protótipo porque não há verbo) e `keel.h` (L3, só o
-`#include` do `.proto.h`: não há corpo). Compilado diretamente — `cgen keel.k`,
+alvo não tem os tipos nativamente) e `keel.h` (L2+L3, só o `#include` do
+`.type.h`: não há protótipo nem corpo, porque não há verbo). Compilado diretamente — `cgen keel.k`,
 o que só acontece no desenvolvimento da própria base — gera também `keel.c`,
 com o `#include` do `.h` e nada mais.
 
@@ -548,18 +546,23 @@ Se o projeto já define `u8` ou `i32` com tipo compatível, a redeclaração de 
 
 ### 4.3 Headers de instância
 
-Cada instância de modificador gera **três headers, e nenhum `.c`** — salvo quando
+Cada instância de modificador gera **dois headers, e nenhum `.c`** — salvo quando
 é ela o que a invocação compila, por `--instance` (§4.1):
 
 ```plain
-keel/keel_buffer_i32.type.h        keel/keel_buffer_i32.proto.h        keel/keel_buffer_i32.h
-keel/keel_slice_geom_Point.type.h  keel/keel_slice_geom_Point.proto.h  keel/keel_slice_geom_Point.h
-coll/coll_stack_i32.type.h         coll/coll_stack_i32.proto.h         coll/coll_stack_i32.h
+keel/keel_buffer_i32.type.h        keel/keel_buffer_i32.h
+keel/keel_slice_geom_Point.type.h  keel/keel_slice_geom_Point.h
+coll/coll_stack_i32.type.h         coll/coll_stack_i32.h
 ```
 
-O corte em três é o do §4.3.2 e vale para instância e para módulo pela mesma razão. Include guard derivado do nome mangled; as funções saem `static inline`. Não há objeto de instância, não há símbolo externo e portanto não há discussão de duplicidade — é o mesmo caminho que klib e stb_ds seguem para o mesmo tipo de código.
+O corte é o do §4.3.2, o mesmo de todo módulo. Include guard derivado do nome
+mangled; as funções saem `static inline`; não há objeto de instância nem símbolo
+externo.
 
-O header de instância alcança o argumento de uma das duas formas do §4.3.1: **inclui o `.type.h`** do argumento quando este aparece por valor, e **escreve a declaração adiantada** quando aparece por ponteiro. Ele é autossuficiente e não depende de ordem de inclusão. Que não haja ciclo possível é o que o §4.3.1 demonstra — não é propriedade que se possa assumir da profundidade finita do nome, porque a dependência de layout corre no sentido contrário do import.
+O header de instância alcança o argumento de uma das duas formas do §4.3.1:
+**inclui o `.type.h`** do argumento quando este aparece por valor, e **escreve a
+declaração adiantada** quando aparece por ponteiro. Ele é autossuficiente e não
+depende de ordem de inclusão.
 
 ```keel
 //keel
@@ -578,22 +581,18 @@ typedef struct keel_buffer_keel_slice_char {
 } keel_buffer_keel_slice_char;
 ```
 
-O elemento é guardado por ponteiro, então o `.type.h` de fora não inclui o de dentro. É o caso comum dos aninhamentos — `buffer slice T`, `slice buffer T`, `buffer outcome T` —, e é por isso que eles não custam nada: a aresta é de nome, e nome não tem aresta.
+O elemento é guardado por ponteiro, então o `.type.h` de fora não inclui o de
+dentro. Vale para os aninhamentos comuns — `buffer slice T`, `slice buffer T`,
+`buffer outcome T`.
 
-Quem inclui o quê são as quatro regras do §4.3.2. Quem inclui o `.h` de um módulo recebe, por transitividade, os tipos, os protótipos e os corpos das instâncias que ele usa.
+Quem inclui o `.h` de um módulo recebe, por transitividade, os tipos, os
+protótipos e os corpos das instâncias que ele usa.
 
-**Quem instancia é quem usa**, não quem declara o tipo argumento. Dois módulos que usam `buffer i32` geram o mesmo header independentemente; como a geração é determinística, o conteúdo é byte a byte idêntico e a segunda escrita vira no-op. É o determinismo que torna o compartilhamento correto sem exigir visão do grafo inteiro.
+**Quem instancia é quem usa**, não quem declara o tipo argumento. Dois módulos que
+usam `buffer i32` geram o mesmo header, byte a byte (§7.1), e a segunda escrita é
+no-op.
 
 #### 4.3.1 Camadas de emissão
-
-Ciclo entre headers gerados não é hipótese remota, porque **instância cria uma
-dependência que corre no sentido contrário do import**. `keel.buffer` importa
-`keel.outcome` para dizer que `clone` devolve `outcome buffer T`; e o layout de
-`keel_outcome_buffer_i32` depende do layout de `keel_buffer_i32`, que é o caminho
-de volta. São dois grafos distintos, de sentidos opostos, cada um acíclico por
-conta própria. `import-circular` (linguagem §4.1) protege um deles; nada protege
-o outro, e é por isso que a ordem de emissão é regra deste documento, e não
-consequência da linguagem.
 
 O que uma declaração emitida pode precisar de um tipo, e o que basta em cada caso:
 
@@ -609,37 +608,66 @@ Daí as quatro camadas. **A camada determina o que a declaração pode alcançar
 | Camada | Conteúdo | Alcança |
 | --- | --- | --- |
 | L0 nome | declaração adiantada | — |
-| L1 layout | `struct`, `union`, `enum`, `typedef` | L0, L1 |
-| L2 assinatura | protótipos, `extern`, `constexpr` de módulo | L0, L1 |
+| L1 layout | `struct`, `union`, `enum`, `typedef`, `constexpr` de módulo | L0, L1 |
+| L2 assinatura | protótipos, `extern` | L0, L1 |
 | L3 corpo | corpos de função, definições de variável | L0, L1, L2, L3 |
 
-Toda aresta desce de camada, com duas exceções — L1→L1 e L3→L3 —, e as duas são
-fechadas:
+Toda aresta desce de camada, salvo L1→L1 e L3→L3.
 
-- **L1→L1 é contenção de layout**, e um ciclo ali é um tipo de tamanho infinito.
-  Quando a cadeia é toda do fonte, quem diagnostica é o compilador C, pelo
-  princípio 3: a mensagem já aponta para o `.k` do usuário. Quando ela
-  **atravessa instância de modificador**, keel a diagnostica — `ciclo-de-layout`,
-  `error`, com a cadeia na mensagem —, porque aí o C apontaria para arquivos
-  gerados.
-- **L3→L3 é chamada entre corpos `inline`**, e só existe entre módulos que se
-  importam. O grafo de import é acíclico por `import-circular`.
+**L1→L1 é contenção de layout**: campo por valor. Campo por ponteiro é L1→L0.
+O grafo de L1→L1 tem de ser acíclico; um ciclo é tipo de tamanho infinito.
 
-**A aresta de layout é escolha do programa, não do backend.** Campo por valor é
-L1→L1; campo por ponteiro é L1→L0, e L0 não tem arestas. É a saída do C de
-sempre, e é ela que torna `buffer slice T`, `slice buffer T` e `buffer outcome T`
-livres de ciclo sem tratamento especial: o elemento é guardado por ponteiro.
+```keel
+//keel — L1→L1 finito: o campo externo é por valor, o interno por ponteiro
+outcome buffer outcome i32 r;
+```
 
-Emitir em ordem de camada, portanto, **sempre termina**. O backend não ordena
-arquivos topologicamente nem consulta o grafo do projeto: ordena declarações por
-camada, e a aciclicidade é consequência, não verificação. A decisão continua
-local, um módulo por vez, como o §4.4 exige.
+```plain
+keel_outcome_keel_buffer_keel_outcome_i32  ──L1→L1──▶  keel_buffer_keel_outcome_i32  ──L1→L0──▶  keel_outcome_i32
+          { i32 code; <buffer> v; }                      { cap, len; <outcome> *ptr; }
+```
 
-**L0 é emitido por valor, não por referência.** Uma declaração adiantada é uma
-linha e é função pura do nome, então o arquivo que precisa apenas do nome **a
-escreve ele mesmo**, em vez de incluir o arquivo que a possui. Repetição de
-`typedef` idêntico é legal desde o C11, coisa de que o §4.2 já depende. É isso
-que remove L0 do grafo de arquivos por completo.
+```keel
+//keel — L1→L1 cíclico: ciclo-de-layout
+module lista;
+import keel.outcome as outcome types;
+pub struct No { i32 v; outcome No prox; };
+```
+
+```plain
+lista_No ──L1→L1──▶ keel_outcome_lista_No ──L1→L1──▶ lista_No
+```
+
+Quando a cadeia é toda do fonte, quem diagnostica é o compilador C (princípio 3).
+Quando ela **atravessa instância de modificador**, como acima, keel a diagnostica:
+`ciclo-de-layout`, `error`, com a cadeia na mensagem (linguagem §4.3).
+
+**L3→L3 é chamada entre corpos**, e pode ser cíclica. Dentro de um módulo, é a
+recursão mútua; entre arquivos, é o caso de um corpo de instância que alcance o
+módulo do argumento. Em ambos, basta que o protótipo da função chamada preceda o
+corpo que a chama na unidade de tradução, e o §4.3.2 fixa a ordem que o garante.
+
+```keel
+//keel — L3→L3 cíclico dentro do módulo
+pub inline bool par(u32 n)   { return n == 0 ? true  : impar(n - 1); }
+pub inline bool impar(u32 n) { return n == 0 ? false : par(n - 1); }
+```
+
+As duas arestas que atravessam instância podem correr em sentidos opostos entre
+o mesmo par, desde que em camadas diferentes. É o caso de `buffer T` com
+`outcome buffer T`:
+
+```plain
+keel_outcome_keel_buffer_T  ──L1→L1──▶  keel_buffer_T          campo v, por valor
+keel_buffer_T               ──L3→L3──▶  keel_outcome_keel_buffer_T   clone chama outcome.win
+```
+
+`constexpr` de módulo é L1: pode dimensionar um campo — `i32 itens[MAX];` — e
+ser argumento de `dim` (linguagem §4.3).
+
+**L0 é emitido por valor, não por referência.** O arquivo que precisa apenas do
+nome escreve a declaração adiantada ele mesmo, em vez de incluir o arquivo que a
+possui. `typedef` idêntico repetido é legal desde o C11 (§4.2).
 
 Para que L0 seja sempre escrevível, **todo agregado gerado leva tag igual ao nome
 manglado**, inclusive os que o usuário escreveu sem tag:
@@ -654,91 +682,119 @@ typedef struct { f32 x, y; } Vec2;
 typedef struct sim_Vec2 { f32 x, y; } sim_Vec2;
 ```
 
-A tag é invisível no C — espaço de nomes próprio, mesmo tipo, mesmo layout, mesma
-ABI — e o nome manglado já é único pelo §2.1. `enum` não tem L0 e não precisa de
-um: seu layout não depende de tipo nenhum.
+`enum` não tem L0: seu layout não depende de tipo nenhum.
 
-#### 4.3.2 Os quatro artefatos
+[Justificativa: dois headers, tipo e uso](keel-rationale.md#dois-headers-tipo-e-uso).
 
-`#include` é tudo-ou-nada, então a ordem de camada tem de virar fronteira de
-arquivo. **Todo módulo e toda instância geram os três headers; o que a invocação
-compila gera também o `.c`** (§4.1):
+#### 4.3.2 Os três artefatos
+
+**Todo módulo e toda instância geram dois headers; o que a invocação compila gera
+também o `.c`** (§4.1). A fronteira de arquivo fica entre L1 e o resto:
 
 | Arquivo | Camada | Conteúdo |
 | --- | --- | --- |
-| `modulo.type.h` | L0 + L1 | os `import_c`, as definições dos tipos concretos, e as declarações adiantadas de que os campos `X *` precisam |
-| `modulo.proto.h` | L2 | protótipos, `extern` e `constexpr`; inclui o próprio `.type.h` |
-| `modulo.h` | L3 | os corpos `static inline`; inclui o próprio `.proto.h` |
+| `modulo.type.h` | L0 + L1 | os `import_c`, as declarações adiantadas de que os campos `X *` precisam, as definições dos tipos concretos e os `constexpr` de módulo |
+| `modulo.h` | L2 + L3 | os protótipos e as declarações `extern`, e depois os corpos `static inline`; inclui o próprio `.type.h` |
 | `modulo.c` | L3 | os corpos fora de linha e as definições de variável |
 
 ```text
 modulo.k  →  modulo.type.h                     tipos
-             modulo.proto.h                    protótipos
-             modulo.h                          corpos inline         → o que se inclui para usar
-             modulo.c                          corpos fora de linha  → modulo.o
-             keel/keel_buffer_f32.type.h  .proto.h  .h   instância   → (nenhum objeto)
+             modulo.h                          protótipos e corpos inline → o que se inclui para usar
+             modulo.c                          corpos fora de linha       → modulo.o
+             keel/keel_buffer_f32.type.h  .h   instância                  → (nenhum objeto)
 ```
 
-**`modulo.h` é o único include de uso.** Ele traz tudo — tipos, protótipos e
-corpos —, e é o que o `.c` do usuário escreve, como escreveria para qualquer
-biblioteca C. O `.type.h` e o `.proto.h` não existem para ser digitados: existem
-para que um header **gerado** possa pegar só a camada de que precisa, e é essa
-fatia que quebra o ciclo. Nenhum dos três é alvo de compilação, pela razão do
-§4.1: header não gera objeto.
+**`modulo.h` é o único include de uso.** É o que o `.c` do usuário escreve. O
+`.type.h` existe para os headers gerados; nenhum dos dois é alvo de compilação
+(§4.1).
 
-Quatro regras de inclusão, e nada além delas:
+Três regras de inclusão, e nada além delas:
 
-1. **`.type.h` inclui apenas `.type.h`** entre os gerados — os `import_c` são de
-   fora (§4.1) —, e só quando o tipo aparece **por valor**.
-   Argumento por ponteiro leva declaração adiantada escrita no próprio arquivo.
-2. **`.proto.h` inclui o próprio `.type.h`** e o `.type.h` de todo tipo que
-   apareça por valor nas suas assinaturas. **Nunca inclui o `.proto.h` nem o `.h`
-   de outro módulo ou instância** — protótipo não precisa de protótipo.
-3. **`.h` inclui o próprio `.proto.h`, o `.h` de cada módulo ou instância cujas
-   funções `inline` os seus corpos chamam, e o `.proto.h` de cada um cujas
-   funções fora de linha eles chamam** — e só então escreve os corpos.
-4. **`.c` inclui o próprio `.h` e o `.h` de cada módulo ou instância que ele usa.**
+1. **`.type.h` inclui apenas `.type.h`** entre os gerados, e só do tipo que
+   aparece **por valor**. Tipo por ponteiro leva declaração adiantada escrita no
+   próprio arquivo. Os `import_c` são de fora (§4.1).
+2. **`.h` tem quatro seções, nesta ordem:**
+   1. o `#include` do próprio `.type.h` e do `.type.h` de todo tipo que apareça
+      por valor nas suas assinaturas ou nos seus corpos;
+   2. os protótipos e as declarações `extern`;
+   3. o `#include` do `.h` de cada módulo ou instância cujas funções os corpos
+      chamam;
+   4. os corpos.
+3. **`.c` inclui o próprio `.h` e o `.h` de cada módulo ou instância que ele usa.**
 
-A regra 2 é a que carrega o resultado: sem aresta `.proto.h → .proto.h`, o grafo
-de interface é uma floresta de folhas sobre o grafo de layout.
+O `.type.h` nunca inclui `.h`, e nada inclui `.c`.
 
-A regra 3 põe **todo protótipo antes de todo corpo**, e é o que deixa a recursão
-entre corpos `inline` do mesmo módulo funcionar sem o backend ordenar nada dentro
-do arquivo: o próprio `.proto.h` traz todos os protótipos dele, e um `static
-inline` só precisa estar **declarado** antes da chamada. Entre módulos não há
-ordem a garantir: cada `.h` incluído traz o próprio `.proto.h` antes dos próprios
-corpos, e o L3→L3 entre módulos é acíclico (§4.3.1), então um `.h` nunca volta a
-si mesmo pelo caminho.
+O caso de borda do §4.3.1, `outcome buffer outcome i32`, sai assim — abreviado:
+sem o diretório `keel/`, só os verbos `get` e `clone`, e sem a declaração
+adiantada de `keel_arena`:
 
-A regra 4 é a do C de sempre, e é segura porque **nada inclui um `.c`**: ele é
-folha do grafo, então incluir o arquivo "tudo" de quem ele usa não fecha ciclo
-nenhum. O `.type.h` e o `.proto.h` nunca incluem `.h`, porque layout não chama e
-protótipo não chama.
+```c
+/* keel_outcome_i32.type.h */
+typedef struct keel_outcome_i32 { i32 code; i32 v; } keel_outcome_i32;
 
-O programador nunca escreve esses `#include` no C gerado. O cgen já resolveu cada
-chamada para saber o nome manglado (§4.4 da linguagem), então sabe exatamente de
-quem precisa do corpo: a precisão não é análise nova, é a tabela que ele já tem.
-O único furo é `extern_c`, onde os nomes são do C e o cgen não olha — quem
-escrever `keel_buffer_i32_push` lá dentro não ganha o include e leva erro de
-compilação nomeando o símbolo. É uso não suportado pelo §4.5, e a falha é do
-compilador C, como o princípio 3 quer.
+/* keel_buffer_keel_outcome_i32.type.h — regra 1: por ponteiro, L0 */
+typedef struct keel_outcome_i32 keel_outcome_i32;
+typedef struct keel_buffer_keel_outcome_i32 {
+    size_t cap, len; keel_outcome_i32 *ptr;
+} keel_buffer_keel_outcome_i32;
 
-**L3 se parte por ligação, não por conveniência de arquivo:**
+/* keel_outcome_keel_buffer_keel_outcome_i32.type.h — regra 1: por valor */
+#include "keel_buffer_keel_outcome_i32.type.h"
+typedef struct keel_outcome_keel_buffer_keel_outcome_i32 {
+    i32 code; keel_buffer_keel_outcome_i32 v;
+} keel_outcome_keel_buffer_keel_outcome_i32;
+
+/* keel_buffer_keel_outcome_i32.h — regra 2 */
+#include "keel_buffer_keel_outcome_i32.type.h"                  /* 2.1 */
+#include "keel_outcome_i32.type.h"                              /*     get devolve T   */
+#include "keel_outcome_keel_buffer_keel_outcome_i32.type.h"     /*     clone devolve   */
+static inline keel_outcome_i32                                  /* 2.2 */
+    keel_buffer_keel_outcome_i32_get(keel_buffer_keel_outcome_i32 *b, size_t i);
+static inline keel_outcome_keel_buffer_keel_outcome_i32
+    keel_buffer_keel_outcome_i32_clone(keel_arena *a, keel_buffer_keel_outcome_i32 *b);
+#include "keel_outcome_keel_buffer_keel_outcome_i32.h"          /* 2.3 clone chama win */
+/* 2.4 corpos */
+
+/* keel_outcome_keel_buffer_keel_outcome_i32.h — não inclui keel_buffer_…h */
+#include "keel_outcome_keel_buffer_keel_outcome_i32.type.h"
+/* protótipos, corpos */
+```
+
+Entrando por qualquer um dos `.h`, os tipos chegam completos antes dos
+protótipos, e os protótipos antes dos corpos.
+
+Com ciclo L3→L3 entre arquivos, a seção 2.2 vem antes da 2.3 nos dois lados,
+então cada arquivo declara as próprias funções antes de alcançar o outro:
+
+```c
+/* foo.h */                              /* sorted_foo.h */
+#include "foo.type.h"                    #include "sorted_foo.type.h"
+#include "sorted_foo.type.h"             #include "foo.type.h"
+int  foo_cmp(foo, foo);   /* 2.2 */      void sorted_foo_sort(sorted_foo *);  /* 2.2 */
+#include "sorted_foo.h"   /* 2.3 */      #include "foo.h"                     /* 2.3 */
+/* corpos: chamam sorted_foo_sort */     /* corpos: chamam foo_cmp */
+```
+
+Entrando por `foo.h`, o `foo.h` de volta é pulado pela guarda, e `foo_cmp` já
+está declarado quando o corpo de `sorted_foo_sort` o chama. Entrando por
+`sorted_foo.h`, o mesmo, com os papéis trocados.
+
+O programador nunca escreve esses `#include`: o cgen os deriva das chamadas que
+já resolveu (linguagem §4.4). Em `extern_c` o cgen não olha nomes; quem escrever
+`keel_buffer_i32_push` lá dentro não ganha o include (§4.5).
+
+**L3 se parte por ligação:**
 
 > `modulo.h` recebe os corpos que precisam existir uma vez **por unidade de
 > tradução** — `static inline`. `modulo.c` recebe os que precisam existir uma vez
 > **no programa**.
 
-É a distinção que o C já força, e é o que faz o `.h` de instância funcionar sem regra de
-build: ele é o `.c` da instância, mas replicável, então não precisa estar na
-árvore do projeto para ser compilado. **Isso não dispensa o §4.4**: função `pub`
-sem `inline` num módulo genérico sai `extern`, e incluir esse corpo em N unidades
-dá N definições. `instance` continua sendo a única forma de dar dono a um corpo
-fora de linha de instância.
+O `.h` de instância é, assim, o `.c` da instância, replicável, e não precisa de
+regra de build. **Isso não dispensa o §4.4**: função `pub` sem `inline` num
+módulo genérico sai `extern`, e `instance` é a única forma de dar dono ao corpo.
 
-**Instância sobre o tipo em definição deixa de ser exceção.** A linguagem permite
-`slice Val` dentro de `struct Val` (linguagem §4.3), e a instância sai como
-qualquer outra:
+**Instância sobre o tipo em definição** sai como qualquer outra. A linguagem
+permite `slice Val` dentro de `struct Val` (linguagem §4.3):
 
 ```keel
 //keel
@@ -759,24 +815,21 @@ typedef struct keel_slice_val_Val {
 #include "keel/keel_slice_val_Val.type.h"       /* itens é por valor */
 
 struct val_Val { val_Kind tag; keel_slice_val_Val itens; };
+
+/* keel/keel_slice_val_Val.h */
+#include "keel/keel_slice_val_Val.type.h"
+#include "val.type.h"                           /* get devolve Val por valor */
 ```
 
-O `.type.h` da instância guarda `val_Val *`, precisa só do nome, e escreve a
-declaração adiantada; não inclui `val.h` e não é incluído de volta. O arquivo
-separado é gerado normalmente, e os verbos que passam `Val` por valor vivem no
-`.h`, que é L3 e chega depois de todo layout. A autossuficiência do §4.3
-vale sem emenda e **sem exceção** — o que era a única exceção do documento some,
-e some por construção.
+O `.h` da instância alcança `Val` pelo `val.type.h`, e não pelo `val.h`.
 
-A declaração adiantada deixa de vir do fonte. O usuário pode escrever
-`typedef struct Val Val;`, e continua sendo C legal, mas o backend não depende
-mais disso: com a tag sintética do §4.3.1 ele emite L0 para todo agregado. Quem
-escrever `slice Val` sem nunca definir `Val` continua levando erro de tipo
-incompleto do compilador C no ponto de uso, pelo princípio 3.
+O backend não depende de declaração adiantada no fonte: com a tag sintética do
+§4.3.1, emite L0 para todo agregado. Quem escrever `slice Val` sem nunca definir
+`Val` leva erro de tipo incompleto do compilador C no ponto de uso (princípio 3).
 
 ### 4.4 Definição fora de linha de instância
 
-Função `pub` **sem** `inline` num módulo genérico sai `extern` no `.proto.h` da instância, e o corpo precisa de um dono. `instance` é a declaração que assume essa posse (linguagem §4.3):
+Função `pub` **sem** `inline` num módulo genérico sai `extern` no `.h` da instância, e o corpo precisa de um dono. `instance` é a declaração que assume essa posse (linguagem §4.3):
 
 ```keel
 module instances;
@@ -826,7 +879,7 @@ pub constexpr i32 NONE = INT32_MIN;
 ```
 
 ```c
-/* keel/keel_outcome.proto.h — do módulo, uma vez; sob C23 */
+/* keel/keel_outcome.type.h — do módulo, uma vez; sob C23 */
 constexpr i32 keel_outcome_OK   = 0;
 constexpr i32 keel_outcome_NONE = (-2147483647 - 1);
 
@@ -845,9 +898,9 @@ Duas consequências de emissão:
   linhas saem como macro de nome já manglado, sem o tratamento de escopo de bloco,
   porque o prefixo do módulo já as torna únicas no arquivo.
 - **A instância alcança o que é do genérico pelas regras do §4.3.2**, e nunca o
-  contrário: o `.h` dela inclui o `.proto.h` do genérico quando os corpos usam a
-  constante, que é L2; o `.proto.h` dela inclui o `.type.h` do genérico quando uma
-  assinatura usa um tipo dele por valor, como o cursor (§5.11). A constante é do
+  contrário: a constante e o cursor (§5.11) são L1 e moram no `.type.h` do
+  genérico, e o `.h` da instância inclui esse `.type.h` quando os corpos usam a
+  constante ou uma assinatura usa o cursor por valor. A constante é do
   genérico; a struct é da instância, e mora no `.type.h` dela.
 
 A verificação é léxica — o nome do parâmetro ou de um modificador aparece, ou não
@@ -1664,7 +1717,7 @@ Os dois protocolos que a linguagem §5.1 exige de `walk` e de `parallel` saem co
 /* keel/keel_buffer.type.h — do módulo, não da instância */
 typedef struct keel_buffer_cursor { size_t i; } keel_buffer_cursor;
 
-/* keel/keel_buffer_i32.proto.h — da instância; os corpos, no .h dela */
+/* keel/keel_buffer_i32.h — da instância; os protótipos, e depois os corpos */
 static inline keel_buffer_cursor keel_buffer_i32_begin(keel_buffer_i32 *b);
 static inline bool  keel_buffer_i32_has_next(keel_buffer_i32 *b, keel_buffer_cursor *c);
 static inline i32  *keel_buffer_i32_next(keel_buffer_i32 *b, keel_buffer_cursor *c);
@@ -1895,7 +1948,7 @@ Daí decorre o comportamento de cada região:
 | Gestor de `parallel` e despacho de `match` | sim | ressincroniza uma vez, depois do bloco |
 | Cláusula `else` — declaração mais `if`, nas duas formas | não, cabe numa linha | nenhuma |
 | `at` — chamada de instância | não | nenhuma |
-| Sintético — `#include` do próprio `.type.h`/`.proto.h`/`.h`, do prelúdio, dos headers de instância | — | **nenhuma**: falha ali é bug de ferramenta ou de build, não erro do usuário |
+| Sintético — `#include` do próprio `.type.h`/`.h`, do prelúdio, dos headers de instância | — | **nenhuma**: falha ali é bug de ferramenta ou de build, não erro do usuário |
 
 A linha de `import_c` merece nota, porque é o caso que o critério "copiado versus gerado" deixaria escapar: `#include <tgmath.h>` é gerado, não copiado, mas é tradução um-para-um de uma linha que o usuário escreveu, e falha com frequência — nome errado, `-I` faltando, header que só existe em outra plataforma. Sem a diretiva, `fatal error: tgmath.h: No such file or directory` aponta para um `.h` que ninguém escreveu.
 
@@ -1941,7 +1994,7 @@ Estas são propriedades do **conteúdo**, e por isso deste documento. Como o con
 | Arquivo | É função de |
 | --- | --- |
 | `.type.h` de um módulo | o fonte daquele `.k` **e o `.type.h` dos módulos que ele importa** — dos tipos deles, não da interface |
-| `.proto.h`, `.h` e `.c` de um módulo | o fonte daquele `.k` **e a interface pública dos módulos que ele importa**, transitivamente |
+| `.h` e `.c` de um módulo | o fonte daquele `.k` **e a interface pública dos módulos que ele importa**, transitivamente |
 | header de instância de modificador **embutido** | **apenas o próprio nome** |
 | header de instância de modificador **do usuário**, e o `.c` de instância pedida por `--instance` | o nome **e** o corpo do módulo genérico |
 | unidade de ponto de entrada | o nome do módulo pedido na invocação |
@@ -1969,7 +2022,7 @@ A terceira linha é a que paga o custo da repetição. Como todo módulo que usa
 
 > O conteúdo de um header de instância de modificador embutido é **função pura do próprio nome**, e o nome é o nome do arquivo. Se ele existe e foi escrito pela mesma versão do gerador, é necessariamente idêntico — basta um `stat`.
 
-É o que separa esses headers dos do módulo: o `.type.h`/`.proto.h`/`.h`/`.c` de um módulo depende do **conteúdo** do fonte, e por isso precisa de comparação; a instância de `buffer` depende apenas do **nome**. Dentro de uma invocação, cada instância é considerada uma vez só, por memoização.
+É o que separa esses headers dos do módulo: o `.type.h`/`.h`/`.c` de um módulo depende do **conteúdo** do fonte, e por isso precisa de comparação; a instância de `buffer` depende apenas do **nome**. Dentro de uma invocação, cada instância é considerada uma vez só, por memoização.
 
 **Instância de modificador do usuário não tem essa propriedade**, e é a única coisa que os módulos genéricos custam aqui: editar o `push` de `coll.k` muda `coll_stack_i32.h` sem mudar o nome dele. O critério de atualização correspondente é ferramenta §5.1.
 
@@ -1979,13 +2032,13 @@ O número de instâncias distintas é limitado pelo fonte, não pelo número de 
 
 As funções da instância saem inline num header, então toda unidade de tradução que a inclui **embute o código**. Editar `coll.k` tem que retriggar não só quem escreveu `stack i32`, mas todo módulo que alcance esse header por transitividade. O formato e a emissão são de ferramenta §4.5; a razão é esta linha.
 
-**O corte do §4.3.2 limita esse alcance entre os gerados, e não no `.c` do
-usuário.** Editar um corpo `inline` muda o `.h` e mais nada; um header gerado que
-só precisa do tipo ou da assinatura alcança o `.type.h` ou o `.proto.h`, que não
-mudaram. O `.c` inclui o `.h` de quem usa (regra 4), então recompila — é o preço
-de o include de uso ser um só, e foi aceito por isso. Quem quiser a
-granularidade fina num `.c` escrito à mão ainda pode incluir o `.type.h` ou o
-`.proto.h` diretamente: os arquivos existem, só não são o padrão.
+**O corte do §4.3.2 limita esse alcance só no caminho de layout.** Editar um
+corpo ou uma assinatura muda o `.h` e mais nada; um header gerado que só precisa
+do tipo alcança o `.type.h`, que não mudou. Quem chama inclui o `.h` (regras 2 e
+3), então recompila — é o preço de não haver um header só de protótipos
+([justificativa](keel-rationale.md#dois-headers-tipo-e-uso)). Quem quiser a
+granularidade fina num `.c` escrito à mão ainda pode incluir só o `.type.h`: o
+arquivo existe, só não é o padrão.
 
 A ressalva que sobra é a mesma do make: se o próprio gerador mudar, os gerados ficam obsoletos sem que timestamp nenhum acuse, e a saída é apagar o diretório de destino.
 

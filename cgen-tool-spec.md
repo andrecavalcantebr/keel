@@ -172,7 +172,7 @@ cgen -c --instance "coll.stack i32" -o coll_stack_i32.o
 cgen -c --instance "keel.buffer.buffer app.geom.Point" -o keel_buffer_app_geom_Point.o
 ```
 
-O argumento é o uso como a declaração `instance` o escreve, com uma exigência a mais: **tudo é qualificado por inteiro** — o modificador, `keel.buffer.buffer` e não `buffer`, e os argumentos, `app.geom.Point` e não `Point` —, porque na linha de comando não há `import`, e é o nome inteiro que fixa sem ambiguidade o módulo, o modificador e o arquivo de saída. O último componente do nome é o modificador; o resto é o módulo, achado pelas raízes como num `import`. A invocação produz os três headers da instância e o `.c` dela — `gen/coll/coll_stack_i32.c` —, e o `.c` recebe os corpos fora de linha, como receberia o do módulo que declarasse `instance`. O nome do arquivo é o símbolo (backend §4.1), então a regra `%.o: %.c` sobre o destino vale sem exceção.
+O argumento é o uso como a declaração `instance` o escreve, com uma exigência a mais: **tudo é qualificado por inteiro** — o modificador, `keel.buffer.buffer` e não `buffer`, e os argumentos, `app.geom.Point` e não `Point` —, porque na linha de comando não há `import`, e é o nome inteiro que fixa sem ambiguidade o módulo, o modificador e o arquivo de saída. O último componente do nome é o modificador; o resto é o módulo, achado pelas raízes como num `import`. A invocação produz os dois headers da instância e o `.c` dela — `gen/coll/coll_stack_i32.c` —, e o `.c` recebe os corpos fora de linha, como receberia o do módulo que declarasse `instance`. O nome do arquivo é o símbolo (backend §4.1), então a regra `%.o: %.c` sobre o destino vale sem exceção.
 
 `--instance` ocupa o lugar do `.k`: uma invocação tem um ou outro, e ter os dois é `fonte-multiplo`. Sobre genérico inteiramente `pub inline` — toda a base —, o `.c` sai só com o include, e o aviso é o `instance-inutil` da linguagem.
 
@@ -197,11 +197,11 @@ cgen -I src -c src/main.k -o main.o -O2 -Wall
 O cgen parseia `src/main.k`; cada import carrega e, se desatualizado, gera os headers do módulo importado. Ao final existem:
 
 ```plain
-gen/main.type.h  gen/main.proto.h  gen/main.h  gen/main.c
-gen/geom.type.h  gen/geom.proto.h  gen/geom.h
-gen/net/net_http.type.h  gen/net/net_http.proto.h  gen/net/net_http.h
-gen/keel.type.h  gen/keel.proto.h  gen/keel.h
-gen/keel/keel_buffer_geom_Point.type.h  .proto.h  .h   ...
+gen/main.type.h  gen/main.h  gen/main.c
+gen/geom.type.h  gen/geom.h
+gen/net/net_http.type.h  gen/net/net_http.h
+gen/keel.type.h  gen/keel.h
+gen/keel/keel_buffer_geom_Point.type.h  .h   ...
 ```
 
 E a chamada emitida é uma só, sobre o módulo que foi pedido:
@@ -236,7 +236,7 @@ Sem genéricos a diferença era invisível, porque o conteúdo da instância nã
 **O depfile e o critério da §5 são o mesmo fecho, vistos dos dois lados.** Este diz ao build **quando reinvocar** o cgen; aquele diz ao cgen **quando não pular**. Os dois têm de concordar, e concordam por serem o mesmo conjunto — o `.k` alcançável por `import`. Se só um deles fosse transitivo, o build reinvocaria o cgen para nada, ou o cgen regeneraria sem ninguém pedir.
 
 **A metade do compilador C é o que ele reporta.** Cada módulo e cada instância
-saem em `.type.h`, `.proto.h` e `.h` (backend §4.3.2), e é o compilador C que
+saem em `.type.h` e `.h` (backend §4.3.2), e é o compilador C que
 reporta quais deles a unidade de fato incluiu. Nada muda aqui — o depfile
 continua sendo o que ele reporta, fundido com o fecho de `.k`. Não há lista a
 montar: a granularidade vem da separação dos arquivos, não de análise da
@@ -438,9 +438,9 @@ O mesmo do make, resolvido com chamadas ao sistema.
 > mais novo entre o próprio `.k` e os `.k` alcançáveis por `import`,
 > transitivamente**.
 
-A interface de um módulo são dois arquivos desde o backend §4.3.2 — o `.proto.h`
+A interface de um módulo são dois arquivos desde o backend §4.3.2 — o `.h`
 e o `.type.h` que ele inclui —, e o critério é o mesmo para todos os gerados do
-módulo — os três headers, e o `.c` quando é ele o compilado: **o operando da
+módulo — os dois headers, e o `.c` quando é ele o compilado: **o operando da
 comparação é o mais antigo deles**. Comparar contra um só deixaria
 passar o caso em que a geração anterior parou no meio.
 
@@ -493,9 +493,9 @@ Instância de modificador **do usuário** não tem essa propriedade. O conteúdo
 
 > Para instância de genérico do usuário, o critério é o **timestamp do fonte do módulo genérico** contra o do header de instância. Mais recente, regenera.
 
-Vale para os três headers da instância, e não só para o `.h`: editar `coll.k`
+Vale para os dois headers da instância, e não só para o `.h`: editar `coll.k`
 pode mexer no corpo do modificador tanto quanto nos verbos. A comparação é contra
-o mais antigo dos três, pela razão da §5.
+o mais antigo dos dois, pela razão da §5.
 
 É a mesma comparação da §5, com o fonte do genérico no lugar do fonte do módulo — nenhum mecanismo novo, apenas outro operando. O mesmo vale para o `.c` de um módulo que declare `instance`, e para o `.c` de uma instância pedida por `--instance`: ele depende do corpo do genérico, não só do próprio fonte.
 

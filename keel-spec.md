@@ -404,7 +404,6 @@ Um declarador como `int (*f)(void);` não satisfaz a regra de função acima: o 
 - Na resolução de `.` consultam-se, nesta ordem, um alias de módulo, um nome de tipo declarado em keel e uma expressão de contêiner reconhecida. As demais formas permanecem acesso a campo ou designador C.
 - Uma declaração local reconhecida que sombreie um qualificador desativa sua interpretação como qualificador naquele escopo. O sombreamento tem os diagnósticos da §2.5.
 - A coexistência de alias de módulo e nome de tipo com a mesma grafia é aceita quando ambos provêm do mesmo módulo. Nos demais casos aplica-se o diagnóstico `alias-e-tipo-colidem`.
-- Um alias de módulo ativo seguido de `(` ocupa uma forma reservada e produz o diagnóstico `alias-com-argumento`.
 - A posição de contêiner usa a produção `contentor` e a informação dos símbolos keel. Uma expressão C desconhecida, como uma chamada C ou um cast arbitrário, não fornece a identidade de contêiner exigida pelo despacho.
 - Índices, valores e demais argumentos continuam sendo regiões opacas, inclusive quando contêm outras construções keel reconhecíveis.
 - A indexação sobre um símbolo C desconhecido permanece C. A reescrita de índices múltiplos de `array` requer um símbolo com esse marcador; os demais contêineres seguem seus contratos de acesso.
@@ -452,7 +451,6 @@ Os diagnósticos abaixo são emitidos por keel durante a tradução. Seus identi
 | Sombreamento de palavra contextual, verbo ou nome de módulo | `sombreamento` | `warning` |
 | Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `alias-e-tipo-colidem` | `error` |
 | Modificador declarado com o nome `instance` | `modificador-chamado-instance` | `error` |
-| Alias de módulo ativo seguido de `(` | `alias-com-argumento` | `error` |
 
 Para o diagnóstico `redeclaracao-de-simbolo`, keel reconhece os padrões `IDENT IDENT` e `IDENT '*' IDENT` no início de statement, quando o segundo identificador é um símbolo keel conhecido. A verificação recusa a possível redeclaração sem precisar resolver o primeiro identificador como tipo C. [Justificativa: recusa de possíveis redeclarações](keel-rationale.md#por-que-a-redeclaração-é-recusada-em-vez-de-classificada).
 
@@ -3331,7 +3329,6 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `defer-later-sombreado` | `defer` sem `[now]` cujo corpo nomeia símbolo redeclarado em escopo mais interno com ponto de saída — a `note` dá as duas saídas, `[now]` ou `goto` | `error` | keel | §4.6 |
 | `constexpr-endereco` | `&` sobre símbolo `constexpr`, ou uso que exija lvalue — a `note` dá a saída, `static const T k = K;` | `error` | keel | §4.2 |
 | `dim-abaixo-de-um` | Argumento de `dim` que resolve para valor menor que 1 — a mensagem dá a cadeia de instanciação | `error` | keel | §4.3 |
-| `alias-com-argumento` | Alias de módulo seguido de `(` — vaga reservada; a `note` manda renomear o alias | `error` | keel | §2.5 |
 | `soa-tipo-anonimo` | Campo de `soa struct` com tipo `struct`/`union` anônima escrita inline | `error` | keel | §4.11 |
 | `soa-declarador-nao-simples` | Campo marcado `array` em `soa struct` com declarador além de tipo nomeado seguido de `*` | `error` | keel | §4.11 |
 | `soa-elemento-nao-existente` | `var[i]`/`param[i]` de instância `soa` sem `.campo` imediatamente seguinte | `error` | keel | §4.11 |

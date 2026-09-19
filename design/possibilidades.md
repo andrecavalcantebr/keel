@@ -51,6 +51,12 @@ Abertos:
   em compilação para desenrolar o laço.
 - O par segue a regra memória/visão (rationale, "Memória e visão"):
   `buffer(N)` produz `slice(N)`, nunca o contrário.
+- **Alias seguido de `(`.** Com modificadores de `(N)` — `buffer(N)`,
+  `slice(N)`, um futuro `tensor(N)` —, o `(N)` passa a ser obrigatório, e um
+  alias de módulo com a mesma grafia pode escondê-lo. Como palavras e nomes do
+  keel são posicionais, uma função do usuário com o nome do alias também tem de
+  ser distinguida. A v0 retirou a forma reservada e o diagnóstico; revisar
+  aqui a restrição, com o nome já escolhido: `alias-with-argument`.
 
 ### `keel.coll`: `stack`, `queue`, `ring`
 

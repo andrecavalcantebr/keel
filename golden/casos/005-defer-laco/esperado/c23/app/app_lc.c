@@ -1,5 +1,4 @@
 /* app/app_lc.c — gerado de app/lc.k pelo cgen, perfil C23. */
-#include "keel.type.h"
 #include "app/app_lc.h"
 #line 3 "app/lc.k"
 static int app_lc_vivos  = 0;
@@ -22,7 +21,6 @@ int app_lc_roda(int n) {
         if (h < 0)  { app_lc_solta(keel__c0.h); break; }
         if (h > 90) { app_lc_solta(keel__c0.h); return -1; }
         total += h;
-        app_lc_solta(keel__c0.h);
-    }
+    app_lc_solta(keel__c0.h); }
     return total;
 }

@@ -1300,6 +1300,14 @@ o segundo identifica o modificador nele declarado. O nome abreviado vem de
   `struct Person`, com os nomes reconhecidos qualificados conforme sua origem.
   `dim` substitui um número inteiro positivo conhecido na tradução. Pode receber
   literal decimal ou `constexpr` de inicializador decimal conhecido.
+- Dentro do módulo genérico, um parâmetro de tipo é opaco. Um valor declarado
+  com o tipo `T`, ou ponteiro para ele, não participa de protocolo (§4.4):
+  `foreach`, `walk`, `apply`, `else`, `match`, a indexação e o recorte de
+  contêiner, `at` e as chamadas qualificadas não se resolvem sobre ele.
+  Expressões C sobre `T` — atribuição, `sizeof`, operadores — atravessam como
+  texto e são validadas pelo compilador C depois da substituição. Uma instância
+  de modificador que menciona `T`, como `outcome buffer T`, tem tipo conhecido
+  e participa normalmente.
 - O significado de `N` pertence ao modificador. Não há associação automática
   entre `dim`, rank e quantidade de índices de um verbo.
 - A substituição não gera listas de parâmetros, campos ou funções. A aridade
@@ -1342,6 +1350,7 @@ Todas as verificações desta tabela são de keel:
 | Declaração que reutiliza nome de parâmetro genérico | `nome-de-parametro` |
 | Dependência de instanciação circular entre módulos genéricos | `generico-circular` |
 | Cadeia de tipos que se contêm por valor atravessando instância de modificador | `ciclo-de-layout` |
+| Construção keel aplicada a valor de tipo parâmetro | `protocolo-sobre-parametro` |
 | `instance` fora de arquivo ou sobre tipo que não é modificador genérico | `instance-fora-de-arquivo`; `instance-nao-modificador` |
 | `instance` sem corpos fora de linha a colocar | `instance-inutil` (`warning`) |
 | Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `generico-fora-de-linha` |
@@ -3289,6 +3298,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `nome-de-parametro` | Declaração de símbolo com o nome de um parâmetro do módulo | `error` | keel | §4.3 |
 | `generico-circular` | Módulo genérico que se instancia, com a cadeia na mensagem | `error` | keel | §4.3 |
 | `ciclo-de-layout` | Cadeia de tipos que se contêm por valor atravessando instância de modificador, com a cadeia na mensagem | `error` | keel | §4.3 |
+| `protocolo-sobre-parametro` | Construção keel aplicada a valor cujo tipo é parâmetro do módulo genérico, com a construção na mensagem | `error` | keel | §4.3 |
 | `instance-fora-de-arquivo` | `instance` fora de escopo de arquivo | `error` | keel | §4.3 |
 | `instance-nao-modificador` | Argumento de `instance` que não é modificador de módulo genérico | `error` | keel | §4.3 |
 | `instance-inutil` | `instance` sobre genérico inteiramente `pub inline` | `warning` | keel | §4.3 |

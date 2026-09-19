@@ -731,12 +731,15 @@ e o código de saída do `cc` — subiram para a spec da ferramenta.)
 
 | | Onde | Divergência |
 | --- | --- | --- |
-| P4 | golden × backend §4.1/§6 | o golden põe `import_c` no `.c`, sem `#line`, e não põe `#line` nas declarações levadas a header; o backend põe `import_c` no `.type.h` e `#line` nos dois. Resolve-se na auditoria dos casos |
-| P5 | golden | comentários de abertura com prosa que o cgen não pode gerar; `003` tem `(void)argc; (void)argv;` que não está no fonte — comparação byte a byte falha até o golden ser regularizado |
+| P15 | golden × `/base` | os headers da base — `c23/keel/`, `c11/keel/` e os `keel/` dos casos — ainda têm prosa que o cgen não gera e não têm `#line` para `keel/*.k`. Re-derivar de `/base` quando `tagged`, `corot`, `range`, `routine` e `parallel` existirem lá |
 
 Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão
 da §4.10), P3 (`--base-dir`, sem `KEEL_HOME`), P8 (o `.c` só da invocação), P9
 (a base não vai ao `cc`), P10 (lexer-design), P11 (`prelude.h` no backend §3.2),
 P6 (unidade de entrada inclui só o `.h`), P7 (código do `cc` na spec §7, era D5)
 e P12 (`base/` no repositório, `lib/base/` na distribuição).
-Resolvida em 2026-09-19: P13 (golden no corte em dois, `.type.h` + `.h`).
+Resolvida em 2026-09-19: P13 (golden no corte em dois, `.type.h` + `.h`); P4 e P5 nos módulos dos
+casos (`import_c` no `.type.h` com `#line`, `#line` em toda declaração levada a
+header, mapeamento de linha 1:1 nos `.c`, tag sintética, prosa e nomes que não
+vêm do fonte, genérico sem `.c`); P14 (parâmetro de tipo opaco no genérico,
+`protocolo-sobre-parametro`, spec §4.3).

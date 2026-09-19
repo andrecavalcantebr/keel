@@ -10,4 +10,8 @@ pub modifier stack byref { size_t cap, len; T *ptr; }
 pub inline size_t length(stack *s) { return s->len; }
 
 /* `pub` sem `inline` → sai `extern` na instância, e o corpo precisa de dono. */
-pub bool empurra(stack *s, T v);
+pub bool empurra(stack *s, T v) {
+    if (s->len == s->cap) return false;
+    s->ptr[s->len++] = v;
+    return true;
+}

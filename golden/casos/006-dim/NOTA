@@ -11,11 +11,6 @@ só o cabeçalho de uma linha (desenho do cgen §5.3).
 Os dois parâmetros são a MESMA instância: se fossem tipos distintos, passar
 o mesmo objeto nas duas posições não compilaria.
 
-**`grid.c`** (c23, c11)
-
-idem. Módulo genérico não abre exceção à invariante de build:
-ele é um `.k` e produz o seu par (backend §4.3).
-
 **`grid.h`** (c23, c11)
 
 o par do módulo genérico, praticamente vazio: tudo que ele

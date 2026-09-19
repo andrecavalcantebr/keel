@@ -3,5 +3,6 @@
 #define PILHA_TYPE_H
 #include "keel.type.h"
 
+#line 5 "pilha.k"
 constexpr i32 pilha_VAZIA = -1;
 #endif /* PILHA_TYPE_H */

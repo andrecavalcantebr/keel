@@ -565,6 +565,15 @@ que a expansão precisa. Passar a lista faria a identidade depender de uma
 sequência de nomes, e duas ordens da mesma lista produziriam instâncias
 distintas de representação idêntica.
 
+O parâmetro de tipo é opaco pelo mesmo motivo de a substituição ser textual.
+Abrir protocolo sobre `T` exigiria dizer em que módulo o verbo mora quando o
+genérico não importa o módulo do argumento — e isso é um sistema de traits:
+bound na assinatura, implementação com dono, verificação do corpo contra o
+bound. O genérico de keel sabe de `T` o que o header C genérico sabe do seu
+`#define T`, e nada mais. Uma instância que menciona `T`, como
+`outcome buffer T`, não é opaca: o modificador é conhecido, e é dele que vêm
+os verbos.
+
 Essa escolha limita as formas de interface de um tensor, mas o tensor é um
 exemplo de modificador, não o modelo de todo parâmetro `dim`. A orientação a
 dados de keel permanece dentro dos limites de substituição e reconhecimento,

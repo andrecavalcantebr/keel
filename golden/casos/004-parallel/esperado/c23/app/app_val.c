@@ -1,5 +1,4 @@
 /* app/app_val.c — gerado de app/val.k pelo cgen, perfil C23. */
-#include "keel.type.h"
 #include "app/app_val.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_slice_i32.h"
@@ -22,8 +21,9 @@ bool app_val_tem_negativo(keel_buffer_i32 *xs) {
                     }
                 }
             }
-            keel__end0: ;            /* fim natural: nada a contabilizar */
+            keel__end0: ;
         }
     }
+#line 15 "app/val.k"
     return keel_parallel_failed(&valida);
 }

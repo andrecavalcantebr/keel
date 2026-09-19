@@ -1,5 +1,4 @@
 /* app/app_ac.c — gerado de app/ac.k pelo cgen, perfil C23. */
-#include "keel.type.h"
 #include "app/app_ac.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_slice_i32.h"
@@ -11,7 +10,7 @@ i32 app_ac_troca(keel_buffer_i32 *b, size_t i) {
 
 #line 13 "app/ac.k"
 i32 app_ac_uma_vez(keel_buffer_i32 *b, size_t *i) {
-    *keel_buffer_i32_ptr1(b, (*i)++) = 9;
+    *keel_buffer_i32_ptr1(b, (*i)++) = 9;              /* o índice é avaliado exatamente uma vez */
     return (i32)*i;
 }
 

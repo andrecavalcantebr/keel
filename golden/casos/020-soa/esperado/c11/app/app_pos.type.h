@@ -3,6 +3,7 @@
 #define APP_APP_POS_TYPE_H
 #include "keel.type.h"
 
+#line 12 "app/pos.k"
 typedef struct app_pos_position {
     f32 *x;
     f32 *y;

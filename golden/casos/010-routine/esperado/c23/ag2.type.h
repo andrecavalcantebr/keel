@@ -2,7 +2,7 @@
 #ifndef AG2_TYPE_H
 #define AG2_TYPE_H
 #include "keel.type.h"
-#include "keel/keel_outcome_u32.type.h"
 
-typedef struct { i32 a, b, c; } ag2_Ag;
+#line 7 "ag2.k"
+typedef struct ag2_Ag { i32 a, b, c; } ag2_Ag;
 #endif /* AG2_TYPE_H */

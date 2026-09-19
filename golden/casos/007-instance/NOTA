@@ -22,11 +22,6 @@ nome: não há nada de `pub` aqui (linguagem §4.9).
 o par de instancias.k. `instance` coloca, não declara
 nome: não há nada de `pub` aqui (linguagem §4.9).
 
-**`pilha.c`** (c23, c11)
-
-o par do genérico. A constante é `pub` e vive no `.type.h`; não há
-corpo a emitir aqui (backend §4.3).
-
 **`pilha.h`** (c23, c11)
 
 o `.h` do módulo genérico, uma vez: só inclui o `.type.h`, onde a

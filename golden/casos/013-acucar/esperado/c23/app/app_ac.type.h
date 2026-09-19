@@ -2,6 +2,7 @@
 #ifndef APP_APP_AC_TYPE_H
 #define APP_APP_AC_TYPE_H
 #include "keel.type.h"
-#include "keel/keel_buffer_i32.type.h"
 
+#line 4 "app/ac.k"
+#include <stdio.h>
 #endif /* APP_APP_AC_TYPE_H */

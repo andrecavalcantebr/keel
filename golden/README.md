@@ -28,6 +28,10 @@ dois primeiros (`backend §4.1`, `§4.3.2`):
                               ordem; é o único include de uso
     <módulo>.c         L3     os corpos fora de linha; inclui o próprio .h
 
+Um módulo genérico não tem `.c`: ele não é unidade compilada (`fonte-generico`),
+e o corpo fora de linha de uma instância vai para o `.c` de quem declara
+`instance` (`backend §4.4`).
+
 Um módulo que declara `main` tem também a unidade de entrada `main_<módulo>.c`,
 porque ela não vai dentro do `.c` do módulo (`backend §5.8`).
 

@@ -2,7 +2,7 @@
 #ifndef APP_APP_EL_TYPE_H
 #define APP_APP_EL_TYPE_H
 #include "keel.type.h"
-#include "keel/keel_outcome_i32.type.h"
-#include "keel/keel_outcome_keel_slice_i32.type.h"
 
+#line 4 "app/el.k"
+#include <stdio.h>
 #endif /* APP_APP_EL_TYPE_H */

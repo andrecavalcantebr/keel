@@ -41,7 +41,8 @@ done
 # o .k mora no caminho do módulo (acima), e o header leva o símbolo manglado sob
 # o diretório dos componentes-pai (backend §4.1). `module app.cfg;` mora em
 # app/cfg.k e gera app/app_cfg.h. E o módulo do caso é o que a invocação compila,
-# então gera também o .c (backend §4.1) — sempre, mesmo que só com o include.
+# então gera também o .c (backend §4.1) — sempre, mesmo que só com o include —,
+# salvo o genérico, que não compila sozinho (`fonte-generico`).
 for caso in casos/*/; do
   for perfil in c23 c11; do
     ger="$caso/esperado/$perfil"
@@ -52,7 +53,12 @@ for caso in casos/*/; do
       sim=$(printf '%s' "$mod" | tr '.' '_')
       [ -n "$dir" ] && alvo="$ger/$dir/$sim.h" || alvo="$ger/$sim.h"
       [ -f "$alvo" ] || { printf 'ESTRUT %s — `module %s` deveria gerar %s\n' "$k" "$mod" "$alvo"; estrutura=$((estrutura+1)); }
-      [ -f "${alvo%.h}.c" ] || { printf 'ESTRUT %s — `module %s` deveria gerar %s\n' "$k" "$mod" "${alvo%.h}.c"; estrutura=$((estrutura+1)); }
+      # genérico não é unidade compilada (fonte-generico): tem os headers, não o .c
+      if grep -m1 '^module' "$k" | grep -Eq '[[:space:]](type|dim|tags)[[:space:]]'; then
+        [ ! -f "${alvo%.h}.c" ] || { printf 'ESTRUT %s — `module %s` é genérico e não gera .c\n' "$k" "$mod"; estrutura=$((estrutura+1)); }
+      else
+        [ -f "${alvo%.h}.c" ] || { printf 'ESTRUT %s — `module %s` deveria gerar %s\n' "$k" "$mod" "${alvo%.h}.c"; estrutura=$((estrutura+1)); }
+      fi
     done
   done
 done

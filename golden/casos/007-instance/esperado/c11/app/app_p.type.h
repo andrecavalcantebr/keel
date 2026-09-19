@@ -2,6 +2,7 @@
 #ifndef APP_APP_P_TYPE_H
 #define APP_APP_P_TYPE_H
 #include "keel.type.h"
-#include "pilha_stack_i32.type.h"
 
+#line 3 "app/p.k"
+#include <stdio.h>
 #endif /* APP_APP_P_TYPE_H */

@@ -642,10 +642,12 @@ Quando a cadeia é toda do fonte, quem diagnostica é o compilador C (princípio
 Quando ela **atravessa instância de modificador**, como acima, keel a diagnostica:
 `ciclo-de-layout`, `error`, com a cadeia na mensagem (linguagem §4.3).
 
-**L3→L3 é chamada entre corpos**, e pode ser cíclica. Dentro de um módulo, é a
-recursão mútua; entre arquivos, é o caso de um corpo de instância que alcance o
-módulo do argumento. Em ambos, basta que o protótipo da função chamada preceda o
-corpo que a chama na unidade de tradução, e o §4.3.2 fixa a ordem que o garante.
+**L3→L3 é chamada entre corpos**, e pode ser cíclica dentro de um módulo: é a
+recursão mútua. Entre arquivos a linguagem não a produz — o grafo de import é
+acíclico, e a instância não chama o módulo do argumento, porque o parâmetro de
+tipo é opaco (linguagem §4.3). Em qualquer caso, basta que o protótipo da função
+chamada preceda o corpo que a chama na unidade de tradução, e o §4.3.2 fixa a
+ordem que o garante.
 
 ```keel
 //keel — L3→L3 cíclico dentro do módulo
@@ -763,8 +765,9 @@ static inline keel_outcome_keel_buffer_keel_outcome_i32
 Entrando por qualquer um dos `.h`, os tipos chegam completos antes dos
 protótipos, e os protótipos antes dos corpos.
 
-Com ciclo L3→L3 entre arquivos, a seção 2.2 vem antes da 2.3 nos dois lados,
-então cada arquivo declara as próprias funções antes de alcançar o outro:
+A linguagem não produz ciclo L3→L3 entre arquivos (§4.3.1), mas a ordem não
+depende disso. Havendo um, a seção 2.2 vem antes da 2.3 nos dois lados, então
+cada arquivo declara as próprias funções antes de alcançar o outro:
 
 ```c
 /* foo.h */                              /* sorted_foo.h */

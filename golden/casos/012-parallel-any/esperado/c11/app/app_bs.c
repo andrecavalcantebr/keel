@@ -1,5 +1,4 @@
 /* app/app_bs.c — gerado de app/bs.k pelo cgen, perfil C11. */
-#include "keel.type.h"
 #include "app/app_bs.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_buffer_size_t.h"
@@ -26,8 +25,9 @@ bool app_bs_achou_alguem(keel_buffer_i32 *xs, i32 alvo, keel_buffer_size_t *onde
                     }
                 }
             }
-            keel__end0: ;            /* fim natural: nada a contabilizar */
+            keel__end0: ;
         }
     }
+#line 16 "app/bs.k"
     return keel_parallel_ok(&busca);
 }

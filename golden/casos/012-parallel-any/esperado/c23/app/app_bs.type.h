@@ -2,7 +2,5 @@
 #ifndef APP_APP_BS_TYPE_H
 #define APP_APP_BS_TYPE_H
 #include "keel.type.h"
-#include "keel/keel_buffer_i32.type.h"
-#include "keel/keel_buffer_size_t.type.h"
 
 #endif /* APP_APP_BS_TYPE_H */

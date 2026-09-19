@@ -2,9 +2,11 @@
 #ifndef LST_TYPE_H
 #define LST_TYPE_H
 #include "keel.type.h"
-#include "keel/keel_buffer_i32.type.h"
 
+#line 8 "lst.k"
 typedef struct lst_No { i32 v; struct lst_No *prox; } lst_No;
-typedef struct { lst_No *cabeca; } lst_Lista;
-typedef struct { lst_No *atual; } lst_cursor;
+#line 9 "lst.k"
+typedef struct lst_Lista { lst_No *cabeca; } lst_Lista;
+#line 10 "lst.k"
+typedef struct lst_cursor { lst_No *atual; } lst_cursor;
 #endif /* LST_TYPE_H */

@@ -1,4 +1,4 @@
-/* app/app_reg.h — gerado de app/reg.k pelo cgen, perfil C11. */
+/* app/app_reg.h — generated from app/reg.k by cgen, C11 profile. */
 #ifndef APP_APP_REG_H
 #define APP_APP_REG_H
 #include "app/app_reg.type.h"

@@ -1,4 +1,4 @@
-/* keel.h — gerado de keel.k pelo cgen, perfil C23. */
+/* keel.h — generated from keel.k by cgen, C23 profile. */
 #ifndef KEEL_H
 #define KEEL_H
 #include "keel.type.h"

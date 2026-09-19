@@ -1,4 +1,4 @@
-/* keel/keel_slice.h — gerado de keel/slice.k pelo cgen, perfil C23. */
+/* keel/keel_slice.h — generated from keel/slice.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_SLICE_H
 #define KEEL_KEEL_SLICE_H
 #include "keel/keel_slice.type.h"

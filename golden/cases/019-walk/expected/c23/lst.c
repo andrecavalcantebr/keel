@@ -1,4 +1,4 @@
-/* lst.c — gerado de lst.k pelo cgen, perfil C23. */
+/* lst.c — generated from lst.k by cgen, C23 profile. */
 #include "lst.h"
 #include "keel/keel_buffer_i32.h"
 #line 1 "lst.k"

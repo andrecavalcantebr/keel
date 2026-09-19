@@ -1,4 +1,4 @@
-/* keel/keel_range.type.h — gerado de keel/range.k pelo cgen, perfil C23. */
+/* keel/keel_range.type.h — generated from keel/range.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_RANGE_TYPE_H
 #define KEEL_KEEL_RANGE_TYPE_H
 #include "keel.type.h"

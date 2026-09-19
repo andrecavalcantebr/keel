@@ -1,4 +1,4 @@
-/* results.h — gerado de results.k pelo cgen, perfil C23. */
+/* results.h — generated from results.k by cgen, C23 profile. */
 #ifndef RESULTS_H
 #define RESULTS_H
 #include "results.type.h"

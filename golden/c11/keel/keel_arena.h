@@ -1,4 +1,4 @@
-/* keel/keel_arena.h — gerado de keel/arena.k pelo cgen, perfil C11. */
+/* keel/keel_arena.h — generated from keel/arena.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_ARENA_H
 #define KEEL_KEEL_ARENA_H
 #include "keel/keel_arena.type.h"

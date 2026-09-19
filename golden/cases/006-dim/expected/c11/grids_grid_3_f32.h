@@ -1,4 +1,4 @@
-/* grids_grid_3_f32.h — gerado de grids.k pelo cgen, perfil C11. */
+/* grids_grid_3_f32.h — generated from grids.k by cgen, C11 profile. */
 #ifndef GRIDS_GRADE_3_F32_H
 #define GRIDS_GRADE_3_F32_H
 #include "grids_grid_3_f32.type.h"

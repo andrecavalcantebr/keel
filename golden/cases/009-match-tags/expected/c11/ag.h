@@ -1,4 +1,4 @@
-/* ag.h — gerado de ag.k pelo cgen, perfil C11. */
+/* ag.h — generated from ag.k by cgen, C11 profile. */
 #ifndef AG_H
 #define AG_H
 #include "ag.type.h"

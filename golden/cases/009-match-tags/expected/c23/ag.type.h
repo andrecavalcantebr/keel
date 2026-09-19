@@ -1,4 +1,4 @@
-/* ag.type.h — gerado de ag.k pelo cgen, perfil C23. */
+/* ag.type.h — generated from ag.k by cgen, C23 profile. */
 #ifndef AG_TYPE_H
 #define AG_TYPE_H
 #include "keel.type.h"

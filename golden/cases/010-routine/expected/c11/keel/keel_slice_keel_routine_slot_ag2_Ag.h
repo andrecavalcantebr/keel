@@ -1,4 +1,4 @@
-/* keel/keel_slice_keel_routine_slot_ag2_Ag.h — gerado de keel/slice.k pelo cgen, perfil C11. */
+/* keel/keel_slice_keel_routine_slot_ag2_Ag.h — generated from keel/slice.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_H
 #define KEEL_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_H
 #include "keel/keel_slice_keel_routine_slot_ag2_Ag.type.h"

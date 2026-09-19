@@ -1,4 +1,4 @@
-/* app/app_align.h — gerado de app/align.k pelo cgen, perfil C23. */
+/* app/app_align.h — generated from app/align.k by cgen, C23 profile. */
 #ifndef APP_APP_AL_H
 #define APP_APP_AL_H
 #include "app/app_align.type.h"

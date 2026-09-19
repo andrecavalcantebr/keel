@@ -448,7 +448,7 @@ $ cgen --cgen-version
 cgen 0.1.0
 $ echo $?
 0
-$ cgen --version          # é do cc
+$ cgen --version          # comes from the cc
 gcc (GCC) 14.2.1 …
 ```
 
@@ -492,7 +492,7 @@ gen/main_hello.c
 §4.1 e §6):
 
 ```c
-/* hello.type.h — gerado de hello.k pelo cgen, perfil C23. */
+/* hello.type.h — generated from hello.k by cgen, C23 profile. */
 #ifndef HELLO_TYPE_H
 #define HELLO_TYPE_H
 #include "keel.type.h"
@@ -505,7 +505,7 @@ gen/main_hello.c
 com a linha dela; nenhum corpo `inline` depois dele:
 
 ```c
-/* hello.h — gerado de hello.k pelo cgen, perfil C23. */
+/* hello.h — generated from hello.k by cgen, C23 profile. */
 #ifndef HELLO_H
 #define HELLO_H
 #include "hello.type.h"
@@ -520,7 +520,7 @@ copiado com as quebras intactas, `pub` sai e o nome recebe o prefixo, na mesma
 linha:
 
 ```c
-/* hello.c — gerado de hello.k pelo cgen, perfil C23. */
+/* hello.c — generated from hello.k by cgen, C23 profile. */
 #include "hello.h"
 #line 1 "hello.k"
 

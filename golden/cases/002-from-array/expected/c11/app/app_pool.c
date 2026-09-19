@@ -1,4 +1,4 @@
-/* app/app_pool.c — gerado de app/pool.k pelo cgen, perfil C11. */
+/* app/app_pool.c — generated from app/pool.k by cgen, C11 profile. */
 #include "app/app_pool.h"
 #include "keel/keel_arena.h"
 #line 1 "app/pool.k"

@@ -1,4 +1,4 @@
-/* app/app_ap.h — gerado de app/ap.k pelo cgen, perfil C23. */
+/* app/app_ap.h — generated from app/ap.k by cgen, C23 profile. */
 #ifndef APP_APP_AP_H
 #define APP_APP_AP_H
 #include "app/app_ap.type.h"

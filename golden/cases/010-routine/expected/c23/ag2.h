@@ -1,4 +1,4 @@
-/* ag2.h — gerado de ag2.k pelo cgen, perfil C23. */
+/* ag2.h — generated from ag2.k by cgen, C23 profile. */
 #ifndef AG2_H
 #define AG2_H
 #include "ag2.type.h"

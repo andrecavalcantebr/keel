@@ -1,4 +1,4 @@
-/* app/app_dl.h — gerado de app/dl.k pelo cgen, perfil C11. */
+/* app/app_dl.h — generated from app/dl.k by cgen, C11 profile. */
 #ifndef APP_APP_DL_H
 #define APP_APP_DL_H
 #include "app/app_dl.type.h"

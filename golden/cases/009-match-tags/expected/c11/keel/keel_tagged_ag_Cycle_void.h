@@ -1,4 +1,4 @@
-/* keel/keel_tagged_ag_Cycle_void.h — gerado de keel/tagged.k pelo cgen, perfil C11. */
+/* keel/keel_tagged_ag_Cycle_void.h — generated from keel/tagged.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_TAGGED_AG_CYCLE_VOID_H
 #define KEEL_KEEL_TAGGED_AG_CYCLE_VOID_H
 #include "keel/keel_tagged_ag_Cycle_void.type.h"

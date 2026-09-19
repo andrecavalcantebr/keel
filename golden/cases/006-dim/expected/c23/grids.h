@@ -1,4 +1,4 @@
-/* grids.h — gerado de grids.k pelo cgen, perfil C23. */
+/* grids.h — generated from grids.k by cgen, C23 profile. */
 #ifndef GRIDS_H
 #define GRIDS_H
 #include "grids.type.h"

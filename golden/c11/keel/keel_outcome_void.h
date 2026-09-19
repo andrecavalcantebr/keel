@@ -1,4 +1,4 @@
-/* keel/keel_outcome_void.h — gerado de keel/outcome.k pelo cgen, perfil C11. */
+/* keel/keel_outcome_void.h — generated from keel/outcome.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_OUTCOME_VOID_H
 #define KEEL_KEEL_OUTCOME_VOID_H
 #include "keel/keel_outcome_void.type.h"

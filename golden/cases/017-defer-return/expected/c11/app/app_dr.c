@@ -1,4 +1,4 @@
-/* app/app_dr.c — gerado de app/dr.k pelo cgen, perfil C11. */
+/* app/app_dr.c — generated from app/dr.k by cgen, C11 profile. */
 #include "app/app_dr.h"
 #line 1 "app/dr.k"
 

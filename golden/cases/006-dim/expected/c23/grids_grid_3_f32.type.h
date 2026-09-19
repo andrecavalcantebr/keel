@@ -1,4 +1,4 @@
-/* grids_grid_3_f32.type.h — gerado de grids.k pelo cgen, perfil C23. */
+/* grids_grid_3_f32.type.h — generated from grids.k by cgen, C23 profile. */
 #ifndef GRIDS_GRADE_3_F32_TYPE_H
 #define GRIDS_GRADE_3_F32_TYPE_H
 #include "keel.type.h"

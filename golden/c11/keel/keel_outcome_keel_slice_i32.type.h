@@ -1,4 +1,4 @@
-/* keel/keel_outcome_keel_slice_i32.type.h — gerado de keel/outcome.k pelo cgen, perfil C11. */
+/* keel/keel_outcome_keel_slice_i32.type.h — generated from keel/outcome.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_OUTCOME_KEEL_SLICE_I32_TYPE_H
 #define KEEL_KEEL_OUTCOME_KEEL_SLICE_I32_TYPE_H
 #include "keel.type.h"

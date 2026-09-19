@@ -1,4 +1,4 @@
-/* keel/keel_buffer.type.h — gerado de keel/buffer.k pelo cgen, perfil C23. */
+/* keel/keel_buffer.type.h — generated from keel/buffer.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_BUFFER_TYPE_H
 #define KEEL_KEEL_BUFFER_TYPE_H
 #include "keel.type.h"

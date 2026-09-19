@@ -1,4 +1,4 @@
-/* app/app_loop.c — gerado de app/loop.k pelo cgen, perfil C23. */
+/* app/app_loop.c — generated from app/loop.k by cgen, C23 profile. */
 #include "app/app_loop.h"
 #line 1 "app/loop.k"
 

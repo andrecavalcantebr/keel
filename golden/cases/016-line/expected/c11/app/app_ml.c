@@ -1,4 +1,4 @@
-/* app/app_ml.c — gerado de app/ml.k pelo cgen, perfil C11. */
+/* app/app_ml.c — generated from app/ml.k by cgen, C11 profile. */
 #include "app/app_ml.h"
 #include "keel/keel_buffer_i32.h"
 #line 1 "app/ml.k"

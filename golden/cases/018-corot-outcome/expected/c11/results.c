@@ -1,4 +1,4 @@
-/* results.c — gerado de results.k pelo cgen, perfil C11. */
+/* results.c — generated from results.k by cgen, C11 profile. */
 #include "results.h"
 #include "keel/keel_corot.h"
 #include "keel/keel_outcome_i32.h"

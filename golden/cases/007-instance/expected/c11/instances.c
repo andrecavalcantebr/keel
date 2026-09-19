@@ -1,4 +1,4 @@
-/* instances.c — gerado de instances.k pelo cgen, perfil C11. */
+/* instances.c — generated from instances.k by cgen, C11 profile. */
 #include "instances.h"
 #include "coll_stack_i32.h"
 #line 13 "coll.k"

@@ -1,4 +1,4 @@
-/* app/app_g.c — gerado de app/g.k pelo cgen, perfil C11. */
+/* app/app_g.c — generated from app/g.k by cgen, C11 profile. */
 #include "app/app_g.h"
 #include "grids_grid_3_f32.h"
 #line 1 "app/g.k"

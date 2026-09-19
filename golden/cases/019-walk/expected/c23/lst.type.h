@@ -1,4 +1,4 @@
-/* lst.type.h — gerado de lst.k pelo cgen, perfil C23. */
+/* lst.type.h — generated from lst.k by cgen, C23 profile. */
 #ifndef LST_TYPE_H
 #define LST_TYPE_H
 #include "keel.type.h"

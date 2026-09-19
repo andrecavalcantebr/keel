@@ -1,4 +1,4 @@
-/* instances.type.h — gerado de instances.k pelo cgen, perfil C23. */
+/* instances.type.h — generated from instances.k by cgen, C23 profile. */
 #ifndef INSTANCES_TYPE_H
 #define INSTANCES_TYPE_H
 #include "keel.type.h"

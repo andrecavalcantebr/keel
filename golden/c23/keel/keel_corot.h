@@ -1,4 +1,4 @@
-/* keel/keel_corot.h — gerado de keel/corot.k pelo cgen, perfil C23. */
+/* keel/keel_corot.h — generated from keel/corot.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_COROT_H
 #define KEEL_KEEL_COROT_H
 #include "keel/keel_corot.type.h"

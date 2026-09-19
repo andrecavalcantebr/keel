@@ -1,4 +1,4 @@
-/* keel/keel_routine_ag2_Ag.h — gerado de keel/routine.k pelo cgen, perfil C23. */
+/* keel/keel_routine_ag2_Ag.h — generated from keel/routine.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_ROUTINE_AG2_AG_H
 #define KEEL_KEEL_ROUTINE_AG2_AG_H
 #include "keel/keel_routine_ag2_Ag.type.h"

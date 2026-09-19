@@ -1,4 +1,4 @@
-/* app/app_loop.h — gerado de app/loop.k pelo cgen, perfil C11. */
+/* app/app_loop.h — generated from app/loop.k by cgen, C11 profile. */
 #ifndef APP_APP_LC_H
 #define APP_APP_LC_H
 #include "app/app_loop.type.h"

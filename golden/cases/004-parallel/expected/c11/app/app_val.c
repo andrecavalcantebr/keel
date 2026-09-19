@@ -1,4 +1,4 @@
-/* app/app_val.c — gerado de app/val.k pelo cgen, perfil C11. */
+/* app/app_val.c — generated from app/val.k by cgen, C11 profile. */
 #include "app/app_val.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_slice_i32.h"

@@ -1,4 +1,4 @@
-/* keel/keel_slice_const_char.type.h — gerado de keel/slice.k pelo cgen, perfil C23. */
+/* keel/keel_slice_const_char.type.h — generated from keel/slice.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_SLICE_CONST_CHAR_TYPE_H
 #define KEEL_KEEL_SLICE_CONST_CHAR_TYPE_H
 #include "keel.type.h"

@@ -1,4 +1,4 @@
-/* app/app_reg.c — gerado de app/reg.k pelo cgen, perfil C23. */
+/* app/app_reg.c — generated from app/reg.k by cgen, C23 profile. */
 #include "app/app_reg.h"
 #include "keel/keel_slice_const_char.h"
 #include "keel/keel_outcome_keel_slice_const_char.h"

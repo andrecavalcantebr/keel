@@ -1,4 +1,4 @@
-/* ag2.type.h — gerado de ag2.k pelo cgen, perfil C11. */
+/* ag2.type.h — generated from ag2.k by cgen, C11 profile. */
 #ifndef AG2_TYPE_H
 #define AG2_TYPE_H
 #include "keel.type.h"

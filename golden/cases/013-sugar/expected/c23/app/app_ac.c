@@ -1,4 +1,4 @@
-/* app/app_ac.c — gerado de app/ac.k pelo cgen, perfil C23. */
+/* app/app_ac.c — generated from app/ac.k by cgen, C23 profile. */
 #include "app/app_ac.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_slice_i32.h"

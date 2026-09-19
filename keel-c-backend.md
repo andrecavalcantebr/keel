@@ -284,7 +284,7 @@ O motivo não é disponibilidade — GCC e Clang suportam `_Float32`/`_Float64`/
 
 ```keel
 buffer f64 xs;
-cblas_dgemv(..., ptr(xs), ...);      /* biblioteca C espera double * */
+cblas_dgemv(..., ptr(xs), ...);      /* the C library expects double * */
 ```
 
 ```c
@@ -464,8 +464,8 @@ Variável pública **nunca** vai para o `.h` como `static`. Isso compila e linka
 **`extern_c` vai para o `.c`, inteiro.** O conteúdo é opaco e pode misturar tipo com corpo de função; num header, os corpos dariam definição múltipla, e o keel não tem como separar um do outro sem entender o C. Um tipo declarado ali é, portanto, privado do `.c`. **Tipo C que atravessa a interface mora num header, e entra por `import_c`**:
 
 ```keel
-import_c "legacy.h";            // typedef struct legado legado_t;  → .type.h
-pub void usa(legacy_t *x);      // the type arrives before the prototype
+import_c "legacy.h";            // typedef struct legacy legacy_t;  → .type.h
+pub void use(legacy_t *x);      // the type arrives before the prototype
 
 extern_c {                      // → .c: private C, no mangling
     static legacy_t cache;
@@ -775,7 +775,7 @@ cada arquivo declara as próprias funções antes de alcançar o outro:
 #include "sorted_foo.type.h"             #include "foo.type.h"
 int  foo_cmp(foo, foo);   /* 2.2 */      void sorted_foo_sort(sorted_foo *);  /* 2.2 */
 #include "sorted_foo.h"   /* 2.3 */      #include "foo.h"                     /* 2.3 */
-/* corpos: chamam sorted_foo_sort */     /* corpos: chamam foo_cmp */
+/* bodies: they call sorted_foo_sort */     /* bodies: they call foo_cmp */
 ```
 
 Entrando por `foo.h`, o `foo.h` de volta é pulado pela guarda, e `foo_cmp` já
@@ -1135,7 +1135,7 @@ compilador C o desenrola e o literal desaparece por SROA. Vale conferir uma vez,
 porque é a premissa do desenho:
 
 ```c
-/* -O2, x86-64: o corpo de _ptr3 colapsa em */
+/* -O2, x86-64: the body of _ptr3 collapses into */
 t->ptr + idx0 * t->steps[0] + idx1 * t->steps[1] + idx2 * t->steps[2]
 ```
 

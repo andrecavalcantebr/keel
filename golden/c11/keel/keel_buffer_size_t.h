@@ -1,4 +1,4 @@
-/* keel/keel_buffer_size_t.h — gerado de keel/buffer.k pelo cgen, perfil C11. */
+/* keel/keel_buffer_size_t.h — generated from keel/buffer.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_BUFFER_SIZE_T_H
 #define KEEL_KEEL_BUFFER_SIZE_T_H
 #include "keel/keel_buffer_size_t.type.h"

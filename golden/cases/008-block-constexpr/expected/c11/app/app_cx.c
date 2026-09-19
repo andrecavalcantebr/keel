@@ -1,4 +1,4 @@
-/* app/app_cx.c — gerado de app/cx.k pelo cgen, perfil C11. */
+/* app/app_cx.c — generated from app/cx.k by cgen, C11 profile. */
 #include "app/app_cx.h"
 #line 1 "app/cx.k"
 

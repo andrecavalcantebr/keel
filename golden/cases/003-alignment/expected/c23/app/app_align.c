@@ -1,4 +1,4 @@
-/* app/app_align.c — gerado de app/align.k pelo cgen, perfil C23. */
+/* app/app_align.c — generated from app/align.k by cgen, C23 profile. */
 #include "app/app_align.h"
 #include "keel/keel_arena.h"
 #line 1 "app/align.k"

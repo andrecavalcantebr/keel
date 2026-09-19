@@ -1,4 +1,4 @@
-/* app/app_pos.h — gerado de app/pos.k pelo cgen, perfil C23. */
+/* app/app_pos.h — generated from app/pos.k by cgen, C23 profile. */
 #ifndef APP_APP_POS_H
 #define APP_APP_POS_H
 #include "app/app_pos.type.h"

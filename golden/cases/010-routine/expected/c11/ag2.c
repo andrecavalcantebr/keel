@@ -1,4 +1,4 @@
-/* ag2.c — gerado de ag2.k pelo cgen, perfil C11. */
+/* ag2.c — generated from ag2.k by cgen, C11 profile. */
 #include "ag2.h"
 #include "keel/keel_corot.h"
 #include "keel/keel_outcome_u32.h"

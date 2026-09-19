@@ -1,4 +1,4 @@
-/* keel/keel_parallel.h — gerado de keel/parallel.k pelo cgen, perfil C23. */
+/* keel/keel_parallel.h — generated from keel/parallel.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_PARALLEL_H
 #define KEEL_KEEL_PARALLEL_H
 #include "keel/keel_parallel.type.h"

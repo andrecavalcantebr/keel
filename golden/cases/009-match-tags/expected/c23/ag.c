@@ -1,4 +1,4 @@
-/* ag.c — gerado de ag.k pelo cgen, perfil C23. */
+/* ag.c — generated from ag.k by cgen, C23 profile. */
 #include "ag.h"
 #include "keel/keel_corot.h"
 #include "keel/keel_tagged_ag_Cycle_void.h"

@@ -1,4 +1,4 @@
-/* keel/keel_outcome.type.h — gerado de keel/outcome.k pelo cgen, perfil C23. */
+/* keel/keel_outcome.type.h — generated from keel/outcome.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_OUTCOME_TYPE_H
 #define KEEL_KEEL_OUTCOME_TYPE_H
 #include "keel.type.h"

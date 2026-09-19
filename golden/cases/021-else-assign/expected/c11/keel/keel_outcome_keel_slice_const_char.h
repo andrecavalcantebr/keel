@@ -1,4 +1,4 @@
-/* keel/keel_outcome_keel_slice_const_char.h — gerado de keel/slice.k pelo cgen, perfil C11. */
+/* keel/keel_outcome_keel_slice_const_char.h — generated from keel/slice.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_OUTCOME_KEEL_SLICE_CONST_CHAR_H
 #define KEEL_KEEL_OUTCOME_KEEL_SLICE_CONST_CHAR_H
 #include "keel/keel_outcome_keel_slice_const_char.type.h"

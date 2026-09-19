@@ -1,4 +1,4 @@
-/* app/app_ac.h — gerado de app/ac.k pelo cgen, perfil C11. */
+/* app/app_ac.h — generated from app/ac.k by cgen, C11 profile. */
 #ifndef APP_APP_AC_H
 #define APP_APP_AC_H
 #include "app/app_ac.type.h"

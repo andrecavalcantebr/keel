@@ -1,4 +1,4 @@
-/* keel.type.h — gerado de keel.k pelo cgen, perfil C11. */
+/* keel.type.h — generated from keel.k by cgen, C11 profile. */
 #ifndef KEEL_TYPE_H
 #define KEEL_TYPE_H
 #include <stdint.h>

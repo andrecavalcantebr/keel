@@ -1,4 +1,4 @@
-/* app/app_ml.h — gerado de app/ml.k pelo cgen, perfil C23. */
+/* app/app_ml.h — generated from app/ml.k by cgen, C23 profile. */
 #ifndef APP_APP_ML_H
 #define APP_APP_ML_H
 #include "app/app_ml.type.h"

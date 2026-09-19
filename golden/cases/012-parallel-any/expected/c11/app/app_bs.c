@@ -1,4 +1,4 @@
-/* app/app_bs.c — gerado de app/bs.k pelo cgen, perfil C11. */
+/* app/app_bs.c — generated from app/bs.k by cgen, C11 profile. */
 #include "app/app_bs.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_buffer_size_t.h"

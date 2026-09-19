@@ -1,4 +1,4 @@
-/* app/app_p.c — gerado de app/p.k pelo cgen, perfil C11. */
+/* app/app_p.c — generated from app/p.k by cgen, C11 profile. */
 #include "app/app_p.h"
 #include "coll.h"
 #include "coll_stack_i32.h"

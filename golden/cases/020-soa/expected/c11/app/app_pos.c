@@ -1,4 +1,4 @@
-/* app/app_pos.c — gerado de app/pos.k pelo cgen, perfil C11. */
+/* app/app_pos.c — generated from app/pos.k by cgen, C11 profile. */
 #include "app/app_pos.h"
 #include "keel/keel_arena.h"
 #include "keel/keel_slice_f32.h"

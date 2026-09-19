@@ -1,4 +1,4 @@
-/* app/app_dl.c — gerado de app/dl.k pelo cgen, perfil C23. */
+/* app/app_dl.c — generated from app/dl.k by cgen, C23 profile. */
 #include "app/app_dl.h"
 #line 1 "app/dl.k"
 

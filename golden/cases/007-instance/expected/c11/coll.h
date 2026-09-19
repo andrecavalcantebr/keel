@@ -1,4 +1,4 @@
-/* coll.h — gerado de coll.k pelo cgen, perfil C11. */
+/* coll.h — generated from coll.k by cgen, C11 profile. */
 #ifndef COLL_H
 #define COLL_H
 #include "coll.type.h"

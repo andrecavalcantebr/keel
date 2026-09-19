@@ -1,4 +1,4 @@
-/* app/app_el.c — gerado de app/el.k pelo cgen, perfil C11. */
+/* app/app_el.c — generated from app/el.k by cgen, C11 profile. */
 #include "app/app_el.h"
 #include "keel/keel_outcome_i32.h"
 #include "keel/keel_outcome_keel_slice_i32.h"

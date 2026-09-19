@@ -1,4 +1,4 @@
-/* coll_stack_i32.h — gerado de coll.k pelo cgen, perfil C11. */
+/* coll_stack_i32.h — generated from coll.k by cgen, C11 profile. */
 #ifndef COLL_STACK_I32_H
 #define COLL_STACK_I32_H
 #include "coll_stack_i32.type.h"

@@ -1,4 +1,4 @@
-/* app/app_ap.c — gerado de app/ap.k pelo cgen, perfil C11. */
+/* app/app_ap.c — generated from app/ap.k by cgen, C11 profile. */
 #include "app/app_ap.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_range.h"

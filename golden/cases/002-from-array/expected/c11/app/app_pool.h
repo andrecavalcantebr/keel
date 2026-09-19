@@ -1,4 +1,4 @@
-/* app/app_pool.h — gerado de app/pool.k pelo cgen, perfil C11. */
+/* app/app_pool.h — generated from app/pool.k by cgen, C11 profile. */
 #ifndef APP_APP_POOL_H
 #define APP_APP_POOL_H
 #include "app/app_pool.type.h"

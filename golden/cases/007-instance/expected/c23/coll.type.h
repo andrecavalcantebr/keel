@@ -1,4 +1,4 @@
-/* coll.type.h — gerado de coll.k pelo cgen, perfil C23. */
+/* coll.type.h — generated from coll.k by cgen, C23 profile. */
 #ifndef COLL_TYPE_H
 #define COLL_TYPE_H
 #include "keel.type.h"

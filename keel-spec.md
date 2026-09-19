@@ -3165,54 +3165,11 @@ O par da §4.8 mostra a declaração implícita do símbolo e sua consulta depoi
 - [Rationale: políticas e sinalização](keel-rationale.md#políticas-e-sinalização-de-interrupção).
 - [Backend: parallel](keel-c-backend.md#59-parallel).
 
-### 5.8 Biblioteca padrão — extensões candidatas
+### 5.8 Biblioteca padrão
 
-As entradas a seguir não são contrato fechado, ao contrário das §§5.2–5.7: registram nome, descrição, verbos mínimos e um esboço conceitual de implementação, não código fechado nem diagnósticos. Nenhuma tem `.k` distribuído ainda. O formato é deliberadamente mais leve; promover uma entrada ao formato de oito itens é decisão em aberto, por candidata.
-
-**`keel.buffer(N)` / `keel.slice(N)`** — soa homogêneo: `N` colunas paralelas do mesmo tipo `T`, sincronizadas por um único `len`/`cap` (`slice(N)`, só `len`). Mesmos verbos de `buffer`/`slice` normais, com um índice a mais para "qual coluna", na mesma convenção de `array` multidimensional (`keel.dim(v,k)`, §4.2). Zero trabalho de núcleo: cabe inteiramente no mecanismo genérico de `dim` (§4.3).
-
-```keel
-module keel.buffer_n dim N type T;
-pub modifier buffer byref { T *col[N]; size_t len, cap; }
-
-module keel.slice_n dim N type T;
-pub modifier slice { T *view[N]; size_t len; }
-```
-
-```keel
-buffer(3) f32 pos;
-push(pos, 0, 1.0f, 2.0f, 3.0f);
-```
-
-**`keel.strbuf` / `keel.string`** — typedefs de conveniência, não modificadores novos: `strbuf` = `buffer char`; `string` = `slice const char`. O trabalho real, ainda em aberto, é o conjunto de funções utilitárias específicas de string (comparação, concatenação, formatação) que os verbos de `buffer`/`slice` não cobrem.
-
-```keel
-typedef buffer char strbuf;
-typedef slice const char string;
-```
-
-**`keel.bitbuffer(W)` / `keel.bitslice(W)`** — array compacto de inteiros de `W` bits, com `T` como tipo de interface do `get`/`set` (qualquer inteiro, provavelmente sem sinal). `bitbuffer(1)`/`bitslice(1)` é o caso particular que dá bitmask/bitset clássico, sem precisar de tipo à parte.
-
-```keel
-module keel.bitbuffer dim W type T;
-pub modifier bitbuffer byref { u8 *palavras; size_t len, cap; }
-// get/set convertem entre o empacotamento de W bits e o T da chamada
-```
-
-```keel
-bitbuffer(3) u8 grupos;
-bitbuffer(1) u8 marcados; // bitmask
-```
-
-**`keel.atomic` / `keel.chan` / `keel.barrier`** — completam o conjunto cooperativo (com `corot`, `outcome`, `tags`/`match`, `seq`/`par` já dá para montar rotinas que pausam e retomam no mesmo ponto, ao estilo Duffy's device).
-
-- `keel.atomic type T` — `modifier atomic byref { _Atomic T v; }`, com `init`/`load`/`store`/`swap`. `byref` evita sincronizar com uma cópia.
-- `keel.chan type T` — `send`/`recv` como `corot`; variante cooperativa (índice comum, mesmo fio) e SPSC entre threads (`acquire`/`release`). MPMC fica fora da base.
-- `keel.barrier` — `arrive(b, total) -> corot`, `ONGOING` até completar; rendezvous sem busy-wait e sem `thrd_yield` — quem cede o controle é o `return` da participante.
-
-#### Referências
-
-- [Rationale: soa, da recusa à admissão](keel-rationale.md#soa-da-recusa-à-admissão) para o `buffer(N)`/`slice(N)` (mesma família de decisão que separa soa homogêneo de heterogêneo).
+A biblioteca padrão além da base (§§5.2–5.7) não faz parte desta versão. Os
+candidatos estão registrados, sem valor normativo, em
+[design/possibilidades.md](design/possibilidades.md).
 
 ## 6. Diagnósticos e conformidade
 

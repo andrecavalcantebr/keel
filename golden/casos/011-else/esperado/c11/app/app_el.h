@@ -9,4 +9,4 @@ int    app_el_dobro(int n);
 int    app_el_dobro_log(int n);
 #line 31 "app/el.k"
 size_t app_el_tamanho(int n, i32 *base);
-#endif /* APP_APP_EL_H */
+#endif

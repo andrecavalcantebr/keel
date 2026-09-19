@@ -3,7 +3,15 @@
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_slice_i32.h"
 #include "keel/keel_parallel.h"
-#line 9 "app/val.k"
+#line 1 "app/val.k"
+
+
+
+
+
+
+
+
 bool app_val_tem_negativo(keel_buffer_i32 *xs) {
     keel_parallel_control valida = { .workers = 4, .target = 0 };
     {   keel_buffer_i32 *keel__c0 = xs;

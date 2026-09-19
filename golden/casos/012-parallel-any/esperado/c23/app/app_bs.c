@@ -4,7 +4,15 @@
 #include "keel/keel_buffer_size_t.h"
 #include "keel/keel_slice_i32.h"
 #include "keel/keel_parallel.h"
-#line 9 "app/bs.k"
+#line 1 "app/bs.k"
+
+
+
+
+
+
+
+
 bool app_bs_achou_alguem(keel_buffer_i32 *xs, i32 alvo, keel_buffer_size_t *onde) {
     keel_parallel_control busca = { .workers = 4, .target = 1 };
     {   keel_buffer_i32 *keel__c0 = xs;

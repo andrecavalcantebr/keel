@@ -12,4 +12,4 @@ i32    app_ac_uma_vez(keel_buffer_i32 *b, size_t *i);
 i32    app_ac_cubo(void);
 #line 26 "app/ac.k"
 size_t app_ac_recorta(keel_buffer_i32 *b);
-#endif /* APP_APP_AC_H */
+#endif

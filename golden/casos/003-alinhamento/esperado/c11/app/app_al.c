@@ -1,7 +1,16 @@
 /* app/app_al.c — gerado de app/al.k pelo cgen, perfil C11. */
 #include "app/app_al.h"
 #include "keel/keel_arena.h"
-#line 10 "app/al.k"
+#line 1 "app/al.k"
+
+
+
+
+
+
+
+
+
 int app_al_main(int argc, char **argv) {
     u8 cru[8192];
     for (size_t d = 0; d < 8; d++) {

@@ -5,4 +5,4 @@
 
 #line 7 "pilha.k"
 typedef struct pilha_stack_i32 { size_t cap, len; i32 *ptr; } pilha_stack_i32;
-#endif /* PILHA_STACK_I32_TYPE_H */
+#endif

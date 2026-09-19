@@ -2,14 +2,24 @@
 #include "ag.h"
 #include "keel/keel_corot.h"
 #include "keel/keel_tagged_ag_Ciclo_void.h"
-#line 10 "ag.k"
+#line 1 "ag.k"
+
+
+
+
+
+
+
+
+
 static keel_corot ag_fn1(i32 *a) {
     keel_corot r = {0};
     if (*a > 0) { (*a)--; return keel_corot_again(&r); }
     return keel_corot_win(&r);
 }
 
-#line 18 "ag.k"
+
+
 keel_corot ag_passo(i32 *a, keel_tagged_ag_Ciclo_void *st, ag_Agente *ag) {
     keel_corot out = {0};
     switch (st->tag) {

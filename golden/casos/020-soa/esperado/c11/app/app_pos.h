@@ -10,4 +10,4 @@ void app_pos_ocupar(app_pos_position *p, keel_arena *a, size_t n);
 bool app_pos_linha(app_pos_position *p, f32 vx, f32 vy);
 #line 37 "app/pos.k"
 f32  app_pos_somar_x(app_pos_position *p);
-#endif /* APP_APP_POS_H */
+#endif

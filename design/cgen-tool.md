@@ -514,13 +514,18 @@ int ola_main(int argc, char **argv);
 #endif /* OLA_H */
 ```
 
-`gen/ola.c` — o corpo é copiado com as quebras intactas; `pub` sai e o nome
-recebe o prefixo, na mesma linha:
+`gen/ola.c` — um `#line 1` depois dos includes, e toda linha do fonte tem a
+sua: `module` e `import_c` deixam linha vazia (backend §6, regra 3); o corpo é
+copiado com as quebras intactas, `pub` sai e o nome recebe o prefixo, na mesma
+linha:
 
 ```c
 /* ola.c — gerado de ola.k pelo cgen, perfil C23. */
 #include "ola.h"
-#line 4 "ola.k"
+#line 1 "ola.k"
+
+
+
 int ola_main(int argc, char **argv) {
     puts("oi");
     return 0;

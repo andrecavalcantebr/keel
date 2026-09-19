@@ -3,4 +3,4 @@
 #define GRID_TYPE_H
 #include "keel.type.h"
 
-#endif /* GRID_TYPE_H */
+#endif

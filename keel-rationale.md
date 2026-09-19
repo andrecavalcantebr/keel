@@ -1441,6 +1441,26 @@ valer.
 
 Referência: [backend §4.3](keel-c-backend.md#43-headers-de-instância).
 
+## Comentários e quebras de linha
+
+Um comentário do `.k` fala de keel: `/* o índice é avaliado uma vez */` descreve
+`b[(*i)++]`, não a chamada de instância que o C recebe. Levá-lo ao gerado
+arrisca enganar mais do que esclarecer, e a spec já diz que o conteúdo dele é
+ignorado. O cgen faz o que a fase 3 da tradução C faz — comentário vira espaço
+—, preservando as quebras.
+
+As quebras são o que fica, porque são elas que mantêm o mapeamento de linhas
+barato. `#line` é pegajoso: com todas as linhas do fonte presentes no `.c`,
+inclusive as vazias que sobram do que foi para os headers, um `#line` no topo
+cobre o arquivo, e só as expansões de várias linhas pedem outro. Linhas vazias
+a mais não tiram o C do padrão — quem escreve C já as põe de propósito. Se um
+dia incomodarem, cada sequência delas vira um `#line`, e nada mais muda.
+
+`extern_c` é a exceção, e pela mesma razão ao contrário: o que está lá dentro é
+C, e o comentário, também.
+
+Referência: [backend §6](keel-c-backend.md#6-mapeamento-de-linhas).
+
 ## Arena é um tipo
 
 `arena` já nomeia uma estrutura C que controla uma região de memória por um

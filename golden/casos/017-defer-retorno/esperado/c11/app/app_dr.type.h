@@ -7,4 +7,4 @@
 #include <stdio.h>
 #line 4 "app/dr.k"
 typedef struct app_dr_Rec { int v; } app_dr_Rec;
-#endif /* APP_APP_DR_TYPE_H */
+#endif

@@ -15,4 +15,4 @@ keel_outcome_void resultados_final(bool falha, i32 codigo);
 i32 resultados_reparar(i32 codigo);
 #line 32 "resultados.k"
 keel_corot resultados_avaliar_cleanup(i32 *contador);
-#endif /* RESULTADOS_H */
+#endif

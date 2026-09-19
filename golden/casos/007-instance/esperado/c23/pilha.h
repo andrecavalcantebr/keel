@@ -2,4 +2,4 @@
 #ifndef PILHA_H
 #define PILHA_H
 #include "pilha.type.h"
-#endif /* PILHA_H */
+#endif

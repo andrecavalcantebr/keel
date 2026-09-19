@@ -6,4 +6,4 @@
 typedef struct keel_buffer_i32 keel_buffer_i32;
 #line 9 "app/val.k"
 bool app_val_tem_negativo(keel_buffer_i32 *xs);
-#endif /* APP_APP_VAL_H */
+#endif

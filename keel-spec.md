@@ -414,6 +414,9 @@ Um declarador como `int (*f)(void);` não satisfaz a regra de função acima: o 
 #### Tokenização e preservação
 
 - A emenda de linha precede o reconhecimento de comentários, literais e diretivas.
+- Comentários não chegam ao C gerado: cada um é substituído por espaços, e
+  suas quebras de linha se preservam (backend §6). O conteúdo de `extern_c` é
+  C e atravessa intacto, comentários inclusive.
 - O reconhecimento léxico não registra tipos nem decide a identidade de instâncias. Essas decisões usam o parser e a tabela de símbolos.
 - Diretivas são preservadas para o pré-processador C. keel não expande macros, não avalia condições e não escolhe alternativas condicionais.
 - A classificação lexical de palavras C não muda com o perfil de geração. A validade do C preservado é verificada pelo compilador C.
@@ -1031,6 +1034,7 @@ As verificações abaixo pertencem a keel, durante a tradução:
 | `extern_c` fora do nível de arquivo | `extern-c-aninhado` |
 | `main` em `extern_c`, privada ou fora das duas assinaturas C de entrada | `main-em-extern-c`; `main-privada`; `main-assinatura` |
 | `as` depois de `types`, ou dois imports injetando o mesmo nome | `import-ordem-trocada`; `types-duplicado` |
+| Alias repetido, ou igual ao qualificador de outro import, inclusive o `keel` implícito | `alias-duplicado` |
 | Nome injetado sombreado; lista dos nomes injetados | `types-sombreado` (`warning`); `types-injetados` (`info`) |
 | `pub static` sem `inline`, `static inline` sem visibilidade explícita, ou `static` sobre tipo | `pub-static`; `inline-sem-visibilidade`; `static-em-tipo` |
 | Uso de símbolo importado somente de modo transitivo | `import-indireto` (`info`) |
@@ -3213,6 +3217,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `main-assinatura` | `main` assinada fora das duas formas do C | `error` | keel | §4.1 |
 | `import-ordem-trocada` | `import M types as m;` — a mensagem dá a forma correta | `error` | keel | §4.1 |
 | `types-duplicado` | Dois imports com `types` injetando o mesmo nome nu | `error` | keel | §4.1 |
+| `alias-duplicado` | Dois imports com o mesmo alias, ou alias que coincide com o qualificador de outro import (inclusive o `keel` implícito); a mensagem cita os dois imports | `error` | keel | §4.1 |
 | `types-sombreado` | Nome injetado por `types` sombreado por declaração local | `warning` | keel | §4.1 |
 | `types-injetados` | Lista dos nomes que `types` injetou, no ponto do import | `info` | keel | §4.1 |
 | `pub-static` | `pub static` sem `inline` em escopo de arquivo | `error` | keel | §4.1 |

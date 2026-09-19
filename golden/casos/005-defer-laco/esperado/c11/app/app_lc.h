@@ -11,4 +11,4 @@ int  app_lc_soltos_agora(void);
 void app_lc_zera(void);
 #line 16 "app/lc.k"
 int  app_lc_roda(int n);
-#endif /* APP_APP_LC_H */
+#endif

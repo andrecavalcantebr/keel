@@ -9,4 +9,4 @@
 typedef enum ag_Ciclo { ag_Ciclo_ST1, ag_Ciclo_ST2, ag_Ciclo_ST3 } ag_Ciclo;
 #line 8 "ag.k"
 typedef struct ag_Agente { i32 n; } ag_Agente;
-#endif /* AG_TYPE_H */
+#endif

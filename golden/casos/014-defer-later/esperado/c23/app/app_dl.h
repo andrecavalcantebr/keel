@@ -11,4 +11,4 @@ void app_dl_tarde(void);
 void app_dl_cedo(void);
 #line 24 "app/dl.k"
 void app_dl_tarde_escrito(void);
-#endif /* APP_APP_DL_H */
+#endif

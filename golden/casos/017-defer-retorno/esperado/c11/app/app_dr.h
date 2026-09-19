@@ -9,4 +9,4 @@ int  app_dr_consome(app_dr_Rec *r, int modo);
 int  app_dr_dois(app_dr_Rec *r, int cedo);
 #line 29 "app/dr.k"
 void app_dr_nada(app_dr_Rec *r);
-#endif /* APP_APP_DR_H */
+#endif

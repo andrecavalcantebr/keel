@@ -19,4 +19,4 @@ static inline f32 *grid_grade_3_f32_ptr3(grid_grade_3_f32 *g, size_t idx[static 
     for (size_t d = 3; d-- > 0; ) { off += idx[d] * passo; passo *= g->dims[d]; }
     return g->ptr + off;
 }
-#endif /* GRID_GRADE_3_F32_H */
+#endif

@@ -1,26 +1,29 @@
 /* app/app_dl.c — gerado de app/dl.k pelo cgen, perfil C23. */
 #include "app/app_dl.h"
-#line 3 "app/dl.k"
+#line 1 "app/dl.k"
+
+
 static int app_dl_visto = 0;
 static void app_dl_anota(int v) { app_dl_visto = v; }
 int  app_dl_ultimo(void) { return app_dl_visto; }
 
-#line 9 "app/dl.k"
+
+
 void app_dl_tarde(void) {
     int x = 1;
-                                  /* lê x na saída → 3 */
+
     x = 2;
     x = 3;
     app_dl_anota(x); }
 
 void app_dl_cedo(void) {
     int x = 1;
-    struct { int x; } keel__c0 = { x };   /* copia no registro → 1 */
+    struct { int x; } keel__c0 = { x };
     x = 2;
     x = 3;
     app_dl_anota(keel__c0.x); }
 
-#line 24 "app/dl.k"
+
 void app_dl_tarde_escrito(void) {
     int x = 1;
 

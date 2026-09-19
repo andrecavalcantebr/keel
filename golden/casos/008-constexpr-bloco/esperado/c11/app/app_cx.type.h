@@ -11,4 +11,4 @@ static const size_t app_cx_MAX__chk = 4;
 
 #line 4 "app/cx.k"
 typedef struct app_cx_Cfg { int N; int MAX; } app_cx_Cfg;
-#endif /* APP_APP_CX_TYPE_H */
+#endif

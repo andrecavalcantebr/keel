@@ -10,4 +10,4 @@ typedef struct app_pos_position {
     bool ativo;
     size_t len, cap;
 } app_pos_position;
-#endif /* APP_APP_POS_TYPE_H */
+#endif

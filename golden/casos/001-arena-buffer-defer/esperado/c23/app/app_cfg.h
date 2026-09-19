@@ -9,4 +9,4 @@ typedef struct keel_arena keel_arena;
 keel_outcome_i32 app_cfg_soma(keel_arena *a, const char *caminho);
 #line 30 "app/cfg.k"
 keel_outcome_i32 app_cfg_soma_scratch(const char *caminho);
-#endif /* APP_APP_CFG_H */
+#endif

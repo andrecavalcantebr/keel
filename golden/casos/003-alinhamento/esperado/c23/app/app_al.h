@@ -5,4 +5,4 @@
 
 #line 10 "app/al.k"
 int app_al_main(int argc, char **argv);
-#endif /* APP_APP_AL_H */
+#endif

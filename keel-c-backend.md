@@ -1955,13 +1955,17 @@ Daí decorre o comportamento de cada região:
 
 A linha de `import_c` merece nota, porque é o caso que o critério "copiado versus gerado" deixaria escapar: `#include <tgmath.h>` é gerado, não copiado, mas é tradução um-para-um de uma linha que o usuário escreveu, e falha com frequência — nome errado, `-I` faltando, header que só existe em outra plataforma. Sem a diretiva, `fatal error: tgmath.h: No such file or directory` aponta para um `.h` que ninguém escreveu.
 
-Duas regras de emissão decorrem da invariante:
+Quatro regras de emissão decorrem da invariante:
 
 1. **Texto copiado nunca é reindentado nem reformatado.** Reformatar destrói o alinhamento e, com ele, a posição de todo diagnóstico do compilador C naquela região. A mesma condição se estende à região de imports: preservar as linhas em branco é o que faz uma diretiva só cobrir o bloco inteiro.
 
-2. **Em corpo de função, o lowering de uma linha de fonte ocupa preferencialmente uma linha de saída.** Uma chamada de builtin longa sai numa linha só em vez de quebrada em três, e uma expansão de dois statements sai numa linha só — porque quebrar custa um `#line` a cada statement e, sem ele, todo o resto do corpo passa a apontar para a linha errada. Com a regra, o corpo inteiro mapeia 1:1 a partir de uma única diretiva na abertura da função.
+2. **Em corpo de função, o lowering de uma linha de fonte ocupa preferencialmente uma linha de saída.** Uma chamada de builtin longa sai numa linha só em vez de quebrada em três, e uma expansão de dois statements sai numa linha só — porque quebrar custa um `#line` a cada statement e, sem ele, todo o resto do corpo passa a apontar para a linha errada. Com a regra, o corpo inteiro mapeia 1:1 a partir da diretiva única da regra 3.
 
    O custo é linha gerada mais longa que a que um humano escreveria. É a **única concessão deliberada ao princípio 2** desta especificação, e ela se paga: é o que faz cada erro do compilador C cair na linha certa do `.k`, que é a razão de o princípio 3 funcionar.
+
+3. **O `.c` preserva a estrutura de linhas do fonte.** Toda linha do `.k` tem a sua linha no `.c`: o que vai para header — tipos, protótipos, `constexpr` de módulo —, os `import` e `import_c`, a linha `module` e os comentários deixam linha vazia. Os `#include` sintéticos vêm antes, e um único `#line 1` abre o fonte; daí em diante, só as expansões de várias linhas pedem ressincronização. Linha vazia a mais é C comum; se incomodar, a alternativa é trocar cada sequência delas por um `#line`, e a invariante vale igual.
+
+4. **Comentários não chegam ao C.** Cada comentário vira espaços da mesma largura, com as quebras de linha preservadas, e o espaço que sobra no fim da linha é cortado: o de fim de linha some, e o do meio preserva a coluna do que vem depois. A exceção é `extern_c`, cujo conteúdo é C e atravessa intacto (linguagem §2.4).
 
 A string do arquivo é o caminho normalizado do módulo, com a extensão `.k`.
 

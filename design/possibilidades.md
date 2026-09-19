@@ -12,7 +12,7 @@ rationale ou o backend, e sai daqui.
 | --- | --- |
 | **v0** | o núcleo e a base: a spec como está (§§1–4, §§5.1–5.7, §6), o backend e a ferramenta. Nada deste documento. |
 | **v1** | a biblioteca padrão além da base — §1 abaixo. |
-| **v2+** | extensões da linguagem — §2 abaixo. |
+| **v2+** | extensões da linguagem e estruturas a estudar — §2 abaixo. |
 
 ---
 
@@ -51,6 +51,29 @@ Abertos:
   em compilação para desenrolar o laço.
 - O par segue a regra memória/visão (rationale, "Memória e visão"):
   `buffer(N)` produz `slice(N)`, nunca o contrário.
+
+### `keel.coll`: `stack`, `queue`, `ring`
+
+Contêineres de acesso restrito, da família de `buffer`: a memória vem de fora
+(arena ou `array`), e a capacidade é fixa. Um módulo com três modificadores de
+mesma assinatura `type T` (spec §4.3 admite mais de um modificador por módulo).
+
+- **`stack`** — LIFO: `push`/`pop`/`top`.
+- **`queue`** — FIFO: `push`/`pop`/`front`.
+- **`ring`** — circular: quando cheio, sobrescreve o mais antigo.
+
+Abertos:
+
+- Sem realocação, `queue` e `ring` convergem no armazenamento — os dois são
+  circulares. A diferença que sobra é a política ao encher: `queue` recusa,
+  `ring` sobrescreve. Talvez um modificador com a política como parâmetro.
+- Participação nos protocolos: `walk` sim (cursor na ordem lógica); indexação
+  por posição lógica em `queue`/`ring` é possível; `partition` e a visão
+  contígua não, porque o conteúdo pode dar a volta — o recorte seria um par de
+  `slice`.
+- `stack` é `buffer` com os verbos restritos: vale o tipo à parte pela
+  intenção, ou basta documentar o uso de `buffer.push`/`pop`? O caso golden
+  007 já tem um `pilha.stack` do usuário.
 
 ### `keel.strbuf` / `keel.string`
 
@@ -115,7 +138,31 @@ acréscimo ao núcleo.
 
 ---
 
-## 2. Linguagem (v2+)
+## 2. Linguagem e estruturas a estudar (v2+)
+
+### Estruturas flat: árvore e lista encadeada por índice
+
+Nós num `buffer`, e os elos são índices (`u32`, por exemplo) em vez de
+ponteiros. É o caminho DOD para estruturas encadeadas:
+
+- memória contígua, amigável a cache, e compatível com a arena — nó removido
+  é invalidação lógica (ou entra numa lista livre de índices), sem `free`;
+- relocável e serializável: índice não muda quando o bloco muda de lugar;
+- elos de 32 bits no lugar de ponteiros de 64.
+
+A lista encadeada de ponteiros do caso golden 019 já mostra o protocolo de
+`walk` sobre uma estrutura que não indexa; a versão flat mantém o mesmo
+protocolo, com o cursor guardando um índice.
+
+A estudar:
+
+- a forma genérica: o nó carrega `T` e os índices de elo, e o módulo é
+  `type T`, com `T` opaco (spec §4.3);
+- as travessias da árvore — pré, in e pós-ordem, largura — como cursores
+  distintos, ou como verbos `begin_*` do mesmo módulo;
+- o valor sentinela de "sem elo" e a largura do índice (`u16`/`u32`) como
+  parâmetro;
+- a relação com `soa`: a árvore flat pode guardar os elos em colunas.
 
 ### Protocolo nominal
 

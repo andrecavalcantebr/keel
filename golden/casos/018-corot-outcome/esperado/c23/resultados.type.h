@@ -3,4 +3,4 @@
 #define RESULTADOS_TYPE_H
 #include "keel.type.h"
 
-#endif /* RESULTADOS_TYPE_H */
+#endif

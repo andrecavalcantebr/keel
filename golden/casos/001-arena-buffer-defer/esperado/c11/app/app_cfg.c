@@ -3,7 +3,17 @@
 #include "keel/keel_arena.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_outcome_i32.h"
-#line 11 "app/cfg.k"
+#line 1 "app/cfg.k"
+
+
+
+
+
+
+
+
+
+
 keel_outcome_i32 app_cfg_soma(keel_arena *a, const char *caminho) { keel_outcome_i32 keel__rv0;
     keel_outcome_i32 resultado = {0};
     FILE *fp = fopen(caminho, "rb");
@@ -22,7 +32,7 @@ keel_outcome_i32 app_cfg_soma(keel_arena *a, const char *caminho) { keel_outcome
     keel__rv0 = keel_outcome_i32_win1(&resultado, total);
 keel__e0: fclose(keel__c0.fp); return keel__rv0; }
 
-#line 30 "app/cfg.k"
+
 keel_outcome_i32 app_cfg_soma_scratch(const char *caminho) {
     keel_outcome_i32 resultado = {0};
     keel_arena t = {0};  _Alignas(_Alignof(max_align_t)) unsigned char keel__st0[4096];

@@ -8,4 +8,4 @@
 #include <stdint.h>
 #line 6 "app/al.k"
 typedef struct app_al_Vec8 { alignas(64) f64 x[8]; } app_al_Vec8;
-#endif /* APP_APP_AL_TYPE_H */
+#endif

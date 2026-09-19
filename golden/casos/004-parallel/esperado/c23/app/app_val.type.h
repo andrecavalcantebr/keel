@@ -3,4 +3,4 @@
 #define APP_APP_VAL_TYPE_H
 #include "keel.type.h"
 
-#endif /* APP_APP_VAL_TYPE_H */
+#endif

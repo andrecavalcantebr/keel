@@ -10,4 +10,4 @@ bool pilha_stack_i32_empurra(pilha_stack_i32 *s, i32 v);
 
 #line 10 "pilha.k"
 static inline size_t pilha_stack_i32_length(pilha_stack_i32 *s) { return s->len; }
-#endif /* PILHA_STACK_I32_H */
+#endif

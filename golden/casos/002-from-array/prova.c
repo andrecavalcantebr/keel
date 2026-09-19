@@ -5,9 +5,9 @@
    Afirma o §4.4: a alocação alinha o endereço, e o `alignas`
    do vetor de respaldo não é o que torna isso correto. */
 
-#include "keel/keel.type.h"
-#include "app/app_pool.impl.h"
-#include "keel/keel_arena.impl.h"
+#include "keel.type.h"
+#include "app/app_pool.h"
+#include "keel/keel_arena.h"
 #include <stdio.h>
 #include <stdint.h>
 int main(void) {

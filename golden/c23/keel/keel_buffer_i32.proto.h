@@ -1,6 +1,6 @@
-/* keel/keel_buffer_i32.h — instância de `buffer i32` (backend §5.2, §5.13). */
-#ifndef KEEL_KEEL_BUFFER_I32_H
-#define KEEL_KEEL_BUFFER_I32_H
+/* keel/keel_buffer_i32.proto.h — instância de `buffer i32` (backend §5.2, §5.13). */
+#ifndef KEEL_KEEL_BUFFER_I32_PROTO_H
+#define KEEL_KEEL_BUFFER_I32_PROTO_H
 #include "keel/keel_buffer_i32.type.h"
 #include "keel/keel_buffer.type.h"
 #include "keel/keel_slice_i32.type.h"
@@ -34,4 +34,4 @@ static inline keel_slice_i32 keel_buffer_i32_partition(const keel_buffer_i32 *b,
 /* `slice.of(x,a,b)` — sufixo 2: dois argumentos além do contêiner (§2.1).
    Sem ele colidiria com o de cima; C não tem sobrecarga. */
 static inline keel_slice_i32 keel_buffer_i32_as_slice2(const keel_buffer_i32 *b, size_t a, size_t c);
-#endif /* KEEL_KEEL_BUFFER_I32_H */
+#endif /* KEEL_KEEL_BUFFER_I32_PROTO_H */

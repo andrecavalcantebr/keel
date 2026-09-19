@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # Emite golden/compile_commands.json para o clangd (Zed, VSCode, vim) resolver
-# `#include "keel/keel.type.h"` e os headers gerados de cada caso.
+# `#include "keel.type.h"` e os headers gerados de cada caso.
 #
 # Os headers fixos vivem em golden/<perfil>/keel/; os gerados, em
 # casos/<caso>/esperado/<perfil>/. Sem este arquivo o editor não tem como saber

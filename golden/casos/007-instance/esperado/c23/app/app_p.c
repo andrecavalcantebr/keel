@@ -1,9 +1,9 @@
-/* gen/app/p.c — gerado de app/p.k, perfil C23. */
+/* app/app_p.c — gerado de app/p.k, perfil C23. */
 
-#include "keel/keel.type.h"
-#include "app/app_p.impl.h"
-#include "pilha.impl.h"
-#include "pilha_stack_i32.impl.h"
+#include "keel.type.h"
+#include "app/app_p.h"
+#include "pilha.h"
+#include "pilha_stack_i32.h"
 #include <stdio.h>
 #line 5 "app/p.k"
 int app_p_main(int argc, char **argv) {

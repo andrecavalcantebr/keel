@@ -2,9 +2,9 @@
    que punha o rótulo ANTES da gravação de SUCCESS, o `fail` era apagado e o
    segundo teste devolvia falso. */
 
-#include "keel/keel.type.h"
-#include "app/app_val.impl.h"
-#include "keel/keel_buffer_i32.impl.h"
+#include "keel.type.h"
+#include "app/app_val.h"
+#include "keel/keel_buffer_i32.h"
 #include <stdio.h>
 int main(void) {
     i32 v[16];

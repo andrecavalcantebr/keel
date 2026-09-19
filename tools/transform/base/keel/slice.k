@@ -26,9 +26,9 @@ typedef struct keel_slice_cursor { size_t i; } keel_slice_cursor;
 #endif
 
 %impl
-#include "keel/keel_arena.impl.h"
-#include "keel/keel_outcome_$T.impl.h"
-#include "keel/keel_outcome_keel_slice_$T.impl.h"
+#include "keel/keel_arena.h"
+#include "keel/keel_outcome_$T.h"
+#include "keel/keel_outcome_keel_slice_$T.h"
 
 #include <string.h>
 

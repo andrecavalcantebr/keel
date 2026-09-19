@@ -1,10 +1,10 @@
-/* gen/app/cfg.c — gerado de app/cfg.k, perfil C23. */
+/* app/app_cfg.c — gerado de app/cfg.k, perfil C23. */
 
-#include "keel/keel.type.h"
-#include "app/app_cfg.impl.h"
-#include "keel/keel_arena.impl.h"
-#include "keel/keel_buffer_i32.impl.h"
-#include "keel/keel_outcome_i32.impl.h"
+#include "keel.type.h"
+#include "app/app_cfg.h"
+#include "keel/keel_arena.h"
+#include "keel/keel_buffer_i32.h"
+#include "keel/keel_outcome_i32.h"
 #include <stdio.h>
 #line 11 "app/cfg.k"
 keel_outcome_i32 app_cfg_soma(keel_arena *a, const char *caminho) {

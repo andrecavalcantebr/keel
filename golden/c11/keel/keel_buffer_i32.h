@@ -1,8 +1,8 @@
-/* keel/keel_buffer_i32.impl.h — instância de `buffer i32` (backend §5.2, §5.13). */
-#ifndef KEEL_KEEL_BUFFER_I32_IMPL_H
-#define KEEL_KEEL_BUFFER_I32_IMPL_H
-#include "keel/keel_buffer_i32.h"
-#include "keel/keel_outcome_i32.impl.h"
+/* keel/keel_buffer_i32.h — instância de `buffer i32` (backend §5.2, §5.13). */
+#ifndef KEEL_KEEL_BUFFER_I32_H
+#define KEEL_KEEL_BUFFER_I32_H
+#include "keel/keel_buffer_i32.proto.h"
+#include "keel/keel_outcome_i32.h"
 
 /* `buffer.from(p,cap)`: ponteiro cru — nasce vazio  (linguagem §4.5) */
 static inline keel_buffer_i32 keel_buffer_i32_as(i32 *p, size_t n) {
@@ -65,4 +65,4 @@ static inline keel_slice_i32 keel_buffer_i32_partition(const keel_buffer_i32 *b,
 static inline keel_slice_i32 keel_buffer_i32_as_slice2(const keel_buffer_i32 *b, size_t a, size_t c) {
     return (keel_slice_i32){ c - a, b->ptr + a };
 }
-#endif /* KEEL_KEEL_BUFFER_I32_IMPL_H */
+#endif /* KEEL_KEEL_BUFFER_I32_H */

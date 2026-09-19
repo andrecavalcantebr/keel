@@ -1,7 +1,7 @@
-/* keel/keel_arena.h — perfil C11. O `.h` do módulo keel.arena; C comum.
+/* keel/keel_arena.proto.h — perfil C11. O `.h` do módulo keel.arena; C comum.
    Normativo: keel-c-backend.md §5.4 e §5.4.1. */
-#ifndef KEEL_KEEL_ARENA_H
-#define KEEL_KEEL_ARENA_H
+#ifndef KEEL_KEEL_ARENA_PROTO_H
+#define KEEL_KEEL_ARENA_PROTO_H
 #include "keel/keel_arena.type.h"
 
 /* Alinha o ENDEREÇO, não o deslocamento: a base pode estar em qualquer lugar.
@@ -17,4 +17,4 @@ static inline size_t keel_arena_length  (const keel_arena *a);
 static inline size_t keel_arena_mark    (const keel_arena *a);
 static inline void   keel_arena_reset   (keel_arena *a);
 static inline void   keel_arena_restore (keel_arena *a, size_t m);
-#endif /* KEEL_KEEL_ARENA_H */
+#endif /* KEEL_KEEL_ARENA_PROTO_H */

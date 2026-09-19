@@ -1,12 +1,12 @@
-/* gen/lst/lst.c — gerado de lst/lst.k, perfil C23.
+/* lst.c — gerado de lst/lst.k, perfil C23.
    `walk` emite `begin` uma vez na entrada, testa com `has_next` e liga o
    elemento com `next` — uma chamada por iteração, depois do teste
    (backend §5.11, linguagem §4.7). */
 
-#include "keel/keel.type.h"
+#include "keel.type.h"
 #include "keel/keel_buffer.type.h"
-#include "keel/keel_buffer_i32.impl.h"
-#include "lst.impl.h"
+#include "keel/keel_buffer_i32.h"
+#include "lst.h"
 #line 16 "lst/lst.k"
 i32 lst_soma(lst_Lista *l) {
     i32 t = 0;

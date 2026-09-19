@@ -1,9 +1,9 @@
-/* gen/app/dl.c — gerado de app/dl.k, perfil C23.
+/* app/app_dl.c — gerado de app/dl.k, perfil C23.
    Sem `[now]` o corpo referencia as variáveis direto e NENHUMA struct de
    captura é gerada (backend §5.5); o valor lido é o da saída. */
 
-#include "keel/keel.type.h"
-#include "app/app_dl.impl.h"
+#include "keel.type.h"
+#include "app/app_dl.h"
 #line 3 "app/dl.k"
 static int app_dl_visto = 0;
 static void app_dl_anota(int v) { app_dl_visto = v; }

@@ -1,14 +1,14 @@
-/* gen/app/bs.c — gerado de app/bs.k, perfil C23.
+/* app/app_bs.c — gerado de app/bs.k, perfil C23.
    Sob política diferente de `ALL` a vitória arma a bandeira, e o alvo sai como
    literal (backend §5.9). `interrupted` é consulta: devolve `bool` onde foi
    escrita, não salta e não grava status. */
 
-#include "keel/keel.type.h"
-#include "app/app_bs.impl.h"
-#include "keel/keel_buffer_i32.impl.h"
-#include "keel/keel_buffer_size_t.impl.h"
-#include "keel/keel_slice_i32.impl.h"
-#include "keel/keel_parallel.impl.h"
+#include "keel.type.h"
+#include "app/app_bs.h"
+#include "keel/keel_buffer_i32.h"
+#include "keel/keel_buffer_size_t.h"
+#include "keel/keel_slice_i32.h"
+#include "keel/keel_parallel.h"
 #line 9 "app/bs.k"
 bool app_bs_achou_alguem(keel_buffer_i32 *xs, i32 alvo, keel_buffer_size_t *onde) {
     keel_parallel_control busca = { .workers = 4, .target = 1 };

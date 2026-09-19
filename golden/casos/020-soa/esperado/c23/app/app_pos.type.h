@@ -1,9 +1,9 @@
-/* gen/app/pos.type.h — gerado de app/pos.k, perfil C23.
+/* app/app_pos.type.h — gerado de app/pos.k, perfil C23.
    `soa struct position` é `pub`: layout completo aqui, com `x`/`y` já
    invertidos para ponteiro (spec §4.11). */
 #ifndef APP_APP_POS_TYPE_H
 #define APP_APP_POS_TYPE_H
-#include "keel/keel.type.h"
+#include "keel.type.h"
 
 typedef struct app_pos_position {
     f32 *x;

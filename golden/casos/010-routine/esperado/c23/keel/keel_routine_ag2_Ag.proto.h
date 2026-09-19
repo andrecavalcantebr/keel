@@ -1,8 +1,8 @@
-/* keel/keel_routine_ag2_Ag.h — instância de `keel.routine` sobre o contexto
+/* keel/keel_routine_ag2_Ag.proto.h — instância de `keel.routine` sobre o contexto
    `ag2.Ag` (backend §5.10). O typedef da participante é da instância; o estado
    por slot é um `corot`, e não um inteiro nu. */
-#ifndef KEEL_KEEL_ROUTINE_AG2_AG_H
-#define KEEL_KEEL_ROUTINE_AG2_AG_H
+#ifndef KEEL_KEEL_ROUTINE_AG2_AG_PROTO_H
+#define KEEL_KEEL_ROUTINE_AG2_AG_PROTO_H
 #include "keel/keel_routine_ag2_Ag.type.h"
 #include "keel/keel_outcome_u32.type.h"
 #include "keel/keel_slice_keel_routine_slot_ag2_Ag.type.h"
@@ -17,4 +17,4 @@ static inline keel_outcome_u32 keel_routine_ag2_Ag_seq(keel_slice_keel_routine_s
 static inline keel_outcome_u32 keel_routine_ag2_Ag_par(keel_slice_keel_routine_slot_ag2_Ag s, u32 target);
 /* conveniência derivada da tabela, não a representação do resultado */
 static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s);
-#endif /* KEEL_KEEL_ROUTINE_AG2_AG_H */
+#endif /* KEEL_KEEL_ROUTINE_AG2_AG_PROTO_H */

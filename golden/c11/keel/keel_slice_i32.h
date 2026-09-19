@@ -1,10 +1,10 @@
-/* keel/keel_slice_i32.impl.h — instância de `slice i32` (backend §5.2).
+/* keel/keel_slice_i32.h — instância de `slice i32` (backend §5.2).
    `slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro
    (linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
    temporário: `of` devolve valor e `length` consome valor. */
-#ifndef KEEL_KEEL_SLICE_I32_IMPL_H
-#define KEEL_KEEL_SLICE_I32_IMPL_H
-#include "keel/keel_slice_i32.h"
+#ifndef KEEL_KEEL_SLICE_I32_H
+#define KEEL_KEEL_SLICE_I32_H
+#include "keel/keel_slice_i32.proto.h"
 
 static inline keel_slice_i32 keel_slice_i32_from(i32 *p, size_t n) { return (keel_slice_i32){ p ? n : 0, p }; }
 static inline size_t keel_slice_i32_length(keel_slice_i32 s) { return s.len; }
@@ -28,4 +28,4 @@ static inline keel_slice_i32 keel_slice_i32_partition(keel_slice_i32 s, size_t k
     hi = lo + passo; if (hi > n) hi = n;
     return (keel_slice_i32){ hi - lo, s.ptr + lo };
 }
-#endif /* KEEL_KEEL_SLICE_I32_IMPL_H */
+#endif /* KEEL_KEEL_SLICE_I32_H */

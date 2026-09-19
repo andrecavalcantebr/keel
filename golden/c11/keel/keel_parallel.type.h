@@ -3,7 +3,7 @@
    bloco; o gestor escreve nos campos, e o programa lê pelos verbos. */
 #ifndef KEEL_KEEL_PARALLEL_TYPE_H
 #define KEEL_KEEL_PARALLEL_TYPE_H
-#include "keel/keel.type.h"
+#include "keel.type.h"
 #include <stdatomic.h>
 
 typedef struct keel_parallel_control {

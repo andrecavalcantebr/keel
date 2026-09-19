@@ -1,9 +1,9 @@
 /* prova.c — arnês. O resultado da composição é o código da política mais a
    contagem de sucessos; o que cada participante deixou fica no seu slot. */
 
-#include "keel/keel.type.h"
-#include "ag2.impl.h"
-#include "keel/keel_outcome_u32.impl.h"
+#include "keel.type.h"
+#include "ag2.h"
+#include "keel/keel_outcome_u32.h"
 #include <assert.h>
 int main(void) {
     ag2_Ag g = { 2, 1, 0 };

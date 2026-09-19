@@ -2,9 +2,9 @@
    exercita a interface pública gerada e afirma o comportamento.
    Compila junto com esperado/<perfil>/app/pos.c. */
 
-#include "keel/keel.type.h"
-#include "app/app_pos.impl.h"
-#include "keel/keel_arena.impl.h"
+#include "keel.type.h"
+#include "app/app_pos.h"
+#include "keel/keel_arena.h"
 #include <stdio.h>
 
 int main(void) {

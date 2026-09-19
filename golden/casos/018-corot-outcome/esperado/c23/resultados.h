@@ -1,8 +1,8 @@
-/* gen/resultados/resultados.impl.h — gerado de resultados/resultados.k, perfil C23.
+/* resultados.h — gerado de resultados/resultados.k, perfil C23.
    `corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
    (backend §5.14). */
-#ifndef RESULTADOS_IMPL_H
-#define RESULTADOS_IMPL_H
-#include "resultados.h"
+#ifndef RESULTADOS_H
+#define RESULTADOS_H
+#include "resultados.proto.h"
 
-#endif /* RESULTADOS_IMPL_H */
+#endif /* RESULTADOS_H */

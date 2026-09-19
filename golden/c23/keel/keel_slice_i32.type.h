@@ -4,7 +4,7 @@
    temporário: `of` devolve valor e `length` consome valor. */
 #ifndef KEEL_KEEL_SLICE_I32_TYPE_H
 #define KEEL_KEEL_SLICE_I32_TYPE_H
-#include "keel/keel.type.h"
+#include "keel.type.h"
 
 typedef struct keel_slice_i32 { size_t len; i32 *ptr; } keel_slice_i32;
 #endif /* KEEL_KEEL_SLICE_I32_TYPE_H */

@@ -1,12 +1,12 @@
-/* gen/ag/ag.c — gerado de ag/ag.k, perfil C23.
+/* ag.c — gerado de ag/ag.k, perfil C23.
    Despacho por `goto` e blocos rotulados, nunca um `switch` com o corpo do
    usuário dentro. O rótulo vai ANTES da chave, e as chaves são o escopo do
    braço que a linguagem §4.9 exige (backend §5.6, regra 2). */
 
-#include "keel/keel.type.h"
-#include "ag.impl.h"
-#include "keel/keel_corot.impl.h"
-#include "keel/keel_tagged_ag_Ciclo_void.impl.h"
+#include "keel.type.h"
+#include "ag.h"
+#include "keel/keel_corot.h"
+#include "keel/keel_tagged_ag_Ciclo_void.h"
 #line 9 "ag/ag.k"
 static keel_corot ag_fn1(i32 *a) {
     keel_corot r = {0};

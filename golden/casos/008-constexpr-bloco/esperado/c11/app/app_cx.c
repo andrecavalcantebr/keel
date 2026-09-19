@@ -1,9 +1,9 @@
-/* gen/app/cx.c — gerado de app/cx.k, perfil C11: `constexpr` sai verbatim e os
+/* app/app_cx.c — gerado de app/cx.k, perfil C11: `constexpr` sai verbatim e os
    usos não mudam. Sob C11 o de bloco vira macro de nome gerado, com os usos
    reescritos — e `c->N` fica intacto (§9.2). */
 
-#include "keel/keel.type.h"
-#include "app/app_cx.impl.h"
+#include "keel.type.h"
+#include "app/app_cx.h"
 #include <stdio.h>
 #line 12 "app/cx.k"
 int app_cx_soma(app_cx_Cfg *c) {

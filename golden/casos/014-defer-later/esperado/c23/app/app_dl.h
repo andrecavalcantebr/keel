@@ -1,6 +1,6 @@
-/* gen/app/dl.impl.h — gerado de app/dl.k, perfil C23. */
-#ifndef APP_APP_DL_IMPL_H
-#define APP_APP_DL_IMPL_H
-#include "app/app_dl.h"
+/* app/app_dl.h — gerado de app/dl.k, perfil C23. */
+#ifndef APP_APP_DL_H
+#define APP_APP_DL_H
+#include "app/app_dl.proto.h"
 
-#endif /* APP_APP_DL_IMPL_H */
+#endif /* APP_APP_DL_H */

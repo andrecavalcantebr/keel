@@ -1,6 +1,6 @@
 /* Instância sem payload: spec v2 §4.12. */
-#ifndef KEEL_KEEL_OUTCOME_VOID_H
-#define KEEL_KEEL_OUTCOME_VOID_H
+#ifndef KEEL_KEEL_OUTCOME_VOID_PROTO_H
+#define KEEL_KEEL_OUTCOME_VOID_PROTO_H
 #include "keel/keel_outcome_void.type.h"
 
 static inline bool keel_outcome_void_ok(keel_outcome_void r);
@@ -10,4 +10,4 @@ static inline i32 keel_outcome_void_code(keel_outcome_void r);
 static inline keel_outcome_void keel_outcome_void_win(keel_outcome_void *r);
 static inline keel_outcome_void keel_outcome_void_fail(keel_outcome_void *r, i32 c);
 static inline keel_outcome_void keel_outcome_void_none(keel_outcome_void *r);
-#endif /* KEEL_KEEL_OUTCOME_VOID_H */
+#endif /* KEEL_KEEL_OUTCOME_VOID_PROTO_H */

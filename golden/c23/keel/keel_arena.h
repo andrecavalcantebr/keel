@@ -1,8 +1,8 @@
-/* keel/keel_arena.impl.h — perfil C23. O `.h` do módulo keel.arena; C comum.
+/* keel/keel_arena.h — perfil C23. O `.h` do módulo keel.arena; C comum.
    Normativo: keel-c-backend.md §5.4 e §5.4.1. */
-#ifndef KEEL_KEEL_ARENA_IMPL_H
-#define KEEL_KEEL_ARENA_IMPL_H
-#include "keel/keel_arena.h"
+#ifndef KEEL_KEEL_ARENA_H
+#define KEEL_KEEL_ARENA_H
+#include "keel/keel_arena.proto.h"
 
 /* Alinha o ENDEREÇO, não o deslocamento: a base pode estar em qualquer lugar.
    `uintptr_t` calcula o número de bytes de padding e não fabrica ponteiro —
@@ -33,4 +33,4 @@ static inline size_t keel_arena_length  (const keel_arena *a) { return a->top; }
 static inline size_t keel_arena_mark    (const keel_arena *a) { return a->top; }
 static inline void   keel_arena_reset   (keel_arena *a)           { a->top = 0; }
 static inline void   keel_arena_restore (keel_arena *a, size_t m) { a->top = m; }
-#endif /* KEEL_KEEL_ARENA_IMPL_H */
+#endif /* KEEL_KEEL_ARENA_H */

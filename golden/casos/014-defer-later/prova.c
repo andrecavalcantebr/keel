@@ -1,8 +1,8 @@
 /* prova.c — arnês. A diferença entre `later` e `[now]` é SEMÂNTICA, e é isso
    que este arnês afirma: o mesmo `defer` sobre o mesmo código dá 3 e 1. */
 
-#include "keel/keel.type.h"
-#include "app/app_dl.impl.h"
+#include "keel.type.h"
+#include "app/app_dl.h"
 #include <stdio.h>
 int main(void) {
     app_dl_tarde();          if (app_dl_ultimo() != 3) return 1;  /* valor na saída */

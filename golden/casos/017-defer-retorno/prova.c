@@ -2,8 +2,8 @@
    cleanup, e o cleanup zera o campo que a expressão lê. Devolver 0 em vez de 5
    denunciaria a ordem errada, e nenhuma compilação acusaria isso. */
 
-#include "keel/keel.type.h"
-#include "app/app_dr.impl.h"
+#include "keel.type.h"
+#include "app/app_dr.h"
 #include <stdio.h>
 int main(void) {
     app_dr_Rec r = { 5 };

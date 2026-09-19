@@ -2,10 +2,10 @@
    O índice gravado é o da PARTE, não o do contêiner: quem parte recebe um
    recorte, e converter para índice global é conta do programa. */
 
-#include "keel/keel.type.h"
-#include "app/app_bs.impl.h"
-#include "keel/keel_buffer_i32.impl.h"
-#include "keel/keel_buffer_size_t.impl.h"
+#include "keel.type.h"
+#include "app/app_bs.h"
+#include "keel/keel_buffer_i32.h"
+#include "keel/keel_buffer_size_t.h"
 #include <stdio.h>
 int main(void) {
     i32 v[64]; size_t o[4] = {0,0,0,0};

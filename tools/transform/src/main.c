@@ -186,8 +186,9 @@ strbuf input_buffer = {.len = 0, .cap = MEGA, .ptr = memory};
 enum { SEC_TYPE, SEC_DECL, SEC_IMPL, SEC_COUNT };
 
 const char *section_mark[SEC_COUNT] = { "%type", "%h", "%impl" };
-const char *section_ext[SEC_COUNT]  = { ".type.h", ".h", ".impl.h" };
-const char *section_guard[SEC_COUNT] = { "_TYPE_H", "_H", "_IMPL_H" };
+// %h e o L2 (.proto.h); %impl e o L3, o .h que se inclui para usar
+const char *section_ext[SEC_COUNT]  = { ".type.h", ".proto.h", ".h" };
+const char *section_guard[SEC_COUNT] = { "_TYPE_H", "_PROTO_H", "_H" };
 
 //---------
 // files and i/o
@@ -535,7 +536,7 @@ int main(int argc, char *argv[]) {
         strbuf_append_pchar(&head, section_guard[s]);
         strbuf_append_pchar(&head, "\n\n");
 
-        // auto-include: o .h puxa o .type.h, o .impl.h puxa o .h (backend 4.3.2)
+        // auto-include: o .proto.h puxa o .type.h, o .h puxa o .proto.h (backend 4.3.2)
         if (s != SEC_TYPE) {
             strbuf_append_pchar(&head, "#include \"");
             strbuf_append_pchar(&head, include.ptr);

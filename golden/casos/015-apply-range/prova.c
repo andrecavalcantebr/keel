@@ -1,9 +1,9 @@
 /* prova.c — arnês do `apply` e do `range` nomeado. */
 
-#include "keel/keel.type.h"
-#include "app/app_ap.impl.h"
-#include "keel/keel_buffer_i32.impl.h"
-#include "keel/keel_range.impl.h"
+#include "keel.type.h"
+#include "app/app_ap.h"
+#include "keel/keel_buffer_i32.h"
+#include "keel/keel_range.h"
 #include <stdio.h>
 int main(void) {
     i32 v[4] = {1,2,3,4};

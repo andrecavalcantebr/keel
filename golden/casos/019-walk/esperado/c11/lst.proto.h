@@ -1,7 +1,7 @@
-/* gen/lst/lst.h — gerado de lst/lst.k, perfil C11.
+/* lst.proto.h — gerado de lst/lst.k, perfil C11.
    `pub inline` sai `static inline` no header, com corpo (backend §4.1). */
-#ifndef LST_H
-#define LST_H
+#ifndef LST_PROTO_H
+#define LST_PROTO_H
 #include "lst.type.h"
 
 #line 12 "lst/lst.k"
@@ -13,4 +13,4 @@ static inline i32 *lst_next(lst_Lista *l, lst_cursor *c);
 i32 lst_soma(lst_Lista *l);
 i32 lst_soma_buffer(keel_buffer_i32 *xs);
 i32 lst_primeiro_par(lst_Lista *l);
-#endif /* LST_H */
+#endif /* LST_PROTO_H */

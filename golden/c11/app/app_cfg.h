@@ -1,6 +1,6 @@
-/* gen/app/cfg.impl.h — gerado de app/cfg.k, perfil C11 */
-#ifndef APP_APP_CFG_IMPL_H
-#define APP_APP_CFG_IMPL_H
-#include "app/app_cfg.h"
+/* app/app_cfg.h — gerado de app/cfg.k, perfil C11 */
+#ifndef APP_APP_CFG_H
+#define APP_APP_CFG_H
+#include "app/app_cfg.proto.h"
 
-#endif /* APP_APP_CFG_IMPL_H */
+#endif /* APP_APP_CFG_H */

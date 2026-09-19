@@ -3,7 +3,7 @@
    por slot é um `corot`, e não um inteiro nu. */
 #ifndef KEEL_KEEL_ROUTINE_AG2_AG_TYPE_H
 #define KEEL_KEEL_ROUTINE_AG2_AG_TYPE_H
-#include "keel/keel.type.h"
+#include "keel.type.h"
 #include "keel/keel_corot.type.h"
 #include "ag2.type.h"
 

@@ -1,13 +1,13 @@
-/* gen/app/pos.c — gerado de app/pos.k, perfil C23.
+/* app/app_pos.c — gerado de app/pos.k, perfil C23.
    `p[i].campo` (spec §4.11) reescreve para `p->campo[i]` — é o que aparece
    em `app_pos_linha`, saindo de `p[p->len].x = vx;` no fonte. Nenhum verbo
    sintetizado: `ocupar` aloca à mão, `somar_x` usa `slice.from`, já
    existente (§5.3), pra entrar em `foreach`. */
 
-#include "keel/keel.type.h"
-#include "app/app_pos.impl.h"
-#include "keel/keel_arena.impl.h"
-#include "keel/keel_slice_f32.impl.h"
+#include "keel.type.h"
+#include "app/app_pos.h"
+#include "keel/keel_arena.h"
+#include "keel/keel_slice_f32.h"
 
 #line 19 "app/pos.k"
 void app_pos_ocupar(app_pos_position *p, keel_arena *a, size_t n) {

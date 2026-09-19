@@ -1,9 +1,9 @@
 /* prova.c — arnês. Percorrer não exige indexar: a lista não declara `length`
    nem `ptr`, e mesmo assim `walk` a percorre. */
 
-#include "keel/keel.type.h"
-#include "keel/keel_buffer_i32.impl.h"
-#include "lst.impl.h"
+#include "keel.type.h"
+#include "keel/keel_buffer_i32.h"
+#include "lst.h"
 #include <assert.h>
 int main(void) {
     lst_No c = { 3, NULL }, b = { 4, &c }, a = { 1, &b };

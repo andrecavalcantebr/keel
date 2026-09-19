@@ -1,12 +1,12 @@
-/* keel/keel_routine_ag2_Ag.impl.h — instância de `keel.routine` sobre o contexto
+/* keel/keel_routine_ag2_Ag.h — instância de `keel.routine` sobre o contexto
    `ag2.Ag` (backend §5.10). O typedef da participante é da instância; o estado
    por slot é um `corot`, e não um inteiro nu. */
-#ifndef KEEL_KEEL_ROUTINE_AG2_AG_IMPL_H
-#define KEEL_KEEL_ROUTINE_AG2_AG_IMPL_H
-#include "keel/keel_routine_ag2_Ag.h"
-#include "keel/keel_corot.impl.h"
-#include "keel/keel_outcome_u32.impl.h"
-#include "keel/keel_slice_keel_routine_slot_ag2_Ag.impl.h"
+#ifndef KEEL_KEEL_ROUTINE_AG2_AG_H
+#define KEEL_KEEL_ROUTINE_AG2_AG_H
+#include "keel/keel_routine_ag2_Ag.proto.h"
+#include "keel/keel_corot.h"
+#include "keel/keel_outcome_u32.h"
+#include "keel/keel_slice_keel_routine_slot_ag2_Ag.h"
 
 static inline keel_corot keel_routine_slot_ag2_Ag_state(const keel_routine_slot_ag2_Ag *s) { return s->state; }
 static inline i32        keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s) { return s->state.code; }
@@ -49,4 +49,4 @@ static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s
         if (keel_corot_ok(s.ptr[i].state)) m |= (u64)1 << i;
     return m;
 }
-#endif /* KEEL_KEEL_ROUTINE_AG2_AG_IMPL_H */
+#endif /* KEEL_KEEL_ROUTINE_AG2_AG_H */

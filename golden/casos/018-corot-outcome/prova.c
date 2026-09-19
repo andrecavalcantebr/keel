@@ -1,9 +1,9 @@
-#include "keel/keel.type.h"
-#include "keel/keel_corot.impl.h"
-#include "keel/keel_outcome_i32.impl.h"
-#include "keel/keel_outcome_void.impl.h"
-#include "keel/keel_outcome.impl.h"
-#include "resultados.impl.h"
+#include "keel.type.h"
+#include "keel/keel_corot.h"
+#include "keel/keel_outcome_i32.h"
+#include "keel/keel_outcome_void.h"
+#include "keel/keel_outcome.h"
+#include "resultados.h"
 #include <assert.h>
 int main(void) {
     keel_corot r = resultados_estado(-7);

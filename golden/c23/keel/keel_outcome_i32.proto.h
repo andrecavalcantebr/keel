@@ -1,6 +1,6 @@
-/* keel/keel_outcome_i32.h — instância de `outcome i32` (backend §5.12). */
-#ifndef KEEL_KEEL_OUTCOME_I32_H
-#define KEEL_KEEL_OUTCOME_I32_H
+/* keel/keel_outcome_i32.proto.h — instância de `outcome i32` (backend §5.12). */
+#ifndef KEEL_KEEL_OUTCOME_I32_PROTO_H
+#define KEEL_KEEL_OUTCOME_I32_PROTO_H
 #include "keel/keel_outcome_i32.type.h"
 
 static inline bool keel_outcome_i32_failed(keel_outcome_i32 e);
@@ -13,4 +13,4 @@ static inline keel_outcome_i32 keel_outcome_i32_win(keel_outcome_i32 *r);
 static inline keel_outcome_i32 keel_outcome_i32_win1(keel_outcome_i32 *r, i32 v);
 static inline keel_outcome_i32 keel_outcome_i32_fail(keel_outcome_i32 *r, i32 c);
 static inline keel_outcome_i32 keel_outcome_i32_none(keel_outcome_i32 *r);
-#endif /* KEEL_KEEL_OUTCOME_I32_H */
+#endif /* KEEL_KEEL_OUTCOME_I32_PROTO_H */

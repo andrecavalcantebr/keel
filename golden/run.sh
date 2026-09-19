@@ -19,9 +19,9 @@ ok=0; falha=0; xfail=0; xpass=0
 # verificado aqui: um gerado que o viole compilaria mesmo assim, e a suíte
 # deixaria de ser oráculo justamente da regra que mata os ciclos de inclusão.
 estrutura=0
-for h in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' ! -name '*.impl.h' | sort); do
+for h in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' ! -name '*.proto.h' | sort); do
   base=${h%.h}
-  for camada in .type.h .impl.h; do
+  for camada in .type.h .proto.h; do
     [ -f "$base$camada" ] || { printf 'ESTRUT %s — falta %s\n' "$h" "$base$camada"; estrutura=$((estrutura+1)); }
   done
 done
@@ -40,18 +40,19 @@ done
 # O nome do gerado e o do fonte seguem regras DIFERENTES, e as duas são cobradas:
 # o .k mora no caminho do módulo (acima), e o header leva o símbolo manglado sob
 # o diretório dos componentes-pai (backend §4.1). `module app.cfg;` mora em
-# app/cfg.k e gera app/app_cfg.h.
+# app/cfg.k e gera app/app_cfg.h. E o módulo do caso é o que a invocação compila,
+# então gera também o .c (backend §4.1) — sempre, mesmo que só com o include.
 for caso in casos/*/; do
   for perfil in c23 c11; do
     ger="$caso/esperado/$perfil"
     [ -d "$ger" ] || continue
     for k in $(find "$caso" -name '*.k' | sort); do
-      grep -q '^pub ' "$k" || continue
       mod=$(grep -m1 '^module' "$k" | sed 's/^module *//; s/[; ].*//')
       dir=$(printf '%s' "$mod" | sed 's/\.[^.]*$//; t; s/.*//' | tr '.' '/')
       sim=$(printf '%s' "$mod" | tr '.' '_')
       [ -n "$dir" ] && alvo="$ger/$dir/$sim.h" || alvo="$ger/$sim.h"
       [ -f "$alvo" ] || { printf 'ESTRUT %s — `module %s` deveria gerar %s\n' "$k" "$mod" "$alvo"; estrutura=$((estrutura+1)); }
+      [ -f "${alvo%.h}.c" ] || { printf 'ESTRUT %s — `module %s` deveria gerar %s\n' "$k" "$mod" "${alvo%.h}.c"; estrutura=$((estrutura+1)); }
     done
   done
 done
@@ -62,12 +63,10 @@ for t in $(find c23 c11 casos -name '*.type.h' | sort); do
   [ -z "$mau" ] || { printf 'ESTRUT %s — .type.h incluindo fora da camada:\n%s\n' "$t" "$mau"; estrutura=$((estrutura+1)); }
 done
 
-# I2: um .h não inclui o .h de outro módulo — protótipo não precisa de protótipo
-for d in $(find c23 c11 casos -name '*.h' ! -name '*.type.h' ! -name '*.impl.h' | sort); do
-  n=$(basename "$d" .h)
-  mau=$(grep '^#include "' "$d" | grep -v '\.type\.h"' | grep -v '\.impl\.h"' \
-        | grep -v "/$n\.h\"\|\"$n\.h\"")
-  [ -z "$mau" ] || { printf 'ESTRUT %s — .h incluindo .h de outro módulo:\n%s\n' "$d" "$mau"; estrutura=$((estrutura+1)); }
+# I2: um .proto.h inclui apenas .type.h — protótipo não precisa de protótipo
+for d in $(find c23 c11 casos -name '*.proto.h' | sort); do
+  mau=$(grep '^#include "' "$d" | grep -v '\.type\.h"')
+  [ -z "$mau" ] || { printf 'ESTRUT %s — .proto.h incluindo fora da camada:\n%s\n' "$d" "$mau"; estrutura=$((estrutura+1)); }
 done
 [ $estrutura -eq 0 ] && printf 'ok     estrutura de camadas         (backend §4.3.2)\n'
 falha=$((falha+estrutura))
@@ -93,7 +92,7 @@ for caso in casos/*/; do
     inc="-I$perfil -I$ger -I$caso"
 
     # todo módulo com `pub` tem de ter `.h` — foi o que passou despercebido 16 vezes
-    if find "$caso" -name '*.k' -exec grep -lq '^pub ' {} + 2>/dev/null && ! find "$ger" -name '*.h' ! -name '*.type.h' ! -name '*.impl.h' | grep -q .; then
+    if find "$caso" -name '*.k' -exec grep -lq '^pub ' {} + 2>/dev/null && ! find "$ger" -name '*.h' ! -name '*.type.h' ! -name '*.proto.h' | grep -q .; then
       printf 'FALHA  %-24s %s  — módulo com `pub` e sem .h gerado\n' "$nome" "$perfil"; falha=$((falha+1)); continue
     fi
 

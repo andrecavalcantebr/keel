@@ -1325,6 +1325,11 @@ o segundo identifica o modificador nele declarado. O nome abreviado vem de
   de linha exigem colocação de seus corpos por `instance` em um módulo do
   programa. `instance` não declara nome nem substitui o import; determina
   onde ficam os corpos da instância já solicitada pelos usos.
+- Declaração de módulo genérico que não menciona parâmetro nem modificador
+  pertence ao módulo, não à instância, e é emitida uma vez. Ela é tipo,
+  `constexpr` ou função `inline`: um módulo genérico nunca é a unidade
+  compilada, então uma definição fora de linha que não pertence a instância
+  nenhuma não teria onde ficar.
 
 #### 5. Restrições e diagnósticos
 
@@ -1339,6 +1344,7 @@ Todas as verificações desta tabela são de keel:
 | Cadeia de tipos que se contêm por valor atravessando instância de modificador | `ciclo-de-layout` |
 | `instance` fora de arquivo ou sobre tipo que não é modificador genérico | `instance-fora-de-arquivo`; `instance-nao-modificador` |
 | `instance` sem corpos fora de linha a colocar | `instance-inutil` (`warning`) |
+| Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `generico-fora-de-linha` |
 | Parâmetro por valor de instância `byref` | `byref-param` |
 | Argumento de `dim` sem valor decimal conhecido | `dim-nao-constante` |
 | Argumento de `tags` que não nomeia conjunto declarado | `tags-nao-declarado` |
@@ -3286,6 +3292,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `instance-fora-de-arquivo` | `instance` fora de escopo de arquivo | `error` | keel | §4.3 |
 | `instance-nao-modificador` | Argumento de `instance` que não é modificador de módulo genérico | `error` | keel | §4.3 |
 | `instance-inutil` | `instance` sobre genérico inteiramente `pub inline` | `warning` | keel | §4.3 |
+| `generico-fora-de-linha` | Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `error` | keel | §4.3 |
 | `byref-param` | Instância `byref` por valor em parâmetro — `arena`, `buffer`, todo modificador marcado, e `soa` (§4.11) | `error` | keel | §4.3 |
 | `arena-filha-apos-reset` | Uso de arena filha depois de `reset`/`restore` do pai, no mesmo escopo | `error` | keel | §5.2 |
 | `tags-sem-nome` | `tags` sem nome | `error` | keel | §4.9 |

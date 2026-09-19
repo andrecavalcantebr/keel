@@ -1298,8 +1298,8 @@ diagnóstico do compilador C, ou quem precisa emitir o `#include` que traz esse
 tipo, tem de saber antes se ele nasceu de um módulo ou de uma instância, porque
 a resposta muda a regra. É uma pergunta que o nome já podia ter respondido.
 
-E é uma pergunta que o **cgen** faz o tempo todo. A regra 5 do backend §4.3.2
-manda cada arquivo com corpo incluir o `.impl.h` de quem ele chama; o gerador
+E é uma pergunta que o **cgen** faz o tempo todo. As regras 3 e 4 do backend
+§4.3.2 mandam cada arquivo com corpo incluir o `.h` de quem ele chama; o gerador
 descobre quem é chamado resolvendo o nome manglado, e o que ele tem em mãos,
 naquele ponto, é exatamente um símbolo. Com a regra uniforme, o include é
 concatenação; sem ela, é consulta a uma tabela de origem que precisaria existir

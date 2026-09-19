@@ -50,7 +50,7 @@ Um evocador do parser. Ela resolve caminho de arquivo, decide se algo precisa se
 
 A premissa deste documento é que **a linguagem evolui e a ferramenta não**. O que se congela é pequeno: a linha de comando, a pasta de saída, o formato de diagnóstico e o código de saída. Construção nova na linguagem acrescenta no máximo nomes de diagnóstico.
 
-Os módulos genéricos da linguagem §4.3 são a primeira construção que cobra algo além disso, e vale registrar exatamente o quanto: **nada da superfície congelada muda** — nenhuma opção nova, nenhum diretório novo, nenhum código de saída novo. O que muda são duas regras internas, a §4.5 e a §5, e pelo mesmo motivo nos dois casos: um arquivo gerado deixa de ser função apenas do fonte que o pediu.
+Os módulos genéricos da linguagem §4.3 são a primeira construção que cobra algo além disso, e vale registrar exatamente o quanto: **uma opção**, `--instance` (§4.3), e nenhum diretório novo nem código de saída novo. A opção existe porque um genérico não é traduzível sozinho — só com argumento —, e quem quiser a instância como unidade própria, com `.c` e `.o`, tem de dizer qual; `--instance` é a declaração `instance` da linguagem escrita na linha de comando, e não acrescenta regra de conteúdo. O resto são duas regras internas, a §4.5 e a §5, e pelo mesmo motivo nos dois casos: um arquivo gerado deixa de ser função apenas do fonte que o pediu.
 
 O `parallel` é a segunda, e **cobrou uma opção** — `--parallel-lowering` (§4.8). Fica registrado, com a razão: a linguagem não escolhe o mecanismo de execução, e diz isso por escrito (spec §4.8); quem escolhe é o backend, e quem informa a escolha é a invocação, porque o cgen não compila e só a linha de comando sabe o que o alvo oferece. Ela é da categoria de `--profile` (§4.9), não da de `--pedantic-names`: seleciona entre lowerings especificados e muda o C gerado, sem mudar o que o programa significa.
 
@@ -97,7 +97,9 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 
 | Opção | Efeito | Padrão |
 | --- | --- | --- |
-| `-I <dir>` | raiz de busca de módulos; repetível, ordem significativa | `.` |
+| `-I <dir>` | raiz de busca de módulos; repetível, ordem significativa | `.`, só quando nenhum `-I` é dado |
+| `--base-dir <dir>` | raiz da base; ver §8 | `<executável>/../lib/base` |
+| `--instance "<M.mod> <args>"` | compila a instância, em lugar de um `.k`; ver §4.3 | — |
 | `--dest-dir <dir>` | raiz da saída gerada; os componentes-pai do módulo viram diretórios sob ela, e o nome do arquivo é o símbolo (backend §4.1) | `./gen` |
 | `--stop-after=<fase>` | interrompe após `lex`, `parse` ou `gen`; ver §4.2 | não interrompe |
 | `--checks=on\|off` | verificações de limite no código gerado, o `debug` do [catálogo da spec](keel-spec.md#62-catálogo) | `on` |
@@ -158,9 +160,21 @@ O análogo de `-E`, `-S` e `-c`. Cada fase escreve em `stdout` e não invoca o c
 
 Com `--stop-after=gen`, ou com `-c` repassado ao compilador C, cada módulo é compilado isoladamente — e não há nada a descobrir.
 
-Instâncias são header-only, então **um `.k` produz um `.c` e um `.o`, e nada além** (backend §4.1). Não existe alvo gerado sem fonte keel correspondente, e portanto não há lista dinâmica para o build acompanhar por glob, manifesto ou arquivo agregador. Isso importa especialmente para ninja e cmake, cujos grafos são estáticos e montados antes da compilação: alvo novo aparecendo no meio do build seria justamente o que eles não sabem tratar.
+**Uma invocação escreve um `.c`, e só um: o do que ela compila** (backend §4.1). Módulos importados e instâncias implícitas saem só em headers, que não são alvo; o `.c` de um importado é escrito pela invocação dele. Não existe alvo gerado sem fonte correspondente, e portanto não há lista dinâmica para o build acompanhar por glob, manifesto ou arquivo agregador. Isso importa especialmente para ninja e cmake, cujos grafos são estáticos e montados antes da compilação: alvo novo aparecendo no meio do build seria justamente o que eles não sabem tratar.
 
-**Módulo genérico não abre exceção.** Ele próprio é um `.k` e produz o seu par, praticamente vazio. As instâncias que ele origina continuam header-only por omissão. A única forma de obter corpo fora de linha é a declaração `instance` da linguagem §4.3, e ela mora num `.k` que o usuário escreveu — com o `.o` e a regra que ele mesmo pôs no build. A ferramenta não descobre alvo nenhum sozinha, e continua não precisando.
+**Módulo genérico não compila sozinho.** `cgen coll.k` sobre um módulo com parâmetro é `fonte-generico`: o parser não tem o que pôr no lugar de `T`, `N` ou `E`. Importado, ele gera os próprios headers — o que não menciona parâmetro, backend §4.4.1 — como qualquer módulo. Um genérico entra no build de duas formas, e a ferramenta não descobre nenhuma delas sozinha:
+
+- **por uso**, com os corpos `inline` nos headers da instância e os fora de linha no `.c` do módulo que declara `instance` (linguagem §4.3) — um `.k` que o usuário escreveu, com o `.o` e a regra que ele mesmo pôs no build;
+- **por invocação**, com `--instance`, que é a mesma declaração escrita na linha de comando:
+
+```sh
+cgen -c --instance "coll.stack i32" -o coll_stack_i32.o
+cgen -c --instance "keel.buffer.buffer app.geom.Point" -o keel_buffer_app_geom_Point.o
+```
+
+O argumento é o uso como a declaração `instance` o escreve, com uma exigência a mais: **tudo é qualificado por inteiro** — o modificador, `keel.buffer.buffer` e não `buffer`, e os argumentos, `app.geom.Point` e não `Point` —, porque na linha de comando não há `import`, e é o nome inteiro que fixa sem ambiguidade o módulo, o modificador e o arquivo de saída. O último componente do nome é o modificador; o resto é o módulo, achado pelas raízes como num `import`. A invocação produz os três headers da instância e o `.c` dela — `gen/coll/coll_stack_i32.c` —, e o `.c` recebe os corpos fora de linha, como receberia o do módulo que declarasse `instance`. O nome do arquivo é o símbolo (backend §4.1), então a regra `%.o: %.c` sobre o destino vale sem exceção.
+
+`--instance` ocupa o lugar do `.k`: uma invocação tem um ou outro, e ter os dois é `fonte-multiplo`. Sobre genérico inteiramente `pub inline` — toda a base —, o `.c` sai só com o include, e o aviso é o `instance-inutil` da linguagem.
 
 **A colisão de símbolos é verificada no que a invocação alcança**, e é isto que a
 linguagem §4.1 promete: o módulo em tradução mais o fecho transitivo dos seus
@@ -180,13 +194,14 @@ A ferramenta também **não gera** o módulo de instanciação. Ela compila um m
 cgen -I src -c src/main.k -o main.o -O2 -Wall
 ```
 
-O cgen parseia `src/main.k`; cada import carrega e, se desatualizado, gera o módulo importado. Ao final existem:
+O cgen parseia `src/main.k`; cada import carrega e, se desatualizado, gera os headers do módulo importado. Ao final existem:
 
 ```plain
-gen/main.type.h  gen/main.h  gen/main.impl.h  gen/main.c
-gen/geom.type.h  gen/geom.h  gen/geom.impl.h  gen/geom.c
-gen/net/net_http.type.h  gen/net/net_http.h  gen/net/net_http.impl.h  gen/net/net_http.c
-gen/keel/keel_buffer_geom_Point.type.h  .h  .impl.h   ...
+gen/main.type.h  gen/main.proto.h  gen/main.h  gen/main.c
+gen/geom.type.h  gen/geom.proto.h  gen/geom.h
+gen/net/net_http.type.h  gen/net/net_http.proto.h  gen/net/net_http.h
+gen/keel.type.h  gen/keel.proto.h  gen/keel.h
+gen/keel/keel_buffer_geom_Point.type.h  .proto.h  .h   ...
 ```
 
 E a chamada emitida é uma só, sobre o módulo que foi pedido:
@@ -195,7 +210,7 @@ E a chamada emitida é uma só, sobre o módulo que foi pedido:
 cc -c gen/main.c -o main.o -I src -I gen -O2 -Wall
 ```
 
-`-c` continua significando uma unidade de tradução, um objeto. Os `.c` dos módulos importados não são compilados aqui: eles têm regra própria, disparada por `cgen -c src/geom.k` e `cgen -c src/net/http.k`. **Gerar não é compilar.**
+`-c` continua significando uma unidade de tradução, um objeto. Os `.c` dos módulos importados não são escritos nem compilados aqui: eles têm regra própria, disparada por `cgen -c src/geom.k` e `cgen -c src/net/http.k`. **Importar não é compilar.**
 
 **O fonte e o gerado não se chamam igual, e isso é regra e não descuido**:
 `src/net/http.k` produz `gen/net/net_http.h`. O caminho do `.k` é o nome do
@@ -220,13 +235,12 @@ Sem genéricos a diferença era invisível, porque o conteúdo da instância nã
 
 **O depfile e o critério da §5 são o mesmo fecho, vistos dos dois lados.** Este diz ao build **quando reinvocar** o cgen; aquele diz ao cgen **quando não pular**. Os dois têm de concordar, e concordam por serem o mesmo conjunto — o `.k` alcançável por `import`. Se só um deles fosse transitivo, o build reinvocaria o cgen para nada, ou o cgen regeneraria sem ninguém pedir.
 
-**A metade do compilador C fica mais fina de graça.** Desde o backend §4.3.2 cada
-módulo e cada instância saem em `.type.h`, `.h` e `.impl.h`, e é o compilador C
-que reporta quais deles a unidade de fato incluiu. Nada muda aqui — o depfile
-continua sendo o que ele reporta, fundido com o fecho de `.k` —, mas o efeito é
-que editar um corpo `inline` passa a retriggar só quem chama o verbo, e não todo
-mundo que menciona o tipo. Não há lista a montar: a granularidade vem da
-separação dos arquivos, não de análise da ferramenta.
+**A metade do compilador C é o que ele reporta.** Cada módulo e cada instância
+saem em `.type.h`, `.proto.h` e `.h` (backend §4.3.2), e é o compilador C que
+reporta quais deles a unidade de fato incluiu. Nada muda aqui — o depfile
+continua sendo o que ele reporta, fundido com o fecho de `.k`. Não há lista a
+montar: a granularidade vem da separação dos arquivos, não de análise da
+ferramenta.
 
 ### 4.6 Identidade do módulo
 
@@ -324,7 +338,7 @@ Um build precisa de três coisas da ferramenta: um alvo previsível, dependênci
 que ele saiba ler, e nenhuma surpresa sob `-j`. Esta seção dá as três, e fixa o
 que a §4.4 mostrava só por exemplo.
 
-**Um fonte `.k` por invocação.** Mais de um é erro da ferramenta, com código 2.
+**Um fonte por invocação** — um `.k`, ou um `--instance` (§4.3). Mais de um é erro da ferramenta, com código 2.
 O cgen dirige a compilação, e `-c` e `-o` mantêm o significado do gcc: um `.k`,
 uma unidade de tradução, um objeto. Fontes que **não** são `.k` na mesma linha —
 `.c`, `.o`, `.a` — atravessam para o compilador C como sempre, e é o que permite
@@ -349,11 +363,16 @@ prog: main.o geom.o net/http.o
 
 **Quem quiser ver o `.c` escreve a outra regra**, e ela é escrevível porque o
 alvo é previsível: a §4.6 exige que o nome do módulo concorde com o caminho
-relativo à raiz, então `src/net/http.k` sai em `gen/net/http.c` e o pattern rule
-fecha.
+relativo à raiz, e o backend §4.1 dá o nome do gerado a partir do módulo. Para
+módulo de um componente só, o `%` fecha; com diretório, o nome do arquivo repete
+o caminho — `src/net/http.k` sai em `gen/net/net_http.c` —, e `%` não expressa
+essa repetição, então a regra se escreve por módulo:
 
 ```make
 gen/%.c : src/%.k
+	cgen --stop-after=gen -I src --dest-dir gen $<
+
+gen/net/net_http.c : src/net/http.k
 	cgen --stop-after=gen -I src --dest-dir gen $<
 ```
 
@@ -391,18 +410,20 @@ seria silenciosamente perdida justamente onde o grafo é estático.
 Em `--stop-after=gen` não há compilador C a consultar, e o depfile tem só o fecho
 de `.k`, com o `.c` gerado como alvo.
 
-#### Uma invocação gera o fecho
+#### Uma invocação gera os headers do fecho
 
-`cgen -c src/main.k` também escreve `gen/geom.c` se `geom` estiver desatualizado
-(§4.4). Para o build isso significa que **duas regras podem escrever o mesmo
-arquivo**, e as duas propriedades que tornam isso inofensivo já estão
-especificadas: o conteúdo é determinístico (backend §7.1), então os dois
+`cgen -c src/main.k` também escreve os headers de `geom` se ele estiver
+desatualizado (§4.4) — nunca o `gen/geom.c`. Para o build isso significa que
+**duas regras podem escrever o mesmo header**, a de `main` e a de `geom`, e as
+duas propriedades que tornam isso inofensivo já estão especificadas: o conteúdo é determinístico (backend §7.1), então os dois
 escritores produzem os mesmos bytes; e a escrita é temporário mais `rename`
 (§6), então nenhum leitor vê arquivo pela metade. O trabalho repetido é absorvido
 pela regra de não tocar arquivo idêntico (regra 2 da §6): o segundo escritor compara,
 encontra igual, e não mexe no timestamp.
 
-A consequência prática é que o build **não precisa** declarar os gerados dos
+O `.c`, esse, tem um escritor só: a regra do próprio módulo.
+
+A consequência prática é que o build **não precisa** declarar os headers dos
 módulos importados como saídas da regra. Ele declara um alvo por módulo, e a
 redundância se paga sozinha.
 
@@ -417,9 +438,10 @@ O mesmo do make, resolvido com chamadas ao sistema.
 > mais novo entre o próprio `.k` e os `.k` alcançáveis por `import`,
 > transitivamente**.
 
-A interface de um módulo são dois arquivos desde o backend §4.3.2 — o `.h` e o
-`.type.h` que ele inclui —, e o critério é o mesmo para os quatro gerados: **o
-operando da comparação é o mais antigo deles**. Comparar contra um só deixaria
+A interface de um módulo são dois arquivos desde o backend §4.3.2 — o `.proto.h`
+e o `.type.h` que ele inclui —, e o critério é o mesmo para todos os gerados do
+módulo — os três headers, e o `.c` quando é ele o compilado: **o operando da
+comparação é o mais antigo deles**. Comparar contra um só deixaria
 passar o caso em que a geração anterior parou no meio.
 
 - gerado não existe, ou é mais antigo que esse máximo → parseia e gera
@@ -467,15 +489,15 @@ comparar também por elas; a v1 não o faz, e a obrigação fica com quem invoca
 
 Instância de modificador **embutido** — `buffer`, `slice` — tem conteúdo que é função pura do nome, e o nome é o nome do arquivo (backend §7). A verificação é um `stat`: existe, pula; não existe, gera e escreve. Não se lê nem se compara.
 
-Instância de modificador **do usuário** não tem essa propriedade. O conteúdo de `coll_stack_i32.impl.h` é função do nome **e do corpo de `coll.k`**: editar o `push` do genérico muda o arquivo sem mudar o nome dele.
+Instância de modificador **do usuário** não tem essa propriedade. O conteúdo de `coll_stack_i32.h` é função do nome **e do corpo de `coll.k`**: editar o `push` do genérico muda o arquivo sem mudar o nome dele.
 
 > Para instância de genérico do usuário, o critério é o **timestamp do fonte do módulo genérico** contra o do header de instância. Mais recente, regenera.
 
-Vale para os três headers da instância, e não só para o `.impl.h`: editar `coll.k`
+Vale para os três headers da instância, e não só para o `.h`: editar `coll.k`
 pode mexer no corpo do modificador tanto quanto nos verbos. A comparação é contra
 o mais antigo dos três, pela razão da §5.
 
-É a mesma comparação da §5, com o fonte do genérico no lugar do fonte do módulo — nenhum mecanismo novo, apenas outro operando. O mesmo vale para o `.c` de um módulo que declare `instance`: ele depende do corpo do genérico, não só do próprio fonte.
+É a mesma comparação da §5, com o fonte do genérico no lugar do fonte do módulo — nenhum mecanismo novo, apenas outro operando. O mesmo vale para o `.c` de um módulo que declare `instance`, e para o `.c` de uma instância pedida por `--instance`: ele depende do corpo do genérico, não só do próprio fonte.
 
 **Limitação conhecida:** se a própria ferramenta mudar, os gerados ficam obsoletos sem que nenhum timestamp de fonte acuse. Apagar `./gen` resolve, e `-f` existe para isso. É a mesma limitação do make.
 
@@ -552,7 +574,10 @@ fonte. Restam os que dependem da invocação, e eles são da ferramenta:
 
 | Identificador | Condição |
 | --- | --- |
-| `fonte-multiplo` | mais de um `.k` na mesma invocação (§4.10) |
+| `fonte-multiplo` | mais de um fonte na mesma invocação: dois `.k`, ou um `.k` e um `--instance` (§4.10) |
+| `fonte-generico` | o `.k` da invocação é módulo genérico, e não há `--instance` (§4.3) |
+| `instancia-invalida` | `--instance` que não nomeia modificador de módulo genérico por inteiro, ou cujos argumentos não casam com os parâmetros dele (§4.3) |
+| `base-nao-encontrada` | nenhuma das raízes da §8 contém `keel.k` |
 | `fonte-nao-encontrado` | o `.k` nomeado não existe ou não pode ser lido |
 | `fonte-fora-de-raiz` | o `.k` não está sob nenhuma raiz `-I` (§4.6) |
 | `fonte-em-varias-raizes` | o `.k` está sob mais de uma raiz (§4.6) |
@@ -585,44 +610,59 @@ cgen: error: mais de um fonte .k na invocação [fonte-multiplo]
 
 ## 8. Distribuição e a base
 
-`cgen` é distribuído como uma árvore relocável: `bin/cgen` ao lado de
-`lib/keel/base/`, a fonte dos módulos `keel.*` que todo programa importa.
-Mover a árvore inteira — descompactar o tarball em qualquer lugar, symlinkar
-o binário — não quebra nada, porque a base nunca é referenciada por caminho
-absoluto fixo.
+`cgen` é distribuído como uma árvore relocável: descompactar o `.tar.gz` (ou o
+`.zip`) em qualquer lugar e pôr `bin/cgen` no `PATH` — por symlink ou pelo
+próprio `PATH` — é a instalação inteira. `install.sh` e `uninstall.sh` fazem só
+isso. A base nunca é referenciada por caminho absoluto fixo, então mover a
+árvore não quebra nada.
 
 ```plain
 keel-1.0.0-linux-x86_64/
+  README.md
+  install.sh  uninstall.sh
   bin/cgen
-  lib/keel/base/
+  lib/base/
     keel.k
     keel/
-      prelude.h
       arena.k  buffer.k  slice.k  outcome.k
       corot.k  range.k  tagged.k  routine.k  parallel.k
+  lib/src/
+    …            o fonte do cgen: ferramenta, parser e backend, com a base de apoio dele
 ```
 
-**Resolução, nesta ordem:**
+**`lib/base` é a fonte dos módulos `keel.*`**, e o nome do módulo é o caminho:
+`keel.k` é o prelúdio, `keel/buffer.k` é `keel.buffer`. **`lib/src` é o fonte
+do próprio cgen**, para quem quiser reconstruí-lo. Na primeira versão ele traz o
+C da sua base de apoio já gerado, porque o cgen ainda não compila a si mesmo; a
+partir da segunda, traz `.k`.
+
+**Resolução da base, nesta ordem:**
 
 1. `--base-dir <dir>`, se passado.
-2. `KEEL_HOME`, se definida.
-3. Caminho relativo ao próprio executável, resolvido em tempo de execução
-   (segue symlink): `<diretório do binário>/../lib/keel/base`.
+2. `<diretório do executável>/../lib/base`, com o executável resolvido em tempo
+   de execução **até o arquivo real**, seguindo symlink, pela chamada que o
+   sistema oferece para isso — `/proc/self/exe` no Linux, `_NSGetExecutablePath`
+   no macOS, `GetModuleFileNameW` no Windows; `argv[0]` e `PATH` onde não houver
+   nenhuma.
 
-O resultado é acrescentado como **último** `-I` de busca de módulo — depois
-de todos os `-I` do usuário, inclusive o default `.` — e como `-I` adicional
-na chamada ao `cc`, pela mesma razão do `--dest-dir` (§4.1): sem ele, as
-inclusões do código gerado da base não resolvem. Por ser o último, um `-I` de
-usuário que contenha um módulo `keel.*` sombreia o da base — é assim que se
-desenvolve ou testa uma base alternativa sem reinstalar.
+Nenhuma das duas contendo `keel.k` é `base-nao-encontrada` (§7.1). **Não há
+variável de ambiente**, pela §4.1: o executável sabe onde está, e o que sobra é
+uma base fora da instalação, que é o que `--base-dir` cobre.
 
-A base é sempre lida, nunca escrita: cada projeto gera sua própria cópia dos
-headers dela em `--dest-dir`, com o mesmo critério de atualização da §5. Não
-há cache compartilhado entre projetos nem exigência de permissão de escrita
-sobre a instalação, e não há checagem de versão entre binário e base: os dois
-chegam juntos no mesmo prefixo, então são a mesma versão por construção.
+**A base é raiz de busca do cgen, e não do compilador C.** Ela entra como
+**última** raiz de módulo — depois de todos os `-I` do usuário, inclusive o
+default `.` — e não vai para a chamada ao `cc`: só tem `.k`, que o `cc` não lê.
+Por ser a última, um `-I` de usuário que contenha um módulo `keel.*` sombreia o
+da base — é assim que se desenvolve ou testa uma base alternativa sem reinstalar.
 
-> **Licença.** A base distribuída em `lib/keel/base` é a mesma Base de
+**A base é sempre lida, nunca escrita.** Cada projeto gera a sua cópia dos
+headers dela no próprio `--dest-dir`, com o mesmo critério de atualização da §5,
+e é esse o `-I` a mais que o `cc` recebe (§4.1). Não há cache compartilhado
+entre projetos nem exigência de permissão de escrita sobre a instalação, e não
+há checagem de versão entre binário e base: os dois chegam juntos no mesmo
+prefixo, então são a mesma versão por construção.
+
+> **Licença.** A base distribuída em `lib/base` é a mesma Base de
 > `src/base/`, sob GPLv3 com a exceção que isenta o código que ela contribui
 > ao gerado do usuário. Ver [`LICENSE.md`](LICENSE.md) e
 > [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit).

@@ -650,13 +650,13 @@ pub i16 obter(i16 entrada) {
 #include <stdint.h>
 
 typedef int16_t i16;
-typedef struct { int32_t code; i16 v; } keel_outcome_i16;
+typedef struct { int32_t code; i16 value; } keel_outcome_i16;
 
 keel_outcome_i16 resultado_aceitar(i16 entrada) {
     keel_outcome_i16 r = {0};
     if (entrada < 0) { r.code = entrada; return r; }
     r.code = 0;
-    r.v = entrada;
+    r.value = entrada;
     return r;
 }
 
@@ -665,9 +665,9 @@ i16 resultado_obter(i16 entrada) {
     if (res.code != 0) {
         /* outcome.win(res, 0): ajusta o próprio res. */
         res.code = 0;
-        res.v = 0;
+        res.value = 0;
     }
-    return res.v;
+    return res.value;
 }
 ```
 
@@ -726,7 +726,7 @@ pub i16 manual(void) {
 
 typedef int16_t i16;
 typedef struct { int32_t code; } keel_corot;
-typedef struct { int32_t code; i16 v; } keel_outcome_i16;
+typedef struct { int32_t code; i16 value; } keel_outcome_i16;
 
 typedef enum { cooperacao_ESPERA, cooperacao_FIM } cooperacao_Ciclo;
 typedef struct { int32_t tag; } keel_tagged_cooperacao_Ciclo_void;
@@ -828,7 +828,7 @@ typedef struct {
     keel_routine_slot_i16 *ptr;
 } keel_slice_keel_routine_slot_i16;
 
-typedef struct { int32_t code; uint32_t v; } keel_outcome_u32;
+typedef struct { int32_t code; uint32_t value; } keel_outcome_u32;
 
 static keel_corot cooperacao_etapa(i16 *contador) {
     keel_corot r = {0};

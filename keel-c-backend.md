@@ -624,7 +624,7 @@ outcome buffer outcome i32 r;
 
 ```plain
 keel_outcome_keel_buffer_keel_outcome_i32  ──L1→L1──▶  keel_buffer_keel_outcome_i32  ──L1→L0──▶  keel_outcome_i32
-          { i32 code; <buffer> v; }                      { cap, len; <outcome> *ptr; }
+          { i32 code; <buffer> value; }                  { cap, len; <outcome> *ptr; }
 ```
 
 ```keel
@@ -730,7 +730,7 @@ adiantada de `keel_arena`:
 
 ```c
 /* keel_outcome_i32.type.h */
-typedef struct keel_outcome_i32 { i32 code; i32 v; } keel_outcome_i32;
+typedef struct keel_outcome_i32 { i32 code; i32 value; } keel_outcome_i32;
 
 /* keel_buffer_keel_outcome_i32.type.h — regra 1: por ponteiro, L0 */
 typedef struct keel_outcome_i32 keel_outcome_i32;
@@ -741,7 +741,7 @@ typedef struct keel_buffer_keel_outcome_i32 {
 /* keel_outcome_keel_buffer_keel_outcome_i32.type.h — regra 1: por valor */
 #include "keel_buffer_keel_outcome_i32.type.h"
 typedef struct keel_outcome_keel_buffer_keel_outcome_i32 {
-    i32 code; keel_buffer_keel_outcome_i32 v;
+    i32 code; keel_buffer_keel_outcome_i32 value;
 } keel_outcome_keel_buffer_keel_outcome_i32;
 
 /* keel_buffer_keel_outcome_i32.h — regra 2 */
@@ -873,7 +873,7 @@ pertence a instância nenhuma, e por isso não vai para o header de instância:
 
 ```keel
 module keel.outcome type T;
-pub modifier outcome { i32 code; T v; }
+pub modifier outcome { i32 code; T value; }
 pub constexpr i32 OK   = 0;
 pub constexpr i32 NONE = INT32_MIN;
 ```
@@ -884,7 +884,7 @@ constexpr i32 keel_outcome_OK   = 0;
 constexpr i32 keel_outcome_NONE = (-2147483647 - 1);
 
 /* keel/keel_outcome_i32.type.h — por instância */
-typedef struct keel_outcome_i32 { i32 code; i32 v; } keel_outcome_i32;
+typedef struct keel_outcome_i32 { i32 code; i32 value; } keel_outcome_i32;
 ```
 
 Duas consequências de emissão:
@@ -1014,7 +1014,7 @@ typedef struct keel_slice_i32 {
     i32    *ptr;
 } keel_slice_i32;
 
-static inline keel_buffer_i32 keel_buffer_i32_as(i32 *p, size_t n) {
+static inline keel_buffer_i32 keel_buffer_i32_from(i32 *p, size_t n) {
     return (keel_buffer_i32){ .cap = p ? n : 0, .len = 0, .ptr = p };
 }
 static inline keel_buffer_i32 keel_buffer_i32_of(i32 *p, size_t n) {
@@ -1810,7 +1810,7 @@ pub outcome u32 porta(const char *path);
 
 ```c
 //C gerado
-typedef struct keel_outcome_u32 { i32 code; u32 v; } keel_outcome_u32;
+typedef struct keel_outcome_u32 { i32 code; u32 value; } keel_outcome_u32;
 
 static inline bool keel_outcome_u32_failed(keel_outcome_u32 e) { return e.code != keel_outcome_OK; }
 static inline bool keel_outcome_u32_ok(keel_outcome_u32 e)     { return e.code == keel_outcome_OK; }
@@ -1821,7 +1821,7 @@ static inline keel_outcome_u32 keel_outcome_u32_win(keel_outcome_u32 *r) {
 }
 static inline keel_outcome_u32 keel_outcome_u32_win1(keel_outcome_u32 *r, u32 v) {
     r->code = keel_outcome_OK;
-    r->v = v;
+    r->value = v;
     return *r;
 }
 static inline keel_outcome_u32 keel_outcome_u32_fail(keel_outcome_u32 *r, i32 c) {
@@ -1920,7 +1920,7 @@ resultado por endereço. A escrita não altera o código:
 
 ```c
 static inline void keel_outcome_i32_value1(keel_outcome_i32 *r, i32 v) {
-    r->v = v;
+    r->value = v;
 }
 ```
 

@@ -1332,18 +1332,18 @@ instâncias. Com um header só por instância (nomes abreviados):
 /* buf.h — buffer outcome i32 */
 #ifndef BUF_H
 #define BUF_H
-typedef struct outcome_i32 { i32 code; i32 v; } outcome_i32;
+typedef struct outcome_i32 { i32 code; i32 value; } outcome_i32;
 typedef struct buf { size_t cap, len; outcome_i32 *ptr; } buf;
 #include "obuf.h"                                  /* clone devolve obuf */
-static inline obuf buf_clone(buf *b) { obuf r = {0}; r.v = *b; return r; }
+static inline obuf buf_clone(buf *b) { obuf r = {0}; r.value = *b; return r; }
 #endif
 
 /* obuf.h — outcome buffer outcome i32 */
 #ifndef OBUF_H
 #define OBUF_H
-#include "buf.h"                                   /* o campo v é por valor */
-typedef struct obuf { i32 code; buf v; } obuf;
-static inline obuf *obuf_win(obuf *r, buf v) { r->code = 0; r->v = v; return r; }
+#include "buf.h"                                   /* o campo value é por valor */
+typedef struct obuf { i32 code; buf value; } obuf;
+static inline obuf *obuf_win(obuf *r, buf v) { r->code = 0; r->value = v; return r; }
 #endif
 ```
 
@@ -1358,7 +1358,7 @@ buf.h:8:15: error: unknown type name 'obuf'
 
 Ordenar arquivos não é saída: o backend não vê o grafo do projeto, e a ordem
 de entrada é de quem inclui. A saída é notar que as duas arestas são de
-**espécies diferentes** — `obuf → buf` é de layout (o campo `v`), e
+**espécies diferentes** — `obuf → buf` é de layout (o campo `value`), e
 `buf → obuf` é de chamada e de assinatura (`clone`) — e separar as espécies em
 arquivos (guardas omitidas):
 
@@ -1367,14 +1367,14 @@ arquivos (guardas omitidas):
 typedef struct outcome_i32 outcome_i32;
 typedef struct buf { size_t cap, len; outcome_i32 *ptr; } buf;
 
-/* obuf.type.h — só layout; v é por valor, inclui o .type.h, não o .h */
+/* obuf.type.h — só layout; value é por valor, inclui o .type.h, não o .h */
 #include "buf.type.h"
-typedef struct obuf { i32 code; buf v; } obuf;
+typedef struct obuf { i32 code; buf value; } obuf;
 
 /* obuf.h */
 #include "obuf.type.h"
 static inline obuf *obuf_win(obuf *r, buf v);
-static inline obuf *obuf_win(obuf *r, buf v) { r->code = 0; r->v = v; return r; }
+static inline obuf *obuf_win(obuf *r, buf v) { r->code = 0; r->value = v; return r; }
 
 /* buf.h */
 #include "buf.type.h"

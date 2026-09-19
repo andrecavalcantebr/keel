@@ -7,7 +7,7 @@
 #include "keel/keel_outcome_i32.type.h"
 
 /* `buffer.from(p,cap)`: ponteiro cru — nasce vazio  (linguagem §4.5) */
-static inline keel_buffer_i32 keel_buffer_i32_as(i32 *p, size_t n);
+static inline keel_buffer_i32 keel_buffer_i32_from(i32 *p, size_t n);
 /* `buffer.of(v)`: sobre `array` — nasce cheio, `len == cap` */
 static inline keel_buffer_i32 keel_buffer_i32_of(i32 *p, size_t n);
 static inline size_t keel_buffer_i32_length  (const keel_buffer_i32 *b);
@@ -37,7 +37,7 @@ static inline keel_slice_i32 keel_buffer_i32_as_slice2(const keel_buffer_i32 *b,
 #include "keel/keel_outcome_i32.h"
 
 /* `buffer.from(p,cap)`: ponteiro cru — nasce vazio  (linguagem §4.5) */
-static inline keel_buffer_i32 keel_buffer_i32_as(i32 *p, size_t n) {
+static inline keel_buffer_i32 keel_buffer_i32_from(i32 *p, size_t n) {
     return (keel_buffer_i32){ .cap = p ? n : 0, .len = 0, .ptr = p };
 }
 /* `buffer.of(v)`: sobre `array` — nasce cheio, `len == cap` */

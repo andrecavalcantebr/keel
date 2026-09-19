@@ -23,8 +23,8 @@ pub modifier buffer byref { size_t cap, len; T *ptr; }
 // não por instância (backend §5.11) — `keel_buffer_cursor`.
 pub typedef struct { size_t i; } cursor;
 
-// `buffer.from(p,cap)`: ponteiro cru — nasce vazio (spec §5.3 §4).
-pub inline buffer as(T *p, size_t n) {
+// ponteiro cru — nasce vazio (spec §5.3 §4).
+pub inline buffer from(T *p, size_t n) {
     return (buffer){ p ? n : 0, 0, p };
 }
 

@@ -13,7 +13,7 @@ keel_outcome_i32 app_cfg_soma(keel_arena *a, const char *caminho) {
     if (!fp) return keel_outcome_i32_fail(&resultado, 1);
     struct { FILE *fp; } keel__c0 = { fp };
 
-    keel_buffer_i32 xs = keel_buffer_i32_as(
+    keel_buffer_i32 xs = keel_buffer_i32_from(
         (i32 *)keel_arena_alloc_n(a, app_cfg_MAX, sizeof(i32), alignof(i32)), app_cfg_MAX);
     if (keel_buffer_i32_capacity(&xs) == 0) { keel__rv0 = keel_outcome_i32_fail(&resultado, 2); goto keel__e0; }
 

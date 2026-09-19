@@ -81,18 +81,18 @@ Abertos:
   intenção, ou basta documentar o uso de `buffer.push`/`pop`? O caso golden
   007 já tem um `coll.stack` do usuário.
 
-### `keel.strbuf` / `keel.string`
+### `keel.string` / `keel.strview`
 
 Typedefs de conveniência, não modificadores novos:
 
 ```keel
-typedef buffer char strbuf;
-typedef slice const char string;
+typedef buffer char string;
+typedef slice const char strview;
 ```
 
 O trabalho real é o conjunto de funções de string — comparação, concatenação,
 formatação — que os verbos de `buffer`/`slice` não cobrem. Par memória/visão:
-`strbuf` produz `string`.
+`string` produz `strview`.
 
 `slice const char` só não está na base porque este par é que seria o nome
 dele. O caso golden `021-else-assign` já o usa cru; se aparecerem mais usos,
@@ -101,8 +101,8 @@ vale trazer o par para a base antes do resto da v1.
 ### `keel.bitbuffer(W)` / `keel.bitslice(W)`
 
 Array compacto de inteiros de `W` bits; `T` é o tipo de interface de
-`get`/`set` (qualquer inteiro, na prática sem sinal). `bitbuffer(1)` é o
-bitset clássico, sem tipo à parte.
+`get`/`set` (qualquer inteiro, na prática sem sinal). `bitbuffer(1) bool` é o
+bitset clássico.
 
 ```keel
 module keel.bitbuffer dim W type T;
@@ -138,7 +138,7 @@ do Duff's device; estes três dão comunicação e sincronização.
   cooperativa (índice comum, mesmo fio, sem atomics) e SPSC entre threads
   (`acquire`/`release` nos dois índices). MPMC fica fora. Nome em aberto:
   `chan` (combina com `corot`) ou `channel`.
-- **`keel.barrier`** — `arrive(b, total) -> corot`, `ONGOING` até completar;
+- **`keel.barrier`** — `corot r = arrive(b, total)`, `ONGOING` até completar;
   rendezvous sem busy-wait e sem `thrd_yield` — quem cede o controle é o
   `return` da participante.
 
@@ -156,7 +156,8 @@ Nós num `buffer`, e os elos são índices (`u32`, por exemplo) em vez de
 ponteiros. É o caminho DOD para estruturas encadeadas:
 
 - memória contígua, amigável a cache, e compatível com a arena — nó removido
-  é invalidação lógica (ou entra numa lista livre de índices), sem `free`;
+  é invalidação lógica (ou entra numa lista livre de índices ou faz swap com 
+  o último), sem `free`;
 - relocável e serializável: índice não muda quando o bloco muda de lugar;
 - elos de 32 bits no lugar de ponteiros de 64.
 
@@ -183,9 +184,9 @@ quase não pede peça nova:
 ```keel
 module Traversable type T;          // prototypes over T only: that is the contract
 
-module keel.buffer type T [protocol Traversable];   // the module declares that it complies
+module keel.buffer type T protocol Traversable;   // the module declares that it complies
 
-module stats type C [protocol Traversable];         // the generic requires it (bound)
+module stats type C bound Traversable;         // the generic requires it (bound)
 pub f64 media(C *c) {
     f64 s = 0; size_t n = 0;
     walk (f64 *x, cursor k : c) { s += *x; n++; }
@@ -205,7 +206,7 @@ O que se ganha:
    `keel.buffer`, que os protótipos do contrato estão lá. Hoje a falta só
    aparece no uso, no código de outra pessoa.
 
-O que não se ganha: bound na construção (`walk([Traversable] ...)`) é
+O que não se ganha: bound na construção (`walk(Traversable ...)`) é
 redundante — a construção já é o protocolo; o bound só tem lugar na linha
 `module`. Despacho dinâmico e sobrecarga por protocolo ficam fora.
 
@@ -225,7 +226,7 @@ Registradas para não se perderem; nenhuma pede ação.
 
 **keel como linguagem DOD.** `soa`, `buffer`/`slice`,
 `foreach`/`walk`/`apply`/`parallel` com `partition`, e `tags`/`match` formam,
-na prática, uma linguagem orientada a dados sobre C. Cogitou-se, como
+na prática, uma linguagem orientada a projeto de dados sobre C. Cogitou-se, como
 digressão, o nome **cdod** (C + DOD). Mudar o nome toca licença, documentos,
 repositório e ferramentas: é decisão à parte, não de passagem.
 

@@ -1,6 +1,4 @@
 /*
- * module keel.outcome type T
- *
  * DESC: keel outcome — final result with a code (spec §5.5, backend §5.14)
  * AUTHOR: andre cavalcante
  * DATE: Sep, 2026

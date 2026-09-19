@@ -1,6 +1,4 @@
 /*
- * module keel.arena
- *
  * DESC: keel arena — region-based storage (spec §5.2, backend §5.4)
  * AUTHOR: andre cavalcante
  * DATE: Sep, 2026

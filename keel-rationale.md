@@ -1052,6 +1052,22 @@ declaração do argumento fornece sua identidade conhecida. A adaptação usa es
 informações explícitas. Examinar o tipo resultante de uma expressão C arbitrária
 exigiria outro modelo de análise.
 
+É essa adaptação que obriga o objeto a ser escrito sem `&`, e o par
+`buffer`/`slice` é o que decide. `buffer.length(&b)` seria inofensivo — o
+parâmetro é ponteiro, e a emissão poria o mesmo `&`; `slice.length(&s)` seria
+erro de tipo, porque ali o parâmetro é valor. Mesma grafia, resultado oposto, e
+o que os separa — um modificador ser `byref` e o outro não — não está no ponto
+de chamada. Absorver o `&` custaria zero no caso bom e entregaria, no ruim, uma
+mensagem do compilador C sobre um tipo que o programa não escreveu. Recusá-lo
+deixa uma regra só: o objeto é escrito como objeto, e quem decide sobre o
+endereço é a declaração do módulo. É o mesmo que faz `buffer.length(b)` e
+`slice.length(s)` se lerem igual apesar de um ser `byref`.
+
+O reflexo contrário é legítimo, e por isso o diagnóstico paga: `byref` obriga o
+`&` na chamada comum, então `f(&b)` e `buffer.length(b)` convivem em linhas
+vizinhas. O `.` é o que as separa — à esquerda dele há um módulo, e o primeiro
+argumento é o objeto, não um argumento C.
+
 Operações como `buffer.from`, que não carregam a instância nos argumentos,
 usam um alvo declarado. Os verbos de `outcome` recebem o objeto explicitamente
 e seguem o despacho pelo primeiro argumento.

@@ -1,6 +1,4 @@
 /*
- * module keel.slice type T
- *
  * DESC: keel slice — fixed-extent view (spec §5.3, backend §5.2, §5.11, §5.13)
  * AUTHOR: andre cavalcante
  * DATE: Sep, 2026
@@ -37,7 +35,7 @@ pub inline T     *ptr(slice s, size_t i) { return &s.ptr[i]; }
 // the only accessor checked in release (spec §5.3, backend §5.13).
 pub inline outcome T at(slice s, size_t i) {
     outcome T r = {0};
-    return i < s.len ? outcome.win(&r, s.ptr[i]) : outcome.none(&r);
+    return i < s.len ? outcome.win(r, s.ptr[i]) : outcome.none(r);
 }
 
 // a slice of a slice — the arity-2 `of` (spec §4.5: the container's module
@@ -51,9 +49,9 @@ pub inline slice of(slice s, size_t a, size_t b) {
 pub inline outcome slice clone(arena *a, slice s) {
     outcome slice r = {0};
     T *data = arena.alloc(a, T, s.len);
-    if (!data) return outcome.none(&r);
+    if (!data) return outcome.none(r);
     if (s.len > 0) memcpy(data, s.ptr, s.len * sizeof(T));
-    return outcome.win(&r, (slice){ s.len, data });
+    return outcome.win(r, (slice){ s.len, data });
 }
 
 // cursor and partition take the copy, like every `slice` verb.

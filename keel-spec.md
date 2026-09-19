@@ -1502,6 +1502,9 @@ símbolos. Uma chamada C desconhecida não fornece essa informação.
 
 - A adaptação também vale para função de módulo com parâmetro declarado como
   ponteiro para instância. Demais argumentos seguem como escritos.
+- O objeto é escrito sem operador de endereço. Quem fornece o `&` é a adaptação
+  acima, quando o parâmetro é ponteiro; um símbolo já declarado como ponteiro o
+  fornece diretamente. Escrever `&` sobre o objeto é `address-in-object-position`.
 - Cada argumento de operação é avaliado uma vez. A ordem relativa entre
   argumentos continua sendo a da chamada C, salvo regra explícita de outra
   construção; a adaptação não impõe avaliação da esquerda para a direita.
@@ -1514,6 +1517,7 @@ símbolos. Uma chamada C desconhecida não fornece essa informação.
 | --- | --- | --- |
 | Argumento de contêiner fora da gramática reconhecida | keel | `not-a-container-expression` |
 | Acesso direto a campo de instância | keel | `instance-field-access` (`warning`) |
+| Operador de endereço sobre o objeto no primeiro argumento | keel | `address-in-object-position` |
 | Qualificador não corresponde ao receptor ou produto do verbo | keel | `wrong-qualifier` |
 | Construtor dependente do alvo fora de inicialização, atribuição a símbolo ou retorno com tipo conhecido | keel | `from-without-target` |
 | Tipos ou argumentos C incompatíveis depois da resolução | compilador C | Diagnóstico do compilador C |
@@ -3317,6 +3321,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `alloc-overflow` | `arena.alloc` cujo `n * sizeof(T)` não cabe em `size_t` | `debug` | Backend, em execução | §5.2 |
 | `canonical-name-collision` | Duas declarações do mesmo módulo produzindo o mesmo nome canônico | `error` | keel | §4.2 |
 | `modifier-named-instance` | Modificador declarado com o nome `instance` | `error` | keel | §4.3 |
+| `address-in-object-position` | Operador de endereço sobre o objeto no primeiro argumento de um verbo | `error` | keel | §4.4 |
 | `wrong-qualifier` | Qualificador incompatível com o receptor ou produto do verbo | `error` | keel | §4.4 |
 | `from-without-target` | Verbo que depende do tipo do alvo fora de inicialização, atribuição a símbolo conhecido ou retorno | `error` | keel | §4.4 |
 | `captured-write` | Atribuição a escalar capturado, no corpo de um `parallel` | `error` | keel | §4.8 |

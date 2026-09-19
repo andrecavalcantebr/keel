@@ -1,6 +1,4 @@
 /*
- * module keel.buffer type T
- *
  * DESC: keel buffer — variable-length sequence (spec §5.3, backend §5.2, §5.11, §5.13)
  * AUTHOR: andre cavalcante
  * DATE: Sep, 2026
@@ -61,7 +59,7 @@ pub inline void clear(buffer *b) { b->len = 0; }
 // the only accessor checked in release (spec §5.3, backend §5.13).
 pub inline outcome T at(buffer *b, size_t i) {
     outcome T r = {0};
-    return i < b->len ? outcome.win(&r, b->ptr[i]) : outcome.none(&r);
+    return i < b->len ? outcome.win(r, b->ptr[i]) : outcome.none(r);
 }
 
 // slicing is a buffer verb, not a slice verb: the memory side knows the
@@ -80,9 +78,9 @@ pub inline slice as_slice(buffer *b, size_t a, size_t c) {
 pub inline outcome buffer clone(arena *a, buffer *b) {
     outcome buffer r = {0};
     T *data = arena.alloc(a, T, b->cap);
-    if (!data) return outcome.none(&r);
+    if (!data) return outcome.none(r);
     if (b->len > 0) memcpy(data, b->ptr, b->len * sizeof(T));
-    return outcome.win(&r, (buffer){ b->cap, b->len, data });
+    return outcome.win(r, (buffer){ b->cap, b->len, data });
 }
 
 // cursor: `walk` asks for `begin`, `has_next` and `next`; `next` returns the

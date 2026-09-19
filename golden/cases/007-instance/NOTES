@@ -1,0 +1,45 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`instances.c`** (c23, c11)
+
+gerado de instances.k: os corpos extern da instância.
+É este `.k` do usuário que dá ao build o `.o` e a regra, e é o que mantém a
+invariante de nenhum alvo sem fonte (backend §4.3).
+
+**`instances.h`** (c23, c11)
+
+o par de instances.k. `instance` coloca, não declara
+nome: não há nada de `pub` aqui (linguagem §4.9).
+
+**`instances.type.h`** (c23, c11)
+
+o par de instances.k. `instance` coloca, não declara
+nome: não há nada de `pub` aqui (linguagem §4.9).
+
+**`coll.h`** (c23, c11)
+
+o `.h` do módulo genérico, uma vez: só inclui o `.type.h`, onde a
+constante mora (backend §4.3.2, §4.4.1).
+
+**`coll.type.h`** (c23, c11)
+
+o `.h` do módulo genérico, uma vez. A constante não menciona
+parâmetro nem modificador, então não pertence a instância nenhuma e o nome
+não leva o argumento (backend §4.4.1).
+
+**`coll_stack_i32.h`** (c23, c11)
+
+instância de `stack i32`.
+O `.type.h` do genérico chega a quem usa a constante dele — aqui nenhum corpo
+usa, e o include segue a necessidade (backend §4.3.2, regra 2).
+
+**`coll_stack_i32.type.h`** (c23, c11)
+
+instância de `stack i32`.
+A constante é do genérico, a struct é da instância (backend §4.4.1).

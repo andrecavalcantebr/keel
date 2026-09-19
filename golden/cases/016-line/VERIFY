@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+# Case 016 does NOT compile, on purpose. It asserts §6 — the line mapping —
+# and principle 3: the C compiler's error shows up at the position of the KEEL
+# SOURCE, with the names the user wrote.
+#
+# The expected positions come from app/ml.k itself, from the lines marked
+# /* ERROR */. No number is written here: if the expected .c moves a `#line`,
+# this test catches it.
+#
+#   $1 = compiler   $2 = -std=...   $3 = profile directory
+set -eu
+dir=$(dirname "$0")
+
+want=$(grep -n '/\* ERROR \*/' "$dir/app/ml.k" | cut -d: -f1 | tr '\n' ' ')
+out=$("$1" "$2" -I"$3" -I"$dir/expected/$3" -c "$dir/expected/$3/app/app_ml.c" -o /dev/null 2>&1 || true)
+got=$(printf '%s\n' "$out" | grep -oE 'app/ml\.k:[0-9]+' | cut -d: -f2 | tr '\n' ' ')
+
+bad=0
+[ "$want" = "$got" ] || {
+    echo "  positions: want [$want]  got [$got]"; bad=1; }
+printf '%s\n' "$out" | grep -q 'f32 \*' || { echo "  missing the keel spelling f32 *"; bad=1; }
+printf '%s\n' "$out" | grep -q 'i32 \*' || { echo "  missing the keel spelling i32 *"; bad=1; }
+printf '%s\n' "$out" | grep -q 'app_ml\.c' && { echo "  the generated name leaked"; bad=1; }
+
+[ $bad -eq 0 ] || { printf '%s\n' "$out" | sed 's/^/    /' | head -4; exit 1; }
+exit 0

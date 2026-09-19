@@ -135,7 +135,7 @@ repositório.
 ## O que foi verificado, e o que não foi
 
 **VSCode: medido.** `editors/verify.mjs` carrega a gramática real do C do
-VSCode, aplica a injeção e tokeniza todos os `.k` de `golden/casos/`. O
+VSCode, aplica a injeção e tokeniza todos os `.k` de `golden/cases/`. O
 cabeçalho do arquivo tem como rodar.
 
     176 ocorrências de palavra keel, 0 sem realce
@@ -148,7 +148,7 @@ que `x.foreach` continua sendo acesso a campo, não palavra.
 manifesto, e compila o `highlights.scm` gerado. Verifica capturas de C e keel no
 caso `006-dim`, uma amostra C com diretivas e escapes, a exclusão de palavras
 dentro de comentários e strings, e a execução das consultas em todos os `.k`
-de `golden/casos/`.
+de `golden/cases/`.
 
 ```sh
 python3 -m venv /tmp/keel-highlight-venv

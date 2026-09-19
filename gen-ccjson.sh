@@ -61,4 +61,4 @@ entry() {  # $1 = relative file, $2... = flags
 } > compile_commands.json
 
 echo "compile_commands.json: $(grep -c '"file"' compile_commands.json) entries"
-[ -x golden/gerar-ccjson.sh ] && ./golden/gerar-ccjson.sh
+[ -x golden/gen-ccjson.sh ] && ./golden/gen-ccjson.sh

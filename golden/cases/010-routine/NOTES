@@ -1,0 +1,72 @@
+Contrato exercitado: linguagem §5.6 (`keel.routine`) e §5.5 (`corot`).
+
+A composição é chamada de função, não construção. Não há gestor injetado, não
+há região de finalização e não há reafirmação de código: o que antes ficava
+depois de um rótulo de saída é o statement seguinte à declaração do resultado —
+aqui, a leitura de `routine.code(steps[2])` em `broken_chain`.
+
+`seq` chama a etapa corrente até ela deixar de ceder, avança em SUCCESS e
+encerra no primeiro FAILED. A terceira etapa de `broken_chain` não é
+chamada, e seu slot permanece em ONGOING — código zero, que é o que a prova
+confere.
+
+`par` avalia a política ao fim do ciclo. Com alvo um entre dois, a segunda
+participante ainda é chamada na rodada em que a primeira vence: a prova
+verifica isso pelo contador do contexto. Com alvo dois entre três, uma falha
+não encerra; duas tornam o alvo impossível.
+
+O resultado é `outcome u32`: o código diz se a política foi satisfeita, e o
+valor associado é a quantidade de slots que terminaram em SUCCESS. Nenhum valor
+de participante é transportado — elas devolvem `corot`, que não tem valor.
+
+O que este caso encontrou
+=========================
+
+O header da instância de `slice slot` não pode incluir o da instância de
+`keel.routine`. O backend §4.3 manda um header de instância incluir o do seu
+argumento, e aqui isso fecharia um ciclo: `keel.routine` precisa do tipo do
+recorte para as assinaturas de `seq` e `par`, e o recorte precisa do tipo do
+slot. A saída usada é a ordem — o header de `keel.routine` define o slot e só
+então inclui o do recorte —, e a consequência é que o header do recorte não é
+autocontido. Fechar isso pede um header por declaração, e é decisão do backend.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`ag2.c`** (c23, c11)
+
+Nenhuma região é injetada: `seq` e `par` são funções da instância, e a
+tabela é um vetor do programa (backend §5.10).
+
+**`ag2.h`** (c23, c11)
+
+As tabelas são locais das funções, então o `.h` não menciona `routine`.
+
+**`ag2.type.h`** (c23, c11)
+
+As tabelas são locais das funções, então o `.h` não menciona `routine`.
+
+**`keel/keel_routine_ag2_Ag.h`** (c23, c11)
+
+instância de `keel.routine` sobre o contexto
+`ag2.Ag` (backend §5.10). O typedef da participante é da instância; o estado
+por slot é um `corot`, e não um inteiro nu.
+
+**`keel/keel_routine_ag2_Ag.type.h`** (c23, c11)
+
+instância de `keel.routine` sobre o contexto
+`ag2.Ag` (backend §5.10). O typedef da participante é da instância; o estado
+por slot é um `corot`, e não um inteiro nu.
+
+**`keel/keel_slice_keel_routine_slot_ag2_Ag.h`** (c23, c11)
+
+instância de `slice slot`.
+Arrastada pela instanciação de `keel.routine` (backend §4.3).
+
+**`keel/keel_slice_keel_routine_slot_ag2_Ag.type.h`** (c23, c11)
+
+instância de `slice slot`.
+Arrastada pela instanciação de `keel.routine` (backend §4.3).

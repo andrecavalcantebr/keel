@@ -585,7 +585,7 @@ grafia lógica, `return`, e por isso sai `cword` **[D7]**.
 
 ### 8.5 `--stop-after=parse`
 
-`golden/casos/001-arena-buffer-defer`, a partir da raiz do caso:
+`golden/cases/001-arena-buffer-defer`, a partir da raiz do caso:
 
 ```sh
 $ cgen --base-dir ../../../base --stop-after=parse app/cfg.k
@@ -687,11 +687,11 @@ Cada marco termina com o seu teste passando e o anterior intacto.
 | Marco | Entrega | Aceitação |
 | --- | --- | --- |
 | **M0** driver | `args.c`, modo transparente, `--cgen-version`/`--cgen-help`, erros de invocação, resolução da base | tabela de `argv` → (opções do cgen, repasse, fonte) em teste de unidade; §8.1, §8.2, e os três primeiros de §8.8 |
-| **M1** lexer | `lexer.c` + `--stop-after=lex` | os casos do [lexer-design §8](lexer-design.md#8-casos-de-aceitação) e §8.4; toda a `/base` e todo `.k` de `golden/casos` lexam sem diagnóstico |
+| **M1** lexer | `lexer.c` + `--stop-after=lex` | os casos do [lexer-design §8](lexer-design.md#8-casos-de-aceitação) e §8.4; toda a `/base` e todo `.k` de `golden/cases` lexam sem diagnóstico |
 | **M2** módulos | `paths.c`, `tool.c`, parser de nível de arquivo (`module`, `import`, `import_c`, `extern_c`, assinaturas), `--stop-after=parse` sem ilhas | raízes, `missing-module`, `module-path-mismatch`, `circular-import`, `module-not-found`, `generic-source-without-instance`; §8.5 até `decl` |
 | **M3** geração sem ilhas | `emit.c`, `writer.c`, `#line`, mangling de nível de arquivo, `--main` | §8.3 byte a byte; segunda execução não muda `mtime` |
 | **M4** cc e depfile | `cc.c`, `depfile.c`, critério de atualização | §8.6; editar `geom.k` faz `main` regerar os headers de `geom` e não escrever `gen/geom.c` |
-| **M5** base | módulos genéricos, instâncias de modificador embutido, `--instance`, despacho de builtin, `defer` | `golden/casos/001`; §8.7 |
+| **M5** base | módulos genéricos, instâncias de modificador embutido, `--instance`, despacho de builtin, `defer` | `golden/cases/001`; §8.7 |
 | **M6…** construções | uma por vez, na ordem dos casos golden | o caso correspondente |
 
 ## 10. Testes
@@ -699,8 +699,8 @@ Cada marco termina com o seu teste passando e o anterior intacto.
 - **Unidade** (`tools/cgen/test/`): partição de `argv`, normalização de
   caminho, mangling, lexer. Um executável por área, sem framework.
 - **Golden**: para cada caso e perfil, `cgen --stop-after=gen --profile=<p>
-  --base-dir base -I golden/casos/<c> --dest-dir <tmp> golden/casos/<c>/<m>.k`
-  e `diff -r` contra `esperado/<p>` (os arquivos do módulo) e contra
+  --base-dir base -I golden/cases/<c> --dest-dir <tmp> golden/cases/<c>/<m>.k`
+  e `diff -r` contra `expected/<p>` (os arquivos do módulo) e contra
   `golden/<p>/` (os da base e do prelúdio). O `run.sh` existente continua
   provando que o esperado compila e se comporta; este passo prova que o cgen o
   produz. Enquanto o golden tiver prosa explicativa nos cabeçalhos (**[P5]**), o

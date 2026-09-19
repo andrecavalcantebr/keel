@@ -1,0 +1,24 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_pos.c`** (c23, c11)
+
+`p[i].campo` (spec §4.11) reescreve para `p->campo[i]` — é o que aparece
+em `app_pos_push_row`, saindo de `p[p->len].x = vx;` no fonte. Nenhum verbo
+sintetizado: `reserve` aloca à mão, `sum_x` usa `slice.from`, já
+existente (§5.3), pra entrar em `foreach`.
+
+**`app/app_pos.h`** (c23, c11)
+
+Os três protótipos, sobre o `.type.h`; nenhum corpo `pub inline` neste
+módulo: os três `pub` são sem `inline`, corpo no `.c` (backend §4.1, §4.4).
+
+**`app/app_pos.type.h`** (c23, c11)
+
+`soa struct position` é `pub`: layout completo aqui, com `x`/`y` já
+invertidos para ponteiro (spec §4.11).

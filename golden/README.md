@@ -2,21 +2,21 @@
 
 Cada caso separa **dois papéis** que não podem se misturar:
 
-    casos/<caso>/<módulo>.k          o fonte keel, e ele é COMPLETO — define os
+    cases/<caso>/<módulo>.k          o fonte keel, e ele é COMPLETO — define os
                                      próprios `priv`, e o que o teste precisa
                                      observar sai por `pub`. O CAMINHO do arquivo
                                      é o do `module` que ele declara: `module
                                      app.cfg;` mora em `app/cfg.k`, senão o caso
                                      viola `module-path-mismatch` (spec §4.1)
-    casos/<caso>/esperado/c23/       o que o cgen deve produzir, e SÓ isso
-    casos/<caso>/esperado/c11/       idem, no outro perfil
-    casos/<caso>/prova.c             o arnês; NÃO é saída do transpilador
-    casos/<caso>/VERIFICA            quando o que se afirma não é "compila"
-    casos/<caso>/NOTA                o que o caso encontrou, e a explicação de cada
+    cases/<caso>/expected/c23/       o que o cgen deve produzir, e SÓ isso
+    cases/<caso>/expected/c11/       idem, no outro perfil
+    cases/<caso>/proof.c             o arnês; NÃO é saída do transpilador
+    cases/<caso>/VERIFY            quando o que se afirma não é "compila"
+    cases/<caso>/NOTES                o que o caso encontrou, e a explicação de cada
                                      esperado; o esperado em si abre só com o
                                      cabeçalho de uma linha que o cgen gera
 
-**`esperado/`** responde *o cgen produziu o que devia?* — é o alvo de comparação
+**`expected/`** responde *o cgen produziu o que devia?* — é o alvo de comparação
 quando o transpiler existir. O módulo do caso é o que a invocação compila, então
 tem **três** arquivos, sempre; uma instância, ou um módulo só importado, tem os
 dois primeiros (`backend §4.1`, `§4.3.2`):
@@ -43,15 +43,15 @@ sentidos se encontram e o ciclo depende da ordem de entrada; separados, o de
 layout é acíclico, e o de chamada fica inofensivo pela ordem das seções do `.h`
 (`backend §4.3.1`, `§4.3.2`; o porquê, no rationale, "Dois headers, tipo e uso").
 
-**`prova.c`** responde *o que ele produziu se comporta como a spec diz?* Ele
+**`proof.c`** responde *o que ele produziu se comporta como a spec diz?* Ele
 inclui o gerado, toca **só a interface pública**, e afirma. Ele inclui o `.h` de
 cada módulo que usa, como qualquer `.c` de usuário (regra 3 do `backend §4.3.2`). Compila junto
 com o gerado e roda. Nunca é comparado com nada — é código de teste, para
-sempre. Casos cujo `.k` declara `main` não têm `prova.c`: as asserções vivem no
+sempre. Casos cujo `.k` declara `main` não têm `proof.c`: as asserções vivem no
 fonte keel e o ponto de entrada é o wrapper gerado.
 
 A separação não é organização: **misturá-los foi o que invalidou a primeira
-versão destes casos.** Com o arnês dentro do `esperado.c`, dezesseis casos
+versão destes casos.** Com o arnês dentro do `expected.c`, dezesseis casos
 ficaram sem `.h` e catorze puseram `int main` no `.c` do módulo — um transpiler
 correto falharia a comparação em todos. O runner agora recusa as duas coisas.
 
@@ -70,15 +70,15 @@ mata os ciclos. Então `run.sh` começa por asserções estruturais:
    `.h`** — os protótipos ficam entre os dois blocos, e é essa ordem que faz
    todo protótipo alcançável chegar antes do primeiro corpo.
 
-Falha estrutural sai como `ESTRUT` e conta como falha.
+Falha estrutural sai como `STRUCT` e conta como falha.
 
 ## Para o editor achar os headers
 
 Os headers fixos vivem em `c23/keel/` e `c11/keel/`; os gerados de cada caso,
-em `casos/<caso>/esperado/<perfil>/`. Sem saber disso, o clangd não resolve um
+em `cases/<caso>/expected/<perfil>/`. Sem saber disso, o clangd não resolve um
 `#include "keel.type.h"` sequer.
 
-    ./gerar-ccjson.sh
+    ./gen-ccjson.sh
 
 emite `compile_commands.json` com o include path e o `-std` certos por arquivo —
 o perfil vem do caminho. Zed, VSCode e vim leem daí. Não é versionado, porque
@@ -121,31 +121,31 @@ fato sobre a versão de agora, não um contrato — assim que uma delas deixar d
 ser textual, o derivador mentiria em silêncio.
 
 Ele já mentia: `c11/keel.type.h` precisa de `<stdbool.h>` e `<assert.h>`, que
-o C23 não pede, e `casos/008-constexpr-bloco/esperado/c11/app/cx.c` escreve
+o C23 não pede, e `cases/008-block-constexpr/expected/c11/app/cx.c` escreve
 `constexpr` de escopo de bloco como macro com nome reescrito (`backend §9.2`) —
 nenhum dos dois sai de `sed`. Eram exceções mantidas à mão dentro de um script
 que se apresentava como completo, e derivar por cima delas as apagava.
 
-## `prova.c` é um arquivo para os dois perfis
+## `proof.c` é um arquivo para os dois perfis
 
 O arnês não é derivado: é o mesmo arquivo compilado sob `-std=c11` e `-std=c2x`.
 Então ele **não pode usar grafia que o `backend §9.1` troca** — escreve
 `_Alignof` e `_Static_assert`, nunca `alignof` e `static_assert`. Quem ganha a
 forma certa por perfil é o gerado, não o teste.
 
-## Casos com VERIFICA
+## Casos com VERIFY
 
 Nem tudo que a spec afirma é "este C compila". O mapeamento de linha do
 `backend §6`, por exemplo, só se afirma **fazendo o compilador C falhar** e
 conferindo que a mensagem aponta o `.k` com os nomes que o usuário escreveu —
 que é o princípio 3.
 
-Um caso com um `VERIFICA` executável não é compilado pelo runner: o script
+Um caso com um `VERIFY` executável não é compilado pelo runner: o script
 recebe `$1` compilador, `$2` `-std=…`, `$3` diretório do perfil, e decide.
 
-## Casos com PROBLEMA
+## Casos com XFAIL
 
-Um caso que contém um arquivo `PROBLEMA` é **xfail**: espera-se que o C esperado
+Um caso que contém um arquivo `XFAIL` é **xfail**: espera-se que o C esperado
 *não* compile, e o arquivo registra a lacuna da spec e a saída candidata. Se um
 xfail passar a compilar, o runner reporta `XPASS` — o problema foi resolvido e o
 arquivo deve sair.

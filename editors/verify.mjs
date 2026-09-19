@@ -5,7 +5,7 @@
 //   curl -sSLO https://raw.githubusercontent.com/microsoft/vscode/main/extensions/cpp/syntaxes/c.tmLanguage.json
 //   mv c.tmLanguage.json c.json
 //   cp <repo>/editors/verify.mjs .
-//   node verify.mjs <repo>/editors/vscode/syntaxes <repo>/golden/casos/*/*.k
+//   node verify.mjs <repo>/editors/vscode/syntaxes <repo>/golden/cases/*/*.k
 //
 // Exits with code 1 if any word is left unhighlighted.
 import fs from 'node:fs';

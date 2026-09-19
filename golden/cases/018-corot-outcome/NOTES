@@ -1,0 +1,30 @@
+Confere os predicados de corot nos três estados, inclusive o novo faulted,
+e contrapõe sucesso negativo cooperativo a erro negativo de outcome.
+As instâncias void mantêm apenas code; não declaram accessor value.
+A forma de default para outcome i32 restaura valor e código de sucesso.
+O fonte usa cofault e chamadas reais a corot.faulted; a prova exercita a
+interface pública e os headers dos dois perfis.
+
+A avaliação do argumento de cofault ocorre uma vez e antes do defer: o
+código retornado é um e o contador externo termina em dois.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`results.c`** (c23, c11)
+
+Os produtores de `corot` são verbos: ajustam o receptor e devolvem a cópia.
+Quem sai da função é o `return` escrito no fonte (backend §5.14).
+
+**`results.h`** (c23, c11)
+
+`corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
+(backend §5.14).
+
+**`results.type.h`** (c23, c11)
+
+`corot` é tipo, não instância: um header de módulo, sem sufixo de argumento
+(backend §5.14).

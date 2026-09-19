@@ -1,0 +1,36 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_g.c`** (c23, c11)
+
+Os dois parâmetros são a MESMA instância: se fossem tipos distintos, passar
+o mesmo objeto nas duas posições não compilaria.
+
+**`grids.h`** (c23, c11)
+
+o par do módulo genérico, praticamente vazio: tudo que ele
+declara menciona um parâmetro, então pertence à instância (backend §4.3).
+
+**`grids.type.h`** (c23, c11)
+
+o par do módulo genérico, praticamente vazio: tudo que ele
+declara menciona um parâmetro, então pertence à instância (backend §4.3).
+
+**`grids_grids_3_f32.h`** (c23, c11)
+
+instância de `grid(3) f32`.
+`grid(3) f32` e `grid(DIM) f32` com DIM==3 pedem ESTE arquivo, com este
+nome e este conteúdo: o nome canônico carrega o VALOR, e não a grafia
+(linguagem §4.9, backend §2.2).
+
+**`grids_grids_3_f32.type.h`** (c23, c11)
+
+instância de `grid(3) f32`.
+`grid(3) f32` e `grid(DIM) f32` com DIM==3 pedem ESTE arquivo, com este
+nome e este conteúdo: o nome canônico carrega o VALOR, e não a grafia
+(linguagem §4.9, backend §2.2).

@@ -30,7 +30,7 @@ def require(source, result, text, scope):
 
 # Regression on a file shown in the editor: C and keel in the same module,
 # even when the modified declarations produce ERROR in the C parser.
-source = (ROOT / "golden/casos/006-dim/app/g.k").read_bytes()
+source = (ROOT / "golden/cases/006-dim/app/g.k").read_bytes()
 _, result = captures(source)
 for text, scope in [
     ("module", "keyword"), ("import", "keyword"), ("pub", "keyword"),
@@ -78,7 +78,7 @@ for scope in ("keyword", "type", "type.builtin", "function", "number"):
         )
 
 # Every golden file goes through the query without requiring keel to be valid C.
-files = sorted((ROOT / "golden/casos").glob("**/*.k"))
+files = sorted((ROOT / "golden/cases").glob("**/*.k"))
 for path in files:
     captures(path.read_bytes())
 print(f"Zed: C + keel in case 006, literals/comments protected; {len(files)} files queried.")

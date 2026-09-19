@@ -94,6 +94,10 @@ O trabalho real é o conjunto de funções de string — comparação, concatena
 formatação — que os verbos de `buffer`/`slice` não cobrem. Par memória/visão:
 `strbuf` produz `string`.
 
+`slice const char` só não está na base porque este par é que seria o nome
+dele. O caso golden `021-else-assign` já o usa cru; se aparecerem mais usos,
+vale trazer o par para a base antes do resto da v1.
+
 ### `keel.bitbuffer(W)` / `keel.bitslice(W)`
 
 Array compacto de inteiros de `W` bits; `T` é o tipo de interface de

@@ -2189,16 +2189,18 @@ void ast_avaliar(keel_tagged_ast_Kind_ast_Node *n) {
 
 #### 1. Finalidade
 
-Testar um resultado falível no ponto em que ele é declarado, e tratá-lo com uma saída escrita ou com um valor default.
+Testar um resultado falível no ponto em que ele é produzido, e tratá-lo com uma saída escrita ou com um valor default.
 
 #### 2. Sintaxe
 
-A cláusula `else` é cauda de declaração com um único declarador e inicializador:
+A cláusula `else` é cauda de declaração com um único declarador e
+inicializador, ou de atribuição simples a um identificador já declarado:
 
 ```keel
 outcome i16 r = produzir() else 0;
 outcome i16 s = produzir() else return -1;
 outcome i16 t = produzir() else { tratar(t); }
+r = produzir() else break;
 ```
 
 A primeira forma usa default; as outras executam o tratamento escrito quando o resultado falha. A declaração conserva seu tipo `outcome i16`. A extração é uma operação explícita: `i16 valor = outcome.value(r);`.
@@ -2207,13 +2209,14 @@ A primeira forma usa default; as outras executam o tratamento escrito quando o r
 
 - O protocolo de tratamento de resultado exige `failed`. A forma de default exige também `win`, na forma que recebe o resultado e o valor de default e ajusta o objeto para sucesso. A presença de `ongoing` não é um critério de exclusão.
 - O tipo do símbolo declarado vem de sua declaração escrita. O parser não deduz o tipo de uma expressão C arbitrária para escolher o protocolo.
+- Na forma de atribuição, o alvo tem de ser um identificador simples cuja declaração keel seja conhecida, e o tipo vem dessa declaração, como na forma de declaração. Campo, índice, deref, cast e símbolo C desconhecido não fornecem o tipo, e produzem `else-alvo-complexo`. A distinção é da tabela de símbolos, não de análise de expressão.
 - O `else` do `if` pertence à gramática de controle C. O `else` de resultado pertence à declaração reconhecida. Depois dele, `{` ou uma palavra de salto C (`return`, `break`, `continue`, `goto`) identifica tratamento; os demais inícios identificam uma expressão de default.
 - Expressões de default e corpos de tratamento permanecem C opaco quanto à análise semântica, com reconhecimento normal das construções keel e dos pontos de saída.
 - Os verbos `failed` e `win` são procurados pelo protocolo da §4.4. A verificação não se restringe aos módulos da base: `keel.outcome` (§5.5) é a implementação distribuída, não uma exigência.
 
 #### 4. Semântica
 
-- O inicializador é avaliado uma vez e armazenado no símbolo declarado. A cláusula consulta `failed` desse resultado; não aplica uma comparação numérica universal a qualquer tipo.
+- O inicializador, ou o lado direito da atribuição, é avaliado uma vez e armazenado no símbolo. A cláusula consulta `failed` desse resultado; não aplica uma comparação numérica universal a qualquer tipo.
 - Se o predicado for falso, o tratamento ou default não é executado.
 - Se o predicado for verdadeiro, a forma de tratamento executa o statement ou bloco escrito. Não converte automaticamente erros, não extrai o valor e não garante que o bloco saia do escopo ou repare o resultado.
 - Na forma de default, a expressão é avaliada somente na falha. A tradução
@@ -2229,7 +2232,7 @@ A primeira forma usa default; as outras executam o tratamento escrito quando o r
 | --- | --- | --- |
 | Cláusula `else` sem inicializador | keel | `else-sem-inicializador` (`error`) |
 | Tipo declarado não fornece o protocolo `failed` | keel | `else-tipo-nao-falivel` (`error`) |
-| `else` sobre atribuição em vez de declaração | keel | `else-em-atribuicao` (`error`) |
+| `else` sobre alvo que não é identificador declarado em keel | keel | `else-alvo-complexo` (`error`) |
 | Mais de um declarador na declaração com `else` | keel | `else-multiplos-declaradores` (`error`) |
 | Default sobre tipo que não fornece `win` | keel | `else-default-sem-win` (`error`) |
 | Argumento, retorno ou atribuição com tipos C incompatíveis | compilador C | Diagnóstico do compilador C |
@@ -3320,7 +3323,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `captura-escrita` | Atribuição a escalar capturado, no corpo de um `parallel` | `error` | keel | §4.8 |
 | `else-sem-inicializador` | Cláusula `else` em declaração sem inicializador | `error` | keel | §4.10 |
 | `else-tipo-nao-falivel` | Cláusula `else` sobre tipo que não declara `failed`, inclusive ponteiro ou escalar | `error` | keel | §4.10 |
-| `else-em-atribuicao` | Cláusula `else` sobre atribuição a símbolo existente | `error` | keel | §4.10 |
+| `else-alvo-complexo` | Cláusula `else` sobre alvo que não é identificador declarado em keel — campo, índice, deref, cast ou símbolo C | `error` | keel | §4.10 |
 | `else-multiplos-declaradores` | Cláusula `else` em declaração com mais de um declarador | `error` | keel | §4.10 |
 | `else-default-sem-win` | Cláusula `else` na forma de default sobre tipo falível que não declara `win` | `error` | keel | §4.10 |
 | `declarador-enterrado` | Declarador cujo nome não é o último token, onde keel precisa reconstruir a declaração — `constexpr`, captura de `[now]`, tipo de retorno sob `defer`. A `note` manda usar `typedef` | `error` | keel | §4.2 |

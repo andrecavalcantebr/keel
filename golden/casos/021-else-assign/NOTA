@@ -1,0 +1,37 @@
+Notas do caso.
+
+O caso fixa a cauda `else` sobre ATRIBUIÇÃO (spec §4.10): os três resultados
+são declarados fora do laço, e é a declaração deles que dá o tipo — a
+atribuição só reusa esse tipo a cada volta. `read_name` falta no índice 3 e
+encerra o laço com `else break`; `read_address` e `read_birth` faltam em
+índices próprios e caem no default.
+
+Escrever `people[i].address = read_address(i) else …` seria
+`else-alvo-complexo`: o alvo não é identificador declarado, e o keel não
+deduz tipo de expressão C. Vale mesmo com o campo declarado em keel, e é por
+isso que os resultados são locais. A suíte ainda não roda diagnóstico do
+keel, então isso aqui é a nota, não um caso xfail.
+
+`slice const char` é a primeira aparição de argumento qualificado no golden, e
+exercita a normalização do backend §2.2: o `const` migra para antes do tipo e
+o símbolo sai `keel_slice_const_char`. Quando `string`/`strview` entrarem
+(v1), este par vira o tipo nomeado.
+
+Comentários dos esperados
+=========================
+
+**`app/app_reg.h`** (c23, c11)
+
+A variável de módulo é `pub`: `extern` aqui, definição no `.c` (backend §4.1).
+
+**`keel/keel_slice_const_char.h`** (c23, c11)
+
+instância recortada ao que o caso usa: `from` e `length`.
+
+**`keel/keel_outcome_keel_slice_const_char.h`** (c23, c11)
+
+instância aninhada: `outcome` sobre `slice const char` (backend §2.2, regra 5).
+
+**`keel/keel_outcome_f64.h`** (c23, c11)
+
+instância de `outcome f64`, recortada a `failed`, `value`, `win1` e `none`.

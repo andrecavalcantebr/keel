@@ -1736,7 +1736,7 @@ Três regras:
 
 ### 5.12 Cláusula `else`
 
-O lowering é uma linha, e é o que a linguagem §4.10 define: a declaração sai como estava, seguida de um `if` cujo teste vem do verbo `failed` da instância. São **duas formas**, e o backend as recebe já separadas pelo parser (linguagem §4.7) — ele não olha para o operando.
+O lowering é uma linha, e é o que a linguagem §4.10 define: a declaração, ou a atribuição, sai como estava, seguida de um `if` cujo teste vem do verbo `failed` da instância. São **duas formas**, e o backend as recebe já separadas pelo parser (linguagem §4.7) — ele não olha para o operando.
 
 **Forma de saída** — o statement entra no `if`, verbatim:
 
@@ -1744,12 +1744,14 @@ O lowering é uma linha, e é o que a linguagem §4.10 define: a declaração sa
 //keel
 outcome Cfg c = cfg.le(path) else return -1;
 outcome u32 n = cfg.porta(path) else { log(path); return -1; }
+r = cfg.le(path) else break;
 ```
 
 ```c
 //C gerado
 keel_outcome_cfg_Cfg c = cfg_le(path); if (keel_outcome_cfg_Cfg_failed(c)) return -1;
 keel_outcome_u32 n = cfg_porta(path); if (keel_outcome_u32_failed(n)) { log(path); return -1; }
+r = cfg_le(path); if (keel_outcome_cfg_Cfg_failed(r)) break;
 ```
 
 **Forma de default** — o próprio resultado e a expressão de default são argumentos do `win` da instância:
@@ -1770,7 +1772,7 @@ Cinco regras de emissão:
 2. **Sai numa linha só**, declaração e `if`, pela regra 2 do §6. É o que faz o corpo continuar mapeando 1:1 e dispensa ressincronizar — ao contrário do `match` e do `parallel`, que não têm como caber. Vale para as duas formas: a de default acrescenta a chamada de ajuste ao próprio objeto.
 3. **O operando é copiado verbatim nas duas formas.** Nada é sintetizado dentro dele: não há desembrulho, não há conversão, não há `return` implícito. O que muda é **onde** ele é colado — dentro do `if` na forma de saída, como segundo argumento de `M_win1(&resultado, …)` na de default.
 4. **Na forma de default, o receptor de `win` é o próprio símbolo.** A chamada recebe seu endereço e o valor de default; o verbo ajusta o objeto. Não há reatribuição obrigatória da cópia retornada, temporário, literal composto nem escrita direta de campo na expansão de `else`. Um tipo falível sem `win` é error `else-default-sem-win` e não chega ao backend.
-5. **Nenhum temporário é criado.** O símbolo declarado é o que a cláusula lê e o que ela repara, e é ele que já está em escopo.
+5. **Nenhum temporário é criado.** O símbolo — declarado ali, ou declarado antes e atribuído aqui — é o que a cláusula lê e o que ela repara, e é ele que já está em escopo.
 
 `corot` não participa do protocolo: declara `faulted`, não `failed`. O predicado emitido é `keel_corot_faulted`, com teste `code > 0`. Não há exclusão adicional baseada na presença de `ongoing`. `outcome.failed` continua testando `code != 0`.
 

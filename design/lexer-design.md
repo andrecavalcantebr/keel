@@ -6,7 +6,8 @@
 ## 1. Modelo
 
 O `cgen` lê o arquivo para um `buffer char`. O parser recebe
-`slice.of(buffer)` e inicializa o lexer com essa slice. A ferramenta é dona do
+`buffer.as_slice(fonte)` — a visão sai da memória, nunca o contrário
+(linguagem §4.5) — e inicializa o lexer com essa slice. A ferramenta é dona do
 armazenamento; parser e lexer recebem somente uma vista e não podem realocar,
 gravar ou liberar o fonte.
 

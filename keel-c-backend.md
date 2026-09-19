@@ -431,8 +431,8 @@ identificador que ele tem, e por isso carrega o símbolo inteiro.
 
 **O que vai em cada arquivo:**
 
-O `.type.h` recebe as definições de tipo e as declarações adiantadas que os campos por ponteiro exigem.
-O `.proto.h` recebe os protótipos de função, as declarações `extern` de variáveis, os `constexpr` de módulo e os `import_c`.
+O `.type.h` recebe os `import_c`, as definições de tipo e as declarações adiantadas que os campos por ponteiro exigem.
+O `.proto.h` recebe os protótipos de função, as declarações `extern` de variáveis e os `constexpr` de módulo.
 O `.h` recebe os corpos `inline`, e traz os outros dois por inclusão: é o arquivo que se inclui para usar o módulo.
 O `.c` recebe os corpos fora de linha, as definições de variáveis e os blocos `extern_c`.
 
@@ -447,6 +447,8 @@ Quem decide em qual deles cada declaração vai é `pub`/`priv` (linguagem §4.1
 | função `priv` | — | — | — | corpo, com `static` |
 | variável `priv` | — | — | — | definição, com `static` |
 | tipo `priv` | definição | — | — | — |
+| `import_c` | `#include` | — | — | — |
+| `extern_c { … }` | — | — | — | o conteúdo, intacto |
 
 O mapeamento nem é monotônico: `pub inline` sai como `static inline` no `.h`. Público no keel virou `static` no C.
 
@@ -457,6 +459,20 @@ Função `pub inline` leva protótipo no `.proto.h` **e** corpo no `.h`, e não 
 Variável pública **nunca** vai para o `.proto.h` como `static`. Isso compila e linka, mas produz uma cópia independente por unidade de tradução: um módulo escreve, outro lê e não enxerga nada, sem erro nem aviso.
 
 `const` não precisa de exceção: `pub const float PI = 3.14f;` sai como `extern const float PI;` no `.proto.h` e a definição no `.c` — símbolo único, sem duplicação.
+
+**`import_c` vai para o `.type.h`, a camada mais baixa**, porque é o único lugar de onde todas as outras o enxergam, e um tipo do módulo pode precisar do header: `pub struct Log { FILE *f; };` não compila se `<stdio.h>` chega depois do `.type.h`, e `FILE` não admite declaração adiantada. O header é de fora, não é gerado, e a regra 1 do §4.3.2 não fala dele. O preço é um contrato que o keel não verifica, porque não abre o header (linguagem §4.1): **o header de um `import_c` não inclui gerado do próprio módulo**. Se incluir, o ciclo passa pela guarda com o módulo pela metade, e a falha é do compilador C, pelo princípio 3 — é o mesmo ciclo que o C já tem entre dois headers que se incluem.
+
+**`extern_c` vai para o `.c`, inteiro.** O conteúdo é opaco e pode misturar tipo com corpo de função; num header, os corpos dariam definição múltipla, e o keel não tem como separar um do outro sem entender o C. Um tipo declarado ali é, portanto, privado do `.c`. **Tipo C que atravessa a interface mora num header, e entra por `import_c`**:
+
+```keel
+import_c "legado.h";            // typedef struct legado legado_t;  → .type.h
+pub void usa(legado_t *x);      // o tipo chega antes do protótipo
+
+extern_c {                      // → .c: C privado, sem mangling
+    static legado_t cache;
+    void legado_init(void) { /* ... */ }
+}
+```
 
 ### 4.2 O prelúdio: `keel.k`
 
@@ -650,7 +666,7 @@ compila gera também o `.c`** (§4.1):
 
 | Arquivo | Camada | Conteúdo |
 | --- | --- | --- |
-| `modulo.type.h` | L0 + L1 | as definições dos tipos concretos, e as declarações adiantadas de que os campos `X *` precisam |
+| `modulo.type.h` | L0 + L1 | os `import_c`, as definições dos tipos concretos, e as declarações adiantadas de que os campos `X *` precisam |
 | `modulo.proto.h` | L2 | protótipos, `extern` e `constexpr`; inclui o próprio `.type.h` |
 | `modulo.h` | L3 | os corpos `static inline`; inclui o próprio `.proto.h` |
 | `modulo.c` | L3 | os corpos fora de linha e as definições de variável |
@@ -672,7 +688,8 @@ fatia que quebra o ciclo. Nenhum dos três é alvo de compilação, pela razão 
 
 Quatro regras de inclusão, e nada além delas:
 
-1. **`.type.h` inclui apenas `.type.h`**, e só quando o tipo aparece **por valor**.
+1. **`.type.h` inclui apenas `.type.h`** entre os gerados — os `import_c` são de
+   fora (§4.1) —, e só quando o tipo aparece **por valor**.
    Argumento por ponteiro leva declaração adiantada escrita no próprio arquivo.
 2. **`.proto.h` inclui o próprio `.type.h`** e o `.type.h` de todo tipo que
    apareça por valor nas suas assinaturas. **Nunca inclui o `.proto.h` nem o `.h`
@@ -1872,6 +1889,7 @@ Daí decorre o comportamento de cada região:
 | --- | --- | --- |
 | Texto copiado — corpo de função, bloco `extern_c` | não, se as quebras forem preservadas | uma na entrada da região |
 | Transliteração 1:1 — `import`, `import_c` viram `#include` | não, se as linhas em branco forem preservadas | uma na entrada da região |
+| Declaração levada a header — tipo, protótipo, `extern`, `constexpr` de módulo | sim: o header as reúne fora da ordem e do espaçamento do fonte | uma antes de cada declaração que não seja a linha seguinte da anterior |
 | Expansão de builtin ocupando mais de uma linha | sim | ressincroniza depois |
 | Código injetado — struct de instância, cleanup de `defer`, temporário de `return` | sim | ressincroniza depois |
 | Gestor de `parallel` e despacho de `match` | sim | ressincroniza uma vez, depois do bloco |

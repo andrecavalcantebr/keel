@@ -488,27 +488,27 @@ gen/ola.type.h   gen/ola.proto.h   gen/ola.h   gen/ola.c (ola.k, compilado)
 gen/main_ola.c
 ```
 
-`gen/ola.type.h`:
+`gen/ola.type.h` — `import_c` vai na camada mais baixa, com `#line` (backend
+§4.1 e §6):
 
 ```c
 /* ola.type.h — gerado de ola.k pelo cgen, perfil C23. */
 #ifndef OLA_TYPE_H
 #define OLA_TYPE_H
 #include "keel.type.h"
-
+#line 2 "ola.k"
+#include <stdio.h>
 #endif /* OLA_TYPE_H */
 ```
 
-`gen/ola.proto.h` — `import_c` vai na interface, com `#line` (backend §4.1 e
-§6) **[P4]**:
+`gen/ola.proto.h` — o protótipo é declaração levada a header, e ganha `#line`
+com a linha dela:
 
 ```c
 /* ola.proto.h — gerado de ola.k pelo cgen, perfil C23. */
 #ifndef OLA_PROTO_H
 #define OLA_PROTO_H
 #include "ola.type.h"
-#line 2 "ola.k"
-#include <stdio.h>
 #line 4 "ola.k"
 int ola_main(int argc, char **argv);
 #endif /* OLA_PROTO_H */
@@ -742,7 +742,7 @@ e o código de saída do `cc` — subiram para a spec da ferramenta.)
 
 | | Onde | Divergência |
 | --- | --- | --- |
-| P4 | golden × backend §4.1/§6 × spec §4.1 | o golden põe `import_c` no `.c`, sem `#line`; os normativos o põem na interface (`.proto.h`), com `#line` |
+| P4 | golden × backend §4.1/§6 | o golden põe `import_c` no `.c`, sem `#line`, e não põe `#line` nas declarações levadas a header; o backend põe `import_c` no `.type.h` e `#line` nos dois. Resolve-se na auditoria dos casos |
 | P5 | golden | comentários de abertura com prosa que o cgen não pode gerar; `003` tem `(void)argc; (void)argv;` que não está no fonte — comparação byte a byte falha até o golden ser regularizado |
 
 Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão

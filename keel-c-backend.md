@@ -460,7 +460,7 @@ Variável pública **nunca** vai para o `.proto.h` como `static`. Isso compila e
 
 ### 4.2 O prelúdio: `keel.k`
 
-> **Licença.** A Base keel — `src/base/` e o que dela é distribuído sob
+> **Licença.** A Base keel — `base/` no repositório, e o que dela é distribuído sob
 > `lib/base` (ferramenta §8) — é fonte **copiado**, não vinculado, para dentro do C
 > de todo projeto: por isso ela sai da GPLv3 comum e ganha uma exceção que
 > isenta esse texto gerado. Ver [`LICENSE.md`](LICENSE.md),

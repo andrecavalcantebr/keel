@@ -30,7 +30,6 @@ int app_cx_outro(void) {
 
 #line 27 "app/cx.k"
 int app_cx_main(int argc, char **argv) {
-    (void)argc; (void)argv;
     app_cx_Cfg c = {0};
     if (app_cx_soma(&c) != 28 + 8) return 1;
     if (c.N != 8 || c.MAX != 4) return 2;

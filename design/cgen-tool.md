@@ -314,8 +314,8 @@ Formato e códigos são da spec da ferramenta §7. Complementos de implementaç�
 | 0 | sucesso (keel e `cc`) |
 | 1 | `error` da linguagem; nada escrito, `cc` não chamado |
 | 2 | erro da ferramenta (spec §7.1) |
-| *n* | o `cc` saiu com *n* ≠ 0: o `cgen` sai com o mesmo *n* **[D5]** |
-| 128+*s* | o `cc` morreu pelo sinal *s* **[D5]** |
+| *n* | o `cc` saiu com *n* ≠ 0: o `cgen` sai com o mesmo *n* |
+| 128+*s* | o `cc` morreu pelo sinal *s* |
 
 ---
 
@@ -539,7 +539,7 @@ int ola_main(int argc, char **argv) {
 ```
 
 `gen/main_ola.c` — inclui o `.h` do módulo, como qualquer `.c` (regra 4 do
-backend §4.3.2) **[P6]**:
+backend §4.3.2):
 
 ```c
 /* main_ola.c — unidade de entrada, gerada por --main ola. */
@@ -732,12 +732,11 @@ transform deixa de ser necessário.
 | --- | --- | --- |
 | D2 | Opção longa com valor aceita `--x=v` e `--x v` | a tabela da spec usa as duas grafias em opções diferentes; aceitar ambas em todas evita que o usuário decore qual é qual |
 | D3 | `--main` sem `-c` compila a unidade de entrada na mesma chamada; com `-c`, só gera | `cgen --main m m.k -o prog` tem de dar executável; `-c -o` com dois `.c` é erro do gcc |
-| D5 | Falha do `cc` propaga o código dele; sinal vira 128+*s* | é o que o gcc faz com o `cc1`, e o build distingue "keel recusou" (1) de "C recusou" (o código do `cc`) |
 | D6 | `-I D` vai no fim da linha do `cc` | as raízes do usuário mantêm precedência; a spec §4.4 põe `-I gen` no meio, mas o exemplo é ilustrativo e o efeito é o mesmo |
 | D7 | A classe de token em `--stop-after=lex` é calculada sobre a grafia lógica | é o que o parser vê; imprimir `ident` para `ret\`+`urn` esconderia justamente a emenda que se quer depurar |
 
-(D1 e D4 da primeira versão — o `.` padrão de `-I` e `base-nao-encontrada` —
-subiram para a spec da ferramenta.)
+(D1, D4 e D5 da primeira versão — o `.` padrão de `-I`, `base-nao-encontrada`
+e o código de saída do `cc` — subiram para a spec da ferramenta.)
 
 ## 13. Pendências nos normativos
 
@@ -745,10 +744,9 @@ subiram para a spec da ferramenta.)
 | --- | --- | --- |
 | P4 | golden × backend §4.1/§6 × spec §4.1 | o golden põe `import_c` no `.c`, sem `#line`; os normativos o põem na interface (`.proto.h`), com `#line` |
 | P5 | golden | comentários de abertura com prosa que o cgen não pode gerar; `003` tem `(void)argc; (void)argv;` que não está no fonte — comparação byte a byte falha até o golden ser regularizado |
-| P6 | golden × backend §5.8 | a unidade de entrada do golden inclui `keel.type.h` além do `.h` do módulo; o backend inclui só o `.h` |
-| P7 | spec da ferramenta §7 | a tabela de códigos não diz o que acontece quando o `cc` falha (resolvido aqui por D5) |
-| P12 | `LICENSE.md`, backend §4.2, spec da ferramenta §8, rationale | a Base é citada como `src/base/`; no repositório ela está em `/base`, e na instalação em `lib/base` |
 
 Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão
 da §4.10), P3 (`--base-dir`, sem `KEEL_HOME`), P8 (o `.c` só da invocação), P9
-(a base não vai ao `cc`), P10 (lexer-design), P11 (`prelude.h` no backend §3.2).
+(a base não vai ao `cc`), P10 (lexer-design), P11 (`prelude.h` no backend §3.2),
+P6 (unidade de entrada inclui só o `.h`), P7 (código do `cc` na spec §7, era D5)
+e P12 (`base/` no repositório, `lib/base/` na distribuição).

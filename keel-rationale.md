@@ -1274,7 +1274,7 @@ pela GPL comum, sem exceção nenhuma — rodar um binário GPL sobre o próprio
 implicou o fonte, é assim que compilar código proprietário com `gcc` sempre funcionou, e
 isso vale tanto para o `cgen` de referência quanto para um `cgen` modificado que reconheça
 construção nova da linguagem. Modificar e redistribuir a Base em si também já é GPL comum,
-sem exceção — quem pega `src/base/keel/buffer.k`, melhora e redistribui deve o fonte de
+sem exceção — quem pega `base/keel/buffer.k`, melhora e redistribui deve o fonte de
 volta, exatamente a proteção contra o cenário MIT do parágrafo acima. A exceção existe só
 para a terceira situação, que é a única onde GPL comum erraria: o texto que a Base
 contribui, por transpilação, para o *output* do `cgen` sobre o fonte do próprio usuário. Só

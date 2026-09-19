@@ -18,7 +18,7 @@ Aqui:
 | `tools/transform/` e `tools/cgen/` (o parser/backend de `cgen`) | GPLv3, sem exceção |
 | `golden/` (fixtures compiladas e executadas, não geradas da Base) | GPLv3, sem exceção |
 | `editors/` — as gramáticas de realce (`.json`/`.scm`); o `README.md` de dentro segue a documentação | GPLv3, sem exceção |
-| `src/base/` — a Base keel — e qualquer arquivo que leve este aviso | GPLv3 **+ a exceção abaixo** |
+| `base/` — a Base keel, distribuída em `lib/base/` — e qualquer arquivo que leve este aviso | GPLv3 **+ a exceção abaixo** |
 | `keel-spec.md`, `keel-rationale.md`, `keel-c-backend.md`, `cgen-tool-spec.md`, `design/` | [CC BY-SA 4.0](LICENSE-DOCS.md) — prosa, não código; ver `LICENSE-DOCS.md` |
 
 A exceção existe porque `cgen` **copia texto** da Base para dentro do `.h`/`.c` de todo
@@ -720,7 +720,8 @@ Public License instead of this License.  But first, please read
 Additional permission under GNU GPL version 3 section 7.
 
 This is a legal notice, applicable to the files that make up the Keel Base Library — the
-`.k` sources under `src/base/`, and any file carrying this notice — referred to below as
+`.k` sources under `base/` in the source repository and under `lib/base/` in
+the distribution, and any file carrying this notice — referred to below as
 "the Base".
 
 **What is exempt.** When `cgen` (the keel transpiler) processes your own `.k` or `.c`

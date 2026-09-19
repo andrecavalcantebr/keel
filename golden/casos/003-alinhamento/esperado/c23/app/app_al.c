@@ -8,7 +8,6 @@
 #include <stdint.h>
 #line 10 "app/al.k"
 int app_al_main(int argc, char **argv) {
-    (void)argc; (void)argv;
     static u8 app_al_cru[8192];
     for (size_t d = 0; d < 8; d++) {
         keel_arena a;

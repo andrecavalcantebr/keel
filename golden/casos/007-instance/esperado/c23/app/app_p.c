@@ -7,7 +7,6 @@
 #include <stdio.h>
 #line 5 "app/p.k"
 int app_p_main(int argc, char **argv) {
-    (void)argc; (void)argv;
     i32 app_p_v[4];
     pilha_stack_i32 s = {0};
     s.cap = 4; s.len = 0; s.ptr = app_p_v;

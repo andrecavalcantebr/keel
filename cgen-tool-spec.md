@@ -566,6 +566,11 @@ do keel em parada, para quem quer o build estrito.
 | 0 | sucesso, com ou sem `warning` |
 | 1 | pelo menos um `error` da linguagem; nada foi escrito |
 | 2 | erro da ferramenta; a tabela é a da §7.1 |
+| *n* | o compilador C saiu com *n* ≠ 0; se ele terminou por sinal *s*, 128+*s* |
+
+O código do compilador C atravessa intacto, como o gcc faz com o `cc1`: o build
+distingue "keel recusou" (1) de "C recusou" (o código do `cc`), e quem já trata
+o código do gcc não precisa aprender outro.
 
 ### 7.1 Diagnósticos da ferramenta
 
@@ -663,7 +668,7 @@ há checagem de versão entre binário e base: os dois chegam juntos no mesmo
 prefixo, então são a mesma versão por construção.
 
 > **Licença.** A base distribuída em `lib/base` é a mesma Base de
-> `src/base/`, sob GPLv3 com a exceção que isenta o código que ela contribui
+> `base/` do repositório, sob GPLv3 com a exceção que isenta o código que ela contribui
 > ao gerado do usuário. Ver [`LICENSE.md`](LICENSE.md) e
 > [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit).
 

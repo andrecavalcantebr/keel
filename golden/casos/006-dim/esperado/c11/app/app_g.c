@@ -14,7 +14,6 @@ f32 app_g_primeiro(grid_grade_3_f32 *a, grid_grade_3_f32 *b) {
 
 #line 14 "app/g.k"
 int app_g_main(int argc, char **argv) {
-    (void)argc; (void)argv;
     f32 app_g_dados[8];
     grid_grade_3_f32 g = {0};
     g.dims[0] = 2; g.dims[1] = 2; g.dims[2] = 2; g.ptr = app_g_dados;

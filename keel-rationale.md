@@ -42,7 +42,7 @@ de um struct já existente** — é essa a forma recusada, e a revisão que a
 admite depois, sob outro desenho, está registrada em [soa: da recusa à
 admissão](#soa-da-recusa-à-admissão).
 
-Referência: [spec v3 §1](keel-spec.md#1-escopo-e-princípios), princípio 9.
+Referência: [spec §1](keel-spec.md#1-escopo-e-princípios), princípio 9.
 
 ## C usado como o assembly portável
 
@@ -83,7 +83,7 @@ Os três reaparecem como regra na spec, e nenhum como texto repetido: o primeiro
 o princípio 2, mais a convenção de redação em pares; o segundo é o princípio 7 e
 o contrato de análise da §1.3; o terceiro é o princípio 3.
 
-Referência: [spec v3 §1.1](keel-spec.md#11-princípios-de-projeto) e
+Referência: [spec §1.1](keel-spec.md#11-princípios-de-projeto) e
 [§1.3](keel-spec.md#13-contrato-de-análise).
 
 ## Quem escreve C pensa em máquina; quem escreve keel pensa em C
@@ -99,7 +99,7 @@ falhou** — e é essa a régua do princípio 2. É por isso que a spec é escri
 pares, e por isso os pares dos casos golden são compilados e executados: o que se
 promete prever tem de estar escrito em algum lugar que não mente.
 
-Referência: [spec v3 §1.1](keel-spec.md#11-princípios-de-projeto), princípio 2.
+Referência: [spec §1.1](keel-spec.md#11-princípios-de-projeto), princípio 2.
 
 ## Critério de admissão, em exercício
 
@@ -141,7 +141,7 @@ cooperativas sobre uma tabela é uma função, e passa a ser função. O que fic
 núcleo é o que sobra: o cabeçalho de `parallel`, que declara quantos workers,
 qual política e o que é capturado.
 
-Referência: [spec v3 §1.1](keel-spec.md#11-princípios-de-projeto) e
+Referência: [spec §1.1](keel-spec.md#11-princípios-de-projeto) e
 [§1.3](keel-spec.md#13-contrato-de-análise).
 
 ## O que fica fora do PPC, e por quê
@@ -186,7 +186,7 @@ o custo é de significado, não de análise.
 | `defer` inserido automaticamente sobre memória externa | Aquisição e liberação são do contrato da origem, não do reconhecimento de uma arena |
 | Realocação implícita de `buffer` | Invalidaria silenciosamente vistas e ponteiros derivados, que é a decisão que o programa precisa manter à vista |
 
-Referência: [spec v3 §5.4](keel-spec.md#64-programa-conforme-e-limites) e o
+Referência: [spec §6.4](keel-spec.md#64-programa-conforme-e-limites) e o
 item 6 de cada contrato do capítulo 4.
 
 ## `soa`: da recusa à admissão
@@ -196,7 +196,7 @@ existente**, inferindo dele o que é invertível: essa forma continua fora,
 porque exige exatamente a análise semântica de tipo C que o critério de
 admissão recusa na primeira pergunta. O que muda não é o critério — é a forma.
 
-`soa struct NOME { array T campo; … }` (spec v3 §4.11) não infere nada do tipo
+`soa struct NOME { array T campo; … }` (spec §4.11) não infere nada do tipo
 de um struct que já existe em outro lugar: é uma declaração nova, escrita por
 extenso, no mesmo lugar em que o núcleo já lê qualquer `struct`. A decisão de
 o que é coluna não vem de keel examinando o tipo C do campo — vem do
@@ -272,7 +272,7 @@ por `parallel` ou transporte automático de valor de uma participante
 cooperativa (tabela acima): a construção entrega o que verifica, não o que
 teria que adivinhar sobre a intenção do programa.
 
-Referência: [spec v3 §4.11](keel-spec.md#411-soa).
+Referência: [spec §4.11](keel-spec.md#411-soa).
 
 ## Fronteira com C e conflitos léxicos
 
@@ -291,7 +291,7 @@ A promessa central é traduzir keel integralmente para C e preservar o texto
 das expressões fora das substituições necessárias. Ela não equivale a aceitar
 qualquer fonte C sem adaptação.
 
-Referência: spec v3 §§1.1, 1.3 e 1.4.
+Referência: spec §§1.1, 1.3 e 1.4.
 
 ## Por que `<opaque>` é o terminal central
 
@@ -305,7 +305,7 @@ delas descreve expressão, precedência ou a gramática completa de declaradores
 C. A ambiguidade clássica — `(a)(b)` é chamada ou conversão? — não aparece,
 porque as duas leituras reduzem ao mesmo `<opaque>`.
 
-Referência: [spec v3 §2.2](keel-spec.md#22-sintaxe).
+Referência: [spec §2.2](keel-spec.md#22-sintaxe).
 
 ## Por que `..` não é um token
 
@@ -319,7 +319,7 @@ Deixando `..` como pontuação, a forma do intervalo vira problema do parser, qu
 onde o balanceamento já existe. O léxico continua não decidindo nada — que é a
 regra da §2.4 e o que mantém as duas camadas separáveis.
 
-Referência: [spec v3 §2.2](keel-spec.md#22-sintaxe).
+Referência: [spec §2.2](keel-spec.md#22-sintaxe).
 
 ## A posição de contêiner não é um sistema de tipos
 
@@ -336,7 +336,7 @@ parar: o próximo pedido é o operador de propagação, e depois a desestrutura�
 As duas estão na tabela de recusas por limite de análise, e a gramática é o lugar
 onde esse limite fica escrito em vez de prometido.
 
-Referência: [spec v3 §2.2](keel-spec.md#22-sintaxe) e
+Referência: [spec §2.2](keel-spec.md#22-sintaxe) e
 [§4.4](keel-spec.md#44-resolução-de-operações).
 
 ## Por que a contagem é por alternativa, e não sobre o texto
@@ -385,7 +385,7 @@ admitir. Concordância é a condição certa porque é a que o consumidor precis
 não quer que o ramo seja neutro, quer saber com que profundidade continuar depois
 do `#endif`.
 
-Referência: [spec v3 §2.4](keel-spec.md#24-semântica).
+Referência: [spec §2.4](keel-spec.md#24-semântica).
 
 ## Por que a redeclaração é recusada em vez de classificada
 
@@ -401,7 +401,7 @@ nome é símbolo de keel. Renomear a variável local resolve, e a mensagem diz i
 ao usuário** em vez de propriedade da implementação — e vale registrar exatamente
 por isso, porque é a fatura da decisão de não entender C.
 
-Referência: [spec v3 §2.5](keel-spec.md#25-restrições-e-diagnósticos).
+Referência: [spec §2.5](keel-spec.md#25-restrições-e-diagnósticos).
 
 ## Por que `instance` é a única ressalva do documento
 
@@ -418,7 +418,7 @@ inalcançável** um modificador legalmente declarado: quem escrevesse
 mensagem dizendo por quê. Error na declaração custa uma linha e diz o motivo no
 lugar certo.
 
-Referência: [spec v3 §2.3](keel-spec.md#23-reconhecimento).
+Referência: [spec §2.3](keel-spec.md#23-reconhecimento).
 
 ## Reconhecimento de funções e declaradores C
 
@@ -453,21 +453,21 @@ A busca pelo grupo final exige percorrer uma região de comprimento variável.
 Por isso, a justificativa é a suficiência da informação lexical e estrutural,
 não uma promessa de lookahead de tamanho fixo.
 
-Referência: [spec v3 §2.3](keel-spec.md#23-reconhecimento),
+Referência: [spec §2.3](keel-spec.md#23-reconhecimento),
 “Declarações e palavras contextuais”.
 
 ## Perfis e exemplos de tradução
 
-O alvo original era exclusivamente C23. A introdução do perfil C11 ampliou as
-opções de geração; referências exclusivas a C23 em definições gerais são
-resquícios da versão anterior.
+O alvo original era exclusivamente C23; o perfil C11 veio depois. Por isso as
+definições gerais não citam dialeto: onde um perfil aparece nomeado, a regra é
+daquele perfil, e a emissão de cada um pertence ao backend.
 
 Os pares keel/C mostram a operação essencial que o programador precisa
 compreender. Reproduzir todos os detalhes de emissão tornaria a spec dependente
 da apresentação do backend e duplicaria regras como mapeamento de linhas e
 atributos gerados.
 
-Referência: convenções da spec v3 e §1.2.
+Referência: convenções da spec e §1.2.
 
 ## Prelúdio e base mínima
 
@@ -493,7 +493,7 @@ A prioridade da revisão é fechar o núcleo, as verificações do parser e a ba
 mínima. Bibliotecas adicionais serão desenvolvidas sobre esses contratos,
 com apoio da experiência de implementação do compilador.
 
-Referência: spec v3 §4.1.
+Referência: spec §4.1.
 
 ## Constantes nomeadas
 
@@ -507,7 +507,7 @@ literal decimal, com sinal opcional, ou uma constante conhecida. Um valor
 calculado exigiria avaliação de expressão, e um conjunto sem valor conhecido
 não sustentaria a verificação de exaustividade sobre nomes.
 
-Referência: spec v3 §4.2.
+Referência: spec §4.2.
 
 ## O que o VLA errou
 
@@ -531,7 +531,7 @@ sozinho. O que chega perto é a composição das duas, com a disciplina de pilha
 **explícita** em vez de implícita — e escrito assim funciona onde VLA não existe,
 o modo de falha é testável, e quem lê sabe de onde saiu a memória.
 
-Referência: [spec v3 §5.2](keel-spec.md#52-keelarena) e
+Referência: [spec §5.2](keel-spec.md#52-keelarena) e
 [§5.3](keel-spec.md#53-keelbuffer-keelslice-e-keelrange).
 
 ## Memória por região
@@ -552,7 +552,7 @@ símbolos keel. Uma prova geral de escape por parâmetros de saída exigiria
 interpretar expressões e efeitos de código C além do contrato do PPC. Essa
 limitação deve constar da especificação junto à garantia efetivamente oferecida.
 
-Referência: spec v3 §§4.5–4.6.
+Referência: spec §§4.5–4.6.
 
 ## Substituição e aridade fixa
 
@@ -588,7 +588,7 @@ exemplo de modificador, não o modelo de todo parâmetro `dim`. A orientação a
 dados de keel permanece dentro dos limites de substituição e reconhecimento,
 sem metalinguagem de templates ou análise semântica de tipos C.
 
-Referência: [spec v3 §4.3](keel-spec.md#43-módulos-genéricos).
+Referência: [spec §4.3](keel-spec.md#43-módulos-genéricos).
 
 ## Memória e visão: a direção da conversão
 
@@ -618,7 +618,7 @@ declara seu próprio verbo de `range-index`, com o nome que fizer sentido para e
 próprio `of`, para recortar a si mesma, sem depender de nada além do próprio
 tipo. `slice` nunca importa `buffer`; é sempre `buffer` que importa `slice`.
 
-Referência: [spec v3 §4.5](keel-spec.md#45-indexação-e-range-index).
+Referência: [spec §4.5](keel-spec.md#45-indexação-e-range-index).
 
 ## Particionável e percorrível
 
@@ -648,7 +648,7 @@ O binder de partição recebe o produto declarado de `partition`, que para a bas
 o aviso de cópia de contêiner: o que se copia é o descritor de uma vista, que é
 a forma normal de passá-la.
 
-Referência: [spec v3 §4.10](keel-spec.md#48-execução-particionada).
+Referência: [spec §4.8](keel-spec.md#48-execução-particionada).
 
 ## Onde keel concorda com o OpenMP
 
@@ -669,7 +669,7 @@ de análise proíbe conhecê-lo.
 > **Núcleo é o que nenhum módulo keel poderia escrever. Pragma é o que nenhuma
 > declaração precisa nascer.**
 
-Referência: [spec v3 §1.1](keel-spec.md#11-princípios-de-projeto), princípio 8,
+Referência: [spec §1.1](keel-spec.md#11-princípios-de-projeto), princípio 8,
 e [§4.8](keel-spec.md#48-execução-particionada).
 
 ## Políticas e sinalização de interrupção
@@ -701,7 +701,7 @@ responsabilidade fica escrita do outro lado: quando o lowering escolhido de
 fato executa em paralelo, os acessos que as partes compartilham são do
 programa, e o PPC não insere sincronização.
 
-Referência: [spec v3 §4.10](keel-spec.md#48-execução-particionada).
+Referência: [spec §4.8](keel-spec.md#48-execução-particionada).
 
 ## Conjuntos fechados e exaustividade
 
@@ -759,7 +759,7 @@ declaradas pelo próprio módulo. Um operando cujo módulo não declara conjunto
 não admite `match`, porque não haveria lista contra a qual verificar; o
 programa continua podendo escrever `switch`.
 
-Referência: [spec v3 §4.11](keel-spec.md#49-conjuntos-de-tags-e-despacho).
+Referência: [spec §4.9](keel-spec.md#49-conjuntos-de-tags-e-despacho).
 
 ## Estrutura de controle e máquina completa
 
@@ -791,7 +791,7 @@ cleanup dos escopos que deixa.
 que produzisse resultado exigiria decidir o que vale quando nenhum braço
 escreve — decisão que o programa toma melhor com uma variável à vista.
 
-Referência: [spec v3 §4.11](keel-spec.md#49-conjuntos-de-tags-e-despacho).
+Referência: [spec §4.9](keel-spec.md#49-conjuntos-de-tags-e-despacho).
 
 ## Resultados finais e estados cooperativos
 
@@ -810,7 +810,7 @@ Em `corot`, ausência de falha não implica sucesso: também pode indicar
 um teste `code > 0`, mas o significado de deixar passar esse terceiro estado
 pelo tratamento de resultado final de `else`.
 
-Os três estados de `corot` são um conjunto fechado, e a v3 os declara como tal:
+Os três estados de `corot` são um conjunto fechado, e a spec os declara como tal:
 `tags Status [SUCCESS = -1, ONGOING = 0, FAILED = 1]`, no próprio módulo. A
 declaração não muda a representação — o código continua sendo um único `i32`, e
 o código de falha continua sendo o inteiro que a participante escreveu — e dá
@@ -828,7 +828,7 @@ A decisão é usar `corot.faulted` para consultar falha cooperativa e
 `corot.fault` para produzi-la. `failed` preserva o significado do protocolo de
 resultados finais, sem uma exclusão adicional baseada na presença de `ongoing`.
 
-Referência: [spec v3 §5.5](keel-spec.md#55-keeloutcome-e-keelcorot).
+Referência: [spec §5.5](keel-spec.md#55-keeloutcome-e-keelcorot).
 
 ## Produção e consulta da falha cooperativa
 
@@ -847,7 +847,7 @@ A grafia antiga de consulta não é mantida como alias: a mera presença de
 continua aceitando códigos positivos ou negativos para representar falha ou
 ausência, com zero reservado para o resultado válido.
 
-A mudança da v3 é a categoria dos produtores. `cowin`, `coagain` e `cofault`
+A mudança foi na categoria dos produtores. `cowin`, `coagain` e `cofault`
 eram statements que retornavam da função; `corot.win`, `corot.again` e
 `corot.fault` são verbos do módulo, que ajustam o objeto recebido e devolvem
 sua cópia ajustada. A saída passa a ser escrita: `return corot.win(r);`.
@@ -866,7 +866,7 @@ Nenhuma das três formas carrega valor: `corot` não tem campo de valor, e o que
 uma passagem produz pertence ao contexto que o programa passou. O que elas
 escrevem é o código, e é dele que os três estados são lidos.
 
-Referência: [spec v3 §5.5](keel-spec.md#55-keeloutcome-e-keelcorot).
+Referência: [spec §5.5](keel-spec.md#55-keeloutcome-e-keelcorot).
 
 ## Composição como biblioteca
 
@@ -911,7 +911,7 @@ Fixá-la é o que torna a tabela um tipo. Funções de outra forma pedem outra
 tabela ou um adaptador escrito pelo programa, que é a mesma resposta que o C dá
 a qualquer vetor de ponteiros para função.
 
-Referência: [spec v3 §4.13](keel-spec.md#56-keelroutine).
+Referência: [spec §5.6](keel-spec.md#56-keelroutine).
 
 ## Rotina, tabela e contexto
 
@@ -998,7 +998,7 @@ trivial a regra de qual conjunto um `match` verifica —, e o par com
 `keel.outcome` se perderia. O custo de manter separado é uma linha de import,
 o mesmo que `keel.slice` já cobra.
 
-Referência: [spec v3 §4.13](keel-spec.md#56-keelroutine).
+Referência: [spec §5.6](keel-spec.md#56-keelroutine).
 
 ## Por que o nome canônico é fixado na declaração
 
@@ -1013,7 +1013,7 @@ injetado por `types` e `buffer geom.Point` são a mesma instância, porque o nom
 canônico do argumento é `geom.Point` nos dois casos — `types` é puramente de
 fonte, e a identidade não pode depender de uma escolha de escrita.
 
-Referência: [spec v3 §1.1](keel-spec.md#11-princípios-de-projeto), princípio 4,
+Referência: [spec §1.1](keel-spec.md#11-princípios-de-projeto), princípio 4,
 e [§4.1](keel-spec.md#41-módulos-e-interoperabilidade).
 
 ## Módulos e identidade
@@ -1033,7 +1033,7 @@ um header ao compilador C; o segundo permite escrever declarações externas no
 próprio fonte. Conhecer seus nomes explícitos ajuda a evitar conflitos, mas não
 fornece informação suficiente para inferir tipos C.
 
-Referência: [spec v3 §4.1](keel-spec.md#41-módulos-e-interoperabilidade).
+Referência: [spec §4.1](keel-spec.md#41-módulos-e-interoperabilidade).
 
 ## Marcadores e declarações
 
@@ -1052,7 +1052,7 @@ precisa de endereço, a declaração C `static const` já expressa a necessidade
 Quando keel precisa do número para substituir tokens, ler um literal conhecido
 preserva esse limite sem introduzir avaliação de expressões C.
 
-Referência: [spec v3 §4.2](keel-spec.md#42-tipos-declarações-e-marcadores).
+Referência: [spec §4.2](keel-spec.md#42-tipos-declarações-e-marcadores).
 
 ## Resolução por declaração
 
@@ -1092,7 +1092,7 @@ lista de tipos privilegiados. É o que permite a um módulo do usuário particip
 de qualquer uma delas sem que o PPC saiba que ele existe, e é o que impede que
 a base receba tratamento que a spec não escreveu.
 
-Referência: [spec v3 §4.4](keel-spec.md#44-resolução-de-operações).
+Referência: [spec §4.4](keel-spec.md#44-resolução-de-operações).
 
 ## Acesso e travessia
 
@@ -1111,7 +1111,7 @@ mesma escolha e uma chamada fixa. Um parâmetro `dim` não precisa representar u
 rank para participar desse modelo: o módulo declara suas operações e suas
 aridades, e a travessia consulta o protocolo disponível.
 
-Referência: [spec v3 §§4.6–4.9](keel-spec.md#53-keelbuffer-keelslice-e-keelrange).
+Referência: [spec §5.3–4.9](keel-spec.md#53-keelbuffer-keelslice-e-keelrange).
 
 ## Cursor explícito
 
@@ -1151,7 +1151,7 @@ A terminação não é provada. Um `next` que não avance produz laço infinito,
 exatamente como o `while` equivalente escrito à mão; a construção não promete
 mais do que a forma que substitui.
 
-Referência: [spec v3 §4.9](keel-spec.md#47-travessia-sequencial).
+Referência: [spec §4.7](keel-spec.md#47-travessia-sequencial).
 
 ## Limpeza e saídas
 
@@ -1173,11 +1173,11 @@ As saídas introduzidas por construções keel seguem a mesma regra das saídas 
 O `break` de um braço de `match` e os verbos `win` e `fail` de um corpo de
 worker deixam escopos, inclusive os de travessias aninhadas, e executam os
 registros correspondentes. Uma consulta que não sai de escopo, como
-`interrupted`, não dispara limpeza. A v3 não tem mais nenhuma região com
+`interrupted`, não dispara limpeza. Não há mais nenhuma região com
 regras de salto próprias: com o fim da finalização das composições, as
 restrições de entrada e saída voltam a ser as do cleanup léxico.
 
-Referência: [spec v3 §4.8](keel-spec.md#46-cleanup-léxico).
+Referência: [spec §4.6](keel-spec.md#46-cleanup-léxico).
 
 ## Macros e sintaxe do PPC
 
@@ -1193,7 +1193,7 @@ necessárias à expansão; compatibilidade e validação semântica de tipos con
 com o compilador C. Por isso a spec fala em tipos e declarações reconhecidos
 pelo PPC, em vez de uma categoria de “tipos keel”.
 
-Referência: [spec v3 §1](keel-spec.md#1-escopo-e-princípios).
+Referência: [spec §1](keel-spec.md#1-escopo-e-princípios).
 
 ## Resultado recebido pelo verbo
 
@@ -1209,7 +1209,7 @@ modificam o receptor e devolvem seu conteúdo ajustado, permitindo tanto uma
 chamada isolada quanto `return outcome.win(r,v);`. O retorno da função chamadora
 continua explícito no C escrito pelo programa.
 
-Os produtores de `corot` seguem a mesma forma desde a v3, e é o que torna as
+Os produtores de `corot` seguem todos a mesma forma, e é o que torna as
 duas famílias legíveis pela mesma regra: verbo qualificado, receptor no
 primeiro argumento, saída escrita pelo programa.
 
@@ -1217,7 +1217,7 @@ Essa separação também define o default: `else v` consulta o resultado declara
 e chama `win(resultado,v)` quando ele falha. O setter `value(resultado,v)`
 escreve somente o valor, e não serviria sozinho para estabelecer sucesso.
 
-Referências: [spec v3 §5.5](keel-spec.md#55-keeloutcome-e-keelcorot) e
+Referências: [spec §5.5](keel-spec.md#55-keeloutcome-e-keelcorot) e
 [§4.10](keel-spec.md#410-tratamento-de-resultado).
 
 ## Modificador e tipo modificado
@@ -1273,7 +1273,7 @@ Reconhecer a palavra `struct` seguida do nome basta para preservar essa forma
 na expansão; não exige analisar semanticamente seus campos. A mesma forma de
 referência por tag existe para `union` e `enum`.
 
-Referências: [spec v3 §1](keel-spec.md#1-escopo-e-princípios),
+Referências: [spec §1](keel-spec.md#1-escopo-e-princípios),
 [módulos e modificadores](keel-spec.md#43-módulos-genéricos) e
 [resultados](keel-spec.md#55-keeloutcome-e-keelcorot).
 
@@ -1503,10 +1503,10 @@ programa inicializa o descritor por um construtor ou escreve um inicializador
 explícito. Tratar a declaração como uma instanciação com inicialização
 implícita acrescentaria um efeito que `arena a;` não expressa.
 
-Referências: [spec v3: memória por região](keel-spec.md#52-keelarena)
+Referências: [spec: memória por região](keel-spec.md#52-keelarena)
 e [backend: arena](keel-c-backend.md#54-arena).
 
-## O que a revisão v3 removeu
+## O que saiu, e o que entrou no lugar
 
 O registro existe para que a remoção seja legível como decisão, e não como
 esquecimento. Cada linha aponta a seção deste documento que responde por ela.
@@ -1521,34 +1521,15 @@ esquecimento. Cada linha aponta a seção deste documento que responde por ela.
 | O aviso de indisponibilidade de OpenMP | Nada: o lowering é do backend, e a série sempre foi execução permitida | Políticas e sinalização de interrupção |
 | A exigência de `length` e `get`/`ptr` para toda travessia | `walk`, com `begin`, `has_next` e `next` | Cursor explícito |
 
-Os diagnósticos acompanham as construções, e de duas maneiras diferentes.
-
-Os de `cofsm` **mudaram de contrato**: a condição que observavam continua sendo
-observada, agora sobre o conjunto de tags e o despacho.
-
-| Diagnóstico da v2 | Correspondente na v3 |
-| --- | --- |
-| `cofsm-sem-nome` | `unnamed-tags` |
-| `cofsm-nome-repetido` | `duplicate-tags-name` |
-| `estado-repetido` | `duplicate-tag` |
-| `estado-de-outro-tipo` | `tag-from-other-set` |
-| `estado-fora-da-lista` | `tag-not-in-set` |
-| `estado-sem-rotulo` | `tag-without-label` |
-| `estado-fora-de-faixa` | `tag-out-of-range` |
-| `cobreak-fora-de-cofsm` | nenhum: o `break` do braço é a saída, e um `break` fora de braço é C comum |
-
-Os demais **deixaram de existir**, porque a condição que observavam deixou de
-ser expressável: `return-em-coexit`, `goto-cruza-coexit`, `salto-cruza-coexit`,
-`coexit-posicao-invalida`, `estagio-invalido` e `participante-sem-corot`, com a
-região de finalização e a lista de participantes; `co-verbo-fora-de-corot` e
-`cowin-sem-valor`, com os statements de retorno cooperativo;
-`copar-politica-nao-constante`, com a política escrita entre colchetes, que
-passou a ser argumento de execução; e `openmp-indisponivel`, pela razão
-registrada em Políticas e sinalização de interrupção.
+Os diagnósticos acompanharam as construções. Os que observavam a máquina de
+estados **mudaram de contrato** e hoje observam o conjunto de tags e o
+despacho; os que dependiam da região de finalização, dos statements de retorno
+cooperativo ou da política escrita entre colchetes **deixaram de existir**,
+porque a condição que observavam deixou de ser expressável.
 
 Na direção oposta, os diagnósticos novos são de protocolo, e não de forma
 escrita: `not-partitionable`, `not-cursor-iterable`,
 `partition-type-mismatch`, `cursor-type-mismatch`, `match-without-tag` e
 `match-without-tags` recusam um tipo que não declara a operação exigida.
 
-Referência: [spec v3 §5.2](keel-spec.md#62-catálogo).
+Referência: [spec §6.2](keel-spec.md#62-catálogo).

@@ -49,13 +49,15 @@ instância de `buffer i32` (backend §5.2, §5.13).
 
 **`keel/keel_buffer_size_t.h`** (c23, c11)
 
-instância de `buffer size_t`.
-Recortada ao que o caso usa: `of` e `set` (backend §5.2).
+instância de `buffer size_t`, inteira: o header é função apenas do nome da
+instância (backend §7.2), então sai com todos os verbos do genérico, e não
+com os que o caso por acaso chama.
 
 **`keel/keel_buffer_size_t.type.h`** (c23, c11)
 
-instância de `buffer size_t`.
-Recortada ao que o caso usa: `of` e `set` (backend §5.2).
+instância de `buffer size_t`, inteira: o header é função apenas do nome da
+instância (backend §7.2), então sai com todos os verbos do genérico, e não
+com os que o caso por acaso chama.
 
 **`keel/keel_corot.h`** (c23, c11)
 
@@ -84,11 +86,11 @@ nem modificador, e `constexpr` de módulo é L1 (keel-c-backend.md §4.3.1,
 
 **`keel/keel_outcome_i32.h`** (c23, c11)
 
-instância de `outcome i32` (backend §5.12).
+instância de `outcome i32` (backend §5.14).
 
 **`keel/keel_outcome_i32.type.h`** (c23, c11)
 
-instância de `outcome i32` (backend §5.12).
+instância de `outcome i32` (backend §5.14).
 
 **`keel/keel_outcome_keel_slice_i32.h`** (c23, c11)
 
@@ -102,19 +104,19 @@ Mangling recursivo: `outcome` sobre `slice i32` (backend §2.2).
 
 **`keel/keel_outcome_u32.h`** (c23, c11)
 
-instância de `outcome u32` (backend §5.12).
+instância de `outcome u32` (backend §5.14).
 
 **`keel/keel_outcome_u32.type.h`** (c23, c11)
 
-instância de `outcome u32` (backend §5.12).
+instância de `outcome u32` (backend §5.14).
 
 **`keel/keel_outcome_void.h`** (c23, c11)
 
-Instância sem payload: spec v2 §4.12.
+Instância sem valor associado: a instanciação `void` derruba o campo e os verbos que o mencionam (spec §4.3, §5.5).
 
 **`keel/keel_outcome_void.type.h`** (c23, c11)
 
-Instância sem payload: spec v2 §4.12.
+Instância sem valor associado: a instanciação `void` derruba o campo e os verbos que o mencionam (spec §4.3, §5.5).
 
 **`keel/keel_parallel.h`** (c23, c11)
 
@@ -131,13 +133,13 @@ bloco; o gestor escreve nos campos, e o programa lê pelos verbos.
 **`keel/keel_range.h`** (c23, c11)
 
 o `.h` do módulo keel.range.
-`range` NÃO é `byref`: os verbos recebem cópia (linguagem §4.11). Declara os
+`range` NÃO é `byref`: os verbos recebem cópia (linguagem §4.3). Declara os
 quatro que fazem dele contável e percorrível: first, limit, length, get.
 
 **`keel/keel_range.type.h`** (c23, c11)
 
 o `.h` do módulo keel.range.
-`range` NÃO é `byref`: os verbos recebem cópia (linguagem §4.11). Declara os
+`range` NÃO é `byref`: os verbos recebem cópia (linguagem §4.3). Declara os
 quatro que fazem dele contável e percorrível: first, limit, length, get.
 
 **`keel/keel_slice.h`** (c23, c11)
@@ -152,26 +154,35 @@ idem para `keel.slice` (backend §5.11).
 
 instância de `slice f32` (backend §5.2).
 `slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro
-(linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
+(linguagem §4.3). É o que faz `slice.length(slice.of(b))` aninhar sem
 temporário: `of` devolve valor e `length` consome valor.
 
 **`keel/keel_slice_f32.type.h`** (c23, c11)
 
 instância de `slice f32` (backend §5.2).
 `slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro
-(linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
+(linguagem §4.3). É o que faz `slice.length(slice.of(b))` aninhar sem
 temporário: `of` devolve valor e `length` consome valor.
 
 **`keel/keel_slice_i32.h`** (c23, c11)
 
 instância de `slice i32` (backend §5.2).
 `slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro
-(linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
+(linguagem §4.3). É o que faz `slice.length(slice.of(b))` aninhar sem
 temporário: `of` devolve valor e `length` consome valor.
 
 **`keel/keel_slice_i32.type.h`** (c23, c11)
 
 instância de `slice i32` (backend §5.2).
 `slice` NÃO é `byref`, então os acessores recebem CÓPIA, não ponteiro
-(linguagem §4.11). É o que faz `slice.length(slice.of(b))` aninhar sem
+(linguagem §4.3). É o que faz `slice.length(slice.of(b))` aninhar sem
 temporário: `of` devolve valor e `length` consome valor.
+
+**As instâncias do fecho** (c23, c11)
+
+`outcome f32`, `outcome size_t`, `outcome keel_slice_f32`,
+`outcome keel_slice_size_t`, `outcome keel_buffer_i32`,
+`outcome keel_buffer_size_t` e `slice size_t` não são usadas por caso nenhum
+diretamente: existem porque `at` devolve `outcome T` e `clone` devolve
+`outcome <contêiner> T`, e uma instância sai inteira (backend §7.2). São o
+fecho transitivo das que os casos pedem.

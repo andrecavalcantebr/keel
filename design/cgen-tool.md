@@ -734,9 +734,15 @@ e o código de saída do `cc` — subiram para a spec da ferramenta.)
 
 ## 13. Pendências nos normativos
 
-| | Onde | Divergência |
-| --- | --- | --- |
-| P15 | golden × `/base` | os headers da base — `c23/keel/`, `c11/keel/` e os `keel/` dos casos — ainda têm prosa que o cgen não gera e não têm `#line` para `keel/*.k`. Re-derivar de `/base` quando `tagged`, `corot`, `range`, `routine` e `parallel` existirem lá |
+**Nenhuma em aberto.** O que este documento levantou enquanto era escrito já
+está nos normativos; o registro abaixo fica para que cada decisão seja
+rastreável até onde ela mora hoje.
+
+Resolvida em 2026-09-20: P15 (golden derivado da `/base` — `#line` em toda
+declaração levada a header, prosa fora, instâncias inteiras pela regra do
+backend §7.2, `arena` e `routine` seguindo o `.k`). Na mesma rodada, e por
+causa dela: a instanciação degenerada da spec §4.3, o `verb-not-in-instance`
+da §4.4, o sufixo de aridade do backend §2.1 e o `keel_arena_alloc` do §5.4.
 
 Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão
 da §4.10), P3 (`--base-dir`, sem `KEEL_HOME`), P8 (o `.c` só da invocação), P9

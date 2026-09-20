@@ -2,4 +2,4 @@
 #ifndef GRIDS_H
 #define GRIDS_H
 #include "grids.type.h"
-#endif
+#endif /* GRIDS_H */

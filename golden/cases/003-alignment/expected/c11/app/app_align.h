@@ -5,4 +5,4 @@
 
 #line 10 "app/align.k"
 int app_align_main(int argc, char **argv);
-#endif
+#endif /* APP_APP_AL_H */

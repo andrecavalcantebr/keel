@@ -176,7 +176,7 @@ As palavras abaixo têm função keel nas posições indicadas pela gramática. 
 
 Nomes de tipos, modificadores e módulos da base, como `arena`, `buffer`, `slice`, `tagged`, `outcome`, `corot` e `routine`, não são palavras do núcleo. `parallel` é o único nome que ocupa as duas posições: palavra do núcleo em `parallel nome politica (…)`, e alias do módulo `keel.parallel` em `parallel.ok(nome)`, distinguidos pelo `.` da §2.3. Nomes de operações, como `length`, `get` e `alloc`, também não são palavras-chave. Sua resolução depende dos símbolos disponíveis e do contrato da operação. [Justificativa: prelúdio e base](keel-rationale.md#prelúdio-e-base-mínima).
 
-As formas `x[i]`, `x[i,j]`, `x[a..b]`, `x[a..]`, `x[..b]`, `x[..]` e `a..b` são sintaxe, não vocabulário. A indexação e os recortes dependem do símbolo reconhecido e das regras da §4.5; sua grafia, isoladamente, não define as permissões de acesso ou mutação.
+As formas `x[i]`, `x[i,j]`, `x[a..b]`, `x[a..]`, `x[..b]`, `x[..]` e `a..b` são sintaxe, não vocabulário. A indexação e os `range-index` dependem do símbolo reconhecido e das regras da §4.5; sua grafia, isoladamente, não define as permissões de acesso ou mutação.
 
 #### Palavras C reconhecidas
 
@@ -336,7 +336,7 @@ tag-label   ::= IDENT ':'
 
 Um argumento de tipo pode nomear um conjunto de tags declarado por `decl-tags`, como em `tagged Cycle void`. A produção `argument` já admite essa forma por `qualified-name`; o papel do nome vem do parâmetro correspondente na assinatura do módulo. O contrato completo está na §4.9.
 
-#### Contêineres, intervalos e recortes
+#### Contêineres, intervalos e `range-index`
 
 ```ebnf
 container    ::= IDENT
@@ -783,7 +783,7 @@ Contratos: §§4.9 e 5.4. [Justificativa: controle e máquina completa](keel-rat
 
 Esta função continua o módulo `coop` da §3.5, acrescentando os imports de
 `keel.routine` e `keel.slice`. As participantes são descritas em um vetor de
-`routine.slot`, montado pelo programa. `routine.par` percorre esse recorte em
+`routine.slot`, montado pelo programa. `routine.par` percorre essa fatia em
 ciclos e devolve um `outcome u32` cujo valor associado é a quantidade de
 sucessos. O estado de cada slot fica no próprio slot e é lido depois.
 
@@ -889,7 +889,7 @@ depois de um rótulo de saída é simplesmente o statement seguinte à declaraç
 de `r`, sujeito às regras comuns de `return`, `goto` e `defer`.
 
 A tabela é escrita pelo programa e pode ser estática ou montada em runtime;
-`slice.of` fornece o recorte em qualquer dos casos, e exige o marcador `array`
+`slice.of` fornece a fatia em qualquer dos casos, e exige o marcador `array`
 sobre o vetor. Como `routine.par` escreve o estado de cada entrada, a tabela não
 pode ser `const` e um mesmo vetor não deve alimentar duas execuções concorrentes
 da composição.
@@ -1135,6 +1135,13 @@ constante em arquivo ou bloco, com inicializador e declarador simples.
   `keel.length` e `keel.capacity` medem o total de elementos; `keel.dim(v,k)`
   mede a dimensão de índice `k`, a partir de zero — as operações do núcleo
   sobre `array` levam o qualificador `keel` (§4.4).
+- As dimensões de um argumento `array` são conferidas contra as do parâmetro:
+  a aridade e as dimensões de índice 1 em diante devem coincidir, e a dimensão
+  0 do argumento não pode ser menor que a declarada. Maior é aceito — a
+  dimensão 0 de um parâmetro é piso, não igualdade. A conferência alcança o
+  argumento que é símbolo `array` de dimensões conhecidas; sobre região C
+  opaca não há o que conferir, e o que resta é a garantia do compilador C
+  sobre a forma emitida.
 - `constexpr` é constante nomeada e tipada, sem endereço e sem usos que
   exijam lvalue. O compilador C verifica o inicializador contra o tipo escrito,
   nos limites de cada perfil. Um objeto constante com endereço usa a forma C
@@ -1162,6 +1169,7 @@ constante em arquivo ou bloco, com inicializador e declarador simples.
 | --- | --- | --- |
 | Palavra-chave de tipo aritmético C como argumento de modificador, exceto `char` e `bool`, em vez da grafia keel ou de um tipo nomeado | keel | `c-type-as-argument` |
 | `array` 1D em parâmetro ou sem dimensão nesse contexto | keel | `array-1d-as-parameter`; `array-parameter-without-dimension` |
+| Argumento `array` cujas dimensões não satisfazem as do parâmetro | keel | `array-argument-wrong-dimension` |
 | Indexação parcial de `array` multidimensional | keel | `partial-array-index` |
 | `keel.ptr`, `buffer.of` ou `slice.of` sobre `array` multidimensional | keel | `flat-view-of-n-dim-array` |
 | `keel.dim(v,k)` sem valor decimal conhecido para `k` | keel | `nonconstant-dim-index` |
@@ -1304,7 +1312,7 @@ o segundo identifica o modificador nele declarado. O nome abreviado vem de
   literal decimal ou `constexpr` de inicializador decimal conhecido.
 - Dentro do módulo genérico, um parâmetro de tipo é opaco. Um valor declarado
   com o tipo `T`, ou ponteiro para ele, não participa de protocolo (§4.4):
-  `foreach`, `walk`, `apply`, `else`, `match`, a indexação e o recorte de
+  `foreach`, `walk`, `apply`, `else`, `match`, a indexação e o `range-index` de
   contêiner, `at` e as chamadas qualificadas não se resolvem sobre ele.
   Expressões C sobre `T` — atribuição, `sizeof`, operadores — atravessam como
   texto e são validadas pelo compilador C depois da substituição. Uma instância
@@ -1315,9 +1323,19 @@ o segundo identifica o modificador nele declarado. O nome abreviado vem de
 - A substituição não gera listas de parâmetros, campos ou funções. A aridade
   escrita de cada verbo permanece fixa. `T valores[static N]` é um parâmetro,
   cuja extensão exigida muda com a instância.
-- `void` indica ausência de valor associado: campos escritos diretamente como
-  `T campo` ou `T *campo` são omitidos. Não há análise de equivalência de tipos
-  C nem eliminação geral de código que mencione `T`.
+- `void` e argumento qualificado `const` são os dois casos em que a instância
+  não admite toda a superfície do genérico. Com `void`, os campos escritos como
+  `T campo` ou `T *campo` são omitidos, e com eles todo verbo que mencione o
+  parâmetro em posição de valor — restam os verbos que tratam só do controle.
+  Com `const`, somem os verbos que escreveriam através do parâmetro. Em ambos
+  a omissão é transitiva: um verbo cuja emissão chamaria outro que não existe
+  naquela instância também não é emitido. Isso não é análise de equivalência de
+  tipos C nem eliminação geral de código que mencione `T` — decorre do argumento
+  escrito, é a mesma em toda instância com o mesmo argumento, e mantém a
+  instância função apenas do próprio nome (backend §7.2).
+- Qualificador de topo não sobrevive à cópia: um verbo que devolve ou recebe
+  `T` por valor é emitido sobre o tipo sem o qualificador, que é o que o C faz
+  com ele de todo modo.
 - Um `typedef` que mencione um parâmetro pertence à instância e é emitido por
   instância, como qualquer outra declaração. Ele não tem forma escrita com
   argumento, porque só modificador aceita argumento em posição de tipo: o
@@ -1353,6 +1371,7 @@ Todas as verificações desta tabela são de keel:
 | Dependência de instanciação circular entre módulos genéricos | `circular-generic` |
 | Cadeia de tipos que se contêm por valor atravessando instância de modificador | `layout-cycle` |
 | Construção keel aplicada a valor de tipo parâmetro | `protocol-on-parameter` |
+| Chamada de verbo que a instância escrita não admite | `verb-not-in-instance` (§4.4) |
 | `instance` fora de arquivo ou sobre tipo que não é modificador genérico | `instance-outside-file-scope`; `instance-not-modifier` |
 | `instance` sem corpos fora de linha a colocar | `redundant-instance` (`warning`) |
 | Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `nonparametric-out-of-line` |
@@ -1473,6 +1492,13 @@ A resolução aplica, nesta ordem:
 A posição de contêiner exige a produção `container` da §2.2 e informação de
 símbolos. Uma chamada C desconhecida não fornece essa informação.
 
+Quando o verbo é declarado pelo genérico mas a instância escrita não o admite
+(§4.3), a resolução não segue para a validação C: o diagnóstico é
+`verb-not-in-instance`, e a mensagem nomeia o argumento que o removeu. A
+tradução já conhece a superfície da instância para emiti-la, então recusar com
+esse nome não custa verificação alguma — e troca um erro de declaração implícita
+do compilador C por uma mensagem que diz o que de fato aconteceu.
+
 #### 4. Semântica
 
 - Verbos produtores, como `of`, `from` e `clone`, são qualificados pelo módulo
@@ -1519,6 +1545,7 @@ símbolos. Uma chamada C desconhecida não fornece essa informação.
 | Acesso direto a campo de instância | keel | `instance-field-access` (`warning`) |
 | Operador de endereço sobre o objeto no primeiro argumento | keel | `address-in-object-position` |
 | Qualificador não corresponde ao receptor ou produto do verbo | keel | `wrong-qualifier` |
+| Verbo declarado pelo genérico e ausente na instância escrita, por `void` ou `const` (§4.3) | keel | `verb-not-in-instance` |
 | Construtor dependente do alvo fora de inicialização, atribuição a símbolo ou retorno com tipo conhecido | keel | `from-without-target` |
 | Tipos ou argumentos C incompatíveis depois da resolução | compilador C | Diagnóstico do compilador C |
 
@@ -1549,11 +1576,11 @@ keel_buffer_i32_length(p);
 - [Rationale: resolução por declaração](keel-rationale.md#resolução-por-declaração).
 - [Backend: contêineres e funções](keel-c-backend.md#52-containers-struct-e-funções-static-inline).
 
-### 4.5 Indexação e recortes
+### 4.5 Indexação e `range-index`
 
 #### 1. Finalidade
 
-Acessar elementos e delimitar recortes a partir de contêineres conhecidos.
+Acessar elementos e delimitar fatias a partir de contêineres conhecidos.
 
 #### 2. Sintaxe
 
@@ -1567,7 +1594,7 @@ x[..]
 ```
 
 São formas de expressão sobre `container`. Índices e limites são regiões
-C opacas. O recorte por intervalo usa uma dimensão; recortes multidimensionais
+C opacas. O `range-index` usa uma dimensão; índices por intervalo multidimensionais
 são operações dos módulos que os implementam.
 
 #### 3. Reconhecimento
@@ -1577,7 +1604,7 @@ são operações dos módulos que os implementam.
   do verbo fornece as aridades aceitas.
 - Colchetes sobre símbolos C desconhecidos permanecem C, inclusive seu
   operador vírgula. A presença de vírgulas não registra um `array`.
-- `..` dentro dos colchetes distingue recorte de acesso a elemento.
+- `..` dentro dos colchetes distingue `range-index` de acesso a elemento.
 
 #### 4. Semântica
 
@@ -1588,7 +1615,7 @@ são operações dos módulos que os implementam.
   com todos os índices. O layout permanece o do vetor multidimensional C.
 - Cada índice é avaliado uma vez. A tradução não impõe uma ordem relativa
   adicional entre expressões que o C não ordena.
-- `x[a..b]` chama o verbo de recorte declarado pelo lado **memória** do par
+- `x[a..b]` chama o verbo de `range-index` declarado pelo lado **memória** do par
   memória/visão a que `x` pertence — nunca pelo lado visão — e produz um
   descritor por valor. Sobre a base, é `buffer.as_slice(x,a,b)` quando `x` é
   `buffer`; `slice.of(x,a,b)` quando `x` já é `slice`, recortando a si mesma.
@@ -1596,27 +1623,34 @@ são operações dos módulos que os implementam.
   usa a forma de um argumento. Quem declara o verbo e o nome que ele leva são
   do módulo do contêiner, e não deste contrato — a única exigência é a
   direção: memória→visão, nunca o inverso (rationale: memória e visão).
-- O recorte é rvalue; atribuir ao recorte inteiro é sujeito à recusa do
+- O `range-index` é rvalue; atribuir à fatia inteira é sujeito à recusa do
   compilador C. Alterar um elemento da vista segue o contrato do elemento.
-- Na forma `x[a..]`, a tradução usa o contêiner para o recorte e para obter
+- Na forma `x[a..]`, a tradução usa o contêiner para o `range-index` e para obter
   comprimento. Por isso, aceita somente caminho sem índice nem chamada:
   identificadores, `.`, `->`, `*`, `&` e parênteses.
-- A verificação de índices e limites é de debug. Recortes exigem
-  `a <= b <= length(x)`; o trecho vazio é permitido.
+- A verificação de índices e limites é de debug. Um `range-index` exige
+  `a <= b <= length(x)`; o trecho vazio é permitido. Sobre `array`, cada
+  índice é verificado contra a dimensão declarada correspondente: quando
+  índice e dimensão são ambos decimais conhecidos, a verificação é da tradução
+  e recusa; nos demais casos é de execução em perfil debug. Na dimensão 0 de
+  um parâmetro, o número declarado é o contrato, e não a extensão do vetor que
+  o chamador entregou.
 
 #### 5. Restrições e diagnósticos
 
 | Condição | Responsável | Identificador |
 | --- | --- | --- |
 | Indexação parcial de `array` | keel | `partial-array-index` |
+| Índice de `array` decimal conhecido acima da dimensão declarada | keel | `array-index-above-dimension` |
+| Índice de `array` fora da dimensão declarada | backend, em execução debug | `array-index-out-of-bounds` |
 | Tipo não possui `ptr` da aridade escrita | keel | `no-ptr-for-arity` |
-| Tipo não possui o verbo de recorte necessário à aridade | keel | `no-range-index-verb` |
+| Tipo não possui o verbo de `range-index` necessário à aridade | keel | `no-range-index-verb` |
 | Limites numericamente conhecidos com início maior que fim | keel | `inverted-range-index` |
 | Limites violam `a <= b <= length(x)` | backend, em execução debug | `range-index-out-of-bounds` |
 | Fim omitido sobre caminho que contém índice ou verbo | keel | `open-range-index-on-complex-path` |
 
-O diagnóstico `inverted-range-index` admite literais e valores decimais conhecidos de `constexpr`.
-Não exige calcular expressões C.
+Os diagnósticos `inverted-range-index` e `array-index-above-dimension` admitem literais e
+valores decimais conhecidos de `constexpr`. Não exigem calcular expressões C.
 
 #### 6. Pré-condições e limites
 
@@ -1934,7 +1968,7 @@ depois do bloco; o contrato do módulo `keel.parallel` está na §5.7.
 - Que as `k` partes sejam disjuntas e cubram o contêiner é contrato do módulo
   que declara `partition`. keel não o prova. Para `buffer T` e `slice T`, a
   base declara a divisão contígua: com `n` elementos, o passo é o teto de
-  `n/k` e a parte `w` é o recorte `[w*passo, min((w+1)*passo, n))`, possivelmente
+  `n/k` e a parte `w` é a fatia `[w*passo, min((w+1)*passo, n))`, possivelmente
   vazio. `range` declara a divisão análoga sobre `[first,limit)`.
 - O binder de partição recebe uma instância por valor quando o módulo assim a
   declara, como `slice T`. Essa é a forma prevista desta construção e não
@@ -2545,7 +2579,7 @@ i32 *dados = arena.alloc(a, i32, n);
 //C gerado
 arena a;
 keel_arena_from_memory(&a, memory, bytes);
-i32 *dados = keel_arena_alloc_n(&a, n, sizeof(i32), _Alignof(i32));
+i32 *dados = keel_arena_alloc(&a, n, sizeof(i32), _Alignof(i32));
 ```
 
 A região externa permanece sob o contrato de quem forneceu `memory`.
@@ -2625,7 +2659,7 @@ não escreve esses verbos: quem os chama é a construção.
 - `buffer`, `slice` e `range` declaram a divisão consumida por `parallel`
   (§4.8). `partition(x,k,w)` devolve a parte `w` de uma divisão em `k`, e as
   `k` partes são disjuntas e cobrem o contêiner. Para `buffer T` e `slice T` o
-  produto é `slice T`, o recorte contíguo `[w*passo, min((w+1)*passo, n))` com
+  produto é `slice T`, a fatia contígua `[w*passo, min((w+1)*passo, n))` com
   passo igual ao teto de `n/k`; para `range`, o produto é `range`, com a divisão
   análoga de `[first,limit)`. Parte vazia é o caso normal quando `k` excede o
   comprimento.
@@ -2662,7 +2696,7 @@ prazo de validade da arena de destino.
 | `slice.from` sobre símbolo `ref` | keel | `slice-from-ref` |
 | Intervalo aberto fora de índice | keel | `open-range-outside-index` |
 
-Indexação, recortes e suas verificações seguem a §4.5. Qualificadores dos
+Indexação, `range-index` e suas verificações seguem a §4.5. Qualificadores dos
 objetos e compatibilidade das cópias continuam sujeitos ao compilador C.
 
 #### 6. Pré-condições e limites
@@ -2683,7 +2717,7 @@ objetos e compatibilidade das cópias continuam sujeitos ao compilador C.
 
 #### 7. Exemplo mínimo
 
-O par da §3.3 mostra recorte, mutabilidade dos elementos e travessia de `range`.
+O par da §3.3 mostra `range-index`, mutabilidade dos elementos e travessia de `range`.
 
 #### 8. Referências
 
@@ -3032,7 +3066,7 @@ O parâmetro do módulo é o tipo do contexto, e só ele. O estado de saída nã
 
 Uma participante é uma função de retorno `corot` e um parâmetro `C *`. Essa é a assinatura da tabela; funções de outra forma exigem outra tabela ou um adaptador escrito pelo programa. O que uma participante produz viaja pelo contexto, e não pelo retorno.
 
-**A linha da tabela chama-se `slot`, e não `entry`**, porque ela não é só entrada: guarda a função, o contexto e o estado com que aquela participante terminou. Tirar o estado de lá exigiria um segundo recorte, paralelo ao primeiro, com dois comprimentos a manter em acordo — o que a composição escreve fica onde a composição já está.
+**A linha da tabela chama-se `slot`, e não `entry`**, porque ela não é só entrada: guarda a função, o contexto e o estado com que aquela participante terminou. Tirar o estado de lá exigiria uma segunda fatia, paralela à primeira, com dois comprimentos a manter em acordo — o que a composição escreve fica onde a composição já está.
 
 `routine` é um `typedef` de instância (§4.3): é emitido por instância e o programa não precisa escrevê-lo, porque escreve nomes de função nos campos `.f`. Quem precisar nomear o tipo declara o próprio `typedef` sobre a mesma forma C.
 
@@ -3058,7 +3092,7 @@ O alvo de `par` é um valor de execução. Zero significa todos os slots; `1` co
 
 ##### `seq`
 
-- Os slots são etapas na ordem do recorte.
+- Os slots são etapas na ordem da fatia.
 - A etapa corrente é chamada até retornar um estado diferente de `ONGOING`.
 - `SUCCESS` avança para a próxima etapa; `FAILED` encerra a sequência imediatamente, sem chamar as etapas seguintes.
 - Quando todas as etapas terminam com `SUCCESS`, a composição tem sucesso.
@@ -3066,7 +3100,7 @@ O alvo de `par` é um valor de execução. Zero significa todos os slots; `1` co
 
 ##### `par`
 
-- A composição executa ciclos. Em cada ciclo, chama uma vez cada slot ainda em `ONGOING`, na ordem do recorte.
+- A composição executa ciclos. Em cada ciclo, chama uma vez cada slot ainda em `ONGOING`, na ordem da fatia.
 - Um slot que retorna `SUCCESS` ou `FAILED` conserva esse estado e não é chamado nos ciclos seguintes.
 - A política é avaliada ao final de cada ciclo, depois das chamadas previstas para aquele ciclo. Mais slots podem obter sucesso no ciclo do que o mínimo exigido.
 - Com `m` slots e alvo `q`, onde `q` é `m` quando o alvo escrito é zero, e com `S` sucessos e `F` falhas acumulados: a composição tem sucesso quando `S >= q` e falha quando `m - F < q`. Enquanto nenhuma condição for satisfeita, inicia outro ciclo.
@@ -3088,14 +3122,14 @@ O alvo de `par` é um valor de execução. Zero significa todos os slots; `1` co
 | Entrada por valor de instância `byref` em parâmetro | keel | `byref-param` (`error`) |
 | Tipo da função escrita incompatível com `routine` da instância | compilador C | Diagnóstico do compilador C |
 | Alvo de `par` maior que o número de slots | backend, em execução debug | `par-target-above-total` (`debug`) |
-| `mask` sobre recorte com mais de 64 entradas | backend, em execução debug | `mask-above-64-slots` (`debug`) |
+| `mask` sobre fatia com mais de 64 entradas | backend, em execução debug | `mask-above-64-slots` (`debug`) |
 
 A composição não acrescenta verificações de fluxo ao corpo das participantes. Ela é uma função: saltos, retornos e cleanup do chamador seguem os contratos das §§4.6 e 5.5.
 
 #### 6. Pré-condições e limites
 
 - A tabela deve ter armazenamento válido durante toda a composição e ser modificável: `par` e `seq` escrevem o estado de cada slot. Uma tabela `const` não satisfaz esse contrato.
-- Um mesmo recorte não deve alimentar duas execuções concorrentes da composição.
+- Uma mesma fatia não deve alimentar duas execuções concorrentes da composição.
 - A disponibilidade de recursos e a duração do contexto são responsabilidades do programa. Não existe suspensão que estenda a vida de variáveis locais de uma participante.
 - Uma composição pode continuar indefinidamente se suas participantes não produzirem estados suficientes para resolver a política. Não há timeout implícito.
 - A chamada indireta por ponteiro de função impede a inserção em linha das participantes pelo compilador C. Esse custo é a contrapartida de a composição ser biblioteca e não construção do núcleo.
@@ -3239,6 +3273,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `buffer-of-unknown-size` | `buffer.of` de um argumento sobre símbolo que não é `array` | `error` | keel | §5.3 |
 | `array-1d-as-parameter` | `array` unidimensional em parâmetro de função | `error` | keel | §4.2 |
 | `array-parameter-without-dimension` | `array T v[]` sem dimensão em parâmetro | `error` | keel | §4.2 |
+| `array-argument-wrong-dimension` | Argumento `array` com aridade diferente, dimensão de índice 1 em diante diferente, ou dimensão 0 menor que a do parâmetro | `error` | keel | §4.2 |
 | `partial-array-index` | Indexação parcial de `array` multidimensional | `error` | keel | §4.2 |
 | `flat-view-of-n-dim-array` | `keel.ptr`, `buffer.of` ou `slice.of` sobre `array` multidimensional | `error` | keel | §4.2 |
 | `nonconstant-dim-index` | Índice de `keel.dim(v,k)` sem valor decimal conhecido | `error` | keel | §4.2 |
@@ -3296,12 +3331,14 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `mutation-during-traversal` | `push`, `pop` ou `clear` sobre o contêiner percorrido ou particionado, no corpo do `foreach`, do `walk` ou do `parallel` | `error` | keel | §4.7 |
 | `index-not-size-t` | Binder de índice cujo tipo não é `size_t` | `error` | keel | §4.7 |
 | `not-countable` | `foreach` de um binder sobre tipo que não declara `first` e `limit` | `error` | keel | §4.7 |
-| `no-range-index-verb` | Índice por intervalo sobre tipo que não declara o verbo de recorte da aridade que a forma exige | `error` | keel | §4.5 |
-| `inverted-range-index` | Recorte com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
+| `no-range-index-verb` | Índice por intervalo sobre tipo que não declara o verbo de `range-index` da aridade que a forma exige | `error` | keel | §4.5 |
+| `inverted-range-index` | Índice por intervalo com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
 | `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
+| `array-index-above-dimension` | Índice de `array` decimal conhecido acima da dimensão declarada | `error` | keel | §4.5 |
+| `array-index-out-of-bounds` | Índice de `array` fora da dimensão declarada | `debug` | Backend, em execução | §4.5 |
 | `foreach-two-binders-on-literal` | `foreach` de dois binders sobre literal de intervalo — a mensagem indica nomear o intervalo | `error` | keel | §4.7 |
 | `pointer-binder-on-range` | Binder por ponteiro na forma de intervalo | `error` | keel | §4.7 |
-| `open-range-outside-index` | Recorte com ponta aberta fora de índice | `error` | keel | §4.7 |
+| `open-range-outside-index` | Índice por intervalo com ponta aberta fora de índice | `error` | keel | §4.7 |
 | `open-range-index-on-complex-path` | `x[a..]` sobre caminho que contém índice ou verbo | `error` | keel | §4.5 |
 | `enum-constant-without-type` | Constante de enum escrita sem o nível do tipo | `error` | keel | §4.2 |
 | `alias-type-collision` | Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `error` | keel | §2.5 |
@@ -3313,7 +3350,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `tag-not-in-set` | Rótulo que não está na lista declarada do conjunto | `error` | keel | §4.9 |
 | `tag-without-label` | Tag na lista declarada sem rótulo correspondente no corpo | `error` | keel | §4.9 |
 | `par-target-above-total` | Alvo de `routine.par` maior que o número de slots | `debug` | Backend, em execução | §5.6 |
-| `mask-above-64-slots` | `routine.mask` sobre recorte com mais de 64 entradas | `debug` | Backend, em execução | §5.6 |
+| `mask-above-64-slots` | `routine.mask` sobre fatia com mais de 64 entradas | `debug` | Backend, em execução | §5.6 |
 | `restrict-on-container` | `restrict` escrito antes de um modificador — a `note` dá a forma com ponteiro | `error` | keel | §4.2 |
 | `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` | Backend / compilador C | §4.2 |
 | `nonconstant-dim` | Argumento de `dim` sem literal decimal ou `constexpr` de inicializador decimal conhecido | `error` | keel | §4.3 |
@@ -3323,6 +3360,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `modifier-named-instance` | Modificador declarado com o nome `instance` | `error` | keel | §4.3 |
 | `address-in-object-position` | Operador de endereço sobre o objeto no primeiro argumento de um verbo | `error` | keel | §4.4 |
 | `wrong-qualifier` | Qualificador incompatível com o receptor ou produto do verbo | `error` | keel | §4.4 |
+| `verb-not-in-instance` | Verbo que o genérico declara e a instância escrita não admite — a mensagem nomeia o argumento que o removeu | `error` | keel | §4.4 |
 | `from-without-target` | Verbo que depende do tipo do alvo fora de inicialização, atribuição a símbolo conhecido ou retorno | `error` | keel | §4.4 |
 | `captured-write` | Atribuição a escalar capturado, no corpo de um `parallel` | `error` | keel | §4.8 |
 | `else-without-initializer` | Cláusula `else` em declaração sem inicializador | `error` | keel | §4.10 |

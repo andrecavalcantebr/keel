@@ -6,4 +6,4 @@
 typedef struct keel_arena keel_arena;
 #line 8 "app/pool.k"
 bool app_pool_start(keel_arena *a);
-#endif
+#endif /* APP_APP_POOL_H */

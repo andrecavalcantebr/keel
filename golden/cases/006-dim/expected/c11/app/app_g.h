@@ -8,4 +8,4 @@ typedef struct grids_grid_3_f32 grids_grid_3_f32;
 f32 app_g_first(grids_grid_3_f32 *a, grids_grid_3_f32 *b);
 #line 13 "app/g.k"
 int app_g_main(int argc, char **argv);
-#endif
+#endif /* APP_APP_G_H */

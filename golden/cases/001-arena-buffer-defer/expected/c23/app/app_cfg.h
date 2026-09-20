@@ -9,4 +9,4 @@ typedef struct keel_arena keel_arena;
 keel_outcome_i32 app_cfg_sum(keel_arena *a, const char *path);
 #line 30 "app/cfg.k"
 keel_outcome_i32 app_cfg_sum_scratch(const char *path);
-#endif
+#endif /* APP_APP_CFG_H */

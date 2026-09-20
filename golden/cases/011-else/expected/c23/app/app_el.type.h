@@ -5,4 +5,4 @@
 
 #line 4 "app/el.k"
 #include <stdio.h>
-#endif
+#endif /* APP_APP_EL_TYPE_H */

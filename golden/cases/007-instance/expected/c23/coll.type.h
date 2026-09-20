@@ -5,4 +5,4 @@
 
 #line 5 "coll.k"
 constexpr i32 coll_EMPTY = -1;
-#endif
+#endif /* COLL_TYPE_H */

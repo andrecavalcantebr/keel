@@ -15,4 +15,4 @@ keel_outcome_void results_final(bool failure, i32 code);
 i32 results_repair(i32 code);
 #line 32 "results.k"
 keel_corot results_evaluate_cleanup(i32 *counter);
-#endif
+#endif /* RESULTS_H */

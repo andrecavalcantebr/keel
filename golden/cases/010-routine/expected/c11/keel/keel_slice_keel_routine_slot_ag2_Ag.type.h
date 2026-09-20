@@ -4,6 +4,7 @@
 #include "keel.type.h"
 #include "keel/keel_routine_ag2_Ag.type.h"
 
+#line 18 "keel/slice.k"
 typedef struct keel_slice_keel_routine_slot_ag2_Ag {
     size_t len;
     keel_routine_slot_ag2_Ag *ptr;

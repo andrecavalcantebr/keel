@@ -5,4 +5,4 @@
 
 #line 4 "app/ac.k"
 #include <stdio.h>
-#endif
+#endif /* APP_APP_AC_TYPE_H */

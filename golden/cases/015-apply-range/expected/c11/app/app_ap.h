@@ -11,4 +11,4 @@ i32    app_ap_sum_acc(void);
 void   app_ap_traverse(keel_buffer_i32 *xs);
 #line 19 "app/ap.k"
 size_t app_ap_sum_range(keel_range r);
-#endif
+#endif /* APP_APP_AP_H */

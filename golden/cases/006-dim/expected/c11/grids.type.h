@@ -3,4 +3,4 @@
 #define GRIDS_TYPE_H
 #include "keel.type.h"
 
-#endif
+#endif /* GRIDS_TYPE_H */

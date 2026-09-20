@@ -5,4 +5,4 @@
 
 #line 3 "grids.k"
 typedef struct grids_grid_3_f32 { size_t dims[3]; f32 *ptr; } grids_grid_3_f32;
-#endif
+#endif /* GRIDS_GRADE_3_F32_TYPE_H */

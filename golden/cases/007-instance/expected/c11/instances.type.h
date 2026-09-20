@@ -3,4 +3,4 @@
 #define INSTANCES_TYPE_H
 #include "keel.type.h"
 
-#endif
+#endif /* INSTANCES_TYPE_H */

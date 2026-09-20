@@ -480,6 +480,15 @@ valor é módulo comum, importado por quem o usa, e não palavra do núcleo.
 `match` não depende desse import — despacha sobre qualquer tipo que declare
 `tag` —, e é o que mantém o núcleo independente da base.
 
+A base é toda `pub inline`, e isso é decisão de linguagem, não de emissão. O
+que ela oferece — `push`, `get`, `partition`, o cursor — é miolo de laço
+quente, e ali o inline é o que mantém o código junto do dado que ele toca.
+Distribuir corpos fora de linha, pré-compilados na instalação, trocaria isso
+por uma chamada por acesso, salvo LTO, e ainda exigiria uma variante por perfil
+e por `--checks`. A consequência é que `instance` sobre a base nunca tem corpo
+a colocar em lugar nenhum, e o `redundant-instance` diz exatamente isso: o
+aviso é o preço anunciado da escolha, e não defeito a corrigir.
+
 A prioridade da revisão é fechar o núcleo, as verificações do parser e a base
 mínima. Bibliotecas adicionais serão desenvolvidas sobre esses contratos,
 com apoio da experiência de implementação do compilador.
@@ -595,21 +604,21 @@ tem), nunca o contrário (uma visão não tem de onde tirar armazenamento
 próprio — "criá-lo" seria alocar, o que já tem nome, `clone`, e não é
 conversão). Por isso o lado memória importa o lado visão — para devolvê-la —,
 e o lado visão nunca importa o lado memória. Isso não é só estilo: é o que
-evita um ciclo de import genuíno. Se o verbo de recorte fosse um único `of`
+evita um ciclo de import genuíno. Se o verbo de `range-index` fosse um único `of`
 universal, vivendo no módulo da visão e aceitando o lado memória como
 argumento (como uma leitura apressada de `slice.of` sugeriria), o lado visão
 precisaria conhecer o tipo do lado memória — e o lado memória já precisa
-conhecer o da visão, para devolvê-la de `partition` e do próprio recorte.
+conhecer o da visão, para devolvê-la de `partition` e do próprio `range-index`.
 As duas importações juntas são circulares, e a linguagem já recusa isso
 (`circular-import`, §4.1).
 
 A saída, já implementada antes de estar escrita aqui: cada lado memória
-declara seu próprio verbo de recorte, com o nome que fizer sentido para ele
+declara seu próprio verbo de `range-index`, com o nome que fizer sentido para ele
 — `buffer.as_slice`, não `buffer.of` — e o lado visão continua com o seu
 próprio `of`, para recortar a si mesma, sem depender de nada além do próprio
 tipo. `slice` nunca importa `buffer`; é sempre `buffer` que importa `slice`.
 
-Referência: [spec v3 §4.5](keel-spec.md#45-indexação-e-recortes).
+Referência: [spec v3 §4.5](keel-spec.md#45-indexação-e-range-index).
 
 ## Particionável e percorrível
 
@@ -668,7 +677,7 @@ e [§4.8](keel-spec.md#48-execução-particionada).
 A quantidade de workers expressa a divisão solicitada pelo programa. Não fixar
 um teto no PPC permite que a execução use os recursos disponíveis sem
 prometer simultaneidade. Uma parte vazia não exige acesso a dados: o corpo do
-worker executa sobre um recorte de comprimento zero.
+worker executa sobre uma fatia de comprimento zero.
 
 `ALL`, `ANY` e `N` expressam as políticas de conclusão. O flag de interrupção
 comunica um pedido que os workers podem observar e tratar. Fazer o predicado
@@ -876,7 +885,7 @@ funções da base, e a lista de participantes passa a ser um dado — um vetor
 estático, ou um `buffer` montado em execução, entregue por `slice.of`.
 
 O que se ganha é composição sobre dados: entradas escolhidas em tempo de
-execução, o mesmo recorte reaproveitado, o código de cada participante legível
+execução, a mesma fatia reaproveitada, o código de cada participante legível
 na própria entrada depois da chamada. O que se perde é a inserção em linha das
 participantes, porque a chamada passa a ser indireta. É o preço declarado da
 troca, e ele é aceitável na escala em que essas composições operam: uma chamada
@@ -970,7 +979,7 @@ volta em registrador em toda ABI corrente.
 **A linha da tabela chama-se `slot`.** `entry` lia como entrada — em português,
 *input* —, e um campo de saída ali dentro range. O que a linha é, de fato, é um
 lugar que guarda a participante, o contexto e o estado com que ela terminou.
-Mover o estado para fora exigiria um segundo recorte paralelo, com dois
+Mover o estado para fora exigiria uma segunda fatia paralela, com dois
 comprimentos a manter em acordo e um erro novo a diagnosticar: o que a
 composição escreve fica onde a composição já está. O campo continua invisível
 ao programa, que lê por `routine.state(s)` — e o verbo não se chama `outcome`,
@@ -1107,7 +1116,7 @@ Referência: [spec v3 §§4.6–4.9](keel-spec.md#53-keelbuffer-keelslice-e-keel
 ## Cursor explícito
 
 Nem toda sequência responde por índice. Uma lista encadeada, um mapa, um fluxo
-lido por demanda e um recorte cujo comprimento só se conhece ao percorrer não
+lido por demanda e uma fatia cujo comprimento só se conhece ao percorrer não
 declaram `length` nem `ptr`, e exigi-los como condição de travessia obrigaria
 esses módulos a inventar um índice que sua representação não tem — ou a deixar
 a travessia fora do reconhecimento de keel.

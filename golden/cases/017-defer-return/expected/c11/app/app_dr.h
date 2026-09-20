@@ -9,4 +9,4 @@ int  app_dr_consume(app_dr_Rec *r, int mode);
 int  app_dr_two(app_dr_Rec *r, int early);
 #line 29 "app/dr.k"
 void app_dr_nothing(app_dr_Rec *r);
-#endif
+#endif /* APP_APP_DR_H */

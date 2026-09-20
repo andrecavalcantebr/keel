@@ -7,4 +7,4 @@
 #include <stdio.h>
 #line 5 "app/g.k"
 constexpr i8 app_g_DIM = 3;
-#endif
+#endif /* APP_APP_G_TYPE_H */

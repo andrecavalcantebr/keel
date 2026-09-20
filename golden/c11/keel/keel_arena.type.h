@@ -3,9 +3,6 @@
 #define KEEL_KEEL_ARENA_TYPE_H
 #include "keel.type.h"
 
-typedef struct keel_arena {
-    size_t         cap;
-    size_t         top;
-    unsigned char *buf;
-} keel_arena;
+#line 13 "keel/arena.k"
+typedef struct keel_arena { size_t top; size_t cap; u8 *ptr; } keel_arena;
 #endif /* KEEL_KEEL_ARENA_TYPE_H */

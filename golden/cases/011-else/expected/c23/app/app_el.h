@@ -9,4 +9,4 @@ int    app_el_twice(int n);
 int    app_el_twice_log(int n);
 #line 31 "app/el.k"
 size_t app_el_size(int n, i32 *base);
-#endif
+#endif /* APP_APP_EL_H */

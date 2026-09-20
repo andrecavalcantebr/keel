@@ -14,4 +14,4 @@ keel_outcome_u32 ag2_together(ag2_Ag *g);
 keel_outcome_u32 ag2_two(ag2_Ag *g);
 #line 59 "ag2.k"
 keel_outcome_u32 ag2_impossible(ag2_Ag *g);
-#endif
+#endif /* AG2_H */

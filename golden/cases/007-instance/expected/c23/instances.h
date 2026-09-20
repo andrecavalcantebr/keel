@@ -2,4 +2,4 @@
 #ifndef INSTANCES_H
 #define INSTANCES_H
 #include "instances.type.h"
-#endif
+#endif /* INSTANCES_H */

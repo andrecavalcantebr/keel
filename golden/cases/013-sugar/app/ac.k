@@ -22,7 +22,7 @@ pub i32 cube(void) {
     return v[1][2][3];
 }
 
-/* Range index: rvalue, half-open. The four forms of §4.6. */
+/* Range index: rvalue, half-open. The four forms of §4.5. */
 pub size_t cut(buffer i32 *b) {
     slice i32 mid = b[2..7];
     slice i32 tail  = b[5..];

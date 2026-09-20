@@ -9,4 +9,4 @@ int app_cx_sum(app_cx_Cfg *c);
 int app_cx_other(void);
 #line 25 "app/cx.k"
 int app_cx_main(int argc, char **argv);
-#endif
+#endif /* APP_APP_CX_H */

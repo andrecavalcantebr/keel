@@ -7,4 +7,4 @@
 typedef struct keel_tagged_ag_Cycle_void keel_tagged_ag_Cycle_void;
 #line 18 "ag.k"
 keel_corot ag_step(i32 *a, keel_tagged_ag_Cycle_void *st, ag_Agent *ag);
-#endif
+#endif /* AG_H */

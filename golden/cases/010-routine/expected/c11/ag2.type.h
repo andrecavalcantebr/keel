@@ -5,4 +5,4 @@
 
 #line 7 "ag2.k"
 typedef struct ag2_Ag { i32 a, b, c; } ag2_Ag;
-#endif
+#endif /* AG2_TYPE_H */

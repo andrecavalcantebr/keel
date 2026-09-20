@@ -3,5 +3,6 @@
 #define KEEL_KEEL_OUTCOME_F64_TYPE_H
 #include "keel.type.h"
 
+#line 10 "keel/outcome.k"
 typedef struct keel_outcome_f64 { i32 code; f64 value; } keel_outcome_f64;
 #endif /* KEEL_KEEL_OUTCOME_F64_TYPE_H */

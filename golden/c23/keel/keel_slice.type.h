@@ -3,5 +3,8 @@
 #define KEEL_KEEL_SLICE_TYPE_H
 #include "keel.type.h"
 
+#line 13 "keel/slice.k"
+#include <string.h>
+#line 23 "keel/slice.k"
 typedef struct keel_slice_cursor { size_t i; } keel_slice_cursor;
 #endif /* KEEL_KEEL_SLICE_TYPE_H */

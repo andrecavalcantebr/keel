@@ -2,4 +2,4 @@
 #ifndef COLL_H
 #define COLL_H
 #include "coll.type.h"
-#endif
+#endif /* COLL_H */

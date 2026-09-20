@@ -5,4 +5,4 @@
 
 #line 3 "app/p.k"
 #include <stdio.h>
-#endif
+#endif /* APP_APP_P_TYPE_H */

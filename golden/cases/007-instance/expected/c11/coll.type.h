@@ -6,4 +6,4 @@
 #line 5 "coll.k"
 #define coll_EMPTY ((i32)-1)
 static const i32 coll_EMPTY__chk = -1;
-#endif
+#endif /* COLL_TYPE_H */

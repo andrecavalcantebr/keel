@@ -12,14 +12,9 @@ module keel.arena;
 // §4.3).
 pub typedef struct { size_t top, cap; u8 *ptr; } arena;
 
-// `from_stack(a, N)` creates automatic storage in the caller's scope and
-// cannot be reduced to a function: `N` becomes the size of a local array.
-// It is plain C passing opaquely through this file, like any user macro.
-#define from_stack(a, N) u8 keel__arr[N]; from_array((a), keel__arr, (N))
-
-// `alloc(a, T, n)` reads `T` at the call site to get `sizeof`/`_Alignof`;
-// no ordinary function can do that for a `T` chosen at each use.
-#define alloc(a, T, n) ((T *)alloc_((a), sizeof(T), _Alignof(T), (n)))
+// `arena.from_stack(a, N)` declares no function here: it creates automatic
+// storage in the CALLER's scope, so the backend rewrites the call site into a
+// local array plus `from_array` (spec §5.2, backend §5.4).
 
 pub inline bool from_array(arena *a, u8 arr[], size_t len) {
     *a = (arena){0};
@@ -49,10 +44,13 @@ pub inline bool from_parent(arena *a, arena *parent, size_t n) {
     return a->cap > 0;
 }
 
-// aligns the ADDRESS, not the offset — the base may be anywhere (backend
-// §5.4). An overflowing `n * sz` returns NULL (§5.2 §5, backend diagnostic
-// `alloc-overflow`).
-priv inline void *alloc_(arena *a, size_t sz, size_t align, size_t n) {
+// The verb is written `alloc(a, T, n)`: the backend reads `T` at the call site
+// and materializes `sizeof`, `_Alignof` and the cast, so `T` never reaches this
+// function (backend §5.4). Count and element size enter separately, and the
+// product is made here — an `n * sz` that overflows returns NULL, and that is
+// the `alloc-overflow` diagnostic. Aligns the ADDRESS, not the offset: the
+// region may start anywhere.
+pub inline void *alloc(arena *a, size_t n, size_t sz, size_t align) {
     if (sz == 0 || n > SIZE_MAX / sz) return NULL;
     size_t need = n * sz;
     uintptr_t base = (uintptr_t)(a->ptr + a->top);

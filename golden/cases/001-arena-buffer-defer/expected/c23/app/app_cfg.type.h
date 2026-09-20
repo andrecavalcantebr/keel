@@ -7,4 +7,4 @@
 #include <stdio.h>
 #line 8 "app/cfg.k"
 constexpr size_t app_cfg_MAX = 256;
-#endif
+#endif /* APP_APP_CFG_TYPE_H */

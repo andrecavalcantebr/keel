@@ -10,4 +10,4 @@ bool coll_stack_i32_push(coll_stack_i32 *s, i32 v);
 
 #line 10 "coll.k"
 static inline size_t coll_stack_i32_length(coll_stack_i32 *s) { return s->len; }
-#endif
+#endif /* COLL_STACK_I32_H */

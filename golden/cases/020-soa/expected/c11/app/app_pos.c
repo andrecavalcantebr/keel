@@ -22,8 +22,8 @@
 
 
 void app_pos_reserve(app_pos_position *p, keel_arena *a, size_t n) {
-    p->x = (f32 *)keel_arena_alloc_n(a, n, sizeof(f32), _Alignof(f32));
-    p->y = (f32 *)keel_arena_alloc_n(a, n, sizeof(f32), _Alignof(f32));
+    p->x = (f32 *)keel_arena_alloc(a, n, sizeof(f32), _Alignof(f32));
+    p->y = (f32 *)keel_arena_alloc(a, n, sizeof(f32), _Alignof(f32));
     p->cap = n;
     p->len = 0;
 }

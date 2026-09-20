@@ -3,5 +3,8 @@
 #define KEEL_KEEL_BUFFER_TYPE_H
 #include "keel.type.h"
 
+#line 14 "keel/buffer.k"
+#include <string.h>
+#line 22 "keel/buffer.k"
 typedef struct keel_buffer_cursor { size_t i; } keel_buffer_cursor;
 #endif /* KEEL_KEEL_BUFFER_TYPE_H */

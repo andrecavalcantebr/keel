@@ -16,7 +16,9 @@ Aqui:
 | Caminho | Licença |
 | --- | --- |
 | `tools/transform/` e `tools/cgen/` (o parser/backend de `cgen`) | GPLv3, sem exceção |
-| `golden/` (fixtures compiladas e executadas, não geradas da Base) | GPLv3, sem exceção |
+| `golden/` (fixtures compiladas e executadas, não geradas da Base), salvo as duas linhas abaixo | GPLv3, sem exceção |
+| `golden/c11/` e `golden/c23/` — a emissão esperada da Base, escrita à mão como fixture | GPLv3 **+ a exceção abaixo** |
+| `golden/cases/022-linux-list-import-c/`, `023-linux-list-extern-c/`, `024-linux-list-module/` — os casos que embutem o `list.h` do Linux | GPLv2 somente (`GPL-2.0-only`) |
 | `editors/` — as gramáticas de realce (`.json`/`.scm`); o `README.md` de dentro segue a documentação | GPLv3, sem exceção |
 | `base/` — a Base keel, distribuída em `lib/base/` — e qualquer arquivo que leve este aviso | GPLv3 **+ a exceção abaixo** |
 | `keel-spec.md`, `keel-rationale.md`, `keel-c-backend.md`, `cgen-tool-spec.md`, `design/` | [CC BY-SA 4.0](LICENSE-DOCS.md) — prosa, não código; ver `LICENSE-DOCS.md` |
@@ -721,7 +723,8 @@ Additional permission under GNU GPL version 3 section 7.
 
 This is a legal notice, applicable to the files that make up the Keel Base Library — the
 `.k` sources under `base/` in the source repository and under `lib/base/` in
-the distribution, and any file carrying this notice — referred to below as
+the distribution, the expected emission of those sources kept as test fixtures under
+`golden/c11/` and `golden/c23/`, and any file carrying this notice — referred to below as
 "the Base".
 
 **What is exempt.** When `cgen` (the keel transpiler) processes your own `.k` or `.c`

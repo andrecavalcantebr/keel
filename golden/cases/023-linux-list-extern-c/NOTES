@@ -1,0 +1,23 @@
+SPDX-License-Identifier: GPL-2.0-only
+
+O que este caso afirma
+======================
+
+Segundo dos três casos do `list.h` (ver 022, que descreve o `main` comum, a
+origem do header e o dialeto). Aqui o texto do header vai colado, verbatim,
+dentro de `extern_c`.
+
+O achado: P16
+=============
+
+Pela spec §4.1, `extern_c` vai para a implementação, e "um tipo declarado em
+`extern_c` não é visível na interface". Então `pub typedef struct task { …
+struct list_head link; }` quebra no `.type.h`: `struct list_head` está só no
+`.c`. O erro sai do compilador C, não do keel, que não conhece o tipo. O caso
+mantém os tipos `pub`, como nos outros dois, e é esse o ponto em aberto —
+design/cgen-tool.md §13, P16.
+
+Estado
+======
+
+Esqueleto: fonte escrito; `expected/` depende da decisão da P16.

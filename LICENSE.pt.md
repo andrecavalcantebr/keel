@@ -37,7 +37,7 @@ em inglês de `LICENSE.md`, **o inglês prevalece**.
 Permissão adicional sob a seção 7 da GPLv3.
 
 Este é um aviso legal, aplicável aos arquivos que compõem a Biblioteca Base keel — os
-fontes `.k` sob `base/` no repositório e sob `lib/base/` na distribuição, e qualquer arquivo que leve este aviso —, chamada abaixo de "a
+fontes `.k` sob `base/` no repositório e sob `lib/base/` na distribuição, a emissão esperada desses fontes mantida como fixture de teste sob `golden/c11/` e `golden/c23/`, e qualquer arquivo que leve este aviso —, chamada abaixo de "a
 Base".
 
 **O que fica isento.** Quando o `cgen` (o transpilador keel) processa um fonte `.k` ou `.c`

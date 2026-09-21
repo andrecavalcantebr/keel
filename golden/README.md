@@ -149,3 +149,11 @@ Um caso que contém um arquivo `XFAIL` é **xfail**: espera-se que o C esperado
 *não* compile, e o arquivo registra a lacuna da spec e a saída candidata. Se um
 xfail passar a compilar, o runner reporta `XPASS` — o problema foi resolvido e o
 arquivo deve sair.
+
+## Casos com WIP
+
+Um caso que contém um arquivo `WIP` está **em construção**: o fonte existe e o
+`expected/` ainda não. O runner não o verifica nem o compila, e lista a primeira
+linha do arquivo, que diz o que falta. É diferente do `XFAIL`, que afirma um
+esperado escrito e que não compila; o `WIP` não afirma nada, e sai quando o
+`expected/` chegar.

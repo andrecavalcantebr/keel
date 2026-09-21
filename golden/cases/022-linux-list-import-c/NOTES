@@ -1,0 +1,44 @@
+SPDX-License-Identifier: GPL-2.0-only
+
+O que este caso afirma
+======================
+
+Primeiro de três casos de C que ninguém escreveu pensando em keel: o `list.h`
+do Linux, o antípoda do keel em tamanho pequeno. keel gera um tipo específico
+por contêiner e o torna amigável ao tipo; o `list.h` é intrusivo — o nó carrega
+o elo —, apoiado no pré-processador e no dialeto GNU, e gera zero código por
+tipo. Os três casos (022 `import_c`, 023 `extern_c`, 024 módulo) têm o mesmo
+`main`: uma struct com `struct list_head link;`, inserção, remoção durante a
+travessia e listagem — a listagem pelo `walk` do keel e pelo
+`list_for_each_entry` do `list.h`, que têm de concordar.
+
+Esta variante inclui o header por `import_c`: o keel não o abre (spec §4.1) e
+tudo o que vem dele atravessa como C. O que ela exercita:
+
+- o parser de ilhas atravessando macros de laço (`list_for_each_entry_safe`)
+  cujo argumento é um nome de campo, dentro de uma função keel;
+- uma struct keel, de nome manglado, embutindo `struct list_head`;
+- **um nome de tipo keel dentro do argumento de uma macro C**: em `next`,
+  `list_entry(c->at, task, link)` — o `task` tem de sair manglado;
+- `->next`, campo C, ao lado do verbo `next` do próprio módulo.
+
+O `list.h`
+==========
+
+`linux/list.h` é o `tools/include/linux/list.h` do Linux, podado: as mudanças
+estão no cabeçalho do próprio arquivo. É GPLv2 somente, e por isso os três
+casos também o são (LICENSE.md, tabela de âmbito).
+
+O dialeto
+=========
+
+`container_of` usa statement expression e `typeof`: o caso compila com
+`-std=gnu11`/`gnu2x` e **sem** `-pedantic-errors`, que recusa `({ … })` mesmo
+em modo GNU. O dialeto do C preservado é escolha do build (spec §1; a
+ferramenta lê `gnu*` pelo perfil, cgen-tool-spec §4.9). O `VERIFY` que fixa
+essas flags ainda não foi escrito.
+
+Estado
+======
+
+Esqueleto: fonte escrito, `expected/` e `VERIFY` por fazer.

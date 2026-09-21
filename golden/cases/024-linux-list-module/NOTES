@@ -1,0 +1,37 @@
+SPDX-License-Identifier: GPL-2.0-only
+
+O que este caso afirma
+======================
+
+Terceiro dos três casos do `list.h` (ver 022, que descreve o `main` comum, a
+origem do header e o dialeto). Aqui o header vira o módulo `linux.list`, e o
+número de edições que ele pede é a medida de quão intrusivo o keel é sobre C
+que já existe.
+
+O `main` é o mesmo, a menos da qualificação: as funções do módulo se chamam
+`list.list_add_tail(…)`, e as macros continuam nuas — elas não são símbolos de
+módulo. Essa assimetria é parte do que o caso mostra.
+
+Primeiro corte: só a linha `module`
+===================================
+
+`linux/list.k` é o `list.h` do 022 com uma linha a mais, `module linux.list;`.
+O que o keel vai recusar ou quebrar, já visível sem ferramenta:
+
+- os 26 `static inline` sem visibilidade: `inline-without-visibility`
+  (spec §4.1) — cada um vira `pub inline`;
+- as funções são mangladas, e as macros não são reescritas (as diretivas se
+  preservam): `list_first_entry_or_null` e `list_last_entry_or_null` chamam
+  `list_empty` pelo nome C;
+- a tag `struct list_head` entra no nome canônico (spec §4.2), e o
+  `LIST_HEAD(name)` a escreve por extenso dentro de um `#define`;
+- o ramo `CONFIG_DEBUG_LIST`, com declarações `extern`;
+- para onde vão os `#define` do módulo — sem isso `list_for_each_entry` não
+  chega ao importador: P16, design/cgen-tool.md §13.
+
+A contagem final das edições é resultado do caso, e vai aqui quando fechar.
+
+Estado
+======
+
+Esqueleto: fonte no primeiro corte; `expected/` depende da P16.

@@ -12,3 +12,6 @@ compile_commands.json
 # o executável do projeto. ANCORADO de propósito: sem a barra, `cgen`
 # casaria todo diretório com esse nome e engoliria a árvore sem avisar.
 /tools/cgen/cgen
+
+# configuração local do Claude Code, por máquina
+/.claude/settings.local.json

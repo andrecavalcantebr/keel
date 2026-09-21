@@ -438,7 +438,7 @@ identificador que ele tem, e por isso carrega o símbolo inteiro.
 
 O `.type.h` recebe os `import_c`, as definições de tipo, as declarações adiantadas que os campos por ponteiro exigem e os `constexpr` de módulo.
 O `.h` recebe os protótipos de função e as declarações `extern` de variáveis, depois os corpos `inline`, e traz o `.type.h` por inclusão: é o arquivo que se inclui para usar o módulo.
-O `.c` recebe os corpos fora de linha, as definições de variáveis e os blocos `extern_c`.
+O `.c` recebe os corpos fora de linha, as definições de variáveis e os blocos `priv extern_c`.
 
 Quem decide em qual deles cada declaração vai é `pub`/`priv` (linguagem §4.1) **e a camada** (§4.3.1). A tabela do posicionamento é deste documento, porque é ela que fala de arquivo:
 
@@ -453,7 +453,10 @@ Quem decide em qual deles cada declaração vai é `pub`/`priv` (linguagem §4.1
 | variável `priv` | — | — | definição, com `static` |
 | tipo `priv` | definição | — | — |
 | `import_c` | `#include` | — | — |
-| `extern_c { … }` | — | — | o conteúdo, intacto |
+| `extern_c { … }` / `pub extern_c { … }` | — | o conteúdo, intacto | — |
+| `extern_c [type_h] { … }` / `pub extern_c [type_h] { … }` | o conteúdo, intacto | — | — |
+| `priv extern_c { … }` | — | — | o conteúdo, intacto |
+| diretiva de topo | — | preservada | — |
 
 O mapeamento nem é monotônico: `pub inline` sai como `static inline` no `.h`. Público no keel virou `static` no C.
 
@@ -467,14 +470,22 @@ Variável pública **nunca** vai para o `.h` como `static`. Isso compila e linka
 
 **`import_c` vai para o `.type.h`, a camada mais baixa**, porque é o único lugar de onde todas as outras o enxergam, e um tipo do módulo pode precisar do header: `pub struct Log { FILE *f; };` não compila se `<stdio.h>` chega depois do `.type.h`, e `FILE` não admite declaração adiantada. O header é de fora, não é gerado, e a regra 1 do §4.3.2 não fala dele. O preço é um contrato que o keel não verifica, porque não abre o header (linguagem §4.1): **o header de um `import_c` não inclui gerado do próprio módulo**. Se incluir, o ciclo passa pela guarda com o módulo pela metade, e a falha é do compilador C, pelo princípio 3 — é o mesmo ciclo que o C já tem entre dois headers que se incluem.
 
-**`extern_c` vai para o `.c`, inteiro.** O conteúdo é opaco e pode misturar tipo com corpo de função; num header, os corpos dariam definição múltipla, e o keel não tem como separar um do outro sem entender o C. Um tipo declarado ali é, portanto, privado do `.c`. **Tipo C que atravessa a interface mora num header, e entra por `import_c`**:
+**`extern_c` segue `pub`/`priv` como qualquer construção de arquivo, com destino determinado pelo modificador de camada `[type_h]`.** O padrão, sem qualificador ou com `pub`, é público. O conteúdo é opaco: keel não inspeciona o que está dentro. A responsabilidade por definição múltipla em caso de corpo não-`inline` num bloco público é do programa — o mesmo contrato que o C já impõe para headers escritos à mão.
+
+- `extern_c { … }` / `pub extern_c { … }` → `.h`. Use quando o conteúdo é interface C pública: protótipos, macros, `static inline`.
+- `extern_c [type_h] { … }` / `pub extern_c [type_h] { … }` → `.type.h`. Use quando o conteúdo define tipos que outros construtos do próprio módulo precisam — o mesmo motivo que leva `import_c` para `.type.h`.
+- `priv extern_c { … }` → `.c`. O conteúdo é privado e não chega ao importador.
 
 ```keel
-import_c "legacy.h";            // typedef struct legacy legacy_t;  → .type.h
-pub void use(legacy_t *x);      // the type arrives before the prototype
-
-extern_c {                      // → .c: private C, no mangling
-    static legacy_t cache;
+extern_c [type_h] {          // → .type.h: struct usada em pub typedef abaixo
+    struct list_head { struct list_head *next, *prev; };
+}
+extern_c {                   // → .h: macros e static inline públicos
+    #define LIST_HEAD_INIT(name) { &(name), &(name) }
+    static inline void INIT_LIST_HEAD(struct list_head *l) { l->next = l->prev = l; }
+}
+priv extern_c {              // → .c: implementação privada, sem mangling
+    static struct list_head cache;
     void legacy_init(void) { /* ... */ }
 }
 ```

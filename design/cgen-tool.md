@@ -770,15 +770,13 @@ e o código de saída do `cc` — subiram para a spec da ferramenta.)
 
 ## 13. Pendências nos normativos
 
-**Uma em aberto:**
-
-| | Onde | Divergência |
-| --- | --- | --- |
-| P16 | spec §4.1 × golden (caso `list.h`) | **Visibilidade do C que atravessa o módulo.** A §4.1 manda `import_c` para a interface e `extern_c` para a implementação, e não diz para onde vai o `#define` de nível de arquivo. O primeiro caso de C real já mostra o custo: o `list.h` colado em `extern_c` só serve a uso `priv` — um `pub struct` que embuta `struct list_head` quebra no `.type.h` — e, reescrito como módulo, `list_for_each_entry` só serve ao importador se sair no `.h`. A leitura do André: em C **tudo é público**, e `extern_c` é o meio-termo entre C e keel, podendo ter a mesma leitura; o contrapeso já está escrito no backend §4.1 ("`extern_c` vai para o `.c`, inteiro"): o conteúdo é opaco e pode misturar tipo com corpo, e num header um corpo não-`inline` dá definição múltipla — o keel não separa um do outro sem entender o C; a saída prescrita é "tipo C que atravessa a interface mora num header, e entra por `import_c`". O `list.h` passa no teste porque é só `static inline` e macro; o caso geral, não. Briefing em `.claude/p16-visibilidade-do-c.md`. A discutir |
+**Nenhuma pendência em aberto.**
 
 O que este documento levantou antes, enquanto era escrito, já está nos
 normativos; o registro abaixo fica para que cada decisão seja rastreável até
 onde ela mora hoje.
+
+Resolvida em 2026-09-21: P16 (visibilidade do C que atravessa o módulo). `extern_c` passa a seguir `pub`/`priv` como qualquer construção de arquivo; o modificador `[type_h]` direciona o conteúdo para `.type.h`; `extern_c` sem `[type_h]` vai para `.h`; `priv extern_c` vai para `.c`; `priv extern_c [type_h]` é erro (`type-layer-on-priv-extern-c`). Diretivas de topo vão para `.h`; dentro de construto, seguem o construto. Spec §4.1, backend §4.1.
 
 Resolvida em 2026-09-20: P15 (golden derivado da `/base` — `#line` em toda
 declaração levada a header, prosa fora, instâncias inteiras pela regra do

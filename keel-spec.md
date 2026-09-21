@@ -207,7 +207,7 @@ top-item    ::= import | import-c | extern-c | top-decl | <opaque>
 
 import       ::= 'import' module-name [ 'as' IDENT ] [ 'types' ] ';'
 import-c     ::= 'import_c' ( system-header | STRING ) ';'
-extern-c     ::= 'extern_c' '{' <opaque> '}'
+extern-c     ::= [ 'pub' | 'priv' ] 'extern_c' [ '[type_h]' ] '{' <opaque> '}'
 
 top-decl    ::= [ 'pub' | 'priv' ]
                  ( decl-modifier | decl-instance | decl-tags
@@ -987,7 +987,9 @@ module geom;
 import util;
 import shapes as f types;
 import_c <stdio.h>;
+extern_c [type_h] { struct point { double x, y; }; }
 extern_c { int external_op(int); }
+priv extern_c { static int cache; }
 pub i32 counter;
 priv i32 helper(i32 x) { return x; }
 ```
@@ -1013,7 +1015,7 @@ priv i32 helper(i32 x) { return x; }
 - O módulo e o modificador que ele declara têm identidades distintas. Em `import keel.outcome as outcome types;`, `outcome` é o alias do módulo; `outcome.outcome` é o nome qualificado do modificador. `types` permite escrever esse modificador como `outcome` em posição de tipo. Em `outcome.ok(r)`, o prefixo qualifica um verbo do módulo. Essa distinção vale também para módulos cujos nomes não coincidem com seus modificadores.
 - A resolução pode alcançar símbolos públicos de imports transitivos; o uso sem import direto tem o diagnóstico informativo `indirect-import`.
 - Colisões são verificadas entre os símbolos exportados do módulo e do fecho transitivo de seus imports. A comparação usa os nomes canônicos efetivos, incluindo tags, typedefs e constantes de enum (§4.2).
-- `import_c` emite a inclusão na interface. `extern_c` preserva o conteúdo na implementação, sem aplicar mangling aos símbolos ali declarados; um tipo declarado em `extern_c` não é visível na interface, e o que precisa ser visível vai num header, por `import_c`.
+- `import_c` emite a inclusão na interface. `extern_c` preserva o conteúdo, sem aplicar mangling aos símbolos ali declarados. O destino depende do qualificador e do modificador de camada: sem `priv`, o conteúdo compõe a interface — `[type_h]` o direciona para a camada de tipos (`.type.h`), e sem `[type_h]` ele vai para o `.h`; `priv` o direciona para a implementação (`.c`). O par `priv extern_c [type_h]` é inválido: as intenções são contraditórias. keel não inspeciona o conteúdo de `extern_c`; a responsabilidade por definição múltipla em caso de corpo não-`inline` num bloco público é do programa. Diretivas de pré-processamento (`#define`, `#include`, `#if` etc.) no nível de arquivo vão para o `.h`; dentro de um construto, acompanham o destino do construto.
 - `main` é uma função pública do módulo e recebe seu prefixo. A seleção do módulo de entrada pela ferramenta gera o wrapper C `main`, que chama essa função. Módulos diferentes podem declarar suas próprias funções `main`.
 - O único import implícito é `import keel types;`. A base é composta de módulos comuns, e todos exigem import explícito, como `import keel.slice as slice types;`: `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7). Nenhum deles é palavra do núcleo, e as construções os alcançam pelos protocolos da §4.4.
 - Bibliotecas adicionais possuem contratos próprios.
@@ -1035,6 +1037,7 @@ As verificações abaixo pertencem a keel, durante a tradução:
 | Alias repetido, ou igual ao qualificador de outro import, inclusive o `keel` implícito | `duplicate-alias` |
 | Nome injetado sombreado; lista dos nomes injetados | `shadowed-injected-name` (`warning`); `injected-names` (`info`) |
 | `pub static` sem `inline`, `static inline` sem visibilidade explícita, ou `static` sobre tipo | `pub-static`; `inline-without-visibility`; `static-on-type` |
+| `priv extern_c [type_h]` — qualificadores contraditórios | `type-layer-on-priv-extern-c` |
 | Uso de símbolo importado somente de modo transitivo | `indirect-import` (`info`) |
 
 A validação semântica das declarações C é do compilador C. Delimitadores de
@@ -3260,6 +3263,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `symbol-collision` | Colisão de símbolos exportados no módulo e no fecho transitivo de imports | `error` | keel | §4.1 |
 | `circular-import` | Import circular, com a cadeia completa na mensagem | `error` | keel | §4.1 |
 | `nested-extern-c` | `extern_c` em posição aninhada, isto é, fora do nível de arquivo | `error` | keel | §4.1 |
+| `type-layer-on-priv-extern-c` | `priv extern_c [type_h]` — qualificadores contraditórios | `error` | keel | §4.1 |
 | `main-in-extern-c` | `main` definida dentro de `extern_c` | `error` | keel | §4.1 |
 | `private-main` | `priv` aplicado a `main` | `error` | keel | §4.1 |
 | `invalid-main-signature` | `main` assinada fora das duas formas do C | `error` | keel | §4.1 |

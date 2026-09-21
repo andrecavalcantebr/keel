@@ -663,7 +663,7 @@ static inline void list_del_range(struct list_head *begin,
 	for (; pos != (head); pos = pos->next)
 
 #endif /* __TOOLS_LINUX_LIST_H */
-}
+}  //extern_c
 
 /* list.h is intrusive: the node carries the link, and the list knows nothing
    of the type around it. `task` is a keel name — mangled — with a C field. */

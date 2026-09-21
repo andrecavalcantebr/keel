@@ -1,6 +1,7 @@
 # Each header tree has its own compilation database, because the repository
 # has several with the SAME names and different contents —
-# `gen/keel/keel_buffer_i32.type.h` is not the one in `golden/c23/keel/`.
+# `tools/cgen/gen/keel/keel_buffer_i32.type.h` is not the one in
+# `golden/c23/keel/`, and neither is the one in `tools/transform/gen/`.
 # clangd finds the right one walking up from the open file:
 # `golden/compile_commands.json` for the suite, the root one for the rest.
 #

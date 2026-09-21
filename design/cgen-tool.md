@@ -250,10 +250,11 @@ tools/cgen/src/
 
 > **Nada em `engine/` abre arquivo, escreve arquivo ou termina o processo.**
 
-A fronteira é verificável sem executar nada, e o build deve verificá-la: nenhum
-fonte de `engine/` inclui `<stdio.h>`, `<stdlib.h>`, `<unistd.h>`, `<fcntl.h>`
-nem `<sys/*.h>`. É a mesma espécie de invariante estrutural que o runner do
-golden aplica ao gerado (I1 e I2), e pela mesma razão — uma regra que só se
+A fronteira é verificável sem executar nada, e **o build a verifica**: o alvo
+`boundary` do `tools/cgen/Makefile` recusa qualquer fonte de `engine/` que
+inclua `<stdio.h>`, `<stdlib.h>`, `<unistd.h>`, `<fcntl.h>` ou `<sys/*.h>`, e
+roda junto com `all`. É a mesma espécie de invariante estrutural que o runner
+do golden aplica ao gerado (I1 e I2), e pela mesma razão — uma regra que só se
 verifica lendo o código é uma regra que vai se perder.
 
 O que a separação compra, além da disciplina: o motor é testável **sem sistema

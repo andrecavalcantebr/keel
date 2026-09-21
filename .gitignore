@@ -2,12 +2,11 @@
 compile_commands.json
 
 # a árvore da base, gerada dos .k de tools/transform/base por tools/transform
-/gen/
 /tools/transform/gen/
 /tools/cgen/gen/
 
 # build
-obj/
+/tools/*/obj/
 *.out
 
 # o executável do projeto. ANCORADO de propósito: sem a barra, `cgen`

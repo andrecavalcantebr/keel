@@ -35,8 +35,10 @@ entry() {  # $1 = relative file, $2... = flags
 {
   printf '[\n'
 
-  # the cgen: sees the base generated in tools/cgen/gen and its own sources
-  for c in $(find tools/cgen/src -maxdepth 1 -name '*.c' 2>/dev/null | sort); do
+  # the cgen: sees the base generated in tools/cgen/gen and its own sources.
+  # No -maxdepth: the sources live in src/tool/ and src/engine/ (cgen design
+  # 3.1, D8), and emit/ is one level further down.
+  for c in $(find tools/cgen/src -name '*.c' 2>/dev/null | sort); do
     entry "$c" "-I tools/cgen/gen -I tools/cgen/src"
   done
 

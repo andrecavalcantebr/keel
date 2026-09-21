@@ -216,24 +216,55 @@ A identidade da invocação é o símbolo da instância — é ele que nomeia o 
 
 ### 3.1 Arquivos
 
-Em `tools/cgen/src/`, um par `.c`/`.h` por responsabilidade:
+A spec da ferramenta §3 já separa E/S de tradução, e diz que a separação "é de
+responsabilidade, não de empacotamento". **[D8] O fonte torna essa fronteira
+visível: dois diretórios, um executável.**
 
-| Arquivo | Responsabilidade | Não faz |
+```plain
+tools/cgen/src/
+    tool/       depende da invocação e do sistema de arquivos
+    engine/     depende só do fonte
+```
+
+| `tool/` | Responsabilidade | Não faz |
 | --- | --- | --- |
-| `main.c` | `argv` → `KInvocation`; escolhe o modo | nada de E/S além de chamar os outros |
+| `main.c` | `argv` → `KInvocation`; escolhe o modo; único `exit` do programa | não traduz |
 | `args.c` | partição (§2.5), validação de valores | não resolve caminho |
 | `paths.c` | normalização, raiz de um fonte, módulo ↔ caminho `.k`, símbolo ↔ gerado, executável real (§2.7) | não abre arquivo |
 | `tool.c` | `carrega`/`processa` (spec §3), pilha de carga, memoização, fecho de mtime | não parseia |
-| `lexer.c` | [`lexer-design.md`](lexer-design.md) | — |
-| `parser.c`, `symtab.c` | ilhas, declarações, tabela de símbolos | não abre arquivo, não escreve |
-| `emit.c` | backend: `.type.h` e `.h` de tudo que é alcançado; `.c` só do compilado | não escreve em disco |
 | `writer.c` | spec da ferramenta §6: comparar, temporário, `rename` | não gera conteúdo |
 | `depfile.c` | §7 | — |
 | `cc.c` | monta o `argv` do `cc`, `posix_spawnp` + `waitpid` | — |
-| `diag.c` | `KDiagnosticSink`, formatação, filtros `-W`, contagem de `error` | não termina o processo |
+| `report.c` | escreve o diagnóstico em `stderr`, na ordem do §4 | não decide severidade |
 
-Só `main.c` chama `exit`. Parser e lexer não fazem E/S (spec §3); o parser
-chama de volta `tool.c` por ponteiro de função:
+| `engine/` | Responsabilidade | Não faz |
+| --- | --- | --- |
+| `lexer.c` | [`lexer-design.md`](lexer-design.md) | — |
+| `parser.c` | ilhas, declarações, resolução (linguagem §4.4) | — |
+| `symtab.c` | tabela de símbolos, fecho de imports, instâncias pedidas | — |
+| `emit/` | [`codegen-design.md`](codegen-design.md) — os três artefatos | — |
+| `diag.c` | `KDiagnosticSink`: acumula, classifica, filtra por `-W`, conta `error` | não formata para terminal, não escreve |
+
+> **Nada em `engine/` abre arquivo, escreve arquivo ou termina o processo.**
+
+A fronteira é verificável sem executar nada, e o build deve verificá-la: nenhum
+fonte de `engine/` inclui `<stdio.h>`, `<stdlib.h>`, `<unistd.h>`, `<fcntl.h>`
+nem `<sys/*.h>`. É a mesma espécie de invariante estrutural que o runner do
+golden aplica ao gerado (I1 e I2), e pela mesma razão — uma regra que só se
+verifica lendo o código é uma regra que vai se perder.
+
+O que a separação compra, além da disciplina: o motor é testável **sem sistema
+de arquivos**. Um teste entrega bytes e um `KLoader` de mentira que devolve
+módulos de um vetor em memória, e confere os buffers de saída. Nenhum
+diretório temporário, nenhum `mkstemp`, nenhuma limpeza.
+
+`diag.c` fica no motor e `report.c` na ferramenta porque as duas metades do
+diagnóstico têm donos diferentes: **qual** é a condição e **qual** a severidade
+dependem só do fonte; a cor no terminal, a ordem entre módulos e o destino
+dependem da invocação.
+
+O parser chama de volta `tool.c` por ponteiro de função — é a única aresta que
+sobe do motor para a ferramenta, e ela é de dados, não de controle de processo:
 
 ```c
 typedef enum { K_LOAD_OK, K_LOAD_ALREADY, K_LOAD_NOT_FOUND, K_LOAD_ERROR } KLoadResult;
@@ -728,6 +759,7 @@ transform deixa de ser necessário.
 | D3 | `--main` sem `-c` compila a unidade de entrada na mesma chamada; com `-c`, só gera | `cgen --main m m.k -o prog` tem de dar executável; `-c -o` com dois `.c` é erro do gcc |
 | D6 | `-I D` vai no fim da linha do `cc` | as raízes do usuário mantêm precedência; a spec §4.4 põe `-I gen` no meio, mas o exemplo é ilustrativo e o efeito é o mesmo |
 | D7 | A classe de token em `--stop-after=lex` é calculada sobre a grafia lógica | é o que o parser vê; imprimir `ident` para `ret\`+`urn` esconderia justamente a emenda que se quer depurar |
+| D8 | O fonte se parte em `tool/` e `engine/`, num executável só | a spec da ferramenta §3 já separa E/S de tradução por responsabilidade; o diretório é o que torna a fronteira verificável por grep, em vez de por leitura |
 
 (D1, D4 e D5 da primeira versão — o `.` padrão de `-I`, `base-not-found`
 e o código de saída do `cc` — subiram para a spec da ferramenta.)

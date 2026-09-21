@@ -7,7 +7,7 @@
 > licença própria, ver [`LICENSE.md`](../LICENSE.md). Escrita e revisão
 > tiveram auxílio de Claude Opus (Anthropic), sob direção humana.
 
-**Documento de implementação.** Cobre o `emit.c` da
+**Documento de implementação.** Cobre o `engine/emit/` da
 [`cgen-tool.md`](cgen-tool.md) §3.1 — a parte do cgen que transforma o que o
 parser entendeu nos arquivos que o compilador C vai ler. O contrato do conteúdo
 gerado é [`keel-c-backend.md`](../keel-c-backend.md) (o "backend"); o da
@@ -16,7 +16,7 @@ regra: ele fixa **como** produzir o que o backend exige, e em que ordem, para
 que a implementação não precise reconstruir o raciocínio a cada construção.
 
 Onde **decide** algo que os normativos deixam aberto, a decisão vem marcada
-**[E*n*]** e listada na §10.
+**[E*n*]** e listada na §11.
 
 ---
 
@@ -26,7 +26,7 @@ O emissor recebe um módulo já parseado e a tabela de símbolos, e produz de do
 a três arquivos de texto (backend §4.1). Não abre arquivo, não escreve em disco
 e não chama o `cc`: devolve buffers ao `tool.c`, que compara e renomeia
 (spec da ferramenta §6). Não emite diagnóstico de linguagem — o parser já os
-emitiu; os poucos que são do emissor estão na §8.
+emitiu; os dois que são dele estão na §5.
 
 **A saída é função da entrada, byte a byte** (backend §7.1). Essa é a
 propriedade que governa todas as decisões abaixo: onde houver liberdade de
@@ -41,7 +41,63 @@ mude os dois.
 
 ---
 
-## 2. A entrada
+## 2. Os arquivos
+
+O emissor mora em `engine/emit/` (desenho do cgen §3.1, **[D8]**) e não é um
+arquivo só. **[E5] Um `.c` por funcionalidade**, com a mecânica comum em
+arquivos próprios.
+
+```plain
+engine/emit/
+    emit.c        o orquestrador: monta os três arquivos e chama o resto
+    writer.c      KWriter — os dois contadores, o #line, o buffer      §8
+    mangle.c      nome canônico → símbolo, arquivo, guarda             §5
+    layer.c       camadas L0–L3, posicionamento, as quatro seções      §4
+    instance.c    fecho, superfície degenerada, emissão de instância   §7
+```
+
+E uma por construção, na correspondência com as seções do backend §5:
+
+| Arquivo | Backend | Construção |
+| --- | --- | --- |
+| `decl.c` | §5.1 | declarações; substituição local de nome |
+| `container.c` | §5.2 | struct de instância e seus verbos |
+| `index.c` | §5.3 | `x[i]`, `x[i,j]`, e o `assert` sob `--checks` |
+| `arena.c` | §5.4 | a reescrita de `alloc(a,T,n)` e `from_stack` |
+| `defer.c` | §5.5 | varredura de saídas e injeção do corpo |
+| `match.c` | §5.6 | `tags` e o despacho |
+| `loop.c` | §5.7 | `foreach` e `apply` |
+| `entry.c` | §5.8 | a unidade de ponto de entrada |
+| `parallel.c` | §5.9 | o gestor, o `#pragma` e os dois lowerings |
+| `result.c` | §5.12–5.14 | `else`, `at`, `outcome` e `corot` |
+
+Três observações sobre o corte:
+
+**As seções 5.10 e 5.11 do backend não têm arquivo.** `keel.routine` e o par cursor/partição são
+funções de instância como outras quaisquer — quem as emite é `container.c`. Um
+arquivo para elas seria um arquivo vazio com um comentário dizendo que não faz
+nada, e a tabela acima já diz isso melhor.
+
+**`result.c` agrupa três seções** porque `else`, `at` e os produtores de
+`outcome`/`corot` são a mesma peça vista de três lados: `x = f() else …` testa
+o `failed` que `at` produz e que `win`/`fail` escrevem. Separá-los daria três
+arquivos que só se chamam entre si.
+
+**A fronteira que interessa é a do `writer.c`.** Nenhum dos arquivos de
+construção escreve texto direto no buffer: todos passam pelo `KWriter`, que é
+o único que conhece os contadores de linha. É a decisão **[E4]**, e é ela que
+dá sentido ao corte — cada arquivo de construção decide **o quê** emitir, e um
+arquivo só decide **onde a linha cai**.
+
+O acoplamento que sobra entre eles é pequeno e num sentido só: `emit.c` chama
+os demais; os demais chamam `writer.c`, `mangle.c` e `layer.c`. Construção não
+chama construção, com uma exceção inevitável — `defer.c` roda **depois** de
+todas, sobre o corpo já emitido, porque precisa dos pontos de saída que as
+outras criaram (backend §5.5.1, "`defer` é a última passagem de fluxo").
+
+---
+
+## 3. A entrada
 
 ```c
 typedef struct {
@@ -55,15 +111,15 @@ typedef struct {
 ```
 
 **`decl` preserva a ordem do fonte.** Não é conveniência: a ordem de emissão é a
-ordem de declaração (§5), e um emissor que reordenasse teria que justificar a
+ordem de declaração (§6), e um emissor que reordenasse teria que justificar a
 nova ordem e mantê-la estável.
 
 **`instances` já vem fechado.** Quem o fecha é o parser, ao resolver os usos;
-o emissor não descobre instância nova enquanto emite. A razão está na §6.
+o emissor não descobre instância nova enquanto emite. A razão está na §7.
 
 ---
 
-## 3. Os três arquivos
+## 4. Os três arquivos
 
 O emissor produz `.type.h`, `.h` e — só quando `compiled` — `.c`. O backend §4.1
 dá a tabela de quem vai onde, e ela se lê como uma função de duas entradas:
@@ -94,7 +150,7 @@ primeira vez, porque as três compilam e só falham depois:
 3. **`import_c` vai para o `.type.h`**, a camada mais baixa, porque um tipo do
    módulo pode precisar do header (`pub struct Log { FILE *f; };`).
 
-### 3.1 As quatro seções do `.h`
+### 4.1 As quatro seções do `.h`
 
 O `.h` tem quatro seções, nesta ordem (backend §4.3.2, regra 2), e o runner do
 golden verifica a ordem sem compilar nada (invariantes I1 e I2):
@@ -112,7 +168,7 @@ e é por isso que `pub inline` leva protótipo *e* corpo, não só o corpo.
 **A seção 3 depois da 2 é o que quebra o ciclo de chamada.** O ciclo de layout
 já é acíclico pelo corte em dois; o de chamada fica inofensivo por esta ordem.
 
-### 3.2 O cabeçalho e a guarda
+### 4.2 O cabeçalho e a guarda
 
 Toda saída abre com uma linha (desenho do cgen §5.3) e fecha com a guarda
 comentada:
@@ -135,7 +191,7 @@ determinismo.
 
 ---
 
-## 4. Nomes
+## 5. Nomes
 
 O mangling é do backend §2.1 e se resolve por concatenação, sem tabela:
 
@@ -164,7 +220,7 @@ Duas verificações são do emissor, porque só ele conhece o nome final:
 
 ---
 
-## 5. A ordem de emissão
+## 6. A ordem de emissão
 
 > **[E2] A ordem de emissão é a ordem de declaração no `.k`, em toda seção.**
 
@@ -184,16 +240,16 @@ aparece no fonte**.
 
 ---
 
-## 6. As instâncias
+## 7. As instâncias
 
-### 6.1 Quem instancia é quem usa
+### 7.1 Quem instancia é quem usa
 
 Uma instância é criada pelo **uso**, não pela declaração do tipo argumento
 (backend §4.3). Dois módulos que usam `buffer i32` geram o mesmo header, byte a
 byte, e a segunda escrita é no-op — é isso que torna a corrida sob `make -j`
 inofensiva.
 
-### 6.2 A instância sai inteira
+### 7.2 A instância sai inteira
 
 > **O header de instância embutida é função apenas do próprio nome** (backend
 > §7.2).
@@ -204,7 +260,7 @@ pediu chama. Recortar faria o arquivo ser função de quem o usa, e aí dois
 módulos com usos diferentes escreveriam conteúdos diferentes no mesmo caminho,
 em laço, retriggando compilação — exatamente o que o §7.1 existe para evitar.
 
-### 6.3 O fecho transitivo
+### 7.3 O fecho transitivo
 
 Emitir a instância inteira puxa as instâncias que os verbos dela mencionam:
 
@@ -215,14 +271,14 @@ buffer i32  ──clone──▶ outcome buffer i32
             ──as_slice, partition──▶ slice i32
 ```
 
-O fecho é calculado pelo parser, antes da emissão (§2), e converge: `outcome T`
+O fecho é calculado pelo parser, antes da emissão (§3), e converge: `outcome T`
 não declara verbo que crie instância nova.
 
 **O grafo de layout tem de ser acíclico** (backend §4.3.1). Campo por valor é
 L1→L1; campo por ponteiro é L1→L0 e corta a aresta. `layout-cycle` é o
 diagnóstico quando não corta.
 
-### 6.4 Instanciação degenerada
+### 7.4 Instanciação degenerada
 
 Nem todo verbo do genérico sobrevive a todo argumento (spec §4.3):
 
@@ -256,7 +312,7 @@ argumentos), exposta ao parser**, não um efeito colateral da emissão.
 
 ---
 
-## 7. O mapeamento de linhas
+## 8. O mapeamento de linhas
 
 A invariante do backend §6 é mecânica e dispensa lista de casos:
 
@@ -298,7 +354,7 @@ Quatro consequências que o emissor tem que honrar:
 por ponteiro, o `#include` do próprio `.type.h`. Falha ali é bug de ferramenta,
 não erro do usuário, e apontar para o `.k` mentiria.
 
-### 7.1 A nota de instanciação
+### 8.1 A nota de instanciação
 
 `#line` leva o erro dentro de uma instância ao fonte do genérico — certo, mas não
 diz **qual** instanciação quebrou. A instância carrega a posição do primeiro uso
@@ -314,14 +370,14 @@ alcança, e ele exige que a instância guarde a posição de criação.
 
 ---
 
-## 8. Determinismo: onde ele escapa
+## 9. Determinismo: onde ele escapa
 
 O backend §7.1 exige saída byte a byte idêntica em qualquer máquina. As fontes
 de variação, e o que fazer com cada uma:
 
 | Fonte | Remédio |
 | --- | --- |
-| Iteração sobre hash table | ordenar por chave antes de emitir, ou não iterar — usar a lista ordenada do fonte (§5) |
+| Iteração sobre hash table | ordenar por chave antes de emitir, ou não iterar — usar a lista ordenada do fonte (§6) |
 | Ordem de descoberta de instância | o fecho é ordenado pelo símbolo canônico |
 | Caminho absoluto no `#line` | a string é o caminho **normalizado do módulo**, com `.k`, nunca o do sistema de arquivos |
 | Data, versão, hostname | não entram em arquivo gerado, em hipótese alguma |
@@ -334,7 +390,7 @@ comparar.
 
 ---
 
-## 9. O que cada construção pede do emissor
+## 10. O que cada construção pede do emissor
 
 A tradução de cada construção é do backend §5. A tabela abaixo diz o que cada
 uma exige da mecânica deste documento, que é o que a implementação precisa ter
@@ -343,7 +399,7 @@ pronto antes de atacá-las:
 | Construção | Backend | Precisa de |
 | --- | --- | --- |
 | declaração com modificador | §5.1 | mangling; troca local de nome, sem gramática de declarador C |
-| contêiner (struct + verbos) | §5.2 | instância inteira (§6.2), fecho (§6.3), camadas |
+| contêiner (struct + verbos) | §5.2 | instância inteira (§7.2), fecho (§7.3), camadas |
 | açúcar `x[i]`, `x[i,j]` | §5.3 | despacho por aridade; `assert` sob `--checks` |
 | `arena` | §5.4 | reescrita de `alloc(a,T,n)` materializando `sizeof`/`alignof`/cast |
 | `defer` | §5.5 | varredura dos pontos de saída do escopo; injeção em cada um, ordem inversa |
@@ -355,16 +411,17 @@ pronto antes de atacá-las:
 | cursor e partição | §5.11 | nada de especial: são verbos |
 | `else` | §5.12 | declaração mais `if`, numa linha — sem `#line` |
 | `at` | §5.13 | chamada de instância; o `if` é semântica, não verificação |
-| `outcome`, `corot` | §5.14 | instância comum; `outcome void` é degenerada (§6.4) |
+| `outcome`, `corot` | §5.14 | instância comum; `outcome void` é degenerada (§7.4) |
 
 **Ordem de implementação sugerida**, que é a ordem em que o golden deixa de
-falhar por mais casos: §5.1 → §5.2 → §5.3 → §5.5 → §5.7 → §5.12 → o resto.
-`defer` (§5.5) vem cedo de propósito: é a construção que mais mexe na estrutura
+falhar por mais casos, todas do backend §5: 5.1 → 5.2 → 5.3 → 5.5 → 5.7 → 5.12
+→ o resto.
+`defer` (backend §5.5) vem cedo de propósito: é a construção que mais mexe na estrutura
 do corpo, e descobrir tarde que o escritor de linhas não a suporta custa caro.
 
 ---
 
-## 10. Decisões deste documento
+## 11. Decisões deste documento
 
 | | Decisão | Por quê |
 | --- | --- | --- |
@@ -372,10 +429,11 @@ do corpo, e descobrir tarde que o escritor de linhas não a suporta custa caro.
 | E2 | A ordem de emissão é a ordem de declaração, em toda seção | qualquer outra ordem é estável e ainda assim quebra a correspondência com o fonte que o `#line` promete |
 | E3 | A superfície de uma instância é função pura de (genérico, argumentos), exposta ao parser | o `verb-not-in-instance` é do parser e precisa dela; calcular duas vezes, com dois códigos, é onde a divergência nasce |
 | E4 | Todo `#line` sai por um único ponto do código, o `KWriter` | a invariante do §6 do backend é fácil de enunciar e fácil de furar; concentrá-la num lugar é o que a torna verificável |
+| E5 | Um `.c` por funcionalidade em `engine/emit/`, mais cinco de mecânica comum | um `emit.c` único seria o maior arquivo do projeto e o que mais muda; o corte por construção faz cada mudança do backend §5.x cair num arquivo só |
 
 ---
 
-## 11. Testes
+## 12. Testes
 
 O golden já é a suíte deste documento, e o runner já verifica o que dá para
 verificar sem compilador: o corte em duas camadas (I1), a ordem das seções do
@@ -392,7 +450,7 @@ O que falta acrescentar quando o emissor existir:
 
 ---
 
-## 12. Pendências
+## 13. Pendências
 
 | | Onde | Divergência |
 | --- | --- | --- |

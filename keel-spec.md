@@ -1015,8 +1015,8 @@ priv i32 helper(i32 x) { return x; }
 - Colisões são verificadas entre os símbolos exportados do módulo e do fecho transitivo de seus imports. A comparação usa os nomes canônicos efetivos, incluindo tags, typedefs e constantes de enum (§4.2).
 - `import_c` emite a inclusão na interface. `extern_c` preserva o conteúdo na implementação, sem aplicar mangling aos símbolos ali declarados; um tipo declarado em `extern_c` não é visível na interface, e o que precisa ser visível vai num header, por `import_c`.
 - `main` é uma função pública do módulo e recebe seu prefixo. A seleção do módulo de entrada pela ferramenta gera o wrapper C `main`, que chama essa função. Módulos diferentes podem declarar suas próprias funções `main`.
-- O único import implícito é `import keel types;`. A base é composta de módulos comuns, e todos exigem import explícito, como `import keel.slice as slice types;`: `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7). Nenhum deles é palavra do núcleo, e as construções os alcançam pelos protocolos da §4.4. 
-- Bibliotecas adicionais possuem contratos próprios. 
+- O único import implícito é `import keel types;`. A base é composta de módulos comuns, e todos exigem import explícito, como `import keel.slice as slice types;`: `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7). Nenhum deles é palavra do núcleo, e as construções os alcançam pelos protocolos da §4.4.
+- Bibliotecas adicionais possuem contratos próprios.
 
 [Justificativa do prelúdio](keel-rationale.md#prelúdio-e-base-mínima).
 
@@ -2405,13 +2405,17 @@ não por uma lista de tipos privilegiados.
 
 | Protocolo | Verbos exigidos | Construção que o consome | Declarado na base por |
 | --- | --- | --- | --- |
-| Indexável | `length`, e `get` ou `ptr` conforme o binder | `foreach` de dois binders, `apply`, `x[i]` | `buffer`, `slice`, `array` |
+| Indexável | `length`, e `get` ou `ptr` conforme o binder | `foreach` de dois binders, `apply`, `x[i]` | `buffer`, `slice` |
 | Contável | `first`, `limit` | `foreach` de um binder | `range` |
 | Percorrível por cursor | `begin`, `has_next`, `next` | `walk` | `buffer`, `slice` |
 | Particionável | `partition` | `parallel` | `buffer`, `slice`, `range` |
-| Recortável | `of` da aridade escrita | `x[a..b]` e suas formas abertas | `buffer`, `slice`, `array` |
+| Indexável por intervalo | o verbo que o próprio módulo declara, na aridade escrita | `x[a..b]` e suas formas abertas | `buffer`, por `as_slice`; `slice`, por `of` |
 | Etiquetado | `tag` | `match` | `tagged`, `corot` |
 | Falível | `failed`, mais `win` para a forma de default | `else` | `outcome` |
+
+`array` não aparece na última coluna porque não é módulo e não declara verbo:
+ele participa de Indexável e de Indexável por intervalo pelas operações do
+núcleo, que levam o qualificador `keel` (§4.2, §4.4).
 
 #### O que um módulo do programa declara
 
@@ -2420,10 +2424,15 @@ pelo programa: declarar os verbos de um protocolo é o que basta para participar
 da construção correspondente. Não há registro, marcação nem permissão a pedir,
 e o PPC não distingue um módulo da base de um módulo do usuário ao resolver.
 
-Duas observações completam o requisito. A forma dos argumentos vem do bit
-`byref` do modificador (§4.3), e não do protocolo. E as aridades escritas nas
+Três observações completam o requisito. A forma dos argumentos vem do bit
+`byref` do modificador (§4.3), e não do protocolo. As aridades escritas nas
 assinaturas são as que valem: um módulo que declare `ptr` de duas aridades
-serve a `x[i]` e a `x[i,j]`, e um que declare só uma serve a uma forma só.
+serve a `x[i]` e a `x[i,j]`, e um que declare só uma serve a uma forma só. E
+**o nome do verbo de Indexável por intervalo é do módulo que o declara**, e não
+do protocolo — na base, `buffer` o chama de `as_slice` e `slice` o chama de
+`of`. A liberdade não é estilo: ela é o que permite ao lado memória declarar o
+verbo sem que o lado visão precise conhecê-lo, e é o que mantém o grafo de
+imports acíclico ([rationale](keel-rationale.md#memória-e-visão-a-direção-da-conversão)).
 
 #### O que o núcleo conhece pelo nome
 

@@ -1066,6 +1066,22 @@ impede a colisão: `slice.of(xs)` dá `_as_slice` e `slice.of(xs,2,7)` dá
 assinaturas chegariam ao mesmo símbolo, e C não tem sobrecarga:
 `error: conflicting types for 'as_slice'`.
 
+**`slice.of` sobre `array` baixa para `_from`.** A linguagem §5.3 admite os três
+receptores — `buffer`, `slice` e `array` —, e o símbolo emitido sai do módulo
+que declara o verbo. Sobre `buffer` é o `as_slice` dele; sobre `slice`, o `of`
+dele. Sobre `array` não há módulo: a conversão é do núcleo, e o que ela produz é
+a construção de `slice` a partir de ponteiro e comprimento, que é `from`. O
+comprimento vem da tabela, e é por isso que o marcador `array` é exigido.
+
+```plain
+slice.of(v)            →  keel_slice_i32_from(v, <dim 0>)
+slice.of(v, a, b)      →  keel_slice_i32_from(v + (a), (b) - (a))
+```
+
+Não há função `_of` de dois argumentos em instância de `slice`: as duas grafias
+acima chegam ao mesmo símbolo que `slice.from(i32, p, n)` já emitia, e o `of` da
+instância continua sendo o de aridade três sobre `slice`.
+
 Todo builtin que pode falhar é gerado com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
 
 Verificação de limites em `get`, `set` e `ptr(x,i)` é emitida em build de debug e ausente em release. A chave é da ferramenta.

@@ -9,8 +9,11 @@
 
 **Documento de implementação.** O contrato da ferramenta é
 [`cgen-tool-spec.md`](../cgen-tool-spec.md) (a "spec da ferramenta"); o do
-conteúdo gerado, [`keel-c-backend.md`](../keel-c-backend.md) (o "backend"); o do
-lexer, [`lexer-design.md`](lexer-design.md). Este documento não acrescenta
+conteúdo gerado, [`keel-c-backend.md`](../keel-c-backend.md) (o "backend").
+Este documento é o de cima: ele reparte o cgen, e cada peça tem o seu —
+[`lexer-design.md`](lexer-design.md), [`parser-design.md`](parser-design.md),
+[`codegen-design.md`](codegen-design.md) e
+[`diag-design.md`](diag-design.md). Este documento não acrescenta
 regra de linguagem nem de conteúdo: ele fixa **o que a spec da ferramenta deixa
 à implementação** — algoritmo de partição da linha de comando, formato das
 fases de depuração, montagem da chamada ao `cc`, organização do código — e dá

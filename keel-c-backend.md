@@ -1577,6 +1577,22 @@ Quatro regras de emissão:
 3. **Binder por valor gera `get`; por ponteiro gera `ptr` de um índice.** O bloco extra em volta existe para os temporários morrerem no fim, e é o que permite `foreach` aninhado sem colisão de nome.
 4. **Tudo até a abertura do corpo cabe numa linha.** É o que faz o corpo mapear 1:1 e dispensa ressincronizar — ao contrário do despacho do `match` (§5.6), que não tem como caber.
 
+A forma contável, de um binder, não passa pelo mesmo despacho:
+
+```keel
+foreach (auto v : r) {
+    acc += v;
+}
+```
+
+```c
+{ size_t keel__f0 = keel_range_first(r); size_t keel__l0 = keel_range_limit(r); for (size_t v = keel__f0; v < keel__l0; v++) {
+    acc += v;
+} }
+```
+
+5. **Na forma contável de um binder, o binder é o contador.** `first` e `limit` da instância saem para temporários antes do laço, pela mesma regra de avaliação única da regra 1, e o `for` conta de um ao outro. O binder de valor não chama `get`: a forma contável não declara, nem exige, esse verbo (linguagem §4.7) — é por isso que ela serve tipos que só têm `first`/`limit`, sem `length` nem `get`. Um tipo que declare as quatro operações, como `keel.range`, ainda passa por aqui na forma de um binder; a forma de dois binders é que despacha para `length`/`get` (regras 1–4), porque nela o binder de valor precisa mesmo de um acesso por posição.
+
 ### 5.8 Ponto de entrada
 
 A função de entrada de um módulo é função comum e sai manglada como qualquer outra. O `main` do C sai em **unidade separada**, gerada quando a ferramenta recebe `--main <módulo>`:

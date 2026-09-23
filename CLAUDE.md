@@ -9,10 +9,11 @@ para C11/C23. O `README.md` apresenta o projeto.
   Leia o `MEMORY.md` primeiro: é o índice, e cada linha aponta para um fato.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code; o
   que diverge do repositório vale menos que o repositório.
-- **Discussão em aberto: P16**, visibilidade do C que atravessa um módulo
-  (`extern_c`, `import_c`, `#define`). O briefing está em
-  [`.claude/p16-visibilidade-do-c.md`](.claude/p16-visibilidade-do-c.md), e o
-  registro, em `design/cgen-tool.md` §13.
+- **Nenhuma pendência em aberto nos normativos.** P16 (visibilidade do C que
+  atravessa um módulo) foi resolvida em 2026-09-21; o registro está em
+  `design/cgen-tool.md` §13, e o briefing que a levantou, em
+  [`.claude/p16-visibilidade-do-c.md`](.claude/p16-visibilidade-do-c.md), fica
+  como histórico.
 
 ## Regras de trabalho
 

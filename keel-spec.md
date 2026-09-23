@@ -399,6 +399,10 @@ Uma sequência de identificadores pode indicar uma forma candidata, mas a aceita
 
 Um declarador como `int (*f)(void);` não satisfaz a regra de função acima: o token anterior ao grupo final de parâmetros é `)`. Uma declaração como `int x = f(1);` também não satisfaz a regra, pois há `=` externo antes da chamada. Isso não classifica o tipo C desses objetos. [Justificativa e comparação dos declaradores](keel-rationale.md#reconhecimento-de-funções-e-declaradores-c).
 
+Se a varredura de uma forma candidata atinge o fim do arquivo antes do token
+de terminação previsto, sem sobrar delimitador aberto para `unmatched-delimiter`
+apontar, o diagnóstico é `unexpected-eof` (§2.5).
+
 #### Qualificação, acesso e sombreamento
 
 - Na resolução de `.` consultam-se, nesta ordem, um alias de módulo, um nome de tipo declarado em keel e uma expressão de contêiner reconhecida. As demais formas permanecem acesso a campo ou designador C.
@@ -445,6 +449,7 @@ Os diagnósticos abaixo são emitidos por keel durante a tradução. Seus identi
 | Expressão fora da gramática de contêiner em posição que a exige | `not-a-container-expression` | `error` |
 | Padrão local de redeclaração de símbolo conhecido, definido abaixo | `symbol-redeclaration` | `error` |
 | Delimitador sem par; a mensagem localiza a abertura quando existente | `unmatched-delimiter` | `error` |
+| Fim de arquivo durante o reconhecimento de uma forma candidata, sem token de terminação nem delimitador aberto | `unexpected-eof` | `error` |
 | Alternativas condicionais discordam na estrutura de delimitadores | `delimiter-mismatch-across-branches` | `error` |
 | `#define` ou `#undef` de palavra contextual keel ou de nome no espaço `keel_` | `define-over-keel-name` | `error` |
 | Newline não emendado em literal de string ou caractere | `literal-with-newline` | `error` |
@@ -1821,7 +1826,10 @@ programa.
 - O binder por valor recebe uma cópia do elemento a cada iteração; por
   ponteiro, recebe seu endereço. Ambos ficam no escopo do corpo.
 - Na forma contável, início e limite são obtidos uma vez; percorre-se
-  `[first,limit)`. Um intervalo vazio executa zero iterações.
+  `[first,limit)`, e o binder recebe o próprio contador a cada passo — não há
+  verbo de acesso por posição. É por isso que essa forma não impõe um
+  protocolo rígido: `first` e `limit` bastam, e nenhum outro verbo é
+  despachado. Um intervalo vazio executa zero iterações.
 - `auto` no binder de intervalo é traduzido como `size_t`. Os demais tipos
   escritos seguem para validação pelo compilador C.
 - `range` também admite dois binders quando nomeado, fornecendo valor e
@@ -3301,6 +3309,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `jump-over-defer` | Entrada externa em escopo por cima de registro de `defer`, inclusive `case`/`default` posterior no mesmo corpo de `switch` | `error` | keel | §4.6 |
 | `later-with-capture` | `later` seguido de lista de captura, dentro do colchete do `defer` | `error` | keel | §4.6 |
 | `unmatched-delimiter` | Chave, parêntese ou colchete sem par — inclusive dentro de `extern_c` | `error` | keel | §2.5 |
+| `unexpected-eof` | Fim de arquivo durante o reconhecimento de uma forma candidata, sem token de terminação nem delimitador aberto | `error` | keel | §2.5 |
 | `delimiter-mismatch-across-branches` | Alternativas de um grupo condicional que discordam na contagem de delimitadores | `error` | keel | §2.5 |
 | `define-over-keel-name` | `#define` ou `#undef` de palavra contextual keel ou nome `keel_` | `error` | keel | §2.5 |
 | `literal-with-newline` | Literal de string ou char com newline não-emendado | `error` | keel | §2.5 |

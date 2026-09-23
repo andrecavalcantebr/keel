@@ -10,3 +10,11 @@ só o cabeçalho de uma linha (desenho do cgen §5.3).
 
 `apply` é o mesmo laço do `foreach` com corpo fixo, e os índices saem na
 família `keel__i<N>` porque não há binder escrito (backend §5.7, regra 2).
+
+`foreach (auto v : r)` — a forma de um binder — despacha só para
+`first`/`limit`, nos temporários `keel__f2`/`keel__l2`; o binder `v` é o
+próprio contador do laço, sem chamada a `get` (backend §5.7, regra 5). Até
+2026-09-22 este esperado usava `length`/`get`, como a forma de dois binders:
+dava o mesmo número para `range`, que declara as quatro operações, e por
+isso passava, mas divergia do exemplo §3.3 da spec e não serviria um tipo
+só-Contável, sem `length`/`get`.

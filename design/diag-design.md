@@ -20,7 +20,7 @@ Onde **decide** algo que os normativos deixam aberto, a decisão vem marcada
 
 ## 1. O que falta hoje, e por que ele vem antes dos testes
 
-O catálogo da spec §6.2 tem 133 identificadores, e para cada um dá a condição, a
+O catálogo da spec §6.2 tem 135 identificadores, e para cada um dá a condição, a
 severidade, o responsável e a seção. **Não dá o texto da mensagem.** Nenhuma
 mensagem de diagnóstico do keel existe escrita em lugar nenhum do repositório.
 
@@ -163,7 +163,7 @@ previstos:
 ## 5. As três famílias de mensagem
 
 O catálogo se divide em três, e cada uma tem uma forma própria — o que ajuda a
-escrever as 133 sem inventar um estilo por vez:
+escrever as 135 sem inventar um estilo por vez:
 
 | Família | Quantos | Forma | Exemplo |
 | --- | --- | --- | --- |
@@ -228,7 +228,7 @@ Cinco regras da implementação:
 ## 7. Os casos de falha
 
 O golden hoje tem **zero** casos de recusa — o runner conta `xfail` e nunca viu
-um. A meta é um caso por identificador, e escrever 133 casos não é viável nem
+um. A meta é um caso por identificador, e escrever 135 casos não é viável nem
 desejável.
 
 > **[G3] Um caso agrupa vários diagnósticos independentes; o `VERIFY` afirma
@@ -267,7 +267,7 @@ Três propriedades disso:
   dois não cabem no mesmo caso.
 - **Cobertura é verificável.** Um script sobre todos os `.k` de falha lista os
   identificadores cobertos e os compara com o catálogo. É o que diz quantos dos
-  133 faltam, a qualquer momento.
+  135 faltam, a qualquer momento.
 
 **O que não cabe nesse molde:** os 7 `debug`, que são verificações em execução e
 não recusas de tradução. Esses precisam de caso que **compile**, rode sob
@@ -282,7 +282,7 @@ modo para ela.
 | --- | --- | --- |
 | G1 | O catálogo é tabela estática gerada a partir da spec; só a mensagem é escrita à mão | catálogo e implementação não podem divergir sem quebrar o build, e hoje isso só se verifica com `grep` |
 | G2 | A mensagem diz o encontrado, o esperado e a forma correta — não a regra | keel recusa muito de propósito; recusa que não diz o que fazer em seguida é pior que o erro de tipo do C que ela substituiu |
-| G3 | Um caso de falha agrupa vários diagnósticos; o `VERIFY` lê o esperado do próprio fonte | 133 casos não é viável; e o molde do 016 já prova que dá para afirmar sem duplicar o esperado no teste |
+| G3 | Um caso de falha agrupa vários diagnósticos; o `VERIFY` lê o esperado do próprio fonte | 135 casos não é viável; e o molde do 016 já prova que dá para afirmar sem duplicar o esperado no teste |
 | G4 | A severidade registrada é a da tabela; `-Werror` só afeta o código de saída | se o motor a mudasse, o mesmo fonte daria diagnósticos diferentes conforme a linha de comando |
 
 ---

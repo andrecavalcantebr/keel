@@ -23,7 +23,7 @@ void app_ap_traverse(keel_buffer_i32 *xs) {
 
 size_t app_ap_sum_range(keel_range r) {
     size_t t = 0;
-    { keel_range keel__c2 = r; size_t keel__n2 = keel_range_length(keel__c2); for (size_t keel__i2 = 0; keel__i2 < keel__n2; keel__i2++) { size_t v = keel_range_get(keel__c2, keel__i2); t += v; } }
+    { size_t keel__f2 = keel_range_first(r); size_t keel__l2 = keel_range_limit(r); for (size_t v = keel__f2; v < keel__l2; v++) { t += v; } }
     { keel_range keel__c3 = r; size_t keel__n3 = keel_range_length(keel__c3); for (size_t i = 0; i < keel__n3; i++) { size_t v = keel_range_get(keel__c3, i); t += v * i; } }
     return t;
 }

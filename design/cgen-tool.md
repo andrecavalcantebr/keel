@@ -348,7 +348,7 @@ Formato e códigos são da spec da ferramenta §7. Complementos de implementaç�
 | --- | --- |
 | 0 | sucesso (keel e `cc`) |
 | 1 | `error` da linguagem; nada escrito, `cc` não chamado |
-| 2 | erro da ferramenta (spec §7.1) |
+| 2 | erro da ferramenta (ferramenta §7.1) |
 | *n* | o `cc` saiu com *n* ≠ 0: o `cgen` sai com o mesmo *n* |
 | 128+*s* | o `cc` morreu pelo sinal *s* |
 

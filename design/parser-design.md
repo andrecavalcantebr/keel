@@ -307,5 +307,8 @@ Três famílias, na ordem em que valem a pena:
 
 | | Onde | Divergência |
 | --- | --- | --- |
-| Q1 | spec §2.3 × implementação | a regra de função diz "varre-se até o primeiro `;` ou `{` externo" — mas não diz o que fazer quando não há nenhum dos dois até o EOF. O caso é fonte truncado, e o diagnóstico natural é `unmatched-delimiter` do lexer; falta confirmar que ele chega primeiro |
 | Q2 | spec §4.4 × este documento | a ordem de resolução tem três passos e o `verb-not-in-instance` entrou como caso do passo 3; se um dia houver um quarto receptor de verbo, a ordem precisa ser reenunciada em vez de emendada |
+
+Resolvida em 2026-09-22: Q1. A spec §2.3 agora diz o que fazer no EOF sem
+delimitador aberto: `unexpected-eof`, distinto de `unmatched-delimiter`
+(que continua cobrindo o caso com delimitador aberto pendente).

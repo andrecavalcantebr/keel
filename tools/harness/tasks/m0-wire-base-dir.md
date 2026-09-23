@@ -1,3 +1,68 @@
+---
+id: m0-wire-base-dir
+output: tools/cgen/src/tool/main.c
+acceptance:
+  - "make -C tools/cgen"
+  - "sh tools/harness/oracles/m0-args-partition.sh"
+  - "sh tools/harness/oracles/m0-wire-base-dir.sh"
+max_attempts: 5
+---
+
+Below is the **current, working** `tools/cgen/src/tool/main.c`. It already
+passes every check it is supposed to. Your job is **one targeted addition**,
+not a rewrite: reproduce this file exactly as given, with exactly one
+change inserted where marked. Do not restructure, rename, reorder, or
+"improve" anything else — a passing test that this file breaks is a
+regression, not progress.
+
+## The one change
+
+Base-directory resolution is already implemented and tested in
+`tools/cgen/src/tool/base_resolve.c`:
+
+```c
+char *cgen_resolve_base_dir(const char *explicit_base_dir);
+```
+
+It returns a heap-allocated path on success, or `NULL` after already
+printing its own `cgen: error: ... [base-not-found]` diagnostic to stderr
+on failure (it does not call `exit` — that stays the caller's job, same as
+every other error in this file).
+
+Right before the final two lines of `main()`:
+
+```c
+    fprintf(stderr, "cgen: not yet implemented\n");
+    exit(1);
+```
+
+insert, when `k_file_count == 1` (there is a real source, which is the
+only time a base is ever needed — the transparent-link path above never
+reaches this point):
+
+```c
+    if (k_file_count == 1) {
+        char *base = cgen_resolve_base_dir(base_dir);
+        if (!base) {
+            exit(2);
+        }
+        /* `base` is deliberately unused past this point — nothing reads
+           the base directory yet, only validates that it resolves. Do not
+           free it, do not do anything else with it: that is later work. */
+    }
+```
+
+Declare `cgen_resolve_base_dir` the same way the other three functions at
+the top of the file are declared (`extern`-style prototype, no header).
+
+That is the entire change. `base_dir` is already parsed by the existing
+`--base-dir` handling in this file (it is `NULL` when the flag was not
+given, which is exactly the "use the default" case `cgen_resolve_base_dir`
+already handles).
+
+## The current file, unchanged except for that one insertion
+
+```c
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +72,6 @@
 bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, const char **value);
 bool cgen_source_under_root(const char *source, const char *root);
 bool cgen_source_in_multiple_roots(const char *source, const char *const *roots, int root_count);
-extern char *cgen_resolve_base_dir(const char *explicit_base_dir);
 
 static void fatal(const char *diagnostic_id, const char *message) {
     fprintf(stderr, "cgen: error: %s [%s]\n", message, diagnostic_id);
@@ -203,16 +267,7 @@ int main(int argc, char *argv[]) {
             fatal("source-in-multiple-roots", "source file is under multiple -I roots");
     }
 
-    if (k_file_count == 1) {
-        char *base = cgen_resolve_base_dir(base_dir);
-        if (!base) {
-            exit(2);
-        }
-        /* `base` is deliberately unused past this point — nothing reads
-           the base directory yet, only validates that it resolves. Do not
-           free it, do not do anything else with it: that is later work. */
-    }
-
     fprintf(stderr, "cgen: not yet implemented\n");
     exit(1);
 }
+```

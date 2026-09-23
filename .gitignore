@@ -15,3 +15,6 @@ compile_commands.json
 
 # configuração local do Claude Code, por máquina
 /.claude/settings.local.json
+
+# saída por tentativa do harness de geração local — não é fonte, é log
+/tools/harness/runs/

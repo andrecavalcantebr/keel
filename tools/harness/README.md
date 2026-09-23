@@ -92,6 +92,76 @@ dividem o mesmo teto, com overhead de contenção por cima. Não é questão de
 máquina; se isso mudar (GPU discreta, outra instância de `ollama`), vale
 retestar antes de reabrir a ideia.
 
+## Lições de como escrever uma tarefa, tiradas de bloqueio real
+
+Toda vez que uma tarefa travou 5 tentativas seguidas neste projeto, a
+causa coube numa destas quatro — vale conferir as quatro **antes** de
+escrever uma tarefa nova, porque cada uma já custou uma rodada inteira de
+retrabalho pelo menos uma vez:
+
+1. **Repetir os `#include` exatos, sempre, mesmo que outra tarefa já os
+   tenha mostrado.** `m1-lexer-skip-trivia` travou 5x só porque a tarefa
+   nunca escreveu `#include "keel/keel_slice_char.type.h"` explicitamente
+   — só citava o tipo dentro de uma assinatura. O modelo não carrega
+   contexto de uma tarefa pra outra; se o `#include` não está na tarefa
+   atual, ele não existe.
+2. **Reexplicar o contrato de retorno de qualquer função "já
+   implementada" que a tarefa reutilize.** Mesmo bug, tarefa diferente:
+   `skip_trivia` tratou `k_lexer_peek_at` como "0 = sucesso" (convenção
+   comum em C) quando na verdade a função devolve o próprio byte lido
+   (space é 32, não 0) ou `-1` no EOF. A assinatura sozinha não basta —
+   sem reafirmar o contrato de retorno na tarefa que consome, o modelo
+   assume a convenção mais comum, que aqui é a errada.
+3. **Preferir varredura linear a busca binária em tabela pequena.** Três
+   vezes seguidas (contando o benchmark que escolheu o modelo), o mesmo
+   bug: comparador que ordena por tamanho antes de `strcmp`, quebrando a
+   suposição de ordenação que a busca binária depende. Numa tabela de
+   ~70 entradas não há ganho real nenhum em não usar `for` simples — é
+   ponto cego específico deste modelo, então a tarefa evita a forma
+   inteira em vez de pedir cuidado.
+4. **Dar exemplo numérico concreto sempre que houver aritmética de
+   posição/tamanho envolvida.** `m1-lexer-peek` travou 5x com só prosa
+   ("`*width_out` recebe o número de bytes..."); a mesma tarefa, com um
+   "Worked example" numérico (`pos=0` → `width_out=3`, passo a passo),
+   passou de primeira. Prosa descreve a regra; exemplo mostra a conta
+   feita — e é a conta que este modelo erra.
+
+## O balanço de custo não fechou como esperado (2026-09-22)
+
+A motivação de usar modelo local era gastar menos tokens de nuvem. Nas
+primeiras ~10 tarefas de M0/M1, isso **não se confirmou** nas que
+travaram: `m0-args-partition` sozinho levou 4 rodadas de 5 tentativas
+(~21 chamadas ao modelo) até passar, e cada rodada bloqueada custou do
+lado do Claude ler o código gerado, às vezes rodar `gdb`, diagnosticar a
+causa exata, reescrever a tarefa e revalidar o oráculo contra uma
+referência própria antes de tentar de novo — ciclo caro o bastante para,
+nessas peças específicas, provavelmente superar o custo de só escrever a
+função de 20-80 linhas à mão. Estimativa grosseira: ~150.000-250.000
+tokens do lado do modelo local nessa janela, e o lado Claude
+provavelmente maior — sem instrumentação para medir o Claude com
+precisão, essa parte ficou só como estimativa registrada em conversa, não
+em número auditável.
+
+**O que compensou de verdade:** as tarefas pequenas, com escopo de uma
+função só e as quatro lições acima já aplicadas, passaram de primeira ou
+segunda tentativa (`m0-roots-check`, `m0-match-long-option`,
+`m0-base-resolve`, `m1-read-source`, `m1-token-predicates-shape`). A
+lição prática: delegar vale a pena quando a tarefa é pequena e mecânica
+e o contrato já foi escrito sem ambiguidade conhecida; quando há suspeita
+de ambiguidade, o retrabalho de diagnosticar supera o que se economizaria
+delegando.
+
+## Execução sem o Claude no laço
+
+A partir de 2026-09-22, o padrão passou a ser: Claude escreve a tarefa +
+o oráculo, valida o oráculo contra uma implementação de referência escrita
+à mão (para confirmar que o oráculo pega bug de verdade e não acusa
+implementação correta), e entrega os dois já prontos — sem chamar
+`loop.py`. O André roda localmente e só reporta de volta o que não
+conseguir diagnosticar rápido pelos próprios logs (`runs/<tarefa>/`). Isso
+corta o custo Claude de acompanhar tentativa por tentativa — que era
+justamente a parte mais cara do ciclo, pela nota acima.
+
 ## Layout
 
     tasks/     uma tarefa por arquivo .md — frontmatter YAML (id, output,
@@ -136,7 +206,49 @@ mandado ao modelo. Campos do corpo, por convenção (não impostos pelo
 `qwen3-coder:30b-a3b-q4_K_M` foi escolhido depois de comparar com
 `qwen2.5-coder:14b` numa tarefa de M1 real (decodifica ~3,5× mais rápido;
 erra mais de primeira, mas o laço de retry paga essa diferença de sobra).
-M0 em andamento: `m0-base-resolve` passou de primeira; `m0-args-partition`
-está sendo refeito depois de dois ajustes no próprio laço, achados ao vivo
-rodando contra ele — ver as duas últimas notas de "por que o laço não
-acumula erro".
+
+**M0 fechado**: partição de `argv`, `--cgen-version`, link transparente,
+os três erros de invocação, `--base-dir` resolvendo de verdade. `main.c`
+mais quatro peças extraídas (`roots.c`, `match_option.c`,
+`base_resolve.c`) — ver "Lições" acima para o porquê de cada extração.
+
+**M1, os sete reconhecedores prontos**: `read_source`, predicados de token
+(palavra + forma), `lexer_peek` (emenda), `skip_trivia`, `scan_identifier`,
+`scan_number`, `scan_punct`, `scan_quoted` e `scan_directive` — todos
+passaram rodando localmente, sem o Claude no laço (ver "Execução sem o
+Claude no laço"). `scan_directive` travou as 5 tentativas na primeira
+versão da tarefa (comparação de palavra-chave escrita como cadeia de `if`
+caractere a caractere, à mão — errou comprimento/ordem de letras em
+`ifdef`/`ifndef`, mesma classe da lição 3); reescrita para exigir a mesma
+forma já usada em `token_predicates_words.c` (tabela `{palavra, TKPpKind}`
+percorrida com `strlen`+`memcmp`), passou de primeira.
+
+**Próximos passos, em ordem:**
+
+1. `k_lexer_next` — o despachante que junta os sete reconhecedores num só
+   token, decidindo qual `scan_*` chamar a partir do byte lógico em `pos`
+   (via `k_lexer_peek_at`) e do estado `line_clean` (só relevante para `#`).
+2. A tabela de linha/coluna, dona da ferramenta (`cgen-tool-spec.md §5.1`,
+   `lexer-design.md §2`): o `engine/` devolve offsets físicos: quem traduz
+   para `linha:coluna` é o `tool/`.
+3. Ligar `--stop-after=lex` em `tool/main.c`.
+4. Só a partir daqui o oráculo de integração fica possível: rodar o
+   `cgen --stop-after=lex` de verdade contra um `.k` pequeno e comparar a
+   saída, linha a linha, com um dump de tokens esperado escrito à mão (dado,
+   não código C paralelo) — resolve a redundância "escrever a referência já
+   é escrever o entregável" que motivou essa mudança de direção.
+5. Validar against `/base` e todo `.k` de `golden/cases`: devem lexar sem
+   diagnóstico — critério de aceitação de M1 em `design/cgen-tool.md §9`.
+
+**Ideia em discussão, não decidida (2026-09-22):** os reconhecedores são
+todos FSMs — alguns puramente sequenciais (`scan_punct`), outros com ramos
+que se decidem cedo e seguem lineares dali (`scan_number`: o primeiro byte,
+ou o par `0x`, decide dígito decimal vs. hex vs. fração/expoente, mas é uma
+tabela de transição só, maior, não um "híbrido"). A hipótese é que escrever
+a próxima leva de tarefas (a partir de `k_lexer_next`, que é o despachante
+mais irregular de todos) como uma FSM explícita — estados nomeados e tabela
+de transição por classe de byte, em vez de prosa de regras — produziria
+código mais uniforme e evitaria bugs de "ramo esquecido" como o de
+`scan_directive` acima. Custo: desenhar a tabela de estados é mais trabalho
+de preparo por tarefa do que escrever regras em prosa. Ainda não aplicada a
+nenhuma tarefa; avaliar ao escrever a tarefa de `k_lexer_next`.

@@ -20,7 +20,7 @@ keel_outcome_i32 app_cfg_sum(keel_arena *a, const char *path) { keel_outcome_i32
     if (!fp) return keel_outcome_i32_fail(&result, 1);
     struct { FILE *fp; } keel__c0 = { fp };
 
-    keel_buffer_i32 xs = keel_buffer_i32_from((i32 *)keel_arena_alloc(a, app_cfg_MAX, sizeof(i32), _Alignof(i32)), app_cfg_MAX);
+    keel_buffer_i32 xs = keel_buffer_i32_from((i32 *)keel_arena_alloc2(a, sizeof(i32), _Alignof(i32), app_cfg_MAX), app_cfg_MAX);
     if (keel_buffer_i32_capacity(&xs) == 0) { keel__rv0 = keel_outcome_i32_fail(&result, 2); goto keel__e0; }
 
     i32 v;

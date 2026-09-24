@@ -46,7 +46,7 @@ Abertos:
 - `T *col[N]` (colunas separadas) × `T dados[N]` (bloco contíguo). O cursor,
   `ptr(x,i)` e `partition` supõem memória contígua; com colunas separadas, os
   "mesmos verbos" precisam ser relidos coluna a coluna.
-- Serve de **lote de tamanho fixo** para gather/scatter sobre um `soa` —
+- Serve de **lote de tamanho fixo** para gather/scatter sobre um `extent` —
   reunir `N` linhas em AoS, processar, espalhar de volta —, com `N` conhecido
   em compilação para desenrolar o laço.
 - O par segue a regra memória/visão (rationale, "Memória e visão"):
@@ -121,7 +121,7 @@ Uso já à vista: a tabela de estados de `keel.routine` (spec §5.6) poderia ser
 ### `keel.slice.from(T, p, range)`
 
 Extensão de `keel.slice` (spec §5.3): aceitar um `range` no lugar da contagem,
-para descrever `[a,b)` sobre um ponteiro cru. Útil com `soa`, quando o
+para descrever `[a,b)` sobre um ponteiro cru. Útil com coluna de `extent`, quando o
 programa já tem o intervalo em mãos.
 
 ### Cooperativo: `keel.atomic`, `keel.chan`, `keel.barrier`
@@ -173,7 +173,7 @@ A estudar:
   distintos, ou como verbos `begin_*` do mesmo módulo;
 - o valor sentinela de "sem elo" e a largura do índice (`u16`/`u32`) como
   parâmetro;
-- a relação com `soa`: a árvore flat pode guardar os elos em colunas.
+- a relação com `extent`: a árvore flat pode guardar os elos em colunas.
 
 ### Protocolo nominal
 
@@ -224,7 +224,7 @@ documentação cobre enquanto o usuário não escreve algoritmos genéricos.
 
 Registradas para não se perderem; nenhuma pede ação.
 
-**keel como linguagem DOD.** `soa`, `buffer`/`slice`,
+**keel como linguagem DOD.** `extent`, `buffer`/`slice`,
 `foreach`/`walk`/`apply`/`parallel` com `partition`, e `tags`/`match` formam,
 na prática, uma linguagem orientada a projeto de dados sobre C. Cogitou-se, como
 digressão, o nome **cdod** (C + DOD). Mudar o nome toca licença, documentos,
@@ -234,8 +234,8 @@ repositório e ferramentas: é decisão à parte, não de passagem.
 
 | ECS | keel |
 | --- | --- |
-| entidade | índice num `soa`/`buffer`/`slice` |
-| componente | campo de `soa struct` |
+| entidade | índice num `extent`/`buffer`/`slice` |
+| componente | coluna de `extent struct` |
 | travessia | `foreach`/`walk`/`apply`/`parallel` sobre `slice` |
 | presença de componente | `bitbuffer(1)` (§1) |
 | query / filtro / redução | sem módulo; `apply` cobre o caso simples |
@@ -256,7 +256,7 @@ quiser, sem mecanismo novo.
 | --- | --- |
 | `keel/basetypes.k` — modificadores num módulo, verbos em outro, para evitar o ciclo de headers | O modificador deixaria de morar no módulo dos seus verbos, e a resolução por tipo (spec §4.4), a instanciação e os protocolos supõem que mora. O corte `.type.h` + `.h` (backend §4.3.2) resolve o ciclo sem mexer na linguagem. |
 | `.proto.h` — terceiro header, só de protótipos | A ordem das seções do `.h` já põe todo protótipo antes de todo corpo; o arquivo não comprava nada (rationale, "Dois headers, tipo e uso"). |
-| `soa` com verbos sintetizados (`keel.soa_from`, `keel.push`, `keel.slice_of`…) | O `soa struct` é do usuário, `len`/`cap` inclusive; verbos que não cabem em `module`/`modifier` comum seriam código escondido. Ficou a forma mínima (spec §4.11), com `slice.from` como ponte. |
+| `soa` com verbos sintetizados (`keel.soa_from`, `keel.push`, `keel.slice_of`…) | O `soa struct` é do usuário, `len`/`cap` inclusive; verbos que não cabem em `module`/`modifier` comum seriam código escondido. Ficou a forma mínima, hoje `extent` (spec §4.11), com `slice.from` como ponte. |
 | Gerar, na declaração de um `soa struct`, um módulo keel com os verbos, nomeado pela tag | Seria gerar keel, não C: metaprogramação, um nível acima da linguagem. Os verbos são keel comum que o programa pode escrever num módulo próprio; escrevê-los uma vez para qualquer `soa` exigiria reflexão sobre os campos, que o parâmetro de tipo opaco exclui. Se um dia existir, é ferramenta externa que gera `.k`, como o `transform`. |
 | `soa` heterogêneo por inversão de declarador de um struct existente | Inverter declarador C em geral é frágil (array, ponteiro a função, bitfield); a marca `array` na própria declaração resolve sem inversão. |
 | Projeção parcial de `T` (subconjunto de campos como tipo novo) | Exigiria keel conhecer os campos de `T` para gerar um tipo menor — a mesma recusa do `soa` heterogêneo genérico. |

@@ -23,7 +23,7 @@
 (primitive_type) @type.builtin
 (sized_type_specifier) @type.builtin
 ((type_identifier) @type
- (#not-match? @type "^(constexpr|ptrdiff_t|uintptr_t|extern_c|import_c|instance|modifier|parallel|foreach|outcome|routine|buffer|import|module|size_t|tagged|apply|arena|array|byref|corot|defer|later|match|range|slice|types|bf16|fail|priv|tags|type|walk|ALL|ANY|dim|f16|f32|f64|i16|i32|i64|now|pub|ref|u16|u32|u64|win|as|i8|u8)$"))
+ (#not-match? @type "^(constexpr|ptrdiff_t|uintptr_t|extern_c|import_c|instance|modifier|parallel|foreach|outcome|routine|buffer|extent|import|module|size_t|tagged|apply|arena|array|byref|corot|defer|later|match|range|slice|types|bf16|fail|priv|tags|type|walk|ALL|ANY|dim|f16|f32|f64|i16|i32|i64|now|pub|ref|u16|u32|u64|win|as|i8|u8)$"))
 (field_identifier) @property
 (statement_identifier) @label
 
@@ -62,10 +62,10 @@
 ; keel vocabulary, added to the C rules.
 
 ((identifier) @keyword
- (#match? @keyword "^(constexpr|extern_c|import_c|instance|modifier|parallel|foreach|import|module|apply|array|byref|defer|later|match|types|fail|priv|tags|type|walk|ALL|ANY|dim|now|pub|ref|win|as)$"))
+ (#match? @keyword "^(constexpr|extern_c|import_c|instance|modifier|parallel|foreach|extent|import|module|apply|array|byref|defer|later|match|types|fail|priv|tags|type|walk|ALL|ANY|dim|now|pub|ref|win|as)$"))
 
 ((type_identifier) @keyword
- (#match? @keyword "^(constexpr|extern_c|import_c|instance|modifier|parallel|foreach|import|module|apply|array|byref|defer|later|match|types|fail|priv|tags|type|walk|ALL|ANY|dim|now|pub|ref|win|as)$"))
+ (#match? @keyword "^(constexpr|extern_c|import_c|instance|modifier|parallel|foreach|extent|import|module|apply|array|byref|defer|later|match|types|fail|priv|tags|type|walk|ALL|ANY|dim|now|pub|ref|win|as)$"))
 
 ((identifier) @type.builtin
  (#match? @type.builtin "^(ptrdiff_t|uintptr_t|size_t|bf16|f16|f32|f64|i16|i32|i64|u16|u32|u64|i8|u8)$"))

@@ -108,7 +108,7 @@ static inline keel_slice_i32 keel_buffer_i32_as_slice2(keel_buffer_i32 *b, size_
 #line 78 "keel/buffer.k"
 static inline keel_outcome_keel_buffer_i32 keel_buffer_i32_clone(keel_arena *a, keel_buffer_i32 *b) {
     keel_outcome_keel_buffer_i32 r = {0};
-    i32 *data = (i32 *)keel_arena_alloc(a, b->cap, sizeof(i32), alignof(i32));
+    i32 *data = (i32 *)keel_arena_alloc2(a, sizeof(i32), alignof(i32), b->cap);
     if (!data) return keel_outcome_keel_buffer_i32_none(&r);
     if (b->len > 0) memcpy(data, b->ptr, b->len * sizeof(i32));
     return keel_outcome_keel_buffer_i32_win1(&r, (keel_buffer_i32){ b->cap, b->len, data });

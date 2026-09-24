@@ -1,0 +1,35 @@
+Notas do caso.
+
+O caso cobre as três formas de `extent` (spec §4.11): coluna por ponteiro de
+uma dimensão (`position`), por ponteiro de duas dimensões com capacidade em
+campo (`grid`) e embutida de duas dimensões sob capacidade constante (`image`).
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_pos.type.h`** (c23, c11)
+
+Os três `extent` são `pub`: o struct sai no `.type.h`, como escrito, com a
+tag manglada e sem `typedef` (backend §5.15). `array f32 *x` é `f32 *x`, sem
+nível de ponteiro inserido; `array u8 r[H, W]` é `u8 r[app_pos_H][app_pos_W]`,
+como qualquer `array` (spec §4.2).
+
+**`app/app_pos.h`** (c23, c11)
+
+Uma função de acesso por coluna, `static inline`, com o `#line` da coluna
+(backend §5.15). Em `grid`, o passo é a capacidade interna, `p->ccap`, e não a
+contagem; a capacidade externa, `rcap`, não entra no endereço. Sem `--checks`
+não há `assert`: o golden é o perfil sem verificação.
+
+**`app/app_pos.c`** (c23, c11)
+
+Todo acesso de coluna com índice sai pela função de acesso: `p->x[i] = vx`
+vira `*app_pos_position_x_ptr(p, i) = vx`. `push_row` incrementa `len` antes
+de escrever, porque a linha só é acessível abaixo da contagem (spec §4.11,
+item 6). A coluna sem índice é o campo C: `slice.from(f32, p->x, p->len)`
+entra em `foreach` sem código a mais. `arena.alloc(a, f32, n)` é o `alloc`
+de `type T` apagado (backend §5.16): `keel_arena_alloc2`, com o tamanho e o
+alinhamento na posição do tipo.

@@ -108,7 +108,7 @@ static inline keel_slice_size_t keel_buffer_size_t_as_slice2(keel_buffer_size_t 
 #line 78 "keel/buffer.k"
 static inline keel_outcome_keel_buffer_size_t keel_buffer_size_t_clone(keel_arena *a, keel_buffer_size_t *b) {
     keel_outcome_keel_buffer_size_t r = {0};
-    size_t *data = (size_t *)keel_arena_alloc(a, b->cap, sizeof(size_t), _Alignof(size_t));
+    size_t *data = (size_t *)keel_arena_alloc2(a, sizeof(size_t), _Alignof(size_t), b->cap);
     if (!data) return keel_outcome_keel_buffer_size_t_none(&r);
     if (b->len > 0) memcpy(data, b->ptr, b->len * sizeof(size_t));
     return keel_outcome_keel_buffer_size_t_win1(&r, (keel_buffer_size_t){ b->cap, b->len, data });

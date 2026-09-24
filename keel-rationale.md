@@ -35,12 +35,11 @@ dado, memória por região, saída de escopo com limpeza, ponteiro que diz
 um-ou-muitos, conjunto fechado de etiquetas. É esse o teste de admissão, e ele é
 mais estreito do que "serve à orientação a dados": inverter layout, por exemplo,
 o C expressa perfeitamente — `struct { f32 *x; f32 *y; }` —, e por isso não há
-`soa` (ver a tabela de recusas adiante).
+marcador de inversão (ver a tabela de recusas adiante).
 
-Esse parágrafo continua valendo para inversão **automática, inferida do tipo C
-de um struct já existente** — é essa a forma recusada, e a revisão que a
-admite depois, sob outro desenho, está registrada em [soa: da recusa à
-admissão](#soa-da-recusa-à-admissão).
+O que o C não expressa nesse struct é que `x` e `y` têm a mesma extensão, e
+qual é ela. É isso, e não o layout, que `extent` declara: ver [`extent`: da
+recusa à admissão](#extent-da-recusa-à-admissão).
 
 Referência: [spec §1](keel-spec.md#1-escopo-e-princípios), princípio 9.
 
@@ -160,7 +159,7 @@ traduzir estas formas sem análise semântica de C:
 | Operador de propagação de erro | Localizar o operador dentro de expressão C arbitrária e içar seu operando, o que muda a ordem de avaliação do que estava escrito |
 | Tupla anônima e desestruturação de retorno | O tipo de uma chamada |
 | Extração ou conversão implícita de resultado | O tipo de uma chamada, e a correspondência entre dois catálogos de código |
-| Função genérica livre | Deduzir o argumento de tipo a partir do argumento escrito na chamada |
+| Função genérica livre, com o tipo deduzido | Deduzir o argumento de tipo a partir do argumento escrito na chamada. O tipo escrito como argumento é admitido: ver [parâmetro de tipo em função](#parâmetro-de-tipo-em-função) |
 | Corrotina com retomada de posição | Interpretar o corpo para içar variáveis locais através da suspensão |
 | Lambda e closure | O mesmo, mais captura implícita |
 | Fatiamento multidimensional como sintaxe | Despachar pela forma dos argumentos, e não pela contagem |
@@ -187,92 +186,117 @@ o custo é de significado, não de análise.
 | Realocação implícita de `buffer` | Invalidaria silenciosamente vistas e ponteiros derivados, que é a decisão que o programa precisa manter à vista |
 
 Referência: [spec §6.4](keel-spec.md#64-programa-conforme-e-limites) e o
-item 6 de cada contrato do capítulo 4.
+item 5 (casos especiais) de cada contrato do capítulo 4.
 
-## `soa`: da recusa à admissão
+## `extent`: da recusa à admissão
 
 A recusa original mirava um marcador que inverte o layout de um struct **já
-existente**, inferindo dele o que é invertível: essa forma continua fora,
-porque exige exatamente a análise semântica de tipo C que o critério de
-admissão recusa na primeira pergunta. O que muda não é o critério — é a forma.
+existente**, inferindo dele o que é invertível. Essa forma continua fora: ela
+exige exatamente a análise de tipo C que o critério de admissão recusa na
+primeira pergunta.
 
-`soa struct NOME { array T campo; … }` (spec §4.11) não infere nada do tipo
-de um struct que já existe em outro lugar: é uma declaração nova, escrita por
-extenso, no mesmo lugar em que o núcleo já lê qualquer `struct`. A decisão de
-o que é coluna não vem de keel examinando o tipo C do campo — vem do
-programador escrevendo `array`, um marcador que já existia (§4.2), já se
-aplicava a campo, e já desaparecia no lowering como `ref`. keel reconhece o
-token; não interpreta o tipo. É essa troca — de inferência automática para
-marcação explícita — que tira a construção de trás da primeira pergunta do
-teste de admissão.
+A primeira admissão, com o nome `soa`, trocava a inferência por marcação
+explícita: em `soa struct NOME { array T campo; … }`, cada campo marcado virava
+ponteiro, e keel reescrevia `var[i].campo` como `var.campo[i]`. A forma foi
+abandonada por quatro defeitos, e os quatro vinham da mesma tentativa de fingir
+que havia uma linha:
 
-A segunda pergunta ("um módulo consegue?") também parecia fechar essa porta:
-as tentativas de generalizar `soa` por um parâmetro de módulo — `dim N`, lista
-de tipos, qualquer forma de aridade que dependesse de uma lista externa —
-esbarram na mesma regra de "Substituição e aridade fixa" que já nega a
-`corot`/`routine` um segundo parâmetro fixo (acima): gerar uma família de
-declarações, ou uma assinatura de aridade variável, a partir de uma lista que
-o módulo não escreve por extenso. Nenhuma dessas tentativas é `soa`; nenhuma
-sobrevive à mesma regra que já vale para todo o capítulo 4.3. `soa struct` não
-tenta — os campos são escritos por extenso, uma vez, no ponto da declaração,
-exatamente como os de qualquer `struct` comum (linguagem §4.2, "campos keel em
-struct são registrados com o tipo e os marcadores escritos"). Não há
-parâmetro, não há instanciação, não há lista externa: por isso a construção
-não é módulo genérico, é núcleo, admitida pela mesma via que já admite
-`array` e `range`.
+- `p[i]` prometia uma linha que não existe. Não havia gather, e `p[i]` sozinho
+  precisava de uma recusa própria.
+- `p[i]` sobre `soa position *p` é C válido: indexação de ponteiro. A reescrita
+  sequestrava essa forma e impedia vetor de tabelas (AoSoA).
+- A marca `soa` no ponto de uso (`soa position p;`, repetida em todo
+  parâmetro) era redundante: a informação pertence ao tipo.
+- A inserção de um nível de ponteiro travava `array f32 x[MAX]` e fazia de
+  `array f32 *x` um `f32 **x`.
 
-`soa` não é o primeiro caso do núcleo que gera um tipo novo a partir de uma
-lista que a própria declaração especifica — `tags NOME [ … ];` já faz isso,
-derivando um `enum` de uma lista de nomes (linguagem §4.9). A diferença é que
-a lista de `tags` é homogênea: cada nome vira uma constante sequencial, sem
-variar de forma entre itens. `soa` lida com uma lista **heterogênea** — cada
-campo pode estar marcado ou não, e só o marcado muda de forma — e é essa
-variação por item, não a novidade de gerar um tipo, que exige o cuidado extra
-do §4.11 (declarador simples, tipo nomeado). `array`, `ref` e `range` não são
-o mesmo tipo de coisa: nenhum deles gera um tipo novo, só reconhecem uma
-sintaxe e reescrevem ou apontam para um tipo que já existe. `tags` e `soa`
-formam a família que sintetiza tipo a partir de lista; `array`/`ref` formam a
-do açúcar de declarador sem tipo novo nenhum.
+Sem esses quatro, o que a construção acrescenta ao C é uma coisa só: **um
+conjunto de vetores que compartilham um único controle de extensão.** O layout,
+o C já expressa — `struct { f32 *x; f32 *y; }` —, e por isso não há inversão. O
+que o C não expressa é que `x` e `y` têm a mesma extensão, e qual é ela. É esse
+o fato que `extent` declara, e o nome diz isso: `soa` descreve o layout que
+resulta quando há várias colunas; `extent` descreve o que foi declarado. O
+precedente de nomenclatura é o `std::mdspan` do C++23, cujos *extents* também
+misturam extensões estáticas e dinâmicas.
 
-Falta a terceira pergunta: que garantia a construção carrega, que o C não
-expressa? Uma versão mais ambiciosa foi cogitada e recusada: `soa` poderia
-inverter um `struct` já escrito para outro fim, inserindo `len`/`cap` que o
-programa nunca escreveu, e sintetizando `push`/`pop`/`get`/`set` para
-manipulá-los — a versão que garantiria sincronização entre colunas de
-verdade. Ela não passou pela própria motivação do documento: **"keel é o que
-já se faz com truque de macro, escrito como sintaxe"** (abertura). O ganho
-dessa versão mais pesada é pago com o custo que essa frase existe pra evitar
-— verbos que o próprio projetista da linguagem não consegue apontar como um
-`module`/`modifier` comum (§4.3), porque não são: são campo escondido e corpo
-gerado por uma lista de campos que não cabe em `dim`/`type`/`tags` sem
-reabrir a metalinguagem de template que a §4.3 já fecha ("Substituição e
-aridade fixa", acima). Sem conseguir escrever isso como módulo, também não dá
-pra dizer ao programa exatamente onde o mecanismo mora — e é essa opacidade,
-não a complexidade em si, que o critério recusa.
+**A declaração carrega tudo; o uso, nada.** Os descritores ficam antes da `{`,
+como lista de opções, no mesmo lugar em que `extern_c [type_h]` e
+`defer [now …]` põem as suas. Variáveis e parâmetros usam `struct NOME`, e o
+acesso é `p.x[i]` ou `p->x[i]`, como em C.
 
-A versão que entrou não gera `len`, `cap` ou verbo nenhum: o programa escreve
-os campos de controle que quiser, iguais a qualquer outro campo, e escreve as
-próprias funções de crescimento. A garantia que resta é outra, mais estreita,
-mas real: a reescrita `var[i].campo` → `var.campo[i]` (ou `param->campo[i]`,
-por ponteiro) preserva ordem de avaliação e não iça operando — uma das três
-formas de garantia que o critério já lista. E o ponteiro que sobra depois da
-inversão não é solto: `slice.from(T, var.campo, n)` (§5.3), verbo que já
-existe, o transforma em `slice T`, e daí `foreach`, `walk`, `apply` e
-`partition`/`parallel` funcionam sem nenhum código a mais — o que um SoA
-manual em C não dá de graça, porque C não sabe que aqueles ponteiros formam
-uma sequência. É a ponte para a maquinaria de travessia e partição que já
-existe, não uma sincronização nova, que sustenta o critério 3.
+**`array` é o marcador de coluna, e mantém o seu sentido.** `array f32 x[MAX]`
+é vetor embutido, como na spec §4.2; `array f32 *x` é ponteiro, exatamente como
+escrito. Um vetor C sem marcador, como `char name[32]`, é campo comum. O que é
+coluna vem do programador escrevendo `array`, e não de keel examinando o tipo C
+do campo; é essa troca que tira a construção de trás da primeira pergunta do
+teste de admissão. (A versão `soa` deste texto dizia que `array` "desaparecia
+no lowering como `ref`". Não desaparece: `array` vira `T v[..]`.)
 
-Uma escolha deliberada de escopo acompanha a admissão: `soa` não reconstrói a
-entidade inteira a partir de um índice. `var[i]` sozinho não tem forma
-reconhecida — só `var[i].campo`. Quem precisa da struct inteira em um valor
-usa `struct`, não `soa struct`; o gather, se o programa quiser um, é escrito à
-mão, campo a campo. É a mesma disciplina que já nega sincronização inserida
-por `parallel` ou transporte automático de valor de uma participante
-cooperativa (tabela acima): a construção entrega o que verifica, não o que
-teria que adivinhar sobre a intenção do programa.
+**A capacidade é obrigatória.** Cada grupo é `[contagem, capacidade]`, como em
+`buffer` e `arena`: nada em keel cresce sem limite conhecido, e é a capacidade
+que torna o acesso verificável. Ela é campo, quando dinâmica, ou constante
+(`constexpr` ou literal), quando fixa; `#define` fica fora pela razão de
+sempre, que é ser invisível a keel (spec §1.3). A resolução é por nome, não por
+valor: primeiro campo, porque C não admite dois membros com o mesmo nome;
+depois constante. A dimensão de uma coluna embutida confere com o grupo pelo
+mesmo nome — `x[MAX]` sob `[len, MAX]` —, sem que keel avalie coisa alguma.
+Coluna embutida sob capacidade que é campo teria duas fontes de capacidade, e é
+recusada.
 
-Referência: [spec §4.11](keel-spec.md#411-soa).
+**A manutenção é do programa.** keel não insere campo nem gera `push` ou `pop`.
+A versão com verbos sintetizados chegou a ser escrita, ainda como `soa`, e foi
+revertida: verbos que não se deixam escrever como um `module` comum são campo
+escondido e corpo gerado a partir de uma lista de campos que não cabe em `dim`,
+`type` ou `tags` sem reabrir a metalinguagem de template que a spec §4.3 fecha.
+O ganho de `extent` não é manter a extensão; é keel **saber** a extensão de
+cada coluna.
+
+**Com esse saber, keel verifica o acesso**, e essa é a garantia que responde à
+terceira pergunta do critério. O modelo é o de `array` (spec §4.5) e o de
+`get`/`set` (spec §5.3): recusa na tradução quando índice e capacidade são
+decimais conhecidos, `assert` por índice escrito em debug, nada em release. O
+`assert` amarra o invariante ao mesmo termo — `i < len && len <= cap` — e fica
+no acesso, não nas escritas em `len`: alias e código C escapam a qualquer
+varredura das escritas, e o acesso é o ponto por onde todo uso passa. Em várias
+dimensões, verificar cada dimensão é essencial: um índice interno além da
+capacidade lê a linha seguinte dentro do mesmo bloco, e o ASan não o vê.
+
+**A função de acesso é do núcleo.** Um `assert` escrito antes da expressão
+avaliaria o índice duas vezes, e `p.x[i++]` quebraria a avaliação única da spec
+§4.5. A saída é a mesma do açúcar de indexação sobre modificador, `*ptr(x,i)`:
+uma função `static inline` por coluna, com a verificação dentro, que recebe o
+struct por ponteiro e um índice por dimensão. Quem a emite é o núcleo, porque só
+ele tem a declaração, e nenhum módulo de aridade fixa a escreveria: o rank e o
+tipo de cada coluna mudam de uma declaração para outra. É esse o privilégio que
+o princípio 8 manda enumerar, e a enumeração é o próprio contrato da spec §4.11.
+
+**O passo é a capacidade, não a contagem.** Na coluna por ponteiro, o endereço é
+Horner sobre as capacidades internas, `(i·c₁ + j)·c₂ + k`. Com a capacidade
+como passo, crescer a contagem até ela não move dado, e o layout por ponteiro é
+o mesmo do embutido. A capacidade externa não entra no endereço, só na
+verificação. A forma é retangular; tabelas irregulares (CSR) são outra
+estrutura, que o programa monta com uma coluna de deslocamentos.
+
+**O índice é a identidade da linha, e só enquanto não há remoção.** Remover por
+troca com a última linha, a forma barata, muda o índice da linha trocada. Quem
+precisa de identidade estável usa o que os sistemas de entidades usam: índice
+mais geração, ou uma coluna de ids com um mapeamento de id para índice (slot
+map, sparse set). Isso é biblioteca sobre `extent`, e não núcleo.
+
+**A coluna de etiqueta é um `tagged` decomposto.** Quando as linhas são
+heterogêneas, como os nós de uma AST, uma coluna cujo tipo é um conjunto `tags`
+diz o que cada linha é, e o "valor" fica espalhado nas outras colunas.
+`match (t.kind[i])` funciona porque o tipo declarado do operando é o conjunto
+(spec §4.9). Ids e gerações, que dizem **quem** a linha é, são inteiros comuns,
+sem conjunto fechado, e nunca operandos de `match`.
+
+**Fora desta versão: descritores vetoriais e `tensor`.** Um grupo cujos
+descritores fossem campos vetor (`size_t shape[N], cap[N]`) permitiria escrever
+`tensor(N)` como biblioteca sobre `extent`. O tensor é biblioteca de um jeito ou
+de outro — o açúcar com `dim` da spec §4.3 já o alcança —, e a escolha fica para
+quando ele for desenhado.
+
+Referência: [spec §4.11](keel-spec.md#411-extent).
 
 ## Fronteira com C e conflitos léxicos
 
@@ -493,6 +517,11 @@ A prioridade da revisão é fechar o núcleo, as verificações do parser e a ba
 mínima. Bibliotecas adicionais serão desenvolvidas sobre esses contratos,
 com apoio da experiência de implementação do compilador.
 
+A base segue uma convenção de grafia (spec §5.1), e a maiúscula do conjunto de
+tags não é ornamento: nome de conjunto é nome de tipo, e `types` o injeta nu no
+arquivo de quem importa. Uma palavra comum em minúscula ali colidiria com
+identificadores do programa a cada import.
+
 Referência: spec §4.1.
 
 ## Constantes nomeadas
@@ -583,12 +612,74 @@ bound. O genérico de keel sabe de `T` o que o header C genérico sabe do seu
 `outcome buffer T`, não é opaca: o modificador é conhecido, e é dele que vêm
 os verbos.
 
+**Instanciação degenerada.** `void` e argumento `const` são os dois casos em
+que a instância não admite toda a superfície do genérico. A omissão de campos e
+verbos não é análise de equivalência de tipos C nem eliminação geral de código
+que mencione `T`: decorre do argumento escrito, é a mesma em toda instância com
+o mesmo argumento, e mantém a instância função apenas do próprio nome (backend
+§7.2). O qualificador de topo sai dos verbos que copiam `T` porque é o que o C
+já faz com ele numa cópia. Um `typedef` que menciona o parâmetro não tem forma
+escrita com argumento: o programa o alcança pelos verbos e campos que o
+mencionam, ou declara o próprio `typedef` sobre a mesma forma C, que em C é o
+mesmo tipo. E a declaração que não menciona parâmetro é tipo, `constexpr` ou
+`inline` porque um módulo genérico nunca é a unidade compilada: uma definição
+fora de linha que não pertence a instância nenhuma não teria onde ficar.
+
 Essa escolha limita as formas de interface de um tensor, mas o tensor é um
 exemplo de modificador, não o modelo de todo parâmetro `dim`. A orientação a
 dados de keel permanece dentro dos limites de substituição e reconhecimento,
 sem metalinguagem de templates ou análise semântica de tipos C.
 
 Referência: [spec §4.3](keel-spec.md#43-módulos-genéricos).
+
+## Parâmetro de tipo em função
+
+`arena.alloc(a, T, n)` e `slice.from(T, p, n)` eram privilégios: a spec os
+listava como os casos em que o tipo vinha escrito na chamada. O parâmetro
+`type X` de função troca a lista por duas regras gerais, e as duas operações
+passam a ser biblioteca comum (princípio 8).
+
+A recusa da "função genérica livre" (tabela de recusas) é sobre **deduzir** o
+tipo a partir de um argumento, o que exigiria saber o tipo de uma expressão C.
+Um tipo **escrito** na chamada não pede dedução: é um token que keel já sabe
+ler como tipo.
+
+**A espécie é decidida pela linha `module`.** Se o nome do parâmetro é
+parâmetro do módulo, ele já é token de substituição, e o tipo escrito na
+chamada só pode dizer uma coisa: qual instância. Se não é, não há instância a
+escolher, e o parâmetro é apagado em tamanho e alinhamento. O teste é léxico e
+fica na declaração; quem chama não decide nada. O único risco seria um token
+com dois sentidos, e ele não ocorre: o nome de um parâmetro do módulo tem
+sempre o sentido de seleção, e um parâmetro apagado com nome de tipo conhecido
+é recusado.
+
+**Apagamento, e não uma função por tipo.** A alternativa considerada foi emitir
+uma função por tipo escrito, como `keel_arena_alloc_i32`. Ela custa identidade,
+mangling e um lugar para cada corpo, que é a maquinaria do módulo genérico
+aplicada a uma função livre; e não ganha nada enquanto o corpo usa `T` só em
+`sizeof` e `alignof`, porque depois do inline as duas formas geram o mesmo
+código. Ela só produziria algo diferente se o corpo usasse `T` de outro jeito —
+declarar `T x`, fazer aritmética sobre `T *` —, e aí já é a função genérica
+livre de verdade, uma decisão bem maior. Por isso o uso de um parâmetro apagado
+fica restrito a `sizeof`, `alignof` e `X *` na assinatura.
+
+**A seleção precisa fixar a instância inteira.** Sem contêiner entre os
+argumentos, nada mais determina a instância, então o verbo lista um `type` para
+cada parâmetro do módulo. Um módulo com `dim` ou `tags` na linha não tem verbo
+de seleção.
+
+**`dim` não é parâmetro de função.** A motivação seria dimensionar um vetor
+local, `f32 tmp[N]`. Apagado em `size_t n`, `tmp[n]` é VLA: opcional em C11 e
+C23, ausente no MSVC, pilha sem limite verificável, `sizeof` em execução (ver
+[o que o VLA errou](#o-que-o-vla-errou)). Não apagado, exige uma função por
+valor de `N` — identidade, mangling, colocação de corpos —, a mesma porta que a
+função por tipo reabriria. Ao contrário de `type`, `dim` não tem forma apagada
+que não seja VLA, e a regra do apagamento não se estende aos outros parâmetros.
+As alternativas já existem: uma arena de rascunho
+(`arena.alloc(scratch, f32, n)`), ou capacidade fixa com contagem dinâmica, que
+é o `[len, MAX]` de `extent`.
+
+Referência: [spec §4.4](keel-spec.md#44-resolução-de-operações).
 
 ## Memória e visão: a direção da conversão
 
@@ -617,6 +708,11 @@ declara seu próprio verbo de `range-index`, com o nome que fizer sentido para e
 — `buffer.as_slice`, não `buffer.of` — e o lado visão continua com o seu
 próprio `of`, para recortar a si mesma, sem depender de nada além do próprio
 tipo. `slice` nunca importa `buffer`; é sempre `buffer` que importa `slice`.
+
+Por isso o nome do verbo de `range-index` é do módulo que o declara, e não do
+protocolo — na base, `as_slice` em `buffer` e `of` em `slice`. A liberdade não é
+estilo: é o que permite ao lado memória declarar o verbo sem que o lado visão
+precise conhecê-lo, e o que mantém o grafo de imports acíclico.
 
 Referência: [spec §4.5](keel-spec.md#45-indexação-e-range-index).
 
@@ -701,6 +797,17 @@ responsabilidade fica escrita do outro lado: quando o lowering escolhido de
 fato executa em paralelo, os acessos que as partes compartilham são do
 programa, e o PPC não insere sincronização.
 
+**O nome do bloco é único na função, e não só no escopo.** Dois blocos com o
+mesmo nome em escopos aninhados declarariam dois símbolos de controle, e o de
+dentro sombrearia o de fora: uma consulta escrita depois leria o bloco errado
+sem que nada acusasse.
+
+**O fim natural do worker não é veredito.** Só `win` conta para a política, e
+só `fail` conta contra ela. É o que faz `ALL` ser satisfeito por workers que
+simplesmente terminam, e o que impede `ANY` de ser satisfeito por quem não
+achou nada. Dentro do corpo, só `interrupted` tem leitura definida, porque as
+demais consultas dependem de workers que ainda executam.
+
 Referência: [spec §4.8](keel-spec.md#48-execução-particionada).
 
 ## Conjuntos fechados e exaustividade
@@ -758,6 +865,16 @@ código continua sendo um `i32`, e `corot.tag` o traduz para uma das três tags
 declaradas pelo próprio módulo. Um operando cujo módulo não declara conjunto
 não admite `match`, porque não haveria lista contra a qual verificar; o
 programa continua podendo escrever `switch`.
+
+**O conjunto também é tipo.** `tags Nome [ … ];` declara um `enum` cuja lista
+keel conhece, e isso vale fora de qualquer módulo genérico: uma variável, um
+parâmetro ou uma coluna de `extent` declarados com o tipo do conjunto são
+operandos de `match`, e o conjunto é o próprio tipo. É o `tagged` sem o valor
+associado, só que explícito. A marca que keel entende é a declaração `tags`, e
+não o `enum`: um `enum` C, mesmo escrito num módulo keel, não tem uma lista que
+keel reconheça como fechada, e continua pedindo `switch`. A representação não
+muda: a variável é o `enum`, como em C. O `i32` continua sendo a largura do
+campo de etiqueta do `tagged`, que é o que a ABI fixa.
 
 Referência: [spec §4.9](keel-spec.md#49-conjuntos-de-tags-e-despacho).
 
@@ -1041,6 +1158,9 @@ Referência: [spec §4.1](keel-spec.md#41-módulos-e-interoperabilidade).
 registro, keel pode reescrever índices múltiplos e pedir dimensões por `sizeof`,
 sem contar inicializadores nem converter o armazenamento para um formato próprio.
 
+Num `extent`, `array` marca as colunas. É o mesmo registro — o campo é vetor —,
+e o `extent` o usa para saber quais campos seguem o controle de extensão.
+
 `ref` registra uma restrição sobre uma declaração. A varredura dos operadores
 aplicados ao símbolo cabe no limite de análise; seguir todas as cópias do
 endereço mudaria esse contrato. A aceitação de `NULL` permite receber o resultado
@@ -1092,6 +1212,13 @@ lista de tipos privilegiados. É o que permite a um módulo do usuário particip
 de qualquer uma delas sem que o PPC saiba que ele existe, e é o que impede que
 a base receba tratamento que a spec não escreveu.
 
+
+Um verbo que o genérico declara e a instância escrita não admite (`void` ou
+`const`, spec §4.3) é recusado com nome, e não deixado para o compilador C. A
+tradução já conhece a superfície da instância para emiti-la; recusar com o nome
+do argumento que removeu o verbo não custa verificação alguma, e troca um erro
+de declaração implícita por uma mensagem que diz o que de fato aconteceu.
+
 Referência: [spec §4.4](keel-spec.md#44-resolução-de-operações).
 
 ## Acesso e travessia
@@ -1110,6 +1237,10 @@ percorrido. A informação dos binders escolhe cópia ou endereço; `apply` usa 
 mesma escolha e uma chamada fixa. Um parâmetro `dim` não precisa representar um
 rank para participar desse modelo: o módulo declara suas operações e suas
 aridades, e a travessia consulta o protocolo disponível.
+
+A forma contável de `foreach` não impõe protocolo rígido: `first` e `limit`
+bastam, porque o binder recebe o próprio contador e nenhum verbo de acesso por
+posição é despachado.
 
 Referência: [spec §5.3–4.9](keel-spec.md#53-keelbuffer-keelslice-e-keelrange).
 
@@ -1150,6 +1281,10 @@ isso se escreve `buffer.cursor`, sem argumento.
 A terminação não é provada. Um `next` que não avance produz laço infinito,
 exatamente como o `while` equivalente escrito à mão; a construção não promete
 mais do que a forma que substitui.
+
+A forma de um binder em `walk` é reconhecida só para ser recusada, por
+`walk-without-cursor`: a mensagem diz o que falta, em vez de um erro de sintaxe
+sobre a vírgula.
 
 Referência: [spec §4.7](keel-spec.md#47-travessia-sequencial).
 
@@ -1491,17 +1626,24 @@ Referência: [backend §6](keel-c-backend.md#6-mapeamento-de-linhas).
 `arena` já nomeia uma estrutura C que controla uma região de memória por um
 topo de alocação. Não há um tipo `T` a modificar para declarar uma arena:
 `typedef struct { ... } arena;` fornece o tipo, e `arena a;` declara um objeto
-desse tipo. A declaração conserva essa forma no C emitido.
+desse tipo. A declaração conserva essa forma no C emitido, com o nome
+`keel_arena` e o inicializador descrito adiante.
 
 A passagem do descritor por referência pertence ao contrato das operações;
 ela não caracteriza um modificador. Da mesma forma, o `T` em
-`arena.alloc(a, T, n)` indica o tipo dos objetos a alocar, para obter tamanho
-e alinhamento, sem alterar o tipo de `a`.
+`arena.alloc(a, T, n)` é um parâmetro `type` apagado (ver [parâmetro de tipo em
+função](#parâmetro-de-tipo-em-função)): indica o tipo dos objetos a alocar,
+para obter tamanho e alinhamento, sem alterar o tipo de `a`.
 
-Preservar a declaração também preserva as regras C de inicialização. O
-programa inicializa o descritor por um construtor ou escreve um inicializador
-explícito. Tratar a declaração como uma instanciação com inicialização
-implícita acrescentaria um efeito que `arena a;` não expressa.
+A única coisa que keel acrescenta à declaração é o inicializador: toda
+definição de `arena` sem inicializador escrito recebe `= {0}`. Em arquivo, o C
+já zera o objeto; em bloco, não, e o pior uso possível — `arena.alloc` sobre um
+descritor com lixo — escreveria num endereço qualquer. Com o descritor vazio, a
+mesma chamada falha limpo e devolve `NULL`. A arena é o centro da memória em
+keel, e três campos zerados custam pouco perto do erro que eliminam. O
+inicializador não muda o que a declaração diz — continua sendo uma arena sem
+região —, só tira o estado indeterminado. Um inicializador escrito é
+preservado, e dar região à arena continua sendo trabalho dos construtores.
 
 Referências: [spec: memória por região](keel-spec.md#52-keelarena)
 e [backend: arena](keel-c-backend.md#54-arena).
@@ -1520,6 +1662,8 @@ esquecimento. Cada linha aponta a seção deste documento que responde por ela.
 | A fórmula de faixas dentro de `parallel`, e a exigência de contêiner indexável | O verbo `partition`, declarado pelo módulo do contêiner | Particionável e percorrível |
 | O aviso de indisponibilidade de OpenMP | Nada: o lowering é do backend, e a série sempre foi execução permitida | Políticas e sinalização de interrupção |
 | A exigência de `length` e `get`/`ptr` para toda travessia | `walk`, com `begin`, `has_next` e `next` | Cursor explícito |
+| `soa struct`, com a reescrita `var[i].campo` e a marca no ponto de uso | `extent struct`, com grupos `[contagem, capacidade]` e acesso verificado | `extent`: da recusa à admissão |
+| O tipo escrito na chamada como privilégio de `arena.alloc` e `slice.from` | O parâmetro `type` de função, apagado ou de seleção | Parâmetro de tipo em função |
 
 Os diagnósticos acompanharam as construções. Os que observavam a máquina de
 estados **mudaram de contrato** e hoje observam o conjunto de tags e o

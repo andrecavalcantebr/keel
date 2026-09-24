@@ -44,12 +44,10 @@ pub inline bool from_parent(arena *a, arena *parent, size_t n) {
     return a->cap > 0;
 }
 
-// The verb is written `alloc(a, T, n)`: the backend reads `T` at the call site
-// and materializes `sizeof`, `_Alignof` and the cast, so `T` never reaches this
-// function (backend §5.4). Count and element size enter separately, and the
-// product is made here — an `n * sz` that overflows returns NULL, and that is
-// the `alloc-overflow` diagnostic. Aligns the ADDRESS, not the offset: the
-// region may start anywhere.
+// The raw form: count and element size enter separately, and the product is
+// made here — an `n * sz` that overflows returns NULL, and that is the
+// `alloc-overflow` diagnostic. Aligns the ADDRESS, not the offset: the region
+// may start anywhere.
 pub inline void *alloc(arena *a, size_t n, size_t sz, size_t align) {
     if (sz == 0 || n > SIZE_MAX / sz) return NULL;
     size_t need = n * sz;
@@ -59,6 +57,13 @@ pub inline void *alloc(arena *a, size_t n, size_t sz, size_t align) {
     if (pad > avail || need > avail - pad) return NULL;
     a->top += pad + need;
     return a->ptr + a->top - need;
+}
+
+// `type T` is erased (spec §4.4): it becomes size and alignment, and the call
+// site writes `sizeof`, `alignof` and the cast (backend §5.16). The arity
+// tells the two forms apart.
+pub inline T *alloc(arena *a, type T, size_t n) {
+    return alloc(a, n, sizeof(T), alignof(T));
 }
 
 pub inline size_t mark(const arena *a) { return a->top; }

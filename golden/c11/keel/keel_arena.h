@@ -9,17 +9,19 @@ static inline bool keel_arena_from_array(keel_arena *a, u8 arr[], size_t len);
 static inline bool keel_arena_from_memory(keel_arena *a, u8 *ptr, size_t len);
 #line 37 "keel/arena.k"
 static inline bool keel_arena_from_parent(keel_arena *a, keel_arena *parent, size_t n);
-#line 53 "keel/arena.k"
-static inline void *keel_arena_alloc(keel_arena *a, size_t n, size_t sz, size_t align);
-#line 64 "keel/arena.k"
-static inline size_t keel_arena_mark(const keel_arena *a);
+#line 51 "keel/arena.k"
+static inline void *keel_arena_alloc3(keel_arena *a, size_t n, size_t sz, size_t align);
 #line 65 "keel/arena.k"
+static inline void *keel_arena_alloc2(keel_arena *a, size_t keel__T_size, size_t keel__T_align, size_t n);
+#line 69 "keel/arena.k"
+static inline size_t keel_arena_mark(const keel_arena *a);
+#line 70 "keel/arena.k"
 static inline void   keel_arena_restore(keel_arena *a, size_t m);
-#line 66 "keel/arena.k"
+#line 71 "keel/arena.k"
 static inline void   keel_arena_reset(keel_arena *a);
-#line 67 "keel/arena.k"
+#line 72 "keel/arena.k"
 static inline size_t keel_arena_length(const keel_arena *a);
-#line 68 "keel/arena.k"
+#line 73 "keel/arena.k"
 static inline size_t keel_arena_capacity(const keel_arena *a);
 
 #line 19 "keel/arena.k"
@@ -43,15 +45,15 @@ static inline bool keel_arena_from_memory(keel_arena *a, u8 *ptr, size_t len) {
 #line 37 "keel/arena.k"
 static inline bool keel_arena_from_parent(keel_arena *a, keel_arena *parent, size_t n) {
     *a = (keel_arena){0};
-    u8 *base = (u8 *)keel_arena_alloc(parent, n, sizeof(u8), _Alignof(u8));
+    u8 *base = (u8 *)keel_arena_alloc2(parent, sizeof(u8), _Alignof(u8), n);
     if (base) {
         a->cap = n;
         a->ptr = base;
     }
     return a->cap > 0;
 }
-#line 53 "keel/arena.k"
-static inline void *keel_arena_alloc(keel_arena *a, size_t n, size_t sz, size_t align) {
+#line 51 "keel/arena.k"
+static inline void *keel_arena_alloc3(keel_arena *a, size_t n, size_t sz, size_t align) {
     if (sz == 0 || n > SIZE_MAX / sz) return NULL;
     size_t need = n * sz;
     uintptr_t base = (uintptr_t)(a->ptr + a->top);
@@ -61,14 +63,18 @@ static inline void *keel_arena_alloc(keel_arena *a, size_t n, size_t sz, size_t 
     a->top += pad + need;
     return a->ptr + a->top - need;
 }
-#line 64 "keel/arena.k"
-static inline size_t keel_arena_mark(const keel_arena *a) { return a->top; }
 #line 65 "keel/arena.k"
+static inline void *keel_arena_alloc2(keel_arena *a, size_t keel__T_size, size_t keel__T_align, size_t n) {
+    return keel_arena_alloc3(a, n, keel__T_size, keel__T_align);
+}
+#line 69 "keel/arena.k"
+static inline size_t keel_arena_mark(const keel_arena *a) { return a->top; }
+#line 70 "keel/arena.k"
 static inline void   keel_arena_restore(keel_arena *a, size_t m) { if (m <= a->top) a->top = m; }
-#line 66 "keel/arena.k"
+#line 71 "keel/arena.k"
 static inline void   keel_arena_reset(keel_arena *a) { a->top = 0; }
-#line 67 "keel/arena.k"
+#line 72 "keel/arena.k"
 static inline size_t keel_arena_length(const keel_arena *a) { return a->top; }
-#line 68 "keel/arena.k"
+#line 73 "keel/arena.k"
 static inline size_t keel_arena_capacity(const keel_arena *a) { return a->cap; }
 #endif /* KEEL_KEEL_ARENA_H */

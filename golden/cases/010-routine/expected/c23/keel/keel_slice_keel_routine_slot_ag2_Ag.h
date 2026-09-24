@@ -65,7 +65,7 @@ static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_a
 #line 49 "keel/slice.k"
 static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_clone(keel_arena *a, keel_slice_keel_routine_slot_ag2_Ag s) {
     keel_outcome_keel_slice_keel_routine_slot_ag2_Ag r = {0};
-    keel_routine_slot_ag2_Ag *data = (keel_routine_slot_ag2_Ag *)keel_arena_alloc(a, s.len, sizeof(keel_routine_slot_ag2_Ag), alignof(keel_routine_slot_ag2_Ag));
+    keel_routine_slot_ag2_Ag *data = (keel_routine_slot_ag2_Ag *)keel_arena_alloc2(a, sizeof(keel_routine_slot_ag2_Ag), alignof(keel_routine_slot_ag2_Ag), s.len);
     if (!data) return keel_outcome_keel_slice_keel_routine_slot_ag2_Ag_none(&r);
     if (s.len > 0) memcpy(data, s.ptr, s.len * sizeof(keel_routine_slot_ag2_Ag));
     return keel_outcome_keel_slice_keel_routine_slot_ag2_Ag_win1(&r, (keel_slice_keel_routine_slot_ag2_Ag){ s.len, data });

@@ -22,7 +22,7 @@ pub modifier slice { size_t len; T *ptr; }
 // `keel_slice_T_cursor`.
 pub typedef struct { size_t i; } cursor;
 
-pub inline slice from(T *p, size_t n) {
+pub inline slice from(type T, T *p, size_t n) {
     return (slice){ p ? n : 0, p };
 }
 

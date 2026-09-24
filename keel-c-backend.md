@@ -45,7 +45,7 @@ A linguagem fixa o **nome canônico** de cada tipo no ponto de declaração (lin
 | --- | --- |
 | tipo da camada zero (`i32`, `char`, `const char`) | mesma grafia; qualificador prefixa com `_` — `const_char` |
 | `M.nome` | `M_nome` |
-| Tipo C `arena`, fornecido pelo header da base | `arena` (§5.4) |
+| Tipo `arena` do módulo `keel.arena` | `keel_arena`, pelo encurtamento abaixo (§5.4) |
 | `M.mod` aplicado a `A` | `M_mod_<A canônico>` |
 | `M.mod` aplicado a `A₁ … A_n` — módulo de vários parâmetros | `M_mod_<A₁>_…_<A_n>`, na ordem da linha `module` |
 | `M.mod(D)` aplicado a `A` — modificador com `dim` parametrizado | `M_mod_<D>_<A canônico>` |
@@ -87,12 +87,13 @@ A tag repete o nome manglado mesmo quando o fonte escreveu a struct sem tag. É 
 `outcome.outcome`, no alias do módulo `keel.outcome`. A escrita abreviada vem
 do import com `types` e não confunde a identidade do módulo com a do modificador.
 
-Na formação do nome de emissão, o nome do modificador igual ao último
-componente do módulo não se repete, conforme a regra de encurtamento herdada
+Na formação do nome de emissão, o nome do modificador ou do tipo igual ao
+último componente do módulo não se repete, conforme a regra de encurtamento herdada
 da spec original §1.7, hoje sem contrapartida na linguagem: ela é de emissão, e
 mora aqui. Por isso `keel.buffer.buffer` aplicado a `i32` produz
 `keel_buffer_i32`; `keel.outcome.outcome` aplicado a `i32` produz
-`keel_outcome_i32`. Essa regra de nomes não modifica a representação nem o
+`keel_outcome_i32`; e o tipo `arena` de `keel.arena` produz `keel_arena`, e não
+`keel_arena_arena`. Essa regra de nomes não modifica a representação nem o
 contrato do tipo ao qual o modificador foi aplicado.
 
 ```plain
@@ -125,7 +126,13 @@ ptr(m,i,j)      →  mat_matrix_f32_ptr2
 
 get(b,i)        →  keel_buffer_i32_get      /* aridade única: sem sufixo */
 set(b,i,v)      →  keel_buffer_i32_set      /* idem, com dois além do contêiner */
+alloc(a,T,n)    →  keel_arena_alloc2        /* função de módulo; `type` conta um */
+alloc(a,n,sz,al) → keel_arena_alloc3
 ```
+
+A regra vale também para função de módulo não genérico, com o primeiro
+argumento no papel de contêiner. O número é o de argumentos escritos em keel:
+um parâmetro `type` apagado conta um, embora saia como dois no C (§5.16).
 
 **Com `dim`, o sufixo conta índices do call site, não argumentos do C** (linguagem §4.3). É a única exceção à frase acima:
 
@@ -1208,8 +1215,8 @@ typedef struct keel_arena {
     u8     *ptr;
 } keel_arena;
 
-[[nodiscard]] static inline void *keel_arena_alloc(keel_arena *a, size_t n,
-                                                   size_t sz, size_t align) {
+[[nodiscard]] static inline void *keel_arena_alloc3(keel_arena *a, size_t n,
+                                                    size_t sz, size_t align) {
     if (sz == 0 || n > SIZE_MAX / sz) return NULL;        /* alloc-overflow */
     size_t need = n * sz;
     uintptr_t base = (uintptr_t)(a->ptr + a->top);
@@ -1219,13 +1226,19 @@ typedef struct keel_arena {
     a->top += pad + need;
     return a->ptr + a->top - need;
 }
+
+[[nodiscard]] static inline void *keel_arena_alloc2(keel_arena *a, size_t keel__T_size,
+                                                    size_t keel__T_align, size_t n) {
+    return keel_arena_alloc3(a, n, keel__T_size, keel__T_align);
+}
 ```
 
-`alloc` é verbo `pub` como qualquer outro. O programa escreve `arena.alloc(a, T, n)`
-e o backend materializa o `sizeof`, o `alignof` e o cast; a função recebe os
-números, nunca o tipo.
+`alloc` é verbo `pub` como qualquer outro, em duas aridades. O programa escreve
+`arena.alloc(a, T, n)`, cujo `type T` é apagado (§5.16): a função recebe os
+números, nunca o tipo. A forma crua, `arena.alloc(a, n, sz, al)`, é a que faz
+o trabalho.
 
-Quatro coisas nessa função são normativas, e as quatro vêm da linguagem §4.4:
+Quatro coisas na forma crua são normativas, e as quatro vêm da linguagem §4.4:
 
 1. **Contagem e tamanho do elemento entram separados**, e o produto é feito aqui. É a forma do `calloc`, e existe para que `n * sizeof(T)` que transborda devolva `NULL` em vez de uma região pequena que o programa acredita ser grande. **É o único ponto do backend que emite essa multiplicação.**
 2. **A soma final não transborda**, porque é escrita como `need > avail - pad` e nunca como `pad + need > avail`.
@@ -1234,7 +1247,7 @@ Quatro coisas nessa função são normativas, e as quatro vêm da linguagem §4.
 
 **`uintptr_t` aparece uma vez e não fabrica ponteiro.** Ele calcula o **número** de bytes de padding; o endereço devolvido sai de `a->ptr + a->top`, aritmética de ponteiro dentro do próprio vetor. É a diferença entre uma conversão de valor definida-pela-implementação e uma travessia de ponteiro por inteiro, e só a primeira acontece aqui.
 
-**O `T` nunca chega à biblioteca.** Quem carrega o tipo é o verbo, que não é função e sim reescrita: ele materializa o `sizeof`, o `alignof` e o cast que um humano escreveria à mão.
+**O `T` nunca chega ao C.** O parâmetro `type T` é apagado (§5.16): a função recebe tamanho e alinhamento, e o ponto de chamada escreve o `sizeof`, o `alignof` e o cast que um humano escreveria à mão.
 
 ```keel
 arena a;
@@ -1243,10 +1256,10 @@ arena.alloc(a, Particle, 100)
 
 ```c
 keel_arena a = {0};
-(sim_Particle *)keel_arena_alloc(&a, 100, sizeof(sim_Particle), alignof(sim_Particle))
+(sim_Particle *)keel_arena_alloc2(&a, sizeof(sim_Particle), alignof(sim_Particle), 100)
 ```
 
-O `= {0}` na declaração é normativo: é ele que faz arena não inicializada ter `capacity == 0` e todo `alloc` nela falhar limpo — com `cap` zerado, `avail` é zero e a primeira comparação já recusa.
+O `= {0}` vem da linguagem §5.2: toda definição de `arena` sem inicializador escrito o recebe, em arquivo ou em bloco. É ele que faz a arena declarada sem construtor ter `capacity == 0` e todo `alloc` nela falhar limpo — com `cap` zerado, `avail` é zero e a primeira comparação já recusa. Vetor de `arena` recebe o mesmo `= {0}`, que zera todos os elementos; vários declaradores recebem um cada, `keel_arena a = {0}, b = {0};`. Declaração `extern` e campo de struct não o recebem.
 
 **Os quatro construtores.** Todos devolvem `bool`, verdadeiro quando a capacidade resultante é maior que zero:
 
@@ -1269,7 +1282,7 @@ keel_arena h = {0};  keel_arena_from_memory(&h, mem, cap);
 
 - **Nenhum construtor recebe alinhamento**, e é a consequência de a alocação alinhar o endereço. A tentativa anterior era `alignof(<símbolo>)` para levar o `alignas` do usuário ao descritor, e ela **não é C**: `alignof` exige nome de tipo, e o GCC recusa com `ISO C does not allow 'alignof (expression)'`. Não havia substituto — keel copia `alignas(64)` verbatim e não avalia o argumento —, e a saída foi tirar a necessidade em vez de procurar a grafia.
 - **`from_stack` é o único construtor sem função C própria**: ele gera o vetor no frame e chama `keel_arena_from_array`. A origem "pilha" está no vetor emitido, não numa inicialização diferente. O `alignas(alignof(max_align_t))` continua saindo, mas agora é **economia e não correção**: sem ele a arena funciona igual, e apenas gasta até `alignof(max_align_t) - 1` bytes de padding na primeira alocação.
-- **`from_parent` recorta com `keel_arena_alloc(&parent, n, 1, 1)`** — alinhamento 1, porque a filha alinha as próprias alocações. Ela não herda nem precisa herdar alinhamento nenhum.
+- **`from_parent` recorta com `keel_arena_alloc2(parent, sizeof(u8), alignof(u8), n)`** — alinhamento 1, porque a filha alinha as próprias alocações. Ela não herda nem precisa herdar alinhamento nenhum.
 
 #### 5.4.1 O respaldo de tipo-caractere
 
@@ -1321,7 +1334,7 @@ outcome slice geom.Point out = slice.clone(a, slice.of(tmp)) else return -1;
 keel_outcome_keel_slice_geom_Point out = keel_slice_geom_Point_clone(&a, keel_buffer_geom_Point_as_slice(&tmp)); if (keel_outcome_keel_slice_geom_Point_failed(out)) return -1;
 ```
 
-A função da instância faz `keel_arena_alloc` mais a cópia dos elementos, e devolve `code != OK` quando a alocação falha. **Ela não refaz a checagem de transbordamento**: o comprimento da origem já coube na memória uma vez.
+A função da instância faz `keel_arena_alloc2` mais a cópia dos elementos, e devolve `code != OK` quando a alocação falha. **Ela não refaz a checagem de transbordamento**: o comprimento da origem já coube na memória uma vez.
 
 **`at` é a única função de acesso com teste em release.** Ela é total (linguagem §5.3), então o `if` é semântica e não verificação — não depende de `--checks` e não some. Ela devolve **`outcome T`**, e não ponteiro, pela regra de modo de falha da linguagem §4.4; a emissão está no §5.13, que é onde ela mora.
 
@@ -1541,7 +1554,7 @@ Sete regras de emissão, e cada uma existe por um motivo concreto:
 2. **O rótulo vai antes da chave de abertura**, e as chaves são o escopo do braço que a linguagem §4.9 exige — não um detalhe de emissão. Saltar para um rótulo interno entraria no meio do escopo e **os inicializadores das declarações não rodariam** — legal em C, e o tipo de bug que ninguém encontra. Com o rótulo fora, o salto entra pelo topo e declaração de braço se comporta normalmente.
 3. **Cada bloco de braço é seguido de `goto <m>_end`.** É o fim de braço da linguagem §4.9, e é o que elimina fallthrough. No último braço o salto é omitido: ele cairia na linha seguinte, e ninguém escreveria isso à mão (princípio 2). **Rótulos consecutivos empilham antes da mesma chave** — `keel__m0_ADD: keel__m0_MUL: { … }` —, que é como o braço compartilhado da linguagem §4.9 se materializa sem duplicar o corpo e sem reabrir fallthrough.
 4. **`break` no nível do braço é `goto <m>_end`**, de qualquer profundidade de escopo dentro do braço — a razão de o despacho ser por rótulo. Um `break` que pertença a laço ou `switch` escrito pelo usuário dentro do braço **não é reescrito**: quem decide é a estrutura C que o contém, reconhecida pela linguagem §2.2. `return` e os demais pontos de saída pertencem à função e atravessam como sempre, com o cleanup do §5.5.
-5. **O operando é lido uma vez, pelo verbo `tag`.** Sobre uma instância de `tagged` isso é o acesso ao campo, e sai como tal; sobre outro tipo que declare `tag` — `corot`, por exemplo — sai a chamada do verbo, e o `switch` é sobre o valor devolvido. O campo da etiqueta é `i32`, e não o `enum`: é o que mantém a largura estável na ABI e o que permite ao `corot` participar sem mudar de representação.
+5. **O operando é lido uma vez, pelo valor ou pelo verbo `tag`.** Quando o tipo declarado do operando é o conjunto (linguagem §4.9), a etiqueta é o próprio valor: `switch (k)`, ou `switch (*app_ast_ast_kind_ptr(&t, i))` sobre uma coluna de `extent` (§5.15). Sobre uma instância de `tagged` isso é o acesso ao campo, e sai como tal; sobre outro tipo que declare `tag` — `corot`, por exemplo — sai a chamada do verbo, e o `switch` é sobre o valor devolvido. O campo da etiqueta é `i32`, e não o `enum`: é o que mantém a largura estável na ABI e o que permite ao `corot` participar sem mudar de representação.
    **Na escrita a assimetria aparece no C:** um parâmetro declarado com o nome do parâmetro `tags` sai com o tipo do `enum` — `void keel_tagged_ast_Kind_ast_Node_mark(… , ast_Kind e)` —, e a atribuição ao campo é a conversão usual de `enum` para `i32`. A verificação de pertinência é da tradução (linguagem §4.3); o C não a faria, porque enum e int se convertem em silêncio.
 6. **Não há verbo de transição no despacho.** `tagged.mark(n, MUL)` é chamada comum, e o que keel faz na constante nua é a reescrita de escopo de enum (§2.1). Escrever a etiqueta não redespacha: o `switch` já executou.
 7. **`default:` sai sempre**, saltando para o fim. Etiqueta fora de faixa é possível quando o valor vem de memória — `memset`, arquivo, rede. Sob `--checks`, um `assert` o precede, e é o `tag-out-of-range`. Ele não é braço: a exaustividade já foi verificada na tradução, sobre a lista declarada.
@@ -2007,6 +2020,87 @@ precisa estabelecer o código de sucesso. As grafias antigas de produção e
 consulta cooperativas não são emitidas como aliases.
 
 
+### 5.15 `extent`
+
+A declaração sai como o struct escrito. O acesso de coluna sai por uma função `static inline` por coluna, que é a função de acesso da linguagem §4.11.
+
+```keel
+//keel
+module app.grid;
+
+pub extent struct grid [rows, rcap] [cols, ccap] {
+    array i32 *v;
+    size_t rows, cols, rcap, ccap;
+};
+
+g.v[i, j] = 0;
+```
+
+```c
+//C gerado — app/app_grid.type.h
+struct app_grid_grid {
+    i32 *v;
+    size_t rows, cols, rcap, ccap;
+};
+
+//C gerado — app/app_grid.h
+static inline i32 *app_grid_grid_v_ptr(struct app_grid_grid *p, size_t i0, size_t i1) {
+    return &p->v[i0 * p->ccap + i1];
+}
+
+//C gerado — no ponto de uso
+*app_grid_grid_v_ptr(&g, i, j) = 0;
+```
+
+1. **O struct é o escrito.** A tag é o nome manglado `M_NOME` (§2.1), e não se emite `typedef`: o programa escreve `struct NOME`. A coluna embutida sai com colchetes sucessivos, como qualquer `array` (§5.3); `array T *col` sai `T *col`. Nenhum campo é inserido.
+2. **Uma função de acesso por coluna**, com o nome `M_NOME_col_ptr`. Ela recebe o struct por ponteiro e um `size_t` por grupo, `i0` a `iₙ₋₁`, e devolve o endereço do elemento. Um nome do programa que coincida com ela é `canonical-name-collision` (linguagem §4.2).
+3. **Onde mora.** Com o `extent` `pub`, o struct vai ao `.type.h` e as funções ao `.h`, pelas camadas do §4.3.2; com `priv`, os dois vão ao `.c`. Cada função leva o `#line` da coluna.
+4. **O endereço.** Na coluna embutida, `&p->col[i0][i1]…`. Na coluna por ponteiro, Horner sobre as capacidades internas: `&p->col[(i0 * c1 + i1) * c2 + i2]`. Uma capacidade que é campo sai `p->campo`; uma `constexpr`, com o nome C da constante; um literal, como escrito. A capacidade externa não aparece no endereço.
+5. **O ponto de acesso.** `P.col[…]` sai `*f(&P, …)`, e `P->col[…]` sai `*f(P, …)`. O `&*` colapsa: `&P.col[i]` sai `f(&P, i)`. O caminho `P` é copiado como escrito, entre parênteses quando não é expressão pós-fixa.
+6. **Sob `--checks`**, um `assert` por índice precede o retorno, com o invariante inteiro do grupo. É o `extent-index-out-of-bounds`:
+
+   ```c
+   static inline i32 *app_grid_grid_v_ptr(struct app_grid_grid *p, size_t i0, size_t i1) {
+       assert(i0 < p->rows && p->rows <= p->rcap);
+       assert(i1 < p->cols && p->cols <= p->ccap);
+       return &p->v[i0 * p->ccap + i1];
+   }
+   ```
+
+   Quando o índice e a capacidade são decimais conhecidos, não há `assert` para esse índice: a tradução já recusou, e é o `extent-index-above-capacity`.
+7. **O acesso é sempre pela função**, com ou sem `--checks`. É um caminho de emissão só, e é ele que garante que o caminho e cada índice sejam avaliados uma vez: `p->x[i++]` incrementa `i` uma vez. Em `-O0` a chamada permanece, que é o mesmo custo do §5.3.1.
+
+**`P.col` sem índice é o campo**, e sai como escrito: é o que entra em `slice.from(f32, p->x, p->len)`.
+
+### 5.16 Parâmetro `type`
+
+Um parâmetro `type` apagado vira tamanho e alinhamento; um de seleção desaparece do C (linguagem §4.4).
+
+```keel
+//keel
+module keel.arena;
+
+pub inline T *alloc(arena *a, type T, size_t n) {
+    return alloc(a, n, sizeof(T), alignof(T));
+}
+```
+
+```c
+//C gerado
+[[nodiscard]] static inline void *keel_arena_alloc2(keel_arena *a, size_t keel__T_size,
+                                                    size_t keel__T_align, size_t n) {
+    return keel_arena_alloc3(a, n, keel__T_size, keel__T_align);
+}
+
+/* call site: arena.alloc(a, Particle, 100) */
+(sim_Particle *)keel_arena_alloc2(&a, sizeof(sim_Particle), alignof(sim_Particle), 100)
+```
+
+1. **Apagado, na declaração.** `type X` sai como `size_t keel__X_size, size_t keel__X_align`, na posição escrita. No corpo, `sizeof(X)` e `alignof(X)` saem com esses nomes. `X *` na assinatura sai `void *`.
+2. **Apagado, na chamada.** O tipo escrito sai como `sizeof(T), alignof(T)` — `_Alignof` no perfil C11 —, com a forma C do tipo (§2.1). Um retorno `X *` recebe no ponto de chamada o cast para o tipo escrito.
+3. **Seleção.** O argumento de tipo sai da chamada e o parâmetro sai da assinatura; o que resta é a função da instância: `slice.from(f32, p, n)` sai `keel_slice_f32_from(p, n)`.
+4. **Sufixo de aridade.** O parâmetro `type` conta como um argumento (§2.1), embora o apagamento o emita como dois.
+
 ## 6. Mapeamento de linhas
 
 `#line` é pegajosa: fixa o número da linha seguinte e o compilador segue incrementando sozinho. Isso permite enunciar a regra como uma **invariante mecânica**, em vez de uma lista de casos:
@@ -2137,7 +2231,8 @@ A ressalva que sobra é a mesma do make: se o próprio gerador mudar, os gerados
 | `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` |
 | `array-index-out-of-bounds` | Índice de `array` fora da dimensão declarada | `debug` |
 | `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` |
-| `alloc-overflow` | `arena.alloc` cujo `n * sizeof(T)` não cabe em `size_t` | `debug` |
+| `alloc-overflow` | `arena.alloc` cujo `n * sz` não cabe em `size_t` | `debug` |
+| `extent-index-out-of-bounds` | Índice de coluna de `extent` fora da contagem, ou contagem acima da capacidade | `debug` |
 | `layout-cycle` | Cadeia de tipos que se contêm por valor atravessando instância de modificador | `error` |
 
 Os identificadores são os do [catálogo da spec](keel-spec.md#62-catálogo). A spec define a condição normativa; esta tabela reúne os casos relacionados ao backend.
@@ -2319,7 +2414,7 @@ C23 não pagar nenhum deles e ainda assim aceitar o mesmo conjunto de programas.
 
 ## 10. Decisões de emissão
 
-Sete pontos que estiveram abertos enquanto o lowering se firmava. Ficam aqui
+Oito pontos que estiveram abertos enquanto o lowering se firmava. Ficam aqui
 com o motivo, como decisão registrada — não como alternativa em aberto.
 
 | | Decisão | Por quê |
@@ -2331,3 +2426,4 @@ com o motivo, como decisão registrada — não como alternativa em aberto.
 | 5 | `mask` devolve `u64`, e o limite é 64 slots | o mapeamento é de 64 bits, daí 64 entradas; o excedente é o `debug` `mask-above-64-slots`. Largura arbitrária volta junto com `bitslice bool`, e aí será tipo, não conveniência |
 | 6 | As cláusulas do `#pragma` saem em ordem fixada: os temporários do gestor na ordem de emissão, o símbolo de controle, depois as capturas na ordem escrita, repartidas entre `shared` e `firstprivate` pela espécie | `default(none)` obriga a listar todo símbolo tocado, e o §7.1 exige saída byte a byte idêntica. Os temporários de `foreach` no corpo não entram na lista: são declarados dentro do laço do worker e já são privados por construção (§5.9) |
 | 7 | A base fica toda `pub inline`; não há `.c` por instância distribuído pronto | em laço quente o inline é o que mantém o código junto do dado, e isso é objetivo da linguagem, não detalhe de emissão. O preço — `--instance` sobre a base emitir `redundant-instance` sempre — é consequência anunciada ([rationale](keel-rationale.md#prelúdio-e-base-mínima)) |
+| 8 | O acesso de coluna de `extent` é sempre pela função de acesso, com ou sem `--checks` | §5.15. Um caminho de emissão só: é ele que avalia o caminho e cada índice uma vez, como o §5.3 exige, e que deixa o `assert` por dimensão sem duplicar expressão |

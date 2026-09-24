@@ -7,7 +7,7 @@
 > licença própria, ver [`LICENSE.md`](LICENSE.md). Escrita e revisão tiveram
 > auxílio de Claude Opus e Claude Sonnet (Anthropic), sob direção humana.
 
-Este documento reúne as motivações e as decisões de projeto do PPC keel. Os
+Este documento reúne as motivações e as decisões de projeto de keel. Os
 contratos pertencem à [especificação](keel-spec.md); a representação e a emissão
 de C, ao [backend](keel-c-backend.md); a linha de comando, à
 [ferramenta](cgen-tool-spec.md). Cada seção responde por uma decisão, e a
@@ -24,7 +24,7 @@ o tipo some do diagnóstico, o depurador mostra `void *`, o erro do compilador
 aparece expandido numa linha que ninguém escreveu, e duas bibliotecas nunca
 concordam sobre o que é um vetor de `Point`.
 
-O PPC gera o que a macro geraria — struct nomeada, funções inline, sem indireção
+keel gera o que a macro geraria — struct nomeada, funções inline, sem indireção
 e sem overhead — com o nome do tipo intacto do fonte até a mensagem do compilador
 C. Nenhuma das três formas deixa de compilar por causa de keel; o que ele oferece
 é não precisar mais delas.
@@ -70,7 +70,7 @@ keel é a terceira, e dela saem três fatos — e é deles que os princípios sa
 > C que uma construção produz, a construção falhou. É por isso que a spec é
 > escrita em pares keel/C.
 
-> **2. O PPC não precisa entender C.** Um compilador não entende as macros do
+> **2. keel não precisa entender C.** Um compilador não entende as macros do
 > assembler: ele emite dentro delas. keel faz o mesmo — reconhece as próprias
 > construções e copia o resto sem examinar.
 
@@ -102,9 +102,9 @@ Referência: [spec §1.1](keel-spec.md#11-princípios-de-projeto), princípio 2.
 
 ## Critério de admissão, em exercício
 
-Uma construção entra no PPC quando passa por três perguntas, nesta ordem:
+Uma construção entra no núcleo quando passa por três perguntas, nesta ordem:
 
-1. **O PPC consegue?** Se reconhecer ou traduzir a construção exigir análise
+1. **keel consegue?** Se reconhecer ou traduzir a construção exigir análise
    semântica de C, ela está fora pelo contrato de análise, e nenhuma outra
    qualidade a recupera.
 2. **Um módulo consegue?** O que uma biblioteca keel escreve, ela escreve. O
@@ -124,7 +124,7 @@ ele carrega são três garantias que o `switch` não oferece: exaustividade
 verificada nos dois sentidos, um escopo por braço sem passagem implícita ao
 braço seguinte, e um operando resolvido pelo verbo `tag` em vez de por um
 inteiro qualquer. Nenhuma delas é obtida a partir de um `enum` C, porque um
-`enum` vindo de header não é uma lista que o PPC conheça.
+`enum` vindo de header não é uma lista que keel conheça.
 
 **`walk` e a terceira pergunta.** É a mesma admissão de `foreach`, aplicada ao
 outro protocolo. Sem `walk`, um contêiner que não indexa perde a travessia
@@ -143,7 +143,7 @@ qual política e o que é capturado.
 Referência: [spec §1.1](keel-spec.md#11-princípios-de-projeto) e
 [§1.3](keel-spec.md#13-contrato-de-análise).
 
-## O que fica fora do PPC, e por quê
+## O que fica fora do núcleo, e por quê
 
 A lista não é registro de trabalho futuro: é o limite do mecanismo, escrito
 junto com ele. Quando aparecer a próxima proposta, o teste é o da seção
@@ -151,7 +151,7 @@ anterior, e não a presença nesta tabela.
 
 São duas recusas de espécie diferente, e misturá-las esconde as duas.
 
-**Recusado pelo limite de análise.** O PPC não conseguiria reconhecer ou
+**Recusado pelo limite de análise.** keel não conseguiria reconhecer ou
 traduzir estas formas sem análise semântica de C:
 
 | Fica de fora | O que exigiria |
@@ -181,7 +181,7 @@ o custo é de significado, não de análise.
 | Cancelamento de participante cooperativa | Não há ativação suspensa a cancelar. Uma chamada de encerramento imporia às participantes uma assinatura que o protocolo não pede |
 | Timeout implícito nas composições | Introduziria relógio e política de tempo num mecanismo que só conta estados |
 | Transporte automático de valor da participante para a composição | Escolher uma vencedora resolveria apenas parte dos casos de alvo um, e não definiria valor para alvo `N` nem para uma sequência |
-| Sincronização inserida por `parallel` | O PPC não sabe o que as partes alcançam por ponteiro; inserir sincronização seria prometer uma segurança que ele não verificou |
+| Sincronização inserida por `parallel` | keel não sabe o que as partes alcançam por ponteiro; inserir sincronização seria prometer uma segurança que ele não verificou |
 | `defer` inserido automaticamente sobre memória externa | Aquisição e liberação são do contrato da origem, não do reconhecimento de uma arena |
 | Realocação implícita de `buffer` | Invalidaria silenciosamente vistas e ponteiros derivados, que é a decisão que o programa precisa manter à vista |
 
@@ -309,7 +309,7 @@ Palavras contextuais reduzem conflitos com identificadores existentes, mas
 não eliminam todos os conflitos de reconhecimento. Algumas posições, nomes e
 estruturas de pré-processamento precisam de restrições explícitas. A recusa
 nesses casos preserva um reconhecimento definido sem exigir conhecimento
-semântico do C que o PPC não possui.
+semântico do C que keel não possui.
 
 A promessa central é traduzir keel integralmente para C e preservar o texto
 das expressões fora das substituições necessárias. Ela não equivale a aceitar
@@ -528,7 +528,7 @@ Referência: spec §4.1.
 
 `constexpr` foi introduzido depois das primeiras regras que exigiam literais.
 Essas regras devem incorporar constantes nomeadas sem introduzir avaliação de
-expressões no PPC. Ler um literal de uma declaração conhecida permite usar um
+expressões em keel. Ler um literal de uma declaração conhecida permite usar um
 nome sem mudar o limite de análise.
 
 O mesmo limite governa os valores escritos de um conjunto de tags: aceita-se um
@@ -578,7 +578,7 @@ mas sua disponibilidade não implica inserção automática nem garantia de uso.
 
 A verificação de relações conhecidas entre arenas cabe na varredura de
 símbolos keel. Uma prova geral de escape por parâmetros de saída exigiria
-interpretar expressões e efeitos de código C além do contrato do PPC. Essa
+interpretar expressões e efeitos de código C além do contrato de keel. Essa
 limitação deve constar da especificação junto à garantia efetivamente oferecida.
 
 Referência: spec §§4.5–4.6.
@@ -589,7 +589,7 @@ Referência: spec §§4.5–4.6.
 parâmetro pelo tipo escrito, inclusive uma forma como `struct Person`;
 `tags` fornece a substituição do parâmetro pelo `enum` de um conjunto
 declarado. O significado de `N` é dado pelo modificador: pode
-representar um rank, mas o PPC não impõe essa interpretação.
+representar um rank, mas keel não impõe essa interpretação.
 
 Gerar `N` parâmetros para um verbo exigiria produzir uma família de declarações.
 Receber um vetor `T valores[static N]` mantém a assinatura com aridade fixa e
@@ -719,14 +719,14 @@ Referência: [spec §4.5](keel-spec.md#45-indexação-e-range-index).
 ## Particionável e percorrível
 
 A revisão anterior deixava `parallel` conhecer a divisão: a fórmula das faixas
-era do PPC, e a construção exigia do contêiner os mesmos verbos de `foreach`.
+era do núcleo, e a construção exigia do contêiner os mesmos verbos de `foreach`.
 Isso obrigava dois compromissos que não eram necessários. O primeiro é que só
 podia ser distribuído o que fosse indexável, ainda que a divisão de outra
-estrutura seja escrevível por seu próprio módulo. O segundo é que o PPC
+estrutura seja escrevível por seu próprio módulo. O segundo é que keel
 afirmava a disjunção das faixas — uma propriedade que ele não verifica em
 estrutura alguma, e que só o autor do módulo pode sustentar.
 
-`partition(x, k, w)` resolve os dois. O contêiner declara como se divide; o PPC
+`partition(x, k, w)` resolve os dois. O contêiner declara como se divide; keel
 avalia o verbo uma vez por worker e liga o resultado ao binder. A divisão
 contígua de `buffer T`, `slice T` e `range` continua definida, mas agora como
 contrato da base, no mesmo lugar em que se declaram `length` e `ptr`. Para
@@ -771,7 +771,7 @@ e [§4.8](keel-spec.md#48-execução-particionada).
 ## Políticas e sinalização de interrupção
 
 A quantidade de workers expressa a divisão solicitada pelo programa. Não fixar
-um teto no PPC permite que a execução use os recursos disponíveis sem
+um teto no núcleo permite que a execução use os recursos disponíveis sem
 prometer simultaneidade. Uma parte vazia não exige acesso a dados: o corpo do
 worker executa sobre uma fatia de comprimento zero.
 
@@ -795,7 +795,7 @@ ordem crescente é uma delas. Um aviso de indisponibilidade de OpenMP relataria
 um desvio que não existe, e por isso saiu do catálogo. Em compensação, a
 responsabilidade fica escrita do outro lado: quando o lowering escolhido de
 fato executa em paralelo, os acessos que as partes compartilham são do
-programa, e o PPC não insere sincronização.
+programa, e keel não insere sincronização.
 
 **O nome do bloco é único na função, e não só no escopo.** Dois blocos com o
 mesmo nome em escopos aninhados declarariam dois símbolos de controle, e o de
@@ -814,7 +814,7 @@ Referência: [spec §4.8](keel-spec.md#48-execução-particionada).
 
 Um `enum` C é aberto para quem o lê: o compilador aceita qualquer inteiro no
 lugar de uma constante, e um `switch` sem `default` não é erro. Nada disso é
-corrigível por análise, porque o PPC não abre headers e não conhece as
+corrigível por análise, porque keel não abre headers e não conhece as
 constantes que não declarou.
 
 `tags Nome [ … ];` declara em keel a lista que faltava. Da declaração vêm três
@@ -1209,7 +1209,7 @@ A mesma resolução serve às construções. `foreach`, `walk`, `parallel` e `ma
 procuram os verbos de que precisam — `length` e `get` ou `ptr`; `begin`,
 `has_next` e `next`; `partition`; `tag` — pelo protocolo comum, e não por uma
 lista de tipos privilegiados. É o que permite a um módulo do usuário participar
-de qualquer uma delas sem que o PPC saiba que ele existe, e é o que impede que
+de qualquer uma delas sem que keel saiba que ele existe, e é o que impede que
 a base receba tratamento que a spec não escreveu.
 
 
@@ -1268,8 +1268,8 @@ construção precise de uma segunda vaga de binder.
 
 O tipo do elemento é o que `next` declara: um módulo que devolve `T` atende o
 binder por valor, e um que devolve `T *`, o binder por ponteiro. Não há
-conversão nem seleção por sobrecarga, pela mesma razão que vale no resto do
-PPC — escolher entre formas pelo tipo do que foi escrito é análise que ele não
+conversão nem seleção por sobrecarga, pela mesma razão que vale no resto de
+keel — escolher entre formas pelo tipo do que foi escrito é análise que keel não
 faz.
 
 Na base, `buffer` e `slice` declaram `next` devolvendo o endereço do elemento,
@@ -1314,19 +1314,19 @@ restrições de entrada e saída voltam a ser as do cleanup léxico.
 
 Referência: [spec §4.6](keel-spec.md#46-cleanup-léxico).
 
-## Macros e sintaxe do PPC
+## Macros e sintaxe de keel
 
 keel organiza, por uma sintaxe própria, operações que seriam expressas com
 macros em C. A intenção é permitir escrever essas operações como construções
 legíveis, com reconhecimento e expansão definidos, sem depender de colagem de
 tokens, avaliação duplicada de argumentos ou outras técnicas de macro.
 
-Chamar essa sintaxe de linguagem de uso não atribui ao PPC um sistema de tipos
+Chamar essa sintaxe de linguagem de uso não atribui a keel um sistema de tipos
 independente. Os modificadores descrevem instanciações e transformações que
 produzem declarações C. A tabela de símbolos guarda informações explícitas
 necessárias à expansão; compatibilidade e validação semântica de tipos continuam
 com o compilador C. Por isso a spec fala em tipos e declarações reconhecidos
-pelo PPC, em vez de uma categoria de “tipos keel”.
+por keel, em vez de uma categoria de “tipos keel”.
 
 Referência: [spec §1](keel-spec.md#1-escopo-e-princípios).
 
@@ -1386,7 +1386,7 @@ código ou etiqueta, mais um valor —, e o que os separa é a leitura desse cam
 partição por zero, lida pelos predicados. O contrato pertence a essa
 combinação de representação,
 metadados e operações. A designação de optional ou error descreve usos do
-resultado; o mecanismo do PPC é aplicar o modificador ao tipo fornecido.
+resultado; o mecanismo de keel é aplicar o modificador ao tipo fornecido.
 
 “Genérico” descreve aqui o mecanismo de substituição que permite escrever as
 declarações uma vez. O C resultante pode ser obtido com técnicas como X-Macros
@@ -1399,7 +1399,7 @@ ou a inclusão repetida de um header sob uma definição temporária de `T`:
 ```
 
 O fragmento ilustra a técnica de expansão, não um header da base keel. Um header
-construído para esse uso materializaria as declarações para `int`. O PPC fornece
+construído para esse uso materializaria as declarações para `int`. keel fornece
 sintaxe e regras de nomes para realizar essa geração diretamente, mantendo o
 compilador C como verificador do resultado.
 

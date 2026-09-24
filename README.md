@@ -162,7 +162,7 @@ seu módulo participa.
 | `match` | `tag` |
 | `else` | `failed`, e `win` para a forma com valor padrão |
 
-Não há registro a fazer, marcação a escrever nem permissão a pedir. O PPC não
+Não há registro a fazer, marcação a escrever nem permissão a pedir. keel não
 distingue um módulo da base de um módulo seu ao resolver.
 
 ## A base

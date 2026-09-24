@@ -15,7 +15,7 @@
 > [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit)
 > para o argumento. Esta nota não é normativa.
 
-Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições do PPC keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
+Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições de keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
 
 **Convenções de apresentação:**
 
@@ -36,7 +36,7 @@ operações que, em C, seriam organizadas por macros, sem exigir truques de
 expansão. Essa sintaxe é a linguagem de uso do PPC: descreve transformações em
 **C11** ou **C23**, conforme o perfil, mantendo os tipos e sua validação no C.
 keel processa o fonte antes do pré-processador C; o código emitido é compilado
-pelo compilador C do projeto. [Justificativa: macros e sintaxe do PPC](keel-rationale.md#macros-e-sintaxe-do-ppc).
+pelo compilador C do projeto. [Justificativa: macros e sintaxe de keel](keel-rationale.md#macros-e-sintaxe-de-keel).
 
 keel é um parser de ilhas em um mar de C. keel reconhece suas construções e seus símbolos no código-fonte, inclusive quando aparecem dentro de expressões. Não realiza análise semântica de expressões C puras nem resolve o sistema de tipos do C.
 
@@ -44,7 +44,7 @@ Um modificador atua sobre o tipo que o segue e define sua representação e suas
 operações. Em `buffer struct Person people;`, `buffer` modifica `struct Person`
 para representar uma sequência desse tipo com seus metadados de controle.
 `outcome T` associa ao valor de `T` um código de resultado; `tagged E T`
-associa a ele uma etiqueta de um conjunto declarado. O PPC expande essas declarações para
+associa a ele uma etiqueta de um conjunto declarado. keel expande essas declarações para
 tipos e funções C. Neste documento, instanciação designa essa expansão para os
 argumentos fornecidos. [Justificativa: modificador e tipo modificado](keel-rationale.md#modificador-e-tipo-modificado).
 
@@ -56,8 +56,8 @@ argumentos fornecidos. [Justificativa: modificador e tipo modificado](keel-ratio
 4. **Identidade nominal.** A identidade nominal representada pelos nomes C emitidos deriva das declarações de origem e dos argumentos canônicos. Semelhança de layout não estabelece identidade. [Justificativa: identidade e nomes canônicos](keel-rationale.md#por-que-o-nome-canônico-é-fixado-na-declaração).
 5. **Reconhecimento determinístico.** A tradução depende de regras explícitas de reconhecimento e dos símbolos registrados. Uma construção keel que não satisfaça essas regras deve ser diagnosticada, sem inferir a intenção do programa a partir de tipos ou expressões C desconhecidos. [Justificativa: reconhecimento e conflitos léxicos](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos).
 6. **Decisões de dados e execução explícitas.** Layout, tempo de vida do armazenamento e travessia devem ser definidos pelo programa ou pelo contrato da construção ou biblioteca utilizada. Não são deduzidos de código C opaco. [Justificativa: separação entre capacidade e armazenamento](keel-rationale.md#o-que-o-vla-errou).
-7. **Análise limitada.** O reconhecimento e as verificações de keel obedecem ao contrato da §1.3. Recurso que exija análise semântica de C puro fica fora do escopo do PPC. [Justificativa: limites da análise](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos).
-8. **Núcleo mínimo.** Funcionalidade expressável por um módulo keel deve ser implementada como biblioteca. Privilégios que exijam participação do PPC devem ser enumerados na especificação. [Justificativa: critério de participação do núcleo](keel-rationale.md#onde-keel-concorda-com-o-openmp).
+7. **Análise limitada.** O reconhecimento e as verificações de keel obedecem ao contrato da §1.3. Recurso que exija análise semântica de C puro fica fora do escopo de keel. [Justificativa: limites da análise](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos).
+8. **Núcleo mínimo.** Funcionalidade expressável por um módulo keel deve ser implementada como biblioteca. Privilégios que exijam participação do núcleo devem ser enumerados na especificação. [Justificativa: critério de participação do núcleo](keel-rationale.md#onde-keel-concorda-com-o-openmp).
 9. **Construções com contrato próprio.** Uma construção deve expressar uma operação ou garantia que C não oferece diretamente ou expressa de modo inadequado ao modelo de keel. Redução de tokens, isoladamente, não é critério de admissão. [Justificativa: critério de admissão de construções](keel-rationale.md#a-motivação-em-uma-frase).
 
 ### 1.2 Modelo de tradução e perfis
@@ -69,7 +69,7 @@ fonte.k → cgen → fonte.c + fonte.h → pré-processador C → compilador C �
 - Os perfis de geração são **C11** e **C23**. Sua seleção pertence à ferramenta; as regras de emissão de cada perfil pertencem ao backend.
 - O perfil seleciona a representação C das construções keel. Diferenças de diagnóstico, requisitos do alvo e exceções à conformidade estrita devem ser documentados explicitamente. [Justificativa: perfis de geração](keel-rationale.md#perfis-e-exemplos-de-tradução).
 - Trechos C preservados permanecem sujeitos às regras do dialeto selecionado para o compilador C. O perfil não implica conversão geral de código C23 escrito pelo usuário para C11.
-- **O dialeto do C escrito pelo programa é assunto do build, e keel não o observa.** Um módulo pode usar `nullptr`, `typeof` ou qualquer outra forma do C23 no meio do código que atravessa; keel não sabe que aquilo aconteceu, porque reconhece as próprias construções e copia o resto. Gerar sob o perfil C11 um módulo que usa palavra do C23 é erro do programa, relatado pelo compilador C com a mensagem dele. Vigiar palavra-chave por dialeto tornaria o PPC dependente da versão do C — exatamente o que o reconhecimento por ilhas evita.
+- **O dialeto do C escrito pelo programa é assunto do build, e keel não o observa.** Um módulo pode usar `nullptr`, `typeof` ou qualquer outra forma do C23 no meio do código que atravessa; keel não sabe que aquilo aconteceu, porque reconhece as próprias construções e copia o resto. Gerar sob o perfil C11 um módulo que usa palavra do C23 é erro do programa, relatado pelo compilador C com a mensagem dele. Vigiar palavra-chave por dialeto tornaria keel dependente da versão do C — exatamente o que o reconhecimento por ilhas evita.
 - Diretivas de pré-processamento são preservadas. keel pode reconhecer sua estrutura para aplicar regras próprias, mas não expande macros nem avalia condições de compilação.
 - Construções e símbolos que keel precise reconhecer devem estar presentes antes da expansão de macros; não podem depender dessa expansão para adquirir sua forma ou identidade.
 
@@ -280,7 +280,7 @@ dimensions    ::= '[' [ <opaque> { ',' <opaque> } ] ']'
 
 `tagged-type` consome a palavra C e o nome como um único argumento de tipo:
 `buffer struct Person people;` aplica `buffer` a `struct Person`, e `people`
-é o declarador. O PPC preserva a forma C do tipo na substituição, com a
+é o declarador. keel preserva a forma C do tipo na substituição, com a
 qualificação dos nomes que reconhece; não precisa interpretar os campos do
 agregado para substituir esse argumento.
 
@@ -390,9 +390,9 @@ Nomes que apareçam apenas em headers C ou que sejam produzidos pela expansão d
 | Forma | Condição de reconhecimento |
 | --- | --- |
 | Função | Varre-se até o primeiro `;` ou `{` externo. Um grupo de parâmetros externo, não precedido por `=` externo, termina imediatamente antes desse token; seu `(` é precedido pelo `IDENT` do nome declarado. |
-| Tipo nomeado | O nome deve estar registrado como tipo reconhecido pelo PPC. A sequência de dois identificadores, por si só, não basta. |
+| Tipo nomeado | O nome deve estar registrado como tipo reconhecido por keel. A sequência de dois identificadores, por si só, não basta. |
 | Modificador com argumentos | O nome e a aridade vêm dos símbolos registrados. Os argumentos são consumidos recursivamente segundo essa aridade, após os especificadores e qualificadores admitidos. |
-| Parâmetro com tipo reconhecido pelo PPC | Depois do tipo nomeado ou da aplicação completa do modificador, são admitidos o declarador ou o fim do parâmetro; o nome pode ser omitido nas formas previstas por `param`. |
+| Parâmetro com tipo reconhecido por keel | Depois do tipo nomeado ou da aplicação completa do modificador, são admitidos o declarador ou o fim do parâmetro; o nome pode ser omitido nas formas previstas por `param`. |
 | `ref` | Só ocupa a posição de qualificador depois de `*` no declarador. Não qualifica o tipo antes do declarador. |
 | `tags` | Em linha `module`, introduz parâmetros do módulo. Em declaração, o nome é seguido de `[` e da lista de tags. |
 | `extent` | Em posição de declaração de arquivo, seguido de `struct`, do nome e de `[`, inicia a declaração de `extent`. |
@@ -2078,7 +2078,7 @@ referências, nas mensagens e nas opções da ferramenta. A condição normativa
 | Severidade | Obrigação |
 | --- | --- |
 | `error` | Recusar a tradução da unidade, sem publicar seus artefatos gerados |
-| `warning` | Detectar e permitir o relato sem recusar por regra do PPC |
+| `warning` | Detectar e permitir o relato sem recusar por regra de keel |
 | `info` | Disponibilizar a informação; a apresentação é definida pela ferramenta |
 | `debug` | Verificar em execução na build de debug; a instrumentação correspondente não integra a build release |
 
@@ -2254,7 +2254,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 - O reconhecimento não abre headers C nem expande macros. O registro limitado
   de nomes explícitos de `extern_c` não permite resolver semanticamente seus
   tipos ou os tipos de expressões C.
-- C11 e C23 são perfis de geração do mesmo PPC. Trechos C escritos pelo
+- C11 e C23 são perfis de geração da mesma linguagem. Trechos C escritos pelo
   programa permanecem sujeitos ao dialeto escolhido; keel não converte
   automaticamente características C23 desses trechos para C11.
 - Requisitos adicionais do alvo devem ter guarda e documentação no backend.
@@ -2271,7 +2271,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 
 A conformidade se aplica aos comportamentos e condições definidos nos
 contratos. A ausência de regra para um caso não constitui autorização para
-uma implementação acrescentar uma transformação ao PPC ou apresentar esse
+uma implementação acrescentar uma transformação ao núcleo ou apresentar esse
 caso como portável.
 
 ### 6.4 Programa conforme e limites
@@ -2311,7 +2311,7 @@ Módulos adicionais podem oferecer novos tipos e verbos pelos protocolos
 existentes. Uma implementação pode acrescentar avisos, informações e recursos
 de build, desde que preserve a aceitação e o significado das construções
 especificadas. Novas palavras contextuais ou mudanças de reconhecimento
-constituem mudança da sintaxe ou do reconhecimento do PPC, pois podem alterar programas existentes.
+constituem mudança da sintaxe ou do reconhecimento de keel, pois podem alterar programas existentes.
 
 ### 6.6 Referências
 

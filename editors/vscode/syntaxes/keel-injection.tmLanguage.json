@@ -6,11 +6,11 @@
   "patterns": [
     {
       "name": "keyword.control.keel",
-      "match": "\\b(parallel|foreach|apply|defer|later|match|fail|tags|walk|ALL|ANY|now|win)\\b"
+      "match": "\\b(parallel|foreach|apply|defer|later|match|fail|walk|ALL|ANY|now|win)\\b"
     },
     {
       "name": "keyword.other.keel",
-      "match": "\\b(constexpr|extern_c|import_c|instance|modifier|extent|import|module|array|byref|types|priv|type|dim|pub|ref|as)\\b"
+      "match": "\\b(constexpr|extern_c|import_c|instance|modifier|extent|import|module|array|byref|types|priv|tags|type|dim|pub|ref|as)\\b"
     },
     {
       "name": "support.type.primitive.keel",

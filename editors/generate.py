@@ -10,19 +10,19 @@ import json, pathlib, re, sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 spec = (ROOT / "keel-spec.md").read_text(encoding="utf-8")
 
-def table(section, end):
-    body = spec.split(section, 1)[1].split(end, 1)[0]
-    return {g: re.findall(r'`([A-Za-z_][A-Za-z0-9_]*)`', p)
-            for g, p in re.findall(r'^\| ([^|]+?) \| (.+?) \|$', body, re.M)}
-
-# the spec's prose is in Portuguese: these are its section and row titles
-g = table("#### Vocabulário do núcleo", "#### Palavras C reconhecidas")
-WORDS = {
-    "unit":        g["Unidade e visibilidade"],
-    "type":        g["Tipos, marcadores e genéricos"],
-    "flow":        g["Fluxo"],
-    "tagged":      g["Valores etiquetados"],
-}
+# the spec's prose is in Portuguese: this is its section title. Each row names
+# words in its first column and, in the second, the contract where they apply;
+# the first contract cited decides the highlight group.
+body = spec.split("#### Palavras keel e onde valem", 1)[1].split("\n#### ", 1)[0]
+GROUP = {"4.1": "unit", "4.2": "type", "4.3": "type", "4.4": "type",
+         "4.11": "type", "4.6": "flow", "4.7": "flow", "4.8": "flow",
+         "4.9": "tagged"}
+WORDS = {"unit": [], "type": [], "flow": [], "tagged": []}
+for words, where in re.findall(r'^\| (`[^|]+?) \| (.+?) \|$', body, re.M):
+    sec = re.search(r'§(\d+\.\d+)', where)
+    group = GROUP.get(sec[1]) if sec else None
+    if group:   # §4.10 is `else`, a C word: the C grammar highlights it
+        WORDS[group] += re.findall(r'`([A-Za-z_][A-Za-z0-9_]*)`', words)
 # `else` is a C word: the C grammar highlights it, not us.
 PRIMITIVES = ["i8","i16","i32","i64","u8","u16","u32","u64",
               "f16","bf16","f32","f64","size_t","ptrdiff_t","uintptr_t"]

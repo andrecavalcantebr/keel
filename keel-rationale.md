@@ -329,7 +329,7 @@ delas descreve expressão, precedência ou a gramática completa de declaradores
 C. A ambiguidade clássica — `(a)(b)` é chamada ou conversão? — não aparece,
 porque as duas leituras reduzem ao mesmo `<opaque>`.
 
-Referência: [spec §2.2](keel-spec.md#22-sintaxe).
+Referência: [spec §2.2](keel-spec.md#22-palavras-e-gramática).
 
 ## Por que `..` não é um token
 
@@ -343,7 +343,7 @@ Deixando `..` como pontuação, a forma do intervalo vira problema do parser, qu
 onde o balanceamento já existe. O léxico continua não decidindo nada — que é a
 regra da §2.4 e o que mantém as duas camadas separáveis.
 
-Referência: [spec §2.2](keel-spec.md#22-sintaxe).
+Referência: [spec §2.2](keel-spec.md#22-palavras-e-gramática).
 
 ## A posição de contêiner não é um sistema de tipos
 
@@ -360,7 +360,7 @@ parar: o próximo pedido é o operador de propagação, e depois a desestrutura�
 As duas estão na tabela de recusas por limite de análise, e a gramática é o lugar
 onde esse limite fica escrito em vez de prometido.
 
-Referência: [spec §2.2](keel-spec.md#22-sintaxe) e
+Referência: [spec §2.2](keel-spec.md#22-palavras-e-gramática) e
 [§4.4](keel-spec.md#44-resolução-de-operações).
 
 ## Por que a contagem é por alternativa, e não sobre o texto
@@ -409,7 +409,7 @@ admitir. Concordância é a condição certa porque é a que o consumidor precis
 não quer que o ramo seja neutro, quer saber com que profundidade continuar depois
 do `#endif`.
 
-Referência: [spec §2.4](keel-spec.md#24-semântica).
+Referência: [spec §2.4](keel-spec.md#24-grupos-condicionais-e-delimitadores).
 
 ## Por que a redeclaração é recusada em vez de classificada
 
@@ -425,7 +425,7 @@ nome é símbolo de keel. Renomear a variável local resolve, e a mensagem diz i
 ao usuário** em vez de propriedade da implementação — e vale registrar exatamente
 por isso, porque é a fatura da decisão de não entender C.
 
-Referência: [spec §2.5](keel-spec.md#25-restrições-e-diagnósticos).
+Referência: [spec §2.5](keel-spec.md#25-erros-léxicos-e-sintáticos).
 
 ## Por que `instance` é a única ressalva do documento
 

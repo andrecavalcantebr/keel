@@ -104,35 +104,7 @@ Uma região sem análise semântica de C ainda pode conter construções keel. E
 
 ## 2. Léxico, vocabulário e gramática
 
-### 2.1 Finalidade
-
-Definir a formação dos tokens e as condições sintáticas e simbólicas usadas para reconhecer construções keel dentro do fonte C.
-
-### 2.2 Sintaxe
-
-#### Convenções da gramática
-
-A gramática descreve as construções keel e a estrutura C necessária para localizá-las. Não descreve a gramática completa de C. Os contratos das construções pertencem à §4.
-
-| Notação | Significado |
-| --- | --- |
-| `::=` | Define uma produção. |
-| `\|` | Separa alternativas. |
-| `{ … }` | Repete zero ou mais vezes. |
-| `[ … ]` | Indica parte opcional. |
-| `( … )` | Agrupa alternativas. |
-| `'…'` | Indica a grafia de um terminal. |
-| `IDENT` | Identificador que não pertence ao conjunto de palavras C desta seção. |
-| `NUM` | Token numérico; a construção consumidora restringe sua forma e seu valor. |
-| `STRING` | Literal de string, incluindo seu prefixo quando houver. |
-| `<opaque>` | Sequência de tokens delimitada pelo contexto, sem análise semântica de C. |
-| `<opaque-no-parens>` | Região opaca sem `(` no nível externo da região. |
-
-“Nível externo” ou “de topo” refere-se à profundidade de delimitadores da produção em análise, não necessariamente ao escopo de arquivo. Separadores dentro de parênteses, colchetes, chaves, literais ou diretivas não encerram uma região externa.
-
-Uma região `<opaque>` pode conter construções keel. Essas construções são reconhecidas e traduzidas; os demais trechos são preservados. O corpo de `extern_c`, os literais e o conteúdo das diretivas têm as regras específicas da §2.3. [Justificativa: papel da região opaca](keel-rationale.md#por-que-opaque-é-o-terminal-central).
-
-#### Elementos léxicos
+### 2.1 Elementos léxicos
 
 | Elemento | Regra |
 | --- | --- |
@@ -157,23 +129,15 @@ As classes de diretiva usadas no reconhecimento estrutural são:
 
 A classificação não depende da condição escrita nem de sua validade no perfil C selecionado. A verificação de nomes em `#define` e `#undef` é descrita na §2.5.
 
-#### Vocabulário do núcleo
+- A emenda de linha precede o reconhecimento de comentários, literais e diretivas.
+- Comentários não chegam ao C gerado: cada um é substituído por espaços, e
+  suas quebras de linha se preservam (backend §6). O conteúdo de `extern_c` é
+  C e atravessa intacto, comentários inclusive.
+- O reconhecimento léxico não registra tipos nem decide a identidade de instâncias. Essas decisões usam o parser e a tabela de símbolos.
+- Diretivas são preservadas para o pré-processador C. keel não expande macros, não avalia condições e não escolhe alternativas condicionais.
+- A classificação lexical de palavras C não muda com o perfil de geração. A validade do C preservado é verificada pelo compilador C.
 
-As palavras abaixo têm função keel nas posições indicadas pela gramática. Fora dessas posições, aplica-se a classificação C ou de identificador, com as restrições de nomes da §2.5.
-
-| Grupo | Palavras |
-| --- | --- |
-| Unidade e visibilidade | `module`, `import`, `import_c`, `extern_c`, `as`, `types`, `pub`, `priv` |
-| Tipos, marcadores e genéricos | `array`, `constexpr`, `ref`, `type`, `dim`, `modifier`, `instance`, `byref`, `extent` |
-| Fluxo | `defer`, `now`, `later`, `foreach`, `walk`, `apply`, `parallel`, `ALL`, `ANY`, `win`, `fail` |
-| Valores etiquetados | `tags`, `match` |
-| Tratamento de resultado | `else` na cauda de declaração |
-
-`constexpr` e `else` também pertencem à lista de palavras C. Sua função keel é determinada pela posição; não exige reclassificação lexical. As produções também usam palavras C como `auto`, `static` e `const`.
-
-Nomes de tipos, modificadores e módulos da base, como `arena`, `buffer`, `slice`, `tagged`, `outcome`, `corot` e `routine`, não são palavras do núcleo. `parallel` é o único nome que ocupa as duas posições: palavra do núcleo em `parallel nome politica (…)`, e alias do módulo `keel.parallel` em `parallel.ok(nome)`, distinguidos pelo `.` da §2.3. Nomes de operações, como `length`, `get` e `alloc`, também não são palavras-chave. Sua resolução depende dos símbolos disponíveis e do contrato da operação. [Justificativa: prelúdio e base](keel-rationale.md#prelúdio-e-base-mínima).
-
-As formas `x[i]`, `x[i,j]`, `x[a..b]`, `x[a..]`, `x[..b]`, `x[..]` e `a..b` são sintaxe, não vocabulário. A indexação e os `range-index` dependem do símbolo reconhecido e das regras da §4.5; sua grafia, isoladamente, não define as permissões de acesso ou mutação.
+### 2.2 Palavras e gramática
 
 #### Palavras C reconhecidas
 
@@ -187,6 +151,77 @@ O conjunto abaixo é fechado e pertence ao reconhecimento de keel. É o mesmo no
 | Formas com sublinhado | `_Alignas`, `_Alignof`, `_Atomic`, `_BitInt`, `_Bool`, `_Complex`, `_Decimal32`, `_Decimal64`, `_Decimal128`, `_Generic`, `_Imaginary`, `_Noreturn`, `_Static_assert`, `_Thread_local` |
 
 Essas palavras não casam `IDENT`. Uma produção as aceita quando nomeia sua grafia; as demais ocorrências integram regiões C opacas. Assim, `unsigned long x` não é uma sequência de três identificadores, e `char` e `bool` precisam de alternativas explícitas quando aceitos como argumentos de tipo.
+
+#### Palavras keel e onde valem
+
+As palavras abaixo têm função keel nas posições indicadas. Fora delas, aplica-se a classificação C ou de identificador, com as restrições de nomes da §2.5.
+
+| Palavra | Onde vale |
+| --- | --- |
+| `module` | primeira construção do arquivo (§4.1) |
+| `import`, `import_c`, `extern_c` | nível de arquivo (§4.1) |
+| `as`, `types` | na linha `import`, nesta ordem (§4.1) |
+| `pub`, `priv` | antes de declaração de arquivo (§4.1) |
+| `array` | antes do tipo, em declaração de vetor, campo, parâmetro e coluna de `extent` (§4.2, §4.11) |
+| `constexpr` | declaração de arquivo ou de bloco (§4.2); é também palavra C |
+| `ref` | qualificador depois de `*` no declarador (§4.2) |
+| `dim`, `tags`, `type` | na linha `module`, parâmetros do módulo (§4.3). `tags` também inicia declaração de conjunto, seguido do nome e de `[` (§4.9); `type` também declara parâmetro de função, seguido de `IDENT` e de `,` ou `)` (§4.4) |
+| `modifier`, `byref` | declaração de modificador em módulo genérico; `byref` segue o nome (§4.3) |
+| `instance` | declaração de arquivo (§4.3); nenhum modificador pode ter esse nome. [Justificativa da reserva](keel-rationale.md#por-que-instance-é-a-única-ressalva-do-documento) |
+| `extent` | declaração de arquivo, seguido de `struct`, do nome e de `[` (§4.11) |
+| `defer`, `now`, `later` | statement de corpo de função; `now` e `later` dentro do `[ ]` do `defer` (§4.6) |
+| `foreach`, `walk`, `apply` | statement de corpo de função, seguido de `(` (§4.7) |
+| `parallel`, `ALL`, `ANY`, `win`, `fail` | `parallel` seguido do nome e da política; `ALL` e `ANY` como política; `win;` e `fail;` no corpo do worker (§4.8) |
+| `match` | statement de corpo de função, seguido de `(` (§4.9) |
+| `else` | cauda de declaração ou de atribuição (§4.10); é também palavra C |
+
+Nomes de tipos, modificadores e módulos da base, como `arena`, `buffer`, `slice`, `tagged`, `outcome`, `corot` e `routine`, não são palavras do núcleo. `parallel` é o único nome que ocupa as duas posições: palavra do núcleo em `parallel nome politica (…)`, e alias do módulo `keel.parallel` em `parallel.ok(nome)`, distinguidos pelo `.` da §2.3. Nomes de operações, como `length`, `get` e `alloc`, também não são palavras-chave: sua resolução depende dos símbolos disponíveis e do contrato da operação. [Justificativa: prelúdio e base](keel-rationale.md#prelúdio-e-base-mínima).
+
+As formas `x[i]`, `x[i,j]`, `x[a..b]`, `x[a..]`, `x[..b]`, `x[..]` e `a..b` são sintaxe, não vocabulário. Seu sentido depende do símbolo reconhecido e das regras da §4.5.
+
+#### Como keel estende C
+
+keel acrescenta ao C três coisas, e só três.
+
+**Especificadores de tipo formados por modificador.** O modificador se aplica aos seus argumentos — tipos, conjuntos de tags, valores de `dim` — e o declarador continua C:
+
+```keel
+buffer i32 xs;          // modifier buffer, type i32, declarator xs
+tagged Cycle i16 fsm;   // modifier tagged, tag set Cycle, type i16, declarator fsm
+```
+
+**Declarações próprias:** `module`, `import`, `import_c`, `extern_c`, `tags`, `modifier`, `instance`, `extent`, `constexpr`, os marcadores `array` e `ref`, e o parâmetro `type` de função:
+
+```keel
+pub T *alloc(arena *a, type T, size_t n);   // arena is a type; type T receives a type at the call
+u16 *p = arena.alloc(a, u16, 100);
+```
+
+**Estruturas de controle:** `defer`, `foreach`, `apply`, `walk`, `parallel`, `match`, a cauda `else` e os `win;` e `fail;` do worker.
+
+O resto — `arena`, `slice`, `outcome`, `routine.par`, `routine.seq` — são tipos e funções de módulos comuns, chamados como `m.f(…)` e resolvidos pela §4.4. Não são gramática.
+
+#### Convenções da gramática
+
+A gramática descreve as construções keel e a estrutura C necessária para localizá-las. Não descreve a gramática completa de C. Os contratos das construções pertencem à §4.
+
+| Notação | Significado |
+| --- | --- |
+| `::=` | Define uma produção. |
+| `\|` | Separa alternativas. |
+| `{ … }` | Repete zero ou mais vezes. |
+| `[ … ]` | Indica parte opcional. |
+| `( … )` | Agrupa alternativas. |
+| `'…'` | Indica a grafia de um terminal. |
+| `IDENT` | Identificador que não pertence ao conjunto de palavras C desta seção. |
+| `NUM` | Token numérico; a construção consumidora restringe sua forma e seu valor. |
+| `STRING` | Literal de string, incluindo seu prefixo quando houver. |
+| `<opaque>` | Sequência de tokens delimitada pelo contexto, sem análise semântica de C. |
+| `<opaque-no-parens>` | Região opaca sem `(` no nível externo da região. |
+
+“Nível externo” ou “de topo” refere-se à profundidade de delimitadores da produção em análise, não necessariamente ao escopo de arquivo. Separadores dentro de parênteses, colchetes, chaves, literais ou diretivas não encerram uma região externa.
+
+Uma região `<opaque>` pode conter construções keel. Essas construções são reconhecidas e traduzidas; os demais trechos são preservados. O corpo de `extern_c`, os literais e o conteúdo das diretivas têm as regras específicas da §2.3. [Justificativa: papel da região opaca](keel-rationale.md#por-que-opaque-é-o-terminal-central).
 
 #### Unidade e declarações de topo
 
@@ -370,6 +405,7 @@ A produção `container` descreve as formas em que keel pode consultar a identid
 - O `else` associado a um `if` pertence a `stmt-c`. A cauda `else` de keel pertence a uma declaração reconhecida, sujeita ao contrato de tratamento de resultado (§4.10).
 - Dentro de `extern_c`, construções keel não são traduzidas. O balanceamento de delimitadores permanece ativo; o registro dos nomes declarados segue a §4.1.
 - Literais, comentários e corpos de diretivas não são percorridos em busca de chamadas ou outras construções keel.
+- As construções e os nomes necessários ao reconhecimento existem antes da expansão de macros (§1.2). As restrições de nomes e de estrutura condicional valem mesmo no ramo que o compilador C descartaria.
 
 #### Informação de símbolos
 
@@ -385,7 +421,7 @@ O reconhecimento consulta nomes e informações declaradas, com as seguintes ori
 
 Nomes que apareçam apenas em headers C ou que sejam produzidos pela expansão de macros não passam a ser símbolos conhecidos por keel. O reconhecimento de um nome declarado não autoriza inferir o tipo de uma expressão C arbitrária.
 
-#### Declarações e palavras contextuais
+#### Formas candidatas
 
 | Forma | Condição de reconhecimento |
 | --- | --- |
@@ -393,14 +429,6 @@ Nomes que apareçam apenas em headers C ou que sejam produzidos pela expansão d
 | Tipo nomeado | O nome deve estar registrado como tipo reconhecido por keel. A sequência de dois identificadores, por si só, não basta. |
 | Modificador com argumentos | O nome e a aridade vêm dos símbolos registrados. Os argumentos são consumidos recursivamente segundo essa aridade, após os especificadores e qualificadores admitidos. |
 | Parâmetro com tipo reconhecido por keel | Depois do tipo nomeado ou da aplicação completa do modificador, são admitidos o declarador ou o fim do parâmetro; o nome pode ser omitido nas formas previstas por `param`. |
-| `ref` | Só ocupa a posição de qualificador depois de `*` no declarador. Não qualifica o tipo antes do declarador. |
-| `tags` | Em linha `module`, introduz parâmetros do módulo. Em declaração, o nome é seguido de `[` e da lista de tags. |
-| `extent` | Em posição de declaração de arquivo, seguido de `struct`, do nome e de `[`, inicia a declaração de `extent`. |
-| `type` | Em linha `module`, introduz parâmetros do módulo. Em lista de parâmetros de função, seguido de `IDENT` e de `,` ou `)`, declara parâmetro de tipo. |
-| `match` | Seguido de `(`, identifica o despacho; o corpo entre `{` e `}` contém rótulos de tag. |
-| `walk` | Seguido de `(`, identifica a travessia por cursor; o segundo binder declara o cursor. |
-| `foreach` | Dois binders são separados por `,` antes de `:`; a forma com um binder usa `countable`. |
-| `instance` | Em posição de declaração, inicia uma declaração de instância. É proibido declarar um modificador com esse nome. [Justificativa da reserva](keel-rationale.md#por-que-instance-é-a-única-ressalva-do-documento). |
 
 Uma sequência de identificadores pode indicar uma forma candidata, mas a aceitação do tipo depende dos símbolos e da aridade. A varredura até um delimitador pode ter comprimento variável; o reconhecimento não é descrito como lookahead de tamanho fixo.
 
@@ -418,21 +446,10 @@ apontar, o diagnóstico é `unexpected-eof` (§2.5).
 - A posição de contêiner usa a produção `container` e a informação dos símbolos keel. Uma expressão C desconhecida, como uma chamada C ou um cast arbitrário, não fornece a identidade de contêiner exigida pelo despacho.
 - Índices, valores e demais argumentos continuam sendo regiões opacas, inclusive quando contêm outras construções keel reconhecíveis.
 - A indexação sobre um símbolo C desconhecido permanece C. A reescrita de índices múltiplos de `array` requer um símbolo com esse marcador; os demais contêineres seguem seus contratos de acesso.
+- As verificações de sombreamento e de redeclaração alcançam as formas reconhecidas; não são análise geral das declarações C nem dos nomes introduzidos por headers e macros.
+- Um import pode alterar o reconhecimento de nomes e formas antes tratados como C. Não há garantia irrestrita de estabilidade ao acrescentar imports.
 
-### 2.4 Semântica
-
-#### Tokenização e preservação
-
-- A emenda de linha precede o reconhecimento de comentários, literais e diretivas.
-- Comentários não chegam ao C gerado: cada um é substituído por espaços, e
-  suas quebras de linha se preservam (backend §6). O conteúdo de `extern_c` é
-  C e atravessa intacto, comentários inclusive.
-- O reconhecimento léxico não registra tipos nem decide a identidade de instâncias. Essas decisões usam o parser e a tabela de símbolos.
-- Diretivas são preservadas para o pré-processador C. keel não expande macros, não avalia condições e não escolhe alternativas condicionais.
-- A classificação lexical de palavras C não muda com o perfil de geração. A validade do C preservado é verificada pelo compilador C.
-- Constantes nomeadas por `constexpr` podem ocupar posições antes restritas a literais, conforme a §4.2. Quando uma construção requer que keel conheça o valor numérico, aplica-se a leitura de literal prevista em seu contrato; a produção `NUM | IDENT` não autoriza avaliação de expressões.
-
-#### Balanceamento de grupos condicionais
+### 2.4 Grupos condicionais e delimitadores
 
 - Um grupo começa em `#if`, `#ifdef` ou `#ifndef` e termina no `#endif` correspondente.
 - `#elif`, `#elifdef`, `#elifndef` e `#else` iniciam uma nova alternativa. A ausência de `#else` acrescenta uma alternativa vazia.
@@ -443,16 +460,12 @@ apontar, o diagnóstico é `unexpected-eof` (§2.5).
 
 Uma alternativa pode abrir um bloco que termina depois do grupo, desde que as demais alternativas produzam a mesma estrutura. Um bloco aberto apenas sob `#ifdef` sem `#else` não satisfaz essa regra, pois a alternativa vazia não abre o bloco. [Justificativa: balanceamento por alternativa](keel-rationale.md#por-que-a-contagem-é-por-alternativa-e-não-sobre-o-texto).
 
-### 2.5 Restrições e diagnósticos
+### 2.5 Erros léxicos e sintáticos
 
-Os diagnósticos abaixo são emitidos por keel durante a tradução. Seus identificadores são os mesmos do catálogo geral. Regras específicas das construções acrescentam os diagnósticos de seus próprios contratos.
+Diagnósticos do lexer e do parser, emitidos por keel durante a tradução. Os demais pertencem aos contratos das construções e estão no catálogo (§6.2).
 
 | Condição | Identificador | Severidade |
 | --- | --- | --- |
-| `extern_c` fora do nível de arquivo | `nested-extern-c` | `error` |
-| Dois imports com `types` injetam o mesmo nome nu | `duplicate-injected-name` | `error` |
-| Declaração local sombreia nome injetado por `types` | `shadowed-injected-name` | `warning` |
-| Import injeta nomes por `types`; a mensagem lista os nomes | `injected-names` | `info` |
 | Expressão fora da gramática de contêiner em posição que a exige | `not-a-container-expression` | `error` |
 | Padrão local de redeclaração de símbolo conhecido, definido abaixo | `symbol-redeclaration` | `error` |
 | Delimitador sem par; a mensagem localiza a abertura quando existente | `unmatched-delimiter` | `error` |
@@ -462,53 +475,11 @@ Os diagnósticos abaixo são emitidos por keel durante a tradução. Seus identi
 | Newline não emendado em literal de string ou caractere | `literal-with-newline` | `error` |
 | Sombreamento de palavra contextual, verbo ou nome de módulo | `keel-name-shadowed` | `warning` |
 | Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `alias-type-collision` | `error` |
-| Modificador declarado com o nome `instance` | `modifier-named-instance` | `error` |
 
 Para o diagnóstico `symbol-redeclaration`, keel reconhece os padrões `IDENT IDENT` e `IDENT '*' IDENT` no início de statement, quando o segundo identificador é um símbolo keel conhecido. A verificação recusa a possível redeclaração sem precisar resolver o primeiro identificador como tipo C. [Justificativa: recusa de possíveis redeclarações](keel-rationale.md#por-que-a-redeclaração-é-recusada-em-vez-de-classificada).
-
 Para o diagnóstico `define-over-keel-name`, keel lê o nome alvo de `#define` ou `#undef`. Essa inspeção é adicional à classificação pela palavra da diretiva; não examina semanticamente o corpo da macro, não o expande e não altera a diretiva. A preservação do conteúdo não exclui essa verificação lexical.
 
-### 2.6 Pré-condições e limites
-
-- As construções e os nomes necessários ao reconhecimento devem existir antes da expansão de macros, conforme a §1.2.
-- O programa deve respeitar as restrições de nomes e de estrutura condicional mesmo quando o compilador C descartaria um ramo.
-- A validação das expressões C, dos tipos C desconhecidos e das diretivas preservadas cabe ao compilador C e ao seu pré-processador.
-- A gramática de contêiner não admite que keel deduza a identidade de uma chamada C desconhecida ou de um cast arbitrário.
-- As verificações de sombreamento e redeclaração alcançam as formas reconhecidas. Não constituem análise geral das declarações C ou dos nomes introduzidos por headers e macros.
-- Um import pode alterar o reconhecimento de nomes e formas antes tratados como C. Aplicam-se as regras de conflito e sombreamento; não há garantia irrestrita de estabilidade ao acrescentar imports.
-
-### 2.7 Exemplo mínimo
-
-O marcador `array` identifica o símbolo sobre o qual a indexação multidimensional é reescrita. O comentário e o literal não participam desse reconhecimento.
-
-```keel
-//keel
-void example(void) {
-    array char grade[2,3];
-    grade[1,2] = 'x';
-    const char *text = "grade[1,2] .. defer";
-    /* grid[1,2] stays text inside this comment. */
-}
-```
-
-C correspondente à operação essencial:
-
-```c
-//C gerado
-void example(void) {
-    char grade[2][3];
-    grade[1][2] = 'x';
-    const char *text = "grade[1,2] .. defer";
-    /* grid[1,2] stays text inside this comment. */
-}
-```
-
-O par mostra um corpo de função; a declaração de módulo foi omitida. Detalhes de nomes gerados e verificações de acesso pertencem ao backend.
-
-### 2.8 Referências
-
-- [Rationale](keel-rationale.md): “Fronteira com C e conflitos léxicos”, “Prelúdio e base mínima”, “Constantes nomeadas”, e as justificativas de reconhecimento — “Por que `<opaque>` é o terminal central”, “Por que a contagem é por alternativa” e “Por que a redeclaração é recusada em vez de classificada”.
-- [Backend](keel-c-backend.md): §§2, 5, 6 e 9, para nomes, emissão das construções, mapeamento de linhas e perfis de geração.
+Referências: [Rationale](keel-rationale.md): “Fronteira com C e conflitos léxicos”, “Prelúdio e base mínima”, “Por que `<opaque>` é o terminal central”, “Por que a contagem é por alternativa” e “Por que a redeclaração é recusada em vez de classificada”; [Backend](keel-c-backend.md): §§2, 5, 6 e 9.
 
 ## 3. keel por exemplos
 

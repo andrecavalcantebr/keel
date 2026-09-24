@@ -41,7 +41,7 @@ pub inline outcome T at(slice s, size_t i) {
 // a slice of a slice — the arity-2 `of` (spec §4.5: the container's module
 // declares its `of`; for a `slice` source, that is this module).
 pub inline slice of(slice s, size_t a, size_t b) {
-    if (a > b || b > s.len) return (slice){0, s.ptr};
+    if (b > s.len) b = s.len; if (a > b) a = b;
     return (slice){ b - a, s.ptr + a };
 }
 

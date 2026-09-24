@@ -1242,6 +1242,16 @@ A forma contável de `foreach` não impõe protocolo rígido: `first` e `limit`
 bastam, porque o binder recebe o próprio contador e nenhum verbo de acesso por
 posição é despachado.
 
+**Recorte: erro em debug, saturação em release.** Um `range-index` fora de
+`a <= b <= length(x)` quase sempre é erro de índice, e o debug o acusa. Em
+release o resultado é definido — o fim é recortado no comprimento, e início
+além do fim dá trecho vazio —, para que o programa que erra não leia memória
+alheia. A saturação não é o contrato: é a rede de segurança. Tratá-la como
+contrato, à maneira das fatias do Python, esconderia o bug de quem pede quatro
+elementos perto do fim e recebe menos, e deixaria `x[a..b]` com um regime
+diferente do de `x[i]`. Quem quer a forma total escreve o verbo, como faz com
+`at`.
+
 Referência: [spec §5.3–4.9](keel-spec.md#53-keelbuffer-keelslice-e-keelrange).
 
 ## Cursor explícito

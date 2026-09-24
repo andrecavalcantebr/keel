@@ -70,7 +70,7 @@ pub inline slice as_slice(buffer *b) {
 }
 
 pub inline slice as_slice(buffer *b, size_t a, size_t c) {
-    if (a > c || c > b->len) return (slice){0, b->ptr};
+    if (c > b->len) c = b->len; if (a > c) a = c;
     return (slice){ c - a, b->ptr + a };
 }
 

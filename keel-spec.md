@@ -940,10 +940,11 @@ Acessar elementos e delimitar fatias a partir de contêineres conhecidos.
 7. O nome do verbo de `range-index` é do módulo do contêiner. A única exigência deste contrato é a direção: memória para visão.
 8. O `range-index` é rvalue. Um elemento da vista segue o contrato do elemento.
 9. Na forma `x[a..]`, o contêiner é usado duas vezes, e o caminho só admite identificadores, `.`, `->`, `*`, `&` e parênteses.
-10. As verificações de índice e limite são de debug. Um `range-index` exige `a <= b <= length(x)`; o trecho vazio é permitido.
-11. Sobre `array`, cada índice é verificado contra a dimensão declarada correspondente. Quando índice e dimensão são decimais conhecidos, a verificação é da tradução e recusa; nos demais casos é de execução em perfil debug.
-12. Na dimensão 0 de um parâmetro `array`, o número declarado é o contrato, e não a extensão do vetor que o chamador entregou.
-13. `inverted-range-index` e `array-index-above-dimension` admitem literais e `constexpr` de valor decimal conhecido. Não calculam expressões C.
+10. Um `range-index` exige `a <= b <= length(x)`; o trecho vazio é permitido. A violação é verificada em debug.
+11. Em release, a violação tem resultado definido: `b` acima do comprimento é recortado para o comprimento, e `a` acima de `b` dá trecho vazio.
+12. Sobre `array`, cada índice é verificado contra a dimensão declarada correspondente. Quando índice e dimensão são decimais conhecidos, a verificação é da tradução e recusa; nos demais casos é de execução em perfil debug.
+13. Na dimensão 0 de um parâmetro `array`, o número declarado é o contrato, e não a extensão do vetor que o chamador entregou.
+14. `inverted-range-index` e `array-index-above-dimension` admitem literais e `constexpr` de valor decimal conhecido. Não calculam expressões C.
 
 Referências: [Rationale: acesso e travessia](keel-rationale.md#acesso-e-travessia); [Rationale: memória e visão](keel-rationale.md#memória-e-visão-a-direção-da-conversão); [Backend: açúcar de indexação](keel-c-backend.md#53-açúcar-de-indexação).
 
@@ -969,7 +970,7 @@ Condições no [catálogo](#62-catálogo). De keel, na tradução: `partial-arra
 
 #### 5. Casos especiais
 
-- O programa garante os limites também em release, mantém o armazenamento válido e respeita qualificadores.
+- O programa garante os índices de elemento também em release, mantém o armazenamento válido e respeita qualificadores. Um `range-index` fora dos limites tem, em release, o resultado da regra 11.
 - O açúcar de indexação não tem o resultado falível de `at`; quem precisa dele escreve o verbo.
 
 ### 4.6 Cleanup léxico
@@ -1697,7 +1698,7 @@ Sequências de comprimento variável, trechos de extensão fixa e intervalos.
 1. A capacidade de `buffer` é fixa desde a construção. Ele cresce até ela e encolhe, sem realocação implícita.
 2. Ponteiro nulo na construção dá capacidade zero, e as inserções falham pelo canal normal.
 3. `slice` não cresce. Seus elementos podem ser alterados por índice, `set` ou ponteiro, respeitando `const` e a região válida.
-4. As formas de intervalo de `slice.of` exigem `a <= b <= length(x)` e admitem trecho vazio.
+4. As formas de intervalo de `slice.of` e `buffer.as_slice` seguem a §4.5: exigem `a <= b <= length(x)`, a violação é verificada em debug e, em release, saturada.
 5. Escrever pelo ponteiro de `slice.from` não altera o comprimento de um buffer.
 6. Nenhum descritor libera armazenamento. Cópia de `slice` compartilha os dados; cópia de `buffer` compartilha os dados e duplica o controle de comprimento, com o aviso de `byref`.
 7. `range` não declara `ptr`, porque não tem armazenamento de elementos.

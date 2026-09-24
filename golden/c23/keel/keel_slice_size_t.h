@@ -59,7 +59,7 @@ static inline keel_outcome_size_t keel_slice_size_t_at(keel_slice_size_t s, size
 }
 #line 43 "keel/slice.k"
 static inline keel_slice_size_t keel_slice_size_t_of(keel_slice_size_t s, size_t a, size_t b) {
-    if (a > b || b > s.len) return (keel_slice_size_t){0, s.ptr};
+    if (b > s.len) b = s.len; if (a > b) a = b;
     return (keel_slice_size_t){ b - a, s.ptr + a };
 }
 #line 49 "keel/slice.k"

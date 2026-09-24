@@ -1149,6 +1149,11 @@ prometeu. Esse é pego do lado da chamada, na tradução, pelo
 Quando índice e dimensão são ambos decimais conhecidos, não há `assert`: a
 tradução já recusou, e é o `array-index-above-dimension` (linguagem §4.5).
 
+Um `range-index` fora de `a <= b <= length(x)` é o `range-index-out-of-bounds`
+de debug. Em release, o resultado saturado da linguagem §4.5 é escrito no corpo
+do próprio verbo da base — `slice.of` e `buffer.as_slice` recortam o fim no
+comprimento e o início no fim —, e não pelo emissor.
+
 #### 5.3.1 Açúcar sobre modificador com `dim`
 
 Quando o modificador declara `dim N` (linguagem §4.3), a emissão do açúcar

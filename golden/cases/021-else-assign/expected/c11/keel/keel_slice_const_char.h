@@ -39,7 +39,7 @@ static inline const char   *keel_slice_const_char_ptr (keel_slice_const_char s) 
 static inline const char   *keel_slice_const_char_ptr1(keel_slice_const_char s, size_t i) { return &s.ptr[i]; }
 #line 43 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_of(keel_slice_const_char s, size_t a, size_t b) {
-    if (a > b || b > s.len) return (keel_slice_const_char){0, s.ptr};
+    if (b > s.len) b = s.len; if (a > b) a = b;
     return (keel_slice_const_char){ b - a, s.ptr + a };
 }
 #line 58 "keel/slice.k"

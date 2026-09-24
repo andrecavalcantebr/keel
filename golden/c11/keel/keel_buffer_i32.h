@@ -102,7 +102,7 @@ static inline keel_slice_i32 keel_buffer_i32_as_slice (keel_buffer_i32 *b) {
 }
 #line 72 "keel/buffer.k"
 static inline keel_slice_i32 keel_buffer_i32_as_slice2(keel_buffer_i32 *b, size_t a, size_t c) {
-    if (a > c || c > b->len) return (keel_slice_i32){0, b->ptr};
+    if (c > b->len) c = b->len; if (a > c) a = c;
     return (keel_slice_i32){ c - a, b->ptr + a };
 }
 #line 78 "keel/buffer.k"

@@ -59,7 +59,7 @@ static inline keel_outcome_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot
 }
 #line 43 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b) {
-    if (a > b || b > s.len) return (keel_slice_keel_routine_slot_ag2_Ag){0, s.ptr};
+    if (b > s.len) b = s.len; if (a > b) a = b;
     return (keel_slice_keel_routine_slot_ag2_Ag){ b - a, s.ptr + a };
 }
 #line 49 "keel/slice.k"

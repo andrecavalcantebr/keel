@@ -458,7 +458,7 @@ Os diagnósticos abaixo são emitidos por keel durante a tradução. Seus identi
 | Delimitador sem par; a mensagem localiza a abertura quando existente | `unmatched-delimiter` | `error` |
 | Fim de arquivo durante o reconhecimento de uma forma candidata, sem token de terminação nem delimitador aberto | `unexpected-eof` | `error` |
 | Alternativas condicionais discordam na estrutura de delimitadores | `delimiter-mismatch-across-branches` | `error` |
-| `#define` ou `#undef` de palavra contextual keel ou de nome no espaço `keel_` | `define-over-keel-name` | `error` |
+| `#define` ou `#undef` de palavra contextual keel ou de nome nos espaços `keel_` e `KEEL_` | `define-over-keel-name` | `error` |
 | Newline não emendado em literal de string ou caractere | `literal-with-newline` | `error` |
 | Sombreamento de palavra contextual, verbo ou nome de módulo | `keel-name-shadowed` | `warning` |
 | Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `alias-type-collision` | `error` |
@@ -2120,7 +2120,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `name-too-long` | Nome gerado acima do teto de comprimento do alvo | `error` | Backend / compilador C | §4.2 |
 | `not-a-container-expression` | Expressão fora da gramática de contêiner em posição de contêiner | `error` | keel | §4.4 |
 | `c-type-as-argument` | Palavra-chave de tipo aritmético C como argumento de modificador, exceto `char` e `bool`, em vez da grafia keel ou de um tipo nomeado | `error` | keel | §4.2 |
-| `reserved-name` | Identificador do usuário no espaço reservado `keel_` | `error` | Backend / compilador C | §4.2 |
+| `reserved-name` | Identificador declarado pelo programa nos espaços reservados `keel_` e `KEEL_` | `error` | Backend / compilador C | §4.2 |
 | `symbol-redeclaration` | Padrão local de possível redeclaração de símbolo conhecido, conforme §2.5 | `error` | keel | §2.5 |
 | `buffer-over-const` | `buffer` sobre vetor C `const` — a mensagem indica `slice const T` | `error` | keel | §5.3 |
 | `element-copy-in-get-set` | `get` ou `set` sobre elemento que é instância de modificador | `error` | keel | §5.3 |
@@ -2146,7 +2146,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `unmatched-delimiter` | Chave, parêntese ou colchete sem par — inclusive dentro de `extern_c` | `error` | keel | §2.5 |
 | `unexpected-eof` | Fim de arquivo durante o reconhecimento de uma forma candidata, sem token de terminação nem delimitador aberto | `error` | keel | §2.5 |
 | `delimiter-mismatch-across-branches` | Alternativas de um grupo condicional que discordam na contagem de delimitadores | `error` | keel | §2.5 |
-| `define-over-keel-name` | `#define` ou `#undef` de palavra contextual keel ou nome `keel_` | `error` | keel | §2.5 |
+| `define-over-keel-name` | `#define` ou `#undef` de palavra contextual keel ou nome `keel_` ou `KEEL_` | `error` | keel | §2.5 |
 | `literal-with-newline` | Literal de string ou char com newline não-emendado | `error` | keel | §2.5 |
 | `keel-name-shadowed` | Sombreamento de palavra contextual, de verbo ou de nome de módulo | `warning` | keel | §2.5 |
 | `byref-assignment` | Atribuição entre instâncias de modificador `byref`, nomeando o aliasing | `warning` | keel | §4.3 |

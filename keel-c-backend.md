@@ -17,7 +17,7 @@ A divisão vale nos três documentos, e é um critério só:
 > **A linguagem é dona do que depende apenas do fonte. O backend é dono do que depende do alvo. A ferramenta é dona do que depende da invocação** (`cgen-tool-spec.md`).
 
 **Alvo:** C23 normativo, sem extensões de compilador.
-**Prefixo reservado:** `keel_`.
+**Prefixos reservados:** `keel_` e `KEEL_`.
 
 ---
 
@@ -219,7 +219,7 @@ manga, porque só ele muda o tipo do elemento.
 | Vetores de `arena_from_stack` | `keel__st<N>` |
 | Tipo da camada zero (`i32`, `f32`, `size_t`, …) | nenhum — mesma grafia no fonte e no C |
 
-Identificadores começando com `keel_` no fonte do usuário são reservados, e usá-los é erro.
+Identificadores começando com `keel_` ou `KEEL_` são reservados: declará-los ou defini-los no fonte do usuário é erro (`reserved-name`, `define-over-keel-name`). Usar os nomes do prelúdio, como `KEEL_CHECK` (§5.17), é permitido. `KEEL_CHECKS` chega pela linha de comando do compilador C, e não por `#define` no fonte.
 
 ### 2.4 Limite de comprimento
 
@@ -2282,7 +2282,7 @@ A ressalva que sobra é a mesma do make: se o próprio gerador mudar, os gerados
 | Identificador | Diagnóstico | Sev. |
 | --- | --- | --- |
 | `name-too-long` | Nome gerado acima do teto de comprimento (255, ou 63 sob `--pedantic-names`) | `error` |
-| `reserved-name` | Identificador do usuário no espaço reservado `keel_` | `error` |
+| `reserved-name` | Identificador declarado pelo programa nos espaços reservados `keel_` e `KEEL_` | `error` |
 | `set-out-of-length` | `set` com índice fora de `length` | `debug` |
 | `instance-field-access` | Acesso direto a campo de instância de modificador, fora do módulo que a declara | `warning` |
 | `tag-out-of-range` | Etiqueta fora da lista declarada do conjunto | `debug` |

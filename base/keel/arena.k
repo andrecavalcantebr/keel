@@ -49,6 +49,7 @@ pub inline bool from_parent(arena *a, arena *parent, size_t n) {
 // `alloc-overflow` diagnostic. Aligns the ADDRESS, not the offset: the region
 // may start anywhere.
 pub inline void *alloc(arena *a, size_t n, size_t sz, size_t align) {
+    KEEL_CHECK(sz == 0 || n <= SIZE_MAX / sz, "alloc-overflow");
     if (sz == 0 || n > SIZE_MAX / sz) return NULL;
     size_t need = n * sz;
     uintptr_t base = (uintptr_t)(a->ptr + a->top);

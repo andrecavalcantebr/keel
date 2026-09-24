@@ -26,7 +26,7 @@ keel_corot ag_step(i32 *a, keel_tagged_ag_Cycle_void *st, ag_Agent *ag) {
     case ag_Cycle_ST1: goto keel__m0_ST1;
     case ag_Cycle_ST2: goto keel__m0_ST2;
     case ag_Cycle_ST3: goto keel__m0_ST3;
-    default:           goto keel__m0_end;
+    default:           KEEL_CHECK(0, "tag-out-of-range"); goto keel__m0_end;
     }
     keel__m0_ST1: {
         keel_corot r = ag_fn1(a);

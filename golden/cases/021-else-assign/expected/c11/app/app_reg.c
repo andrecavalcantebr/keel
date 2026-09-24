@@ -59,9 +59,9 @@ size_t app_reg_load(size_t n) {
         address = app_reg_read_address(i); if (keel_outcome_keel_slice_const_char_failed(address)) keel_outcome_keel_slice_const_char_win1(&address, keel_slice_const_char_from("", 0));
         birth = app_reg_read_birth(i); if (keel_outcome_f64_failed(birth)) keel_outcome_f64_win1(&birth, 0.0);
 
-        app_reg_people[i].name    = keel_outcome_keel_slice_const_char_value(name);
-        app_reg_people[i].address = keel_outcome_keel_slice_const_char_value(address);
-        app_reg_people[i].birth   = keel_outcome_f64_value(birth);
+        app_reg_people[keel_index(i, 4)].name    = keel_outcome_keel_slice_const_char_value(name);
+        app_reg_people[keel_index(i, 4)].address = keel_outcome_keel_slice_const_char_value(address);
+        app_reg_people[keel_index(i, 4)].birth   = keel_outcome_f64_value(birth);
         k++;
     }
     return k;

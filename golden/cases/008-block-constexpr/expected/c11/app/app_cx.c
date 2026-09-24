@@ -16,7 +16,7 @@ int app_cx_sum(app_cx_Cfg *c) {
 #line 12 "app/cx.k"
     i32 v[keel__N_0];
     int t = 0;
-    { for (size_t i = 0; i < keel__N_0; i++) { v[i] = (i32)i; t += v[i]; } }
+    { for (size_t i = 0; i < keel__N_0; i++) { v[keel_index(i, keel__N_0)] = (i32)i; t += v[keel_index(i, keel__N_0)]; } }
     c->N   = (int)keel__N_0;
     c->MAX = (int)app_cx_MAX;
     return t + (int)sizeof(v) / (int)sizeof(i32);

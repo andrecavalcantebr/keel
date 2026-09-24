@@ -27,10 +27,10 @@ pub inline slice from(type T, T *p, size_t n) {
 }
 
 pub inline size_t length(slice s) { return s.len; }
-pub inline T      get(slice s, size_t i) { return s.ptr[i]; }
-pub inline void   set(slice s, size_t i, T v) { s.ptr[i] = v; }
+pub inline T      get(slice s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return s.ptr[i]; }
+pub inline void   set(slice s, size_t i, T v) { KEEL_CHECK(i < s.len, "set-out-of-length"); s.ptr[i] = v; }
 pub inline T     *ptr(slice s) { return s.ptr; }
-pub inline T     *ptr(slice s, size_t i) { return &s.ptr[i]; }
+pub inline T     *ptr(slice s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return &s.ptr[i]; }
 
 // the only accessor checked in release (spec §5.3, backend §5.13).
 pub inline outcome T at(slice s, size_t i) {
@@ -41,6 +41,7 @@ pub inline outcome T at(slice s, size_t i) {
 // a slice of a slice — the arity-2 `of` (spec §4.5: the container's module
 // declares its `of`; for a `slice` source, that is this module).
 pub inline slice of(slice s, size_t a, size_t b) {
+    KEEL_CHECK(a <= b && b <= s.len, "range-index-out-of-bounds");
     if (b > s.len) b = s.len; if (a > b) a = b;
     return (slice){ b - a, s.ptr + a };
 }

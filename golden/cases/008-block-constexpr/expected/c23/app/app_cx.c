@@ -14,7 +14,7 @@ int app_cx_sum(app_cx_Cfg *c) {
     constexpr size_t N = 8;
     i32 v[N];
     int t = 0;
-    { for (size_t i = 0; i < N; i++) { v[i] = (i32)i; t += v[i]; } }
+    { for (size_t i = 0; i < N; i++) { v[keel_index(i, N)] = (i32)i; t += v[keel_index(i, N)]; } }
     c->N   = (int)N;
     c->MAX = (int)app_cx_MAX;
     return t + (int)sizeof(v) / (int)sizeof(i32);

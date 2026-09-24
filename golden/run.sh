@@ -118,10 +118,14 @@ for case_dir in cases/*/; do
     omps=""; grep -lq '#pragma omp' $srcs 2>/dev/null && omps=" -fopenmp"
 
     good=1
+    # both check modes (backend §5.17): the generated C is the same, only the
+    # KEEL_CHECKS switch given to the C compiler changes
+    for chk in 1 0; do
     for omp in "" $omps; do
       [ -z "$omp" ] && extra=-Wno-unknown-pragmas || extra=""
-      $CC "-std=$std" $FLAGS $extra $omp $inc $([ $mode = compile ] && echo -c) $srcs -o "$exe" 2>/dev/null \
+      $CC "-std=$std" $FLAGS -DKEEL_CHECKS=$chk $extra $omp $inc $([ $mode = compile ] && echo -c) $srcs -o "$exe" 2>/dev/null \
         && { [ $mode = compile ] || "$exe" >/dev/null; } || good=0
+    done
     done
     [ -n "$omps" ] && mode="$mode, ±omp"
 

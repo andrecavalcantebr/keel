@@ -966,7 +966,7 @@ O incremento ocorre uma vez e a escrita alcança o armazenamento original.
 
 #### 4. Erros
 
-Condições no [catálogo](#62-catálogo). De keel, na tradução: `partial-array-index`, `array-index-above-dimension`, `no-ptr-for-arity`, `no-range-index-verb`, `inverted-range-index`, `open-range-index-on-complex-path`. Do backend, em execução debug: `array-index-out-of-bounds`, `range-index-out-of-bounds`.
+Condições no [catálogo](#62-catálogo). De keel, na tradução: `partial-array-index`, `array-index-above-dimension`, `no-ptr-for-arity`, `no-range-index-verb`, `inverted-range-index`, `open-range-index-on-complex-path`. Do backend, em execução debug: `array-index-out-of-bounds`, `range-index-out-of-bounds` e, pelo `ptr` de `buffer` e `slice`, `index-out-of-length`.
 
 #### 5. Casos especiais
 
@@ -1716,12 +1716,12 @@ O [exemplo 3 do README](README.md#3-trecho-fixo-elementos-mutáveis-e-intervalo)
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `buffer-over-const`, `element-copy-in-get-set`, `buffer-of-unknown-size`, `slice-from-ref`, `open-range-outside-index`. Do backend, em execução debug: `set-out-of-length`. Qualificadores e compatibilidade das cópias são do compilador C.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `buffer-over-const`, `element-copy-in-get-set`, `buffer-of-unknown-size`, `slice-from-ref`, `open-range-outside-index`. Do backend, em execução debug: `index-out-of-length`, `set-out-of-length`. Qualificadores e compatibilidade das cópias são do compilador C.
 
 #### 5. Casos especiais
 
 - O programa garante que ponteiros e extensões externos descrevem memória válida e acessível pelo tipo escrito. Nenhum descritor prolonga a vida dessa memória.
-- O programa garante índice dentro do comprimento em `get`, `set` e `ptr(x, i)`, também em release. `at` verifica em toda build.
+- O programa garante índice dentro do comprimento em `get`, `set` e `ptr(x, i)`, também em release; em debug, a violação é verificada. `at` verifica em toda build.
 - O programa garante `first <= limit` num `range` usado como sequência; a subtração em `size_t` não corrige limites invertidos.
 - O programa inicializa a posição de `push(b)` sem valor antes de lê-la, e não pressupõe que a posição removida por `pop` sobreviva a outra inserção.
 - Crescer o buffer não aumenta um slice existente.
@@ -2081,7 +2081,7 @@ referências, nas mensagens e nas opções da ferramenta. A condição normativa
 | `error` | Recusar a tradução da unidade, sem publicar seus artefatos gerados |
 | `warning` | Detectar e permitir o relato sem recusar por regra de keel |
 | `info` | Disponibilizar a informação; a apresentação é definida pela ferramenta |
-| `debug` | Verificar em execução na build de debug; a instrumentação correspondente não integra a build release |
+| `debug` | Verificar em execução na build de debug; na build release a verificação não executa |
 
 O backend pode materializar diagnósticos por guardas no C, inclusive a
 indisponibilidade de formatos. Nesses casos, o compilador C emite a mensagem.
@@ -2124,6 +2124,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `symbol-redeclaration` | Padrão local de possível redeclaração de símbolo conhecido, conforme §2.5 | `error` | keel | §2.5 |
 | `buffer-over-const` | `buffer` sobre vetor C `const` — a mensagem indica `slice const T` | `error` | keel | §5.3 |
 | `element-copy-in-get-set` | `get` ou `set` sobre elemento que é instância de modificador | `error` | keel | §5.3 |
+| `index-out-of-length` | `get` ou `ptr(x, i)` — e, por eles, o açúcar `x[i]` — com índice fora de `length`, sobre `buffer` ou `slice` | `debug` | Backend, em execução | §5.3 |
 | `set-out-of-length` | `set` com índice fora de `length` | `debug` | Backend, em execução | §5.3 |
 | `buffer-of-unknown-size` | `buffer.of` de um argumento sobre símbolo que não é `array` | `error` | keel | §5.3 |
 | `array-1d-as-parameter` | `array` unidimensional em parâmetro de função | `error` | keel | §4.2 |

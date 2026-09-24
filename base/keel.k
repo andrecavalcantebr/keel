@@ -33,3 +33,25 @@ static_assert(FLT_RADIX == 2 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024
 // §4.2): they are not remapped here. stdbool.h/assert.h under C11, and the
 // spelling of the assert per profile, are the backend's choice at generation
 // time — not this source's.
+
+// debug checks (backend §5.17): the switch is a C macro, not a difference in
+// generation. `cgen --checks=off` passes -DKEEL_CHECKS=0 to the C compiler, and
+// the generated C is the same in both modes. Switched off, the condition is not
+// evaluated — `sizeof` only keeps its operands used.
+pub extern_c [type_h] {
+#ifndef KEEL_CHECKS
+#define KEEL_CHECKS 1
+#endif
+#if KEEL_CHECKS
+#include <stdio.h>
+#include <stdlib.h>
+#define KEEL_CHECK(cond, id) \
+    ((cond) ? (void)0 : (fprintf(stderr, "%s:%d: keel: %s\n", __FILE__, __LINE__, (id)), abort()))
+#else
+#define KEEL_CHECK(cond, id) ((void)sizeof((cond) ? 1 : 0))
+#endif
+static inline size_t keel_index(size_t i, size_t d) {
+    KEEL_CHECK(i < d, "array-index-out-of-bounds");
+    return i;
+}
+}

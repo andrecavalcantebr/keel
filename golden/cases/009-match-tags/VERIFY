@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+# Case 009 runs its proof in BOTH check modes (backend §5.17). The last step of
+# proof.c writes a tag outside the set (99):
+#   - with KEEL_CHECKS=0 (release), `default:` leaves the dispatch and the proof
+#     prints "ok";
+#   - with the checks on (the default), the same step is `tag-out-of-range`:
+#     the program aborts, and the message cites the keel source position.
+#
+#   $1 = compiler   $2 = -std=...   $3 = profile directory
+set -eu
+dir=$(dirname "$0")
+gen="$dir/expected/$3"
+flags="-pedantic-errors -Wall -Wextra -Wno-unused-parameter -Wvla -Werror=vla -Wno-unknown-pragmas"
+exe=$(mktemp)
+bad=0
+
+"$1" "$2" $flags -DKEEL_CHECKS=0 -I"$3" -I"$gen" -I"$dir" $(find "$gen" -name '*.c') "$dir/proof.c" -o "$exe"
+out=$("$exe" 2>&1) || { echo "  release: the proof failed"; bad=1; }
+[ "$out" = ok ] || { echo "  release: want [ok] got [$out]"; bad=1; }
+
+"$1" "$2" $flags -I"$3" -I"$gen" -I"$dir" $(find "$gen" -name '*.c') "$dir/proof.c" -o "$exe"
+if out=$(sh -c '"$0" 2>&1; exit $?' "$exe" 2>/dev/null); then echo "  debug: the out-of-set tag did not abort"; bad=1; fi
+printf '%s\n' "$out" | grep -qE '^ag\.k:[0-9]+: keel: tag-out-of-range$' \
+    || { echo "  debug: want 'ag.k:N: keel: tag-out-of-range', got [$out]"; bad=1; }
+
+rm -f "$exe"
+exit $bad

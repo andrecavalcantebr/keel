@@ -52,6 +52,7 @@ pub inline outcome u32 seq(slice slot s) {
 pub inline outcome u32 par(slice slot s, u32 target) {
     outcome u32 r = {0};
     size_t n = slice.length(s);
+    KEEL_CHECK(target <= n, "par-target-above-total");
     u32 m = (u32)n, S = 0, F = 0, q = target ? target : m;
     for (size_t i = 0; i < n; ++i) slice.ptr(s, i)->state = (corot){0};
     for (;;) {
@@ -72,6 +73,7 @@ pub inline outcome u32 par(slice slot s, u32 target) {
 pub inline u64 mask(slice slot s) {
     u64 m = 0;
     size_t n = slice.length(s);
+    KEEL_CHECK(n <= 64, "mask-above-64-slots");
     for (size_t i = 0; i < n && i < 64; ++i)
         if (corot.ok(slice.ptr(s, i)->state)) m |= (u64)1 << i;
     return m;

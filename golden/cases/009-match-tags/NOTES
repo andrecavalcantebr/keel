@@ -66,3 +66,12 @@ instância de `tagged Cycle void`.
 `void` omite o campo do valor: resta a etiqueta (backend §5.2, §5.6).
 A etiqueta é `i32`, e não o `enum`: largura estável, e o header de instância
 não passa a depender do header do módulo que declarou o conjunto.
+
+Verificação de debug
+====================
+
+O último passo do `proof.c` escreve uma etiqueta fora da lista (99). Com
+`KEEL_CHECKS=0` o `default:` sai do despacho e a prova imprime "ok"; com a
+verificação ligada, o mesmo passo é o `tag-out-of-range` (backend §5.17). Por
+isso o caso tem `VERIFY`: ele compila e roda nos dois modos, e confere a
+mensagem `ag.k:N: keel: tag-out-of-range` no segundo.

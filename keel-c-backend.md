@@ -536,6 +536,8 @@ static_assert(FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128
               && sizeof(f32) == 4, "keel: f32 requires IEEE 754 binary32 on this target");
 static_assert(FLT_RADIX == 2 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024
               && sizeof(f64) == 8, "keel: f64 requires IEEE 754 binary64 on this target");
+
+/* … followed by the debug-check switch: KEEL_CHECKS, KEEL_CHECK and keel_index (§5.17) */
 ```
 
 **Gerado, mas não variável.** `keel.type.h` não é hand-maintained fora do
@@ -553,6 +555,11 @@ binary32 e binary64 sem depender de `__STDC_IEC_559__`, que é opcional e que
 vários alvos com IEEE de verdade não definem por causa de exceções e
 arredondamento. Este é o **único lugar onde `<stdint.h>` e `<float.h>` aparecem**:
 todo o resto do C gerado usa a grafia keel.
+
+**O prelúdio traz também a chave das verificações de debug**: `KEEL_CHECKS`,
+`KEEL_CHECK` e `keel_index`, num `pub extern_c [type_h]` de `keel.k` (§5.17). É o
+único `#if` do header, e ele não depende de perfil nem de versão: depende da macro
+que o compilador C recebe.
 
 **Só a camada zero vem do prelúdio, e é a linguagem que decide isso.** `keel` é
 o único módulo implícito (linguagem §4.1): `arena`, `buffer`, `slice`, `range`,
@@ -1093,16 +1100,17 @@ comprimento vem da tabela, e é por isso que o marcador `array` é exigido.
 
 ```plain
 slice.of(v)            →  keel_slice_i32_from(v, <dim 0>)
-slice.of(v, a, b)      →  keel_slice_i32_from(v + (a), (b) - (a))
+slice.of(v, a, b)      →  keel_slice_i32_of(keel_slice_i32_from(v, <dim 0>), a, b)
 ```
 
-Não há função `_of` de dois argumentos em instância de `slice`: as duas grafias
-acima chegam ao mesmo símbolo que `slice.from(i32, p, n)` já emitia, e o `of` da
-instância continua sendo o de aridade três sobre `slice`.
+Não há função `_of` de dois argumentos em instância de `slice`: a forma de um
+argumento chega ao mesmo símbolo que `slice.from(i32, p, n)` já emitia, e a de
+três passa pelo `of` da instância, de aridade três sobre `slice`. Cada argumento
+é avaliado uma vez, e a verificação e a saturação são as do `slice` (§5.17).
 
 Todo builtin que pode falhar é gerado com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
 
-Verificação de limites em `get`, `set` e `ptr(x,i)` é emitida em build de debug e ausente em release. A chave é da ferramenta.
+Verificação de limites em `get`, `set` e `ptr(x,i)` é escrita no corpo do verbo e ligada por `KEEL_CHECKS` (§5.17).
 
 **`array` no despacho.** Sobre símbolo `array` unidimensional, `length` e `capacity` saem como `sizeof(v)/sizeof(<elem>)` — o tipo do elemento vem da tabela, não de `*(v)`. Sobre multidimensional, o idioma `sizeof(v)/sizeof(*(v))` daria a primeira dimensão, então o backend emite `sizeof(v)/sizeof(i32)`. `dim(v,k)` sai como literal. Em parâmetro multidimensional, `length` **não** pode usar `sizeof` e emite o produto literal das dimensões.
 
@@ -1134,23 +1142,24 @@ i32 v[2][3][4];
 v[1][2][3] = 0;
 ```
 
-Sob `--checks`, cada índice escrito sobre `array` é precedido de um `assert`
-contra a dimensão declarada correspondente — é o `array-index-out-of-bounds`.
+Cada índice escrito sobre `array` passa por `keel_index(i, d)`, contra a dimensão
+declarada correspondente — é o `array-index-out-of-bounds` (§5.17): `v[i][j]` sai
+`v[keel_index(i, 2)][keel_index(j, 3)]`, e o índice é avaliado uma vez.
 O número vem da tabela, e não de `sizeof`: em parâmetro multidimensional o
 `sizeof` não está disponível (§5.2), e nas dimensões de índice 1 em diante o
 número declarado **é** o tipo C emitido. A dimensão 0 de um parâmetro é a
 exceção, e é o ponto a entender: `[static d0]` não é verificado pelo C, então
-o `assert` ali afirma o contrato declarado, não a extensão recebida. Ele nunca
+a verificação ali afirma o contrato declarado, não a extensão recebida. Ele nunca
 acusa falso — ultrapassar o `d0` escrito é defeito qualquer que seja o vetor
 que chegou —, mas também não alcança o chamador que entregou menos do que
 prometeu. Esse é pego do lado da chamada, na tradução, pelo
 `array-argument-wrong-dimension` (linguagem §4.2).
 
-Quando índice e dimensão são ambos decimais conhecidos, não há `assert`: a
-tradução já recusou, e é o `array-index-above-dimension` (linguagem §4.5).
+Quando índice e dimensão são ambos decimais conhecidos, sai o colchete simples: a
+tradução já conferiu, e é o `array-index-above-dimension` (linguagem §4.5).
 
-Um `range-index` fora de `a <= b <= length(x)` é o `range-index-out-of-bounds`
-de debug. Em release, o resultado saturado da linguagem §4.5 é escrito no corpo
+Um `range-index` fora de `a <= b <= length(x)` é o `range-index-out-of-bounds`,
+verificado no corpo do verbo (§5.17). Em release, o resultado saturado da linguagem §4.5 é escrito no corpo
 do próprio verbo da base — `slice.of` e `buffer.as_slice` recortam o fim no
 comprimento e o início no fim —, e não pelo emissor.
 
@@ -1222,7 +1231,8 @@ typedef struct keel_arena {
 
 [[nodiscard]] static inline void *keel_arena_alloc3(keel_arena *a, size_t n,
                                                     size_t sz, size_t align) {
-    if (sz == 0 || n > SIZE_MAX / sz) return NULL;        /* alloc-overflow */
+    KEEL_CHECK(sz == 0 || n <= SIZE_MAX / sz, "alloc-overflow");
+    if (sz == 0 || n > SIZE_MAX / sz) return NULL;
     size_t need = n * sz;
     uintptr_t base = (uintptr_t)(a->ptr + a->top);
     size_t pad = (size_t)(-(uintptr_t)base & (align - 1));
@@ -1562,7 +1572,7 @@ Sete regras de emissão, e cada uma existe por um motivo concreto:
 5. **O operando é lido uma vez, pelo valor ou pelo verbo `tag`.** Quando o tipo declarado do operando é o conjunto (linguagem §4.9), a etiqueta é o próprio valor: `switch (k)`, ou `switch (*app_ast_ast_kind_ptr(&t, i))` sobre uma coluna de `extent` (§5.15). Sobre uma instância de `tagged` isso é o acesso ao campo, e sai como tal; sobre outro tipo que declare `tag` — `corot`, por exemplo — sai a chamada do verbo, e o `switch` é sobre o valor devolvido. O campo da etiqueta é `i32`, e não o `enum`: é o que mantém a largura estável na ABI e o que permite ao `corot` participar sem mudar de representação.
    **Na escrita a assimetria aparece no C:** um parâmetro declarado com o nome do parâmetro `tags` sai com o tipo do `enum` — `void keel_tagged_ast_Kind_ast_Node_mark(… , ast_Kind e)` —, e a atribuição ao campo é a conversão usual de `enum` para `i32`. A verificação de pertinência é da tradução (linguagem §4.3); o C não a faria, porque enum e int se convertem em silêncio.
 6. **Não há verbo de transição no despacho.** `tagged.mark(n, MUL)` é chamada comum, e o que keel faz na constante nua é a reescrita de escopo de enum (§2.1). Escrever a etiqueta não redespacha: o `switch` já executou.
-7. **`default:` sai sempre**, saltando para o fim. Etiqueta fora de faixa é possível quando o valor vem de memória — `memset`, arquivo, rede. Sob `--checks`, um `assert` o precede, e é o `tag-out-of-range`. Ele não é braço: a exaustividade já foi verificada na tradução, sobre a lista declarada.
+7. **`default:` sai sempre**, saltando para o fim. Etiqueta fora de faixa é possível quando o valor vem de memória — `memset`, arquivo, rede. Um `KEEL_CHECK(0, "tag-out-of-range")` o precede (§5.17). Ele não é braço: a exaustividade já foi verificada na tradução, sobre a lista declarada.
 
 **O laço é do usuário, e o backend não o emite.** Um `match` executa um braço por passagem; repetir é `while` escrito no fonte. É a decisão da linguagem §4.9 de não ter opinião sobre a política de avanço, e para o backend significa que não há nada a gerar em volta do despacho.
 
@@ -2050,6 +2060,8 @@ struct app_grid_grid {
 
 //C gerado — app/app_grid.h
 static inline i32 *app_grid_grid_v_ptr(struct app_grid_grid *p, size_t i0, size_t i1) {
+    KEEL_CHECK(i0 < p->rows && p->rows <= p->rcap, "extent-index-out-of-bounds");
+    KEEL_CHECK(i1 < p->cols && p->cols <= p->ccap, "extent-index-out-of-bounds");
     return &p->v[i0 * p->ccap + i1];
 }
 
@@ -2062,18 +2074,8 @@ static inline i32 *app_grid_grid_v_ptr(struct app_grid_grid *p, size_t i0, size_
 3. **Onde mora.** Com o `extent` `pub`, o struct vai ao `.type.h` e as funções ao `.h`, pelas camadas do §4.3.2; com `priv`, os dois vão ao `.c`. Cada função leva o `#line` da coluna.
 4. **O endereço.** Na coluna embutida, `&p->col[i0][i1]…`. Na coluna por ponteiro, Horner sobre as capacidades internas: `&p->col[(i0 * c1 + i1) * c2 + i2]`. Uma capacidade que é campo sai `p->campo`; uma `constexpr`, com o nome C da constante; um literal, como escrito. A capacidade externa não aparece no endereço.
 5. **O ponto de acesso.** `P.col[…]` sai `*f(&P, …)`, e `P->col[…]` sai `*f(P, …)`. O `&*` colapsa: `&P.col[i]` sai `f(&P, i)`. O caminho `P` é copiado como escrito, entre parênteses quando não é expressão pós-fixa.
-6. **Sob `--checks`**, um `assert` por índice precede o retorno, com o invariante inteiro do grupo. É o `extent-index-out-of-bounds`:
-
-   ```c
-   static inline i32 *app_grid_grid_v_ptr(struct app_grid_grid *p, size_t i0, size_t i1) {
-       assert(i0 < p->rows && p->rows <= p->rcap);
-       assert(i1 < p->cols && p->cols <= p->ccap);
-       return &p->v[i0 * p->ccap + i1];
-   }
-   ```
-
-   Quando o índice e a capacidade são decimais conhecidos, não há `assert` para esse índice: a tradução já recusou, e é o `extent-index-above-capacity`.
-7. **O acesso é sempre pela função**, com ou sem `--checks`. É um caminho de emissão só, e é ele que garante que o caminho e cada índice sejam avaliados uma vez: `p->x[i++]` incrementa `i` uma vez. Em `-O0` a chamada permanece, que é o mesmo custo do §5.3.1.
+6. **Um `KEEL_CHECK` por índice** precede o retorno, com o invariante inteiro do grupo. É o `extent-index-out-of-bounds` (§5.17). Quando o índice e a capacidade são decimais conhecidos, não há verificação para esse índice: a tradução já conferiu, e é o `extent-index-above-capacity`.
+7. **O acesso é sempre pela função**, em qualquer modo. É um caminho de emissão só, e é ele que garante que o caminho e cada índice sejam avaliados uma vez: `p->x[i++]` incrementa `i` uma vez. Em `-O0` a chamada permanece, que é o mesmo custo do §5.3.1.
 
 **`P.col` sem índice é o campo**, e sai como escrito: é o que entra em `slice.from(f32, p->x, p->len)`.
 
@@ -2105,6 +2107,57 @@ pub inline T *alloc(arena *a, type T, size_t n) {
 2. **Apagado, na chamada.** O tipo escrito sai como `sizeof(T), alignof(T)` — `_Alignof` no perfil C11 —, com a forma C do tipo (§2.1). Um retorno `X *` recebe no ponto de chamada o cast para o tipo escrito.
 3. **Seleção.** O argumento de tipo sai da chamada e o parâmetro sai da assinatura; o que resta é a função da instância: `slice.from(f32, p, n)` sai `keel_slice_f32_from(p, n)`.
 4. **Sufixo de aridade.** O parâmetro `type` conta como um argumento (§2.1), embora o apagamento o emita como dois.
+
+### 5.17 Verificações de debug
+
+Toda verificação `debug` do catálogo da linguagem é escrita no C gerado como `KEEL_CHECK(cond, "id")`, e a chave que a liga é uma macro do compilador C, `KEEL_CHECKS`, e não uma diferença de geração.
+
+```c
+/* keel.type.h — from the prelude keel.k, a pub extern_c [type_h] */
+#ifndef KEEL_CHECKS
+#define KEEL_CHECKS 1
+#endif
+#if KEEL_CHECKS
+#include <stdio.h>
+#include <stdlib.h>
+#define KEEL_CHECK(cond, id) \
+    ((cond) ? (void)0 : (fprintf(stderr, "%s:%d: keel: %s\n", __FILE__, __LINE__, (id)), abort()))
+#else
+#define KEEL_CHECK(cond, id) ((void)sizeof((cond) ? 1 : 0))
+#endif
+static inline size_t keel_index(size_t i, size_t d) {
+    KEEL_CHECK(i < d, "array-index-out-of-bounds");
+    return i;
+}
+```
+
+1. **O C gerado é o mesmo nos dois modos.** `--checks=off` faz a ferramenta passar `-DKEEL_CHECKS=0` ao compilador C (ferramenta §4). Um header de instância continua função só do próprio nome (§7.2), e trocar de modo não exige regerar. Quem compila o C gerado sem a ferramenta fica com as verificações ligadas.
+2. **Desligada, a condição não é avaliada.** O `sizeof` só mantém os operandos usados, para não haver aviso de parâmetro sem uso. Toda condição escrita aqui é livre de efeito: compara parâmetros e campos.
+3. **A falha escreve `arquivo.k:linha: keel: <id>` e chama `abort()`.** A posição vem do `#line` (§6) e é a da verificação: num verbo da base, a do verbo; o chamador aparece no backtrace.
+4. **Cada verificação fica onde os argumentos já foram avaliados uma vez** — no corpo de uma função, e nunca num `assert` antes da expressão, que avaliaria índice e contêiner duas vezes.
+
+**Nos verbos da base**, a verificação é escrita no próprio `.k`, antes do comportamento de release:
+
+| Verbo | Condição | Identificador |
+| --- | --- | --- |
+| `get(x, i)`, `ptr(x, i)` de `buffer` e `slice` | `i < len` | `index-out-of-length` |
+| `set(x, i, v)` de `buffer` e `slice` | `i < len` | `set-out-of-length` |
+| `slice.of(s, a, b)`, `buffer.as_slice(b, a, c)` | `a <= b && b <= len` | `range-index-out-of-bounds` |
+| `arena.alloc(a, n, sz, al)` | `sz == 0 \|\| n <= SIZE_MAX / sz` | `alloc-overflow` |
+| `routine.par(s, alvo)` | `alvo <= length(s)` | `par-target-above-total` |
+| `routine.mask(s)` | `length(s) <= 64` | `mask-above-64-slots` |
+
+O açúcar `x[i]` sobre `buffer` e `slice` é `*ptr(x, i)` (§5.3), e é verificado por essa via.
+
+**No C que o núcleo emite**, a mesma macro:
+
+| Onde | Emissão | Identificador |
+| --- | --- | --- |
+| índice de `array` (§5.3) | `v[keel_index(i, d)]`, uma chamada por índice escrito | `array-index-out-of-bounds` |
+| `default:` do `match` (§5.6) | `KEEL_CHECK(0, "tag-out-of-range")` antes do salto | `tag-out-of-range` |
+| função de acesso de `extent` (§5.15) | um `KEEL_CHECK` por índice, com o invariante do grupo | `extent-index-out-of-bounds` |
+
+Um módulo do programa pode escrever `KEEL_CHECK` nos próprios verbos: é C comum, e o identificador é texto livre, fora do catálogo.
 
 ## 6. Mapeamento de linhas
 
@@ -2234,6 +2287,7 @@ A ressalva que sobra é a mesma do make: se o próprio gerador mudar, os gerados
 | `instance-field-access` | Acesso direto a campo de instância de modificador, fora do módulo que a declara | `warning` |
 | `tag-out-of-range` | Etiqueta fora da lista declarada do conjunto | `debug` |
 | `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` |
+| `index-out-of-length` | `get` ou `ptr(x, i)` sobre `buffer` ou `slice` com índice fora de `length` | `debug` |
 | `array-index-out-of-bounds` | Índice de `array` fora da dimensão declarada | `debug` |
 | `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` |
 | `alloc-overflow` | `arena.alloc` cujo `n * sz` não cabe em `size_t` | `debug` |
@@ -2419,16 +2473,17 @@ C23 não pagar nenhum deles e ainda assim aceitar o mesmo conjunto de programas.
 
 ## 10. Decisões de emissão
 
-Oito pontos que estiveram abertos enquanto o lowering se firmava. Ficam aqui
+Nove pontos que estiveram abertos enquanto o lowering se firmava. Ficam aqui
 com o motivo, como decisão registrada — não como alternativa em aberto.
 
 | | Decisão | Por quê |
 | --- | --- | --- |
 | 1 | O arquivo de instância mora em `keel/`, diretório fixo | os dois headers e o `.c` de uma instância são função do símbolo dela e de mais nada (§7.2); um diretório por módulo multiplicaria cópias byte a byte idênticas só para deduplicá-las depois no build |
 | 2 | Os campos das structs geradas **não** levam prefixo | o prefixo é do nome do tipo — `keel_buffer_i32`, `keel_slice_geom_Point` —, e é ele que carrega a identidade. `xs.keel_len` não compraria nada que a linguagem §5.3 e o warning `instance-field-access` já não digam: layout não é interface |
-| 3 | O índice de `array` é verificado por dimensão, e a dimensão 0 de parâmetro é contrato | §5.3. Decimal conhecido contra decimal conhecido recusa na tradução (`array-index-above-dimension`); o resto é `assert` sob `--checks` (`array-index-out-of-bounds`); e o chamador que entrega menos do que promete é pego na chamada (`array-argument-wrong-dimension`) |
+| 3 | O índice de `array` é verificado por dimensão, e a dimensão 0 de parâmetro é contrato | §5.3. Decimal conhecido contra decimal conhecido recusa na tradução (`array-index-above-dimension`); o resto passa por `keel_index` (`array-index-out-of-bounds`, §5.17); e o chamador que entrega menos do que promete é pego na chamada (`array-argument-wrong-dimension`) |
 | 4 | Composição cooperativa é biblioteca, não emissão | `seq`, `par` e `mask` são funções de `keel.routine`, emitidas como qualquer instância (§5.10), e o estado por slot é um `corot` no próprio registro. Não há gestor injetado, região de finalização nem reafirmação de código |
 | 5 | `mask` devolve `u64`, e o limite é 64 slots | o mapeamento é de 64 bits, daí 64 entradas; o excedente é o `debug` `mask-above-64-slots`. Largura arbitrária volta junto com `bitslice bool`, e aí será tipo, não conveniência |
 | 6 | As cláusulas do `#pragma` saem em ordem fixada: os temporários do gestor na ordem de emissão, o símbolo de controle, depois as capturas na ordem escrita, repartidas entre `shared` e `firstprivate` pela espécie | `default(none)` obriga a listar todo símbolo tocado, e o §7.1 exige saída byte a byte idêntica. Os temporários de `foreach` no corpo não entram na lista: são declarados dentro do laço do worker e já são privados por construção (§5.9) |
 | 7 | A base fica toda `pub inline`; não há `.c` por instância distribuído pronto | em laço quente o inline é o que mantém o código junto do dado, e isso é objetivo da linguagem, não detalhe de emissão. O preço — `--instance` sobre a base emitir `redundant-instance` sempre — é consequência anunciada ([rationale](keel-rationale.md#prelúdio-e-base-mínima)) |
-| 8 | O acesso de coluna de `extent` é sempre pela função de acesso, com ou sem `--checks` | §5.15. Um caminho de emissão só: é ele que avalia o caminho e cada índice uma vez, como o §5.3 exige, e que deixa o `assert` por dimensão sem duplicar expressão |
+| 8 | O acesso de coluna de `extent` é sempre pela função de acesso, em qualquer modo de verificação | §5.15. Um caminho de emissão só: é ele que avalia o caminho e cada índice uma vez, como o §5.3 exige, e que deixa o `assert` por dimensão sem duplicar expressão |
+| 9 | As verificações `debug` são chaveadas por `KEEL_CHECKS` no compilador C, e não na geração | §5.17. O C gerado é o mesmo nos dois modos, então o header de instância segue função só do nome, e trocar de modo não pede regerar. Cada verificação fica num corpo de função, onde os argumentos já foram avaliados uma vez |

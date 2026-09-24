@@ -33,10 +33,10 @@ pub inline buffer of(T *p, size_t n) {
 
 pub inline size_t length(buffer *b) { return b->len; }
 pub inline size_t capacity(buffer *b) { return b->cap; }
-pub inline T      get(buffer *b, size_t i) { return b->ptr[i]; }
-pub inline void   set(buffer *b, size_t i, T v) { b->ptr[i] = v; }
+pub inline T      get(buffer *b, size_t i) { KEEL_CHECK(i < b->len, "index-out-of-length"); return b->ptr[i]; }
+pub inline void   set(buffer *b, size_t i, T v) { KEEL_CHECK(i < b->len, "set-out-of-length"); b->ptr[i] = v; }
 pub inline T     *ptr(buffer *b) { return b->ptr; }
-pub inline T     *ptr(buffer *b, size_t i) { return &b->ptr[i]; }
+pub inline T     *ptr(buffer *b, size_t i) { KEEL_CHECK(i < b->len, "index-out-of-length"); return &b->ptr[i]; }
 
 pub inline T *push(buffer *b) {
     if (b->len == b->cap) return NULL;
@@ -70,6 +70,7 @@ pub inline slice as_slice(buffer *b) {
 }
 
 pub inline slice as_slice(buffer *b, size_t a, size_t c) {
+    KEEL_CHECK(a <= c && c <= b->len, "range-index-out-of-bounds");
     if (c > b->len) c = b->len; if (a > c) a = c;
     return (slice){ c - a, b->ptr + a };
 }

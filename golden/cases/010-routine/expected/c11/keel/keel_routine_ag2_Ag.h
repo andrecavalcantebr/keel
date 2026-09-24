@@ -16,7 +16,7 @@ static inline keel_outcome_u32 keel_routine_ag2_Ag_seq(keel_slice_keel_routine_s
 #line 52 "keel/routine.k"
 static inline keel_outcome_u32 keel_routine_ag2_Ag_par(keel_slice_keel_routine_slot_ag2_Ag s, u32 target);
 
-#line 72 "keel/routine.k"
+#line 73 "keel/routine.k"
 static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s);
 #include "keel/keel_corot.h"
 #include "keel/keel_outcome_u32.h"
@@ -48,6 +48,7 @@ static inline keel_outcome_u32 keel_routine_ag2_Ag_seq(keel_slice_keel_routine_s
 static inline keel_outcome_u32 keel_routine_ag2_Ag_par(keel_slice_keel_routine_slot_ag2_Ag s, u32 target) {
     keel_outcome_u32 r = {0};
     size_t n = keel_slice_keel_routine_slot_ag2_Ag_length(s);
+    KEEL_CHECK(target <= n, "par-target-above-total");
     u32 m = (u32)n, S = 0, F = 0, q = target ? target : m;
     for (size_t i = 0; i < n; ++i) keel_slice_keel_routine_slot_ag2_Ag_ptr1(s, i)->state = (keel_corot){0};
     for (;;) {
@@ -63,10 +64,11 @@ static inline keel_outcome_u32 keel_routine_ag2_Ag_par(keel_slice_keel_routine_s
     }
 }
 
-#line 72 "keel/routine.k"
+#line 73 "keel/routine.k"
 static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s) {
     u64 m = 0;
     size_t n = keel_slice_keel_routine_slot_ag2_Ag_length(s);
+    KEEL_CHECK(n <= 64, "mask-above-64-slots");
     for (size_t i = 0; i < n && i < 64; ++i)
         if (keel_corot_ok(keel_slice_keel_routine_slot_ag2_Ag_ptr1(s, i)->state)) m |= (u64)1 << i;
     return m;

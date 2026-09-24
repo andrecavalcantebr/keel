@@ -102,7 +102,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `--instance "<M.mod> <args>"` | compila a instância, em lugar de um `.k`; ver §4.3 | — |
 | `--dest-dir <dir>` | raiz da saída gerada; os componentes-pai do módulo viram diretórios sob ela, e o nome do arquivo é o símbolo (backend §4.1) | `./gen` |
 | `--stop-after=<fase>` | interrompe após `lex`, `parse` ou `gen`; ver §4.2 | não interrompe |
-| `--checks=on\|off` | verificações de limite no código gerado, o `debug` do [catálogo da spec](keel-spec.md#62-catálogo) | `on` |
+| `--checks=on\|off` | liga as verificações `debug` do [catálogo da spec](keel-spec.md#62-catálogo) na chamada ao compilador C: `off` passa `-DKEEL_CHECKS=0`. O C gerado é o mesmo nos dois valores (backend §5.17) | `on` |
 | `--line=on\|off` | emissão de `#line` para o fonte keel; ver backend §6 | `on` |
 | `--main <módulo>` | gera a unidade com o ponto de entrada do C, chamando o do módulo indicado; ver §4.7 | não gera |
 | `--cc=<programa>` | compilador C a invocar | `cc` |
@@ -287,7 +287,7 @@ A linguagem não escolhe o mecanismo de execução de um `parallel`: série, Ope
 
 **Não há mais diagnóstico de indisponibilidade.** Ele existia quando o lowering era um só e a ausência de OpenMP era um desvio a relatar; com a escolha do mecanismo pertencendo ao backend, executar em série deixou de ser desvio e passou a ser uma das emissões previstas. Quem exige paralelismo de verdade escreve `--parallel-lowering=openmp`, e aí a ausência para o build no cgen, antes de compilar.
 
-**Esta flag muda o C gerado**, e por isso entra na ressalva da §5, com `--profile`, `--checks` e `--line`. O que ela não muda é o conjunto de execuções permitidas, que é o mesmo nos três valores — é o que permite que o padrão seja `auto`.
+**Esta flag muda o C gerado**, e por isso entra na ressalva da §5, com `--profile` e `--line`. O que ela não muda é o conjunto de execuções permitidas, que é o mesmo nos três valores — é o que permite que o padrão seja `auto`.
 
 ---
 
@@ -328,7 +328,7 @@ mesmo argumento pelo qual o cgen **lê** `-fopenmp` em vez de ligá-lo (§4.8). 
 lê o que está escrito na linha, e só.
 
 **Esta flag muda o C gerado**, como a `--parallel-lowering` da §4.8. Ela seleciona
-entre lowerings especificados, como `--checks` e `--line`, e entra na ressalva da §5.
+entre lowerings especificados, como `--line`, e entra na ressalva da §5.
 
 ---
 
@@ -477,13 +477,15 @@ A v1 vai pela primeira. A segunda é a porta de saída se o tempo de build incom
 Import circular é diagnóstico. Módulo já carregado nesta invocação não é reprocessado.
 
 **A comparação é de timestamp, e opção não tem timestamp.** É a limitação que
-sobra depois do fecho transitivo, e ela é de outra espécie: as quatro opções que
-selecionam lowering — `--checks`, `--line`, `--profile` e `--parallel-lowering` —
+sobra depois do fecho transitivo, e ela é de outra espécie: as três opções que
+selecionam lowering — `--line`, `--profile` e `--parallel-lowering` —
 mudam o conteúdo do gerado sem tocar fonte nenhum, então trocar qualquer uma delas **não** invalida o
 que já está no `--dest-dir`: os gerados continuam mais recentes que o `.k` e o módulo é pulado. É
 para isso que existe o `-f`, e trocar de perfil sem ele deixa a árvore com módulos
 dos dois. Uma implementação pode registrar as opções de lowering ao lado do gerado e
 comparar também por elas; a v1 não o faz, e a obrigação fica com quem invoca.
+`--checks` não está entre elas: ela não muda o gerado, só a chave `KEEL_CHECKS`
+passada ao compilador C (backend §5.17).
 
 ### 5.1 Headers de instância
 

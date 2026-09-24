@@ -1,0 +1,4 @@
+golden/cases/009-match-tags/ag.k
+golden/cases/013-sugar/app/ac.k
+golden/cases/020-extent/app/pos.k
+tools/harness/oracles/lex/edge.k

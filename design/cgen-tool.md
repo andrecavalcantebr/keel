@@ -592,7 +592,7 @@ porque ligar é o que foi pedido.
 $ cgen --stop-after=lex hello.k | head -12
 hello.k:1:1: ident "module"
 hello.k:1:8: ident "hello"
-hello.k:1:11: punct ";"
+hello.k:1:13: punct ";"
 hello.k:2:1: ident "import_c"
 hello.k:2:10: punct "<"
 hello.k:2:11: ident "stdio"

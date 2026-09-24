@@ -8,6 +8,7 @@ bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, 
 bool cgen_source_under_root(const char *source, const char *root);
 bool cgen_source_in_multiple_roots(const char *source, const char *const *roots, int root_count);
 extern char *cgen_resolve_base_dir(const char *explicit_base_dir);
+int cgen_stop_after_lex(const char *path);
 
 static void fatal(const char *diagnostic_id, const char *message) {
     fprintf(stderr, "cgen: error: %s [%s]\n", message, diagnostic_id);
@@ -181,6 +182,8 @@ int main(int argc, char *argv[]) {
         fatal("invalid-option", "invalid value for --profile");
     if (parallel_lowering && strcmp(parallel_lowering, "auto") != 0 && strcmp(parallel_lowering, "serie") != 0 && strcmp(parallel_lowering, "openmp") != 0)
         fatal("invalid-option", "invalid value for --parallel-lowering");
+    if (stop_after && strcmp(stop_after, "lex") != 0 && strcmp(stop_after, "parse") != 0 && strcmp(stop_after, "gen") != 0)
+        fatal("invalid-option", "invalid value for --stop-after");
 
     if (k_file_count == 0 && instance == NULL) {
         // Transparent link
@@ -202,6 +205,11 @@ int main(int argc, char *argv[]) {
         if (cgen_source_in_multiple_roots(k_file, roots, root_count))
             fatal("source-in-multiple-roots", "source file is under multiple -I roots");
     }
+
+    /* --stop-after=lex lexes only the given .k: no import, no base
+       (cgen design §2.6) */
+    if (k_file_count == 1 && stop_after && strcmp(stop_after, "lex") == 0)
+        return cgen_stop_after_lex(k_file);
 
     if (k_file_count == 1) {
         char *base = cgen_resolve_base_dir(base_dir);

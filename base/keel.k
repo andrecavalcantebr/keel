@@ -55,3 +55,9 @@ static inline size_t keel_index(size_t i, size_t d) {
     return i;
 }
 }
+
+// The core operations over `array` — keel.length, capacity, dim, get, set, ptr
+// and at (spec §4.2) — are qualified by this module but not declared here: they
+// are generic over the element and read the extent from the declaration, which
+// no keel declaration can express. Their lowering is the backend's (backend
+// §5.2); get, set and ptr(v, i) go through keel_index above.

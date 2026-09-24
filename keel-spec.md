@@ -614,7 +614,7 @@ A aplicação de um modificador ao tipo forma o especificador que precede o decl
 | `keel.ptr(v, i)` | `T *` | endereço do elemento `i` |
 | `keel.at(v, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora da extensão, em toda build |
 
-Protocolos (§5.1): Indexável e Indexável por intervalo, por estas operações; `begin` e `partition` não existem sobre `array`.
+As operações são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. `keel.get`, `keel.set` e `keel.ptr(v, i)` verificam o índice em debug (`array-index-out-of-bounds`); `keel.at` testa em toda build. Protocolos (§5.1): Indexável e Indexável por intervalo, por estas operações; `begin` e `partition` não existem sobre `array`.
 
 **Reconhecimento**
 
@@ -1639,6 +1639,7 @@ range r = start..end;
 | Chamada | Devolve | O que faz |
 | --- | --- | --- |
 | `buffer.of(v)` | `buffer T` | buffer sobre o `array` `v`, cheio: comprimento igual à capacidade |
+| `buffer.of(p, n)` | `buffer T` | buffer cheio sobre `n` elementos em `p` |
 | `buffer.from(p, cap)` | `buffer T` | buffer vazio sobre `cap` elementos em `p`; `T` vem do alvo (§4.4) |
 | `buffer.length(b)` | `size_t` | elementos em uso |
 | `buffer.capacity(b)` | `size_t` | elementos reservados |
@@ -1652,6 +1653,7 @@ range r = start..end;
 | `buffer.clear(b)` | — | comprimento zero, mesma capacidade e região |
 | `buffer.at(b, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora do comprimento, em toda build |
 | `buffer.as_slice(b)` | [`slice T`](#53-keelbuffer-keelslice-e-keelrange) | vista do comprimento atual |
+| `buffer.as_slice(b, r)` | `slice T` | vista dos limites do `range` `r` |
 | `buffer.as_slice(b, a, c)` | `slice T` | vista de `[a, c)` |
 | `buffer.clone(a, b)` | [`outcome buffer T`](#55-keeloutcome-e-keelcorot) | cópia do comprimento atual na [`arena`](#52-keelarena) `a`; falha sem espaço |
 | `begin(b)`, `has_next(b, c)`, `next(b, c)` | `buffer.cursor`, `bool`, `T *` | cursor de `walk` (§4.7) |
@@ -1677,7 +1679,8 @@ range r = start..end;
 
 | Chamada | Devolve | O que faz |
 | --- | --- | --- |
-| `a..b` | `range` | o intervalo `[a, b)` |
+| `range.of(a, b)` | `range` | o intervalo `[a, b)`; com `b < a`, o vazio `[a, a)` |
+| `a..b` | `range` | `range.of(a, b)` |
 | `range.first(r)`, `range.limit(r)` | `size_t` | os limites |
 | `range.length(r)` | `size_t` | `limit - first` |
 | `range.get(r, i)` | `size_t` | `first + i` |
@@ -1722,7 +1725,7 @@ De keel, na tradução; condições no [catálogo](#62-catálogo): `buffer-over-
 
 - O programa garante que ponteiros e extensões externos descrevem memória válida e acessível pelo tipo escrito. Nenhum descritor prolonga a vida dessa memória.
 - O programa garante índice dentro do comprimento em `get`, `set` e `ptr(x, i)`, também em release; em debug, a violação é verificada. `at` verifica em toda build.
-- O programa garante `first <= limit` num `range` usado como sequência; a subtração em `size_t` não corrige limites invertidos.
+- `range.of` e `a..b` tornam vazio um intervalo invertido. Num `range` montado campo a campo, o programa garante `first <= limit`; a subtração em `size_t` não corrige limites invertidos.
 - O programa inicializa a posição de `push(b)` sem valor antes de lê-la, e não pressupõe que a posição removida por `pop` sobreviva a outra inserção.
 - Crescer o buffer não aumenta um slice existente.
 - Clones não ampliam a validade da arena de destino.

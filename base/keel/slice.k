@@ -9,6 +9,7 @@ module keel.slice type T;
 
 import keel.arena   as arena   types;
 import keel.outcome as outcome types;
+import keel.range   as range   types;
 
 #include <string.h>
 
@@ -45,6 +46,11 @@ pub inline slice of(slice s, size_t a, size_t b) {
     if (b > s.len) b = s.len; if (a > b) a = b;
     return (slice){ b - a, s.ptr + a };
 }
+
+// the other two arities of `of` over a slice (spec §5.3): the whole view, and
+// the limits of a `range`. The arity tells the three apart (backend §2.1).
+pub inline slice of(slice s) { return s; }
+pub inline slice of(slice s, range r) { return of(s, r.first, r.limit); }
 
 // allocates in `a`, copies the source's length (spec §5.3).
 pub inline outcome slice clone(arena *a, slice s) {

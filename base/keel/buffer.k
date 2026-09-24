@@ -9,6 +9,7 @@ module keel.buffer type T;
 
 import keel.slice   as slice   types;
 import keel.outcome as outcome types;
+import keel.range   as range   types;
 import keel.arena   as arena   types;
 
 #include <string.h>
@@ -74,6 +75,9 @@ pub inline slice as_slice(buffer *b, size_t a, size_t c) {
     if (c > b->len) c = b->len; if (a > c) a = c;
     return (slice){ c - a, b->ptr + a };
 }
+
+// `x[r]`-style view by a `range`: `slice.of(b, r)` over a buffer (spec §5.3).
+pub inline slice as_slice(buffer *b, range r) { return as_slice(b, r.first, r.limit); }
 
 // allocates in `a`, copies the source's length (spec §5.3).
 pub inline outcome buffer clone(arena *a, buffer *b) {

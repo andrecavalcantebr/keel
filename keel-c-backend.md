@@ -120,6 +120,9 @@ depois os argumentos de tipo, e o sufixo por último.
 ```plain
 ptr(b)          →  keel_buffer_i32_ptr
 ptr(b,i)        →  keel_buffer_i32_ptr1
+of(s)           →  keel_slice_i32_of
+of(s,r)         →  keel_slice_i32_of1
+of(s,a,b)       →  keel_slice_i32_of2
 push(b)         →  keel_buffer_i32_push
 push(b,v)       →  keel_buffer_i32_push1
 ptr(m,i,j)      →  mat_matrix_f32_ptr2
@@ -1086,8 +1089,8 @@ keel_buffer_i32_as_slice2(&xs, 2, 7)
 ```
 
 **O sufixo de aridade vale para `as_slice` como para qualquer outro**, e é o que
-impede a colisão: `slice.of(xs)` dá `_as_slice` e `slice.of(xs,2,7)` dá
-`_as_slice2` — dois argumentos além do contêiner. Sem o sufixo, as duas
+impede a colisão: `slice.of(xs)` dá `_as_slice`, `slice.of(xs,r)` dá `_as_slice1` e
+`slice.of(xs,2,7)` dá `_as_slice2` — dois argumentos além do contêiner. Sem o sufixo, as duas
 assinaturas chegariam ao mesmo símbolo, e C não tem sobrecarga:
 `error: conflicting types for 'as_slice'`.
 
@@ -1100,12 +1103,15 @@ comprimento vem da tabela, e é por isso que o marcador `array` é exigido.
 
 ```plain
 slice.of(v)            →  keel_slice_i32_from(v, <dim 0>)
-slice.of(v, a, b)      →  keel_slice_i32_of(keel_slice_i32_from(v, <dim 0>), a, b)
+slice.of(v, r)         →  keel_slice_i32_of1(keel_slice_i32_from(v, <dim 0>), r)
+slice.of(v, a, b)      →  keel_slice_i32_of2(keel_slice_i32_from(v, <dim 0>), a, b)
+buffer.of(v)           →  keel_buffer_i32_of(v, <dim 0>)
 ```
 
 Não há função `_of` de dois argumentos em instância de `slice`: a forma de um
-argumento chega ao mesmo símbolo que `slice.from(i32, p, n)` já emitia, e a de
-três passa pelo `of` da instância, de aridade três sobre `slice`. Cada argumento
+argumento chega ao mesmo símbolo que `slice.from(i32, p, n)` já emitia, e as de
+`range` e de dois limites passam pelo `of` da instância, de aridades dois e três
+sobre `slice`. `buffer.of(v)` é o `of(p, n)` do buffer com `n` da tabela. Cada argumento
 é avaliado uma vez, e a verificação e a saturação são as do `slice` (§5.17).
 
 Todo builtin que pode falhar é gerado com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
@@ -1113,6 +1119,20 @@ Todo builtin que pode falhar é gerado com `[[nodiscard]]`: ignorar o retorno de
 Verificação de limites em `get`, `set` e `ptr(x,i)` é escrita no corpo do verbo e ligada por `KEEL_CHECKS` (§5.17).
 
 **`array` no despacho.** Sobre símbolo `array` unidimensional, `length` e `capacity` saem como `sizeof(v)/sizeof(<elem>)` — o tipo do elemento vem da tabela, não de `*(v)`. Sobre multidimensional, o idioma `sizeof(v)/sizeof(*(v))` daria a primeira dimensão, então o backend emite `sizeof(v)/sizeof(i32)`. `dim(v,k)` sai como literal. Em parâmetro multidimensional, `length` **não** pode usar `sizeof` e emite o produto literal das dimensões.
+
+As demais operações do núcleo sobre `array` unidimensional (linguagem §4.2) são qualificadas pelo módulo `keel`, mas não declaradas nele: são genéricas no elemento e leem a extensão da tabela, o que nenhuma declaração keel expressa. O lowering é este, com `d` a dimensão declarada:
+
+```plain
+keel.get(v, i)      →  v[keel_index(i, d)]
+keel.set(v, i, x)   →  v[keel_index(i, d)] = x
+keel.ptr(v)         →  v
+keel.ptr(v, i)      →  &v[keel_index(i, d)]
+keel.at(v, i)       →  keel_slice_T_at(keel_slice_T_from(v, d), i)
+```
+
+Com índice e dimensão decimais conhecidos, `keel_index` não aparece: a tradução já conferiu. `keel.at` é o `at` do `slice` sobre a vista do vetor, e testa em toda build.
+
+**`a..b` é `range.of(a, b)`** fora da travessia: `range r = 2..5;` sai `keel_range r = keel_range_of(2, 5);`. Em `foreach`, o literal não constrói `range`: os limites entram direto no laço (§5.7).
 
 ### 5.3 Açúcar de indexação
 

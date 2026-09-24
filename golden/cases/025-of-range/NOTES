@@ -1,0 +1,23 @@
+Notas do caso.
+
+O caso fecha o que a spec §§4.2 e 5.3 prometiam e a base ainda não escrevia:
+`slice.of` nas três aridades, sobre `array`, `slice` e `buffer`; `buffer.of(v)`
+sobre `array`; as operações do núcleo sobre `array`; e `range.of`.
+
+Comentários dos esperados
+=========================
+
+**`app/app_ofr.c`** (c23, c11)
+
+- `slice.of` é escolhido pela aridade (backend §2.1): `_of` com um argumento,
+  `_of1` com o `range`, `_of2` com os dois limites. Sobre `array`, o núcleo
+  fornece a extensão da tabela e passa pelo `of` do `slice` (backend §5.2):
+  cada argumento é avaliado uma vez, e a verificação e a saturação são as do
+  `slice`. Sobre `buffer`, o verbo é o `as_slice` do buffer — `_as_slice1` com
+  o `range`.
+- `buffer.of(v)` é o `of(p, n)` do buffer com `n` vindo da tabela.
+- `keel.length(v)` sai por `sizeof`; `keel.get(v, 1)`, com índice e dimensão
+  decimais conhecidos, sai com o colchete simples; `keel.set` e `keel.ptr`
+  passam por `keel_index` (backend §5.17); `keel.at` é o `at` do `slice` sobre
+  a vista do vetor, e testa em toda build.
+- `a..b` é `range.of(a, b)`, que torna vazio um intervalo invertido.

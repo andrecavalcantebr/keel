@@ -160,6 +160,7 @@ As palavras abaixo têm função keel nas posições indicadas. Fora delas, apli
 | --- | --- |
 | `module` | primeira construção do arquivo (§4.1) |
 | `import`, `import_c`, `extern_c` | nível de arquivo (§4.1) |
+| `type_h` | dentro do `[ ]` depois de `extern_c` (§4.1) |
 | `as`, `types` | na linha `import`, nesta ordem (§4.1) |
 | `pub`, `priv` | antes de declaração de arquivo (§4.1) |
 | `array` | antes do tipo, em declaração de vetor, campo, parâmetro e coluna de `extent` (§4.2, §4.11) |
@@ -235,72 +236,83 @@ dim-binder   ::= 'dim' IDENT { ',' IDENT }
 tags-binder  ::= 'tags' IDENT { ',' IDENT }
 type-binder  ::= 'type' IDENT { ',' IDENT }
 
-top-item    ::= import | import-c | extern-c | top-decl | <opaque>
+top-item    ::= import | import-c | extern-c | top-decl
 
 import       ::= 'import' module-name [ 'as' IDENT ] [ 'types' ] ';'
 import-c     ::= 'import_c' ( system-header | STRING ) ';'
-extern-c     ::= [ 'pub' | 'priv' ] 'extern_c' [ '[type_h]' ] '{' <opaque> '}'
+extern-c     ::= [ 'pub' | 'priv' ] 'extern_c' [ '[' 'type_h' ']' ] '{' <opaque> '}'
 
 top-decl    ::= [ 'pub' | 'priv' ]
-                 ( decl-modifier | decl-instance | decl-tags
-                 | decl-extent | decl-function | decl-keel | <opaque> )
+                 ( decl-modifier | decl-instance | decl-tags | decl-extent
+                 | decl-typedef | decl-struct | decl-function | decl-keel
+                 | <opaque> )
 
 decl-modifier ::= 'modifier' IDENT [ 'byref' ] '{' <opaque> '}'
-decl-instance   ::= 'instance' known-type ';'
-decl-tags        ::= 'tags' IDENT tags-list ';'
-tags-list       ::= '[' tag-item { ',' tag-item } ']'
-tag-item         ::= IDENT [ '=' tag-value ]
-tag-value        ::= [ '-' ] NUM | qualified-name
+decl-instance ::= 'instance' known-type ';'
+decl-tags     ::= 'tags' IDENT tags-list ';'
+tags-list     ::= '[' tag-item { ',' tag-item } ']'
+tag-item      ::= IDENT [ '=' tag-value ]
+tag-value     ::= [ '-' ] ( NUM | qualified-name )
+
+decl-typedef  ::= 'typedef' ( specifier | struct-spec | <opaque-no-parens> )
+                  declarator ';'
+decl-struct   ::= struct-spec ';'
+struct-spec   ::= ( 'struct' | 'union' ) [ IDENT ] '{' { field } '}'
+field         ::= decl-keel | decl-array | <opaque> ';'
 
 decl-extent   ::= 'extent' 'struct' IDENT extent-dim { extent-dim }
                   '{' { extent-field } '}' ';'
-extent-dim    ::= '[' IDENT ',' ( IDENT | NUM ) ']'
+extent-dim    ::= '[' IDENT ',' ( qualified-name | NUM ) ']'
 extent-field  ::= extent-column | <opaque> ';'
-extent-column ::= 'array' argument
-                  ( { '*' } IDENT dimensions | '*' { '*' } IDENT ) ';'
+extent-column ::= 'array' argument column-decl { ',' column-decl } ';'
+column-decl   ::= { '*' } IDENT dimensions | '*' { '*' } IDENT
 
-decl-function   ::= return-type fn-declarator ( block | ';' )
-return-type       ::= { spec-c } ( known-type | <opaque-no-parens> )
+decl-function ::= return-type fn-declarator ( block | ';' )
+return-type   ::= { spec-c } ( specifier | <opaque-no-parens> )
 fn-declarator ::= { '*' { qual-c } } IDENT '(' [ params ] ')'
 params        ::= 'void' | param { ',' param } [ ',' '...' ]
 param         ::= param-array | param-type
-                | ( known-type | <opaque-no-parens> )
-                  { '*' { qual-c } } [ IDENT ] { suffix }
+                | { qual-arg } ( specifier | <opaque-no-parens> )
+                  [ declarator | abstract-declarator ]
+abstract-declarator ::= { '*' { qual-c } } [ '(' abstract-declarator ')' ]
+                        { suffix }
 spec-c        ::= 'inline' | 'static' | 'extern' | '_Noreturn'
-                | '_Thread_local' | 'alignas' '(' <opaque> ')'
+                | '_Thread_local' | 'thread_local'
+                | ( 'alignas' | '_Alignas' ) '(' <opaque> ')'
                 | '[[' <opaque> ']]' | qual-c
-param-array  ::= { spec-c } 'array' argument { '*' } IDENT dimensions
-param-type   ::= 'type' IDENT
+param-array   ::= { spec-c } 'array' argument { '*' } IDENT dimensions
+param-type    ::= 'type' IDENT
 ```
 
-`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `param-array` usa as dimensões de `array`; as restrições de rank em parâmetros pertencem ao contrato do marcador. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
+`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome do seu declarador, inclusive quando o declarador é ponteiro a função. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
 
 #### Tipos e declarações
 
 ```ebnf
-decl-keel    ::= { spec-c } specifier declarator [ '=' <opaque> ]
-                 { ',' declarator [ '=' <opaque> ] } ';'
+decl-keel    ::= { spec-c } specifier init-decl { ',' init-decl } ';'
                | { spec-c } specifier declarator '=' <opaque> else-tail
                | decl-array | decl-constexpr
+init-decl    ::= declarator [ '=' <opaque> ]
 
 else-tail   ::= 'else' ( block | <opaque> ';' )
+assign-else ::= IDENT '=' <opaque> else-tail
 
-specifier ::= known-type
-known-type     ::= modifier argument { argument } | named-type
+specifier   ::= known-type | tagged-type
+known-type  ::= modifier argument { argument } | named-type
 named-type  ::= qualified-name
-modifier   ::= qualified-name [ '(' dim-value { ',' dim-value } ')' ]
-dim-value     ::= NUM | IDENT
-argument     ::= { qual-arg } ( known-type | qualified-name
-                  | tagged-type | base-type | 'void' ) { qual-arg }
-tagged-type  ::= ( 'struct' | 'union' | 'enum' ) qualified-name
-qual-arg      ::= 'const' | 'volatile' | '_Atomic'
-base-type     ::= 'char' | 'bool'
+modifier    ::= qualified-name [ '(' dim-value { ',' dim-value } ')' ]
+dim-value   ::= NUM | qualified-name
+argument    ::= { qual-arg } ( known-type | tagged-type | base-type | 'void' )
+                { qual-arg }
+tagged-type ::= ( 'struct' | 'union' | 'enum' ) qualified-name
+qual-arg    ::= 'const' | 'volatile' | '_Atomic'
+base-type   ::= 'char' | 'bool'
 qualified-name ::= IDENT { '.' IDENT }
 
 declarator   ::= { '*' { qual-c } } direct-declarator
 direct-declarator ::= IDENT { suffix }
                     | '(' declarator ')' { suffix }
-suffix       ::= '[' [ <opaque> ] ']' | '(' <opaque> ')'
+suffix       ::= '[' [ <opaque> ] ']' | '(' [ <opaque> ] ')'
 qual-c       ::= 'const' | 'volatile' | 'restrict' | '_Atomic' | 'ref'
 
 decl-constexpr ::= 'constexpr' <opaque> ';'
@@ -313,15 +325,11 @@ dimensions    ::= '[' [ <opaque> { ',' <opaque> } ] ']'
 
 `void` em posição de argumento de modificador segue o protocolo de omissão de campos parametrizados; não declara um objeto C de tipo `void`. `outcome void` representa um resultado sem valor associado (§5.5).
 
-`tagged-type` consome a palavra C e o nome como um único argumento de tipo:
-`buffer struct Person people;` aplica `buffer` a `struct Person`, e `people`
-é o declarador. keel preserva a forma C do tipo na substituição, com a
-qualificação dos nomes que reconhece; não precisa interpretar os campos do
-agregado para substituir esse argumento.
+`tagged-type` consome a palavra C e o nome como uma unidade. Como argumento, `buffer struct Person people;` aplica `buffer` a `struct Person`, e `people` é o declarador; keel preserva a forma C do tipo na substituição, com a qualificação dos nomes que reconhece, sem interpretar os campos do agregado. Como especificador, `tagged-type` faz da declaração uma declaração keel quando o nome foi declarado em keel — `struct`, `union`, `enum` ou `extent` do módulo ou de um import —, e o símbolo declarado passa a ser conhecido com esse tipo.
 
-`named-type` só casa um nome registrado como tipo, como `arena`. Um nome registrado como modificador, como `buffer`, exige o tipo ao qual será aplicado: `buffer T` é o tipo resultante. O número de argumentos de um modificador é determinado pelo módulo declarado, não pela repetição livre da EBNF. Qualificadores de argumento são aceitos dos dois lados do tipo; a identidade canônica segue o contrato de tipos e genéricos.
+`named-type` só casa um nome registrado como tipo: um `typedef` keel, como `arena`, ou um conjunto de tags, como `Cycle` em `tagged Cycle void`. Um nome registrado como modificador, como `buffer`, exige o tipo ao qual será aplicado: `buffer T` é o tipo resultante. O número de argumentos de um modificador é determinado pelo módulo declarado, não pela repetição livre da EBNF. Qualificadores de argumento são aceitos dos dois lados do tipo; a identidade canônica segue o contrato de tipos e genéricos.
 
-`dim-value` admite um literal ou uma constante nomeada conhecida nas condições da §4.2. A validade de um valor como dimensão não decorre apenas de sua classificação como `NUM` ou `IDENT`. [Justificativa: constantes nomeadas](keel-rationale.md#constantes-nomeadas).
+`dim-value`, a capacidade de `extent-dim` e `tag-value` admitem um literal ou uma constante nomeada conhecida nas condições da §4.2, inclusive de outro módulo, qualificada. A validade do valor não decorre só da sua classificação como `NUM` ou nome. [Justificativa: constantes nomeadas](keel-rationale.md#constantes-nomeadas).
 
 #### Statements e blocos
 
@@ -340,22 +348,22 @@ stmt-c       ::= 'if' '(' <opaque> ')' stmt [ 'else' stmt ]
                | 'goto' IDENT ';'
                | ';'
 
-stmt-keel    ::= decl-keel | decl-tags
+stmt-keel    ::= decl-keel | decl-tags | assign-else
                | defer | foreach | walk | apply | parallel
-               | match | worker-exit
+               | match | worker-exit | extern-c
 
 defer        ::= 'defer' [ '[' defer-options ']' ] defer-body
 defer-options ::= 'later' | 'now' typed-capture
 typed-capture ::= entry { ',' entry }
-entry      ::= <opaque> IDENT
-defer-body  ::= block | <opaque> ';'
-capture      ::= '(' IDENT { ',' IDENT } ')'
+entry        ::= <opaque> IDENT
+defer-body   ::= block | <opaque> ';'
 
 foreach      ::= 'foreach' '(' binder ',' binder ':' container ')' stmt
                | 'foreach' '(' binder ':' countable ')' stmt
 binder       ::= binder-type IDENT
-binder-type  ::= ( known-type | qualified-name | base-type | 'auto' ) { '*' }
-apply        ::= 'apply' '(' binder-type ',' container ',' IDENT
+binder-type  ::= { qual-arg } ( specifier | base-type | 'auto' | <opaque-no-parens> )
+                 { '*' { qual-c } }
+apply        ::= 'apply' '(' binder-type ',' container ',' qualified-name
                  { ',' <opaque> } ')' ';'
 walk         ::= 'walk' '(' binder [ ',' binder ] ':' container ')' stmt
 
@@ -363,18 +371,19 @@ parallel     ::= 'parallel' IDENT policy
                  '(' binder ':' countable ';'
                      binder ':' container
                      [ ';' capture ] ')' block
-policy     ::= 'ALL' | 'ANY' | NUM | qualified-name
-worker-exit ::= ( 'win' | 'fail' ) ';'
+policy       ::= 'ALL' | 'ANY' | NUM | qualified-name
+capture      ::= '(' IDENT { ',' IDENT } ')'
+worker-exit  ::= ( 'win' | 'fail' ) ';'
 
 match        ::= 'match' '(' container ')' tags-block
 tags-block   ::= '{' { tag-arm } '}'
-tag-arm    ::= tag-label { tag-label } { stmt }
-tag-label   ::= IDENT ':'
+tag-arm      ::= tag-label { tag-label } { stmt }
+tag-label    ::= IDENT ':'
 ```
 
-`stmt-c` descreve a estrutura necessária para localizar corpos, escopos e pontos de saída; suas expressões permanecem opacas. Dentro de `tags-block`, os rótulos externos identificam tags, e cada braço abre um escopo até o próximo rótulo ou até a chave final. Rótulos consecutivos, sem statements entre eles, compartilham o braço seguinte.
+`stmt-c` descreve a estrutura necessária para localizar corpos, escopos e pontos de saída; suas expressões permanecem opacas. Dentro de `tags-block`, os rótulos externos identificam tags, e cada braço abre um escopo até o próximo rótulo ou até a chave final. Rótulos consecutivos, sem statements entre eles, compartilham o braço seguinte. Um rótulo C no nível do braço seria lido como tag: rótulo C num braço fica dentro de um bloco.
 
-Um argumento de tipo pode nomear um conjunto de tags declarado por `decl-tags`, como em `tagged Cycle void`. A produção `argument` já admite essa forma por `qualified-name`; o papel do nome vem do parâmetro correspondente na assinatura do módulo. O contrato completo está na §4.9.
+`assign-else` é a forma de atribuição do tratamento de resultado (§4.10). `extern-c` em `stmt-keel` é reconhecido só para ser recusado, por `nested-extern-c` (§4.1).
 
 #### Contêineres, intervalos e `range-index`
 
@@ -387,13 +396,20 @@ container    ::= IDENT
                | verb '(' container { ',' <opaque> } ')'
                | '*' container | '&' container | '(' container ')'
 
-countable     ::= interval | container
-interval    ::= <opaque> '..' <opaque>
-range-index      ::= [ <opaque> ] '..' [ <opaque> ]
-verb        ::= module-name '.' IDENT
+countable    ::= interval | container
+interval     ::= <opaque> '..' <opaque>
+range-index  ::= [ <opaque> ] '..' [ <opaque> ]
+verb         ::= module-name '.' IDENT
+
+call         ::= ( verb | IDENT ) '(' [ call-arg { ',' call-arg } ] ')'
+call-arg     ::= argument | <opaque>
+
+keel-expr    ::= call | container | interval
 ```
 
 A produção `container` descreve as formas em que keel pode consultar a identidade de um contêiner a partir de símbolos conhecidos. Não atribui tipos a expressões C arbitrárias. A assinatura da operação determina qual argumento ocupa essa posição. [Justificativa: limite da análise de contêiner](keel-rationale.md#a-posição-de-contêiner-não-é-um-sistema-de-tipos).
+
+`keel-expr` é o que keel reconhece dentro de uma região `<opaque>`: chamada de verbo ou de função keel conhecida, contêiner com índice, `range-index` ou acesso de coluna, e intervalo. Em `call`, `IDENT` sem qualificador é função do módulo corrente ou nome injetado por `types`; uma chamada C desconhecida permanece C. Cada `call-arg` é lido como `argument` quando o parâmetro correspondente da assinatura é `type` (§4.4), e como `<opaque>` nos demais casos.
 
 ### 2.3 Reconhecimento
 
@@ -428,7 +444,7 @@ Nomes que apareçam apenas em headers C ou que sejam produzidos pela expansão d
 | Função | Varre-se até o primeiro `;` ou `{` externo. Um grupo de parâmetros externo, não precedido por `=` externo, termina imediatamente antes desse token; seu `(` é precedido pelo `IDENT` do nome declarado. |
 | Tipo nomeado | O nome deve estar registrado como tipo reconhecido por keel. A sequência de dois identificadores, por si só, não basta. |
 | Modificador com argumentos | O nome e a aridade vêm dos símbolos registrados. Os argumentos são consumidos recursivamente segundo essa aridade, após os especificadores e qualificadores admitidos. |
-| Parâmetro com tipo reconhecido por keel | Depois do tipo nomeado ou da aplicação completa do modificador, são admitidos o declarador ou o fim do parâmetro; o nome pode ser omitido nas formas previstas por `param`. |
+| Parâmetro com tipo reconhecido por keel | Qualificadores de argumento podem preceder o tipo. Depois do tipo nomeado, do `tagged-type` declarado em keel ou da aplicação completa do modificador, vem o declarador, abstrato ou não; o nome pode ser omitido. |
 
 Uma sequência de identificadores pode indicar uma forma candidata, mas a aceitação do tipo depende dos símbolos e da aridade. A varredura até um delimitador pode ter comprimento variável; o reconhecimento não é descrito como lookahead de tamanho fixo.
 

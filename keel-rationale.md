@@ -64,7 +64,7 @@ duas saídas que apareceram foram:
 - **Ficar no C e improvisar.** Macro com colagem de token, X-macro, `void *` com
   `sizeof` no ponto de chamada. Funciona, compila hoje, e some do diagnóstico.
 
-keel é a terceira, e dela saem três fatos — e é deles que os princípios saem:
+keel é a terceira alternativa, convivendo com o código C diretamente, e dela saem três fatos — e é deles que os princípios saem:
 
 > **1. O gerado é código que um humano assinaria.** Se você não consegue prever o
 > C que uma construção produz, a construção falhou. É por isso que a spec é

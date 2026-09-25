@@ -21,18 +21,11 @@ bool app_bs_found_any(keel_buffer_i32 *xs, i32 target, keel_buffer_size_t *where
                 shared(keel__c0, search, where) firstprivate(target)
         for (size_t w = 0; w < 4; w++) {
             keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
-            {   keel_slice_i32 keel__c1 = part;
-                size_t keel__n1 = keel_slice_i32_length(keel__c1);
-                for (size_t i = 0; i < keel__n1; i++) { i32 x = keel_slice_i32_get(keel__c1, i);
-                    if (atomic_load_explicit(&search.flag, memory_order_relaxed)) break;
-                    if (x == target) {
-                        keel_buffer_size_t_set(where, w, i + 1);
-                        if (atomic_fetch_add_explicit(&search.wins, 1, memory_order_relaxed) + 1 >= 1)
-                            atomic_store_explicit(&search.flag, true, memory_order_relaxed);
-                        goto keel__end0;
-                    }
-                }
-            }
+#line 11 "app/bs.k"
+            { keel_slice_i32 keel__c1 = part; size_t keel__n1 = keel_slice_i32_length(keel__c1); for (size_t i = 0; i < keel__n1; i++) { i32 x = keel_slice_i32_get(keel__c1, i);
+                if (atomic_load_explicit(&search.flag, memory_order_relaxed)) break;
+                if (x == target) { keel_buffer_size_t_set(where, w, i + 1); if (atomic_fetch_add_explicit(&search.wins, 1, memory_order_relaxed) + 1 >= 1) atomic_store_explicit(&search.flag, true, memory_order_relaxed); goto keel__end0; }
+            } }
             keel__end0: ;
         }
     }

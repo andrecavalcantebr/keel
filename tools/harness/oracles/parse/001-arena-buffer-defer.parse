@@ -1,0 +1,34 @@
+module	app.cfg	app/cfg.k:1:1
+import	keel.arena as arena types	app/cfg.k:3:1
+import	keel.buffer as buffer types	app/cfg.k:4:1
+import	keel.outcome as outcome types	app/cfg.k:5:1
+import_c	<stdio.h>	app/cfg.k:6:1
+decl	pub constexpr	MAX	app_cfg_MAX	app/cfg.k:8:1
+decl	pub func	sum	app_cfg_sum	app/cfg.k:11:1
+decl	pub func	sum_scratch	app_cfg_sum_scratch	app/cfg.k:30:1
+inst	outcome i32	keel_outcome_i32	app/cfg.k:11:5
+inst	buffer i32	keel_buffer_i32	app/cfg.k:17:5
+ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:11:5
+ilha	type	arena → keel_arena	app/cfg.k:11:21
+ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:12:5
+ilha	ref	fp	app/cfg.k:13:11
+ilha	call	outcome.fail/2 → keel_outcome_i32_fail &1	app/cfg.k:14:21
+ilha	defer	now FILE *fp	app/cfg.k:15:5
+ilha	type	buffer i32 → keel_buffer_i32	app/cfg.k:17:5
+ilha	call	buffer.from/2 → keel_buffer_i32_from	app/cfg.k:17:21
+ilha	call	arena.alloc/3 → keel_arena_alloc2 type:2	app/cfg.k:17:33
+ilha	name	MAX → app_cfg_MAX	app/cfg.k:17:53
+ilha	name	MAX → app_cfg_MAX	app/cfg.k:17:59
+ilha	call	buffer.capacity/1 → keel_buffer_i32_capacity &1	app/cfg.k:18:9
+ilha	call	outcome.fail/2 → keel_outcome_i32_fail &1	app/cfg.k:18:42
+ilha	call	buffer.push/2 → keel_buffer_i32_push1 &1	app/cfg.k:22:13
+ilha	call	outcome.fail/2 → keel_outcome_i32_fail &1	app/cfg.k:22:48
+ilha	foreach	x, i : xs (buffer i32)	app/cfg.k:25:5
+ilha	call	outcome.win/2 → keel_outcome_i32_win1 &1	app/cfg.k:26:12
+ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:30:5
+ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:31:5
+ilha	type	arena → keel_arena	app/cfg.k:32:5
+ilha	implicit-init	t	app/cfg.k:32:11
+ilha	from-stack	arena.from_stack/2 → keel_arena_from_array &1	app/cfg.k:33:10
+ilha	call	outcome.fail/2 → keel_outcome_i32_fail &1	app/cfg.k:33:44
+ilha	call	sum/2 → app_cfg_sum &1	app/cfg.k:34:12

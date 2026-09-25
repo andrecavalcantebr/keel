@@ -1,0 +1,31 @@
+module	ag	ag.k:1:1
+import	keel.corot as corot types	ag.k:2:1
+import	keel.tagged as tagged types	ag.k:3:1
+import_c	<stdio.h>	ag.k:4:1
+decl	pub tags	Cycle	ag_Cycle	ag.k:6:1
+decl	pub type	Agent	ag_Agent	ag.k:8:1
+decl	priv func	fn1	ag_fn1	ag.k:10:1
+decl	pub func	step	ag_step	ag.k:18:1
+inst	tagged Cycle void	keel_tagged_ag_Cycle_void	ag.k:18:24
+ilha	type	corot → keel_corot	ag.k:10:6
+ilha	type	corot → keel_corot	ag.k:11:5
+ilha	call	corot.again/1 → keel_corot_again &1	ag.k:12:34
+ilha	call	corot.win/1 → keel_corot_win &1	ag.k:13:12
+ilha	type	corot → keel_corot	ag.k:18:5
+ilha	type	tagged Cycle void → keel_tagged_ag_Cycle_void	ag.k:18:24
+ilha	type	Agent → ag_Agent	ag.k:18:47
+ilha	type	corot → keel_corot	ag.k:19:5
+ilha	match	st (tagged Cycle void): ST1 ST2 ST3	ag.k:20:5
+ilha	type	corot → keel_corot	ag.k:22:13
+ilha	call	fn1/1 → ag_fn1	ag.k:22:23
+ilha	call	corot.faulted/1 → keel_corot_faulted	ag.k:23:17
+ilha	call	corot.fault/2 → keel_corot_fault &1	ag.k:23:42
+ilha	call	corot.ongoing/1 → keel_corot_ongoing	ag.k:24:17
+ilha	call	corot.again/1 → keel_corot_again &1	ag.k:24:42
+ilha	call	tagged.mark/2 → keel_tagged_ag_Cycle_void_mark	ag.k:26:13
+ilha	name	ST2 → ag_Cycle_ST2	ag.k:26:29
+ilha	call	corot.again/1 → keel_corot_again &1	ag.k:29:37
+ilha	call	tagged.mark/2 → keel_tagged_ag_Cycle_void_mark	ag.k:30:13
+ilha	name	ST3 → ag_Cycle_ST3	ag.k:30:29
+ilha	call	corot.win/1 → keel_corot_win &1	ag.k:32:20
+ilha	call	corot.again/1 → keel_corot_again &1	ag.k:34:12

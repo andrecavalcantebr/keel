@@ -1,0 +1,31 @@
+module	app.ac	app/ac.k:1:1
+import	keel.buffer as buffer types	app/ac.k:2:1
+import	keel.slice as slice types	app/ac.k:3:1
+import_c	<stdio.h>	app/ac.k:4:1
+decl	pub func	bump	app_ac_bump	app/ac.k:8:1
+decl	pub func	once	app_ac_once	app/ac.k:13:1
+decl	pub func	cube	app_ac_cube	app/ac.k:19:1
+decl	pub func	cut	app_ac_cut	app/ac.k:26:1
+inst	buffer i32	keel_buffer_i32	app/ac.k:8:14
+inst	slice i32	keel_slice_i32	app/ac.k:27:5
+ilha	type	buffer i32 → keel_buffer_i32	app/ac.k:8:14
+ilha	index	b → keel_buffer_i32_ptr1	app/ac.k:9:5
+ilha	index	b → keel_buffer_i32_ptr1	app/ac.k:9:12
+ilha	index	b → keel_buffer_i32_ptr1	app/ac.k:10:12
+ilha	type	buffer i32 → keel_buffer_i32	app/ac.k:13:14
+ilha	index	b → keel_buffer_i32_ptr1	app/ac.k:14:5
+ilha	array	v [2,3,4]	app/ac.k:20:5
+ilha	array-index	v rank 3	app/ac.k:21:5
+ilha	type	buffer i32 → keel_buffer_i32	app/ac.k:26:16
+ilha	type	slice i32 → keel_slice_i32	app/ac.k:27:5
+ilha	range-index	b 2..7 → keel_buffer_i32_as_slice2	app/ac.k:27:21
+ilha	type	slice i32 → keel_slice_i32	app/ac.k:28:5
+ilha	range-index	b 5.. → keel_buffer_i32_as_slice2 keel_buffer_i32_length	app/ac.k:28:23
+ilha	type	slice i32 → keel_slice_i32	app/ac.k:29:5
+ilha	range-index	b ..3 → keel_buffer_i32_as_slice2	app/ac.k:29:23
+ilha	type	slice i32 → keel_slice_i32	app/ac.k:30:5
+ilha	range-index	b .. → keel_buffer_i32_as_slice	app/ac.k:30:21
+ilha	call	slice.length/1 → keel_slice_i32_length	app/ac.k:31:12
+ilha	call	slice.length/1 → keel_slice_i32_length	app/ac.k:31:32
+ilha	call	slice.length/1 → keel_slice_i32_length	app/ac.k:32:12
+ilha	call	slice.length/1 → keel_slice_i32_length	app/ac.k:32:34

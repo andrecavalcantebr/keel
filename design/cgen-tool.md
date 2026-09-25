@@ -381,25 +381,57 @@ código de saída segue a §4.
 ### 5.2 `--stop-after=parse`
 
 Em `stdout`, o módulo pedido, em blocos fixos e nesta ordem. Campos separados
-por um TAB; a última coluna é sempre a posição no fonte.
+por um TAB; a última coluna é sempre a posição no fonte, `<arquivo>:<linha>:<coluna>`,
+como no §5.1.
 
 ```plain
 module	<nome>	<pos>
 import	<módulo> [as <alias>] [types]	<pos>
-import_c	<cabeçalho como escrito>	<pos>
+import_c	<cabeçalho>	<pos>
 decl	<pub|priv> [inline] <espécie>	<nome keel>	<símbolo C>	<pos>
-inst	<modificador> <argumento>	<símbolo C>	<pos do primeiro uso>
+inst	<modificador> <argumentos>	<símbolo C>	<pos do primeiro uso>
 ilha	<espécie>	<detalhe>	<pos>
 ```
 
-`<espécie>` de `decl`: `func`, `var`, `const`, `constexpr`, `type`,
-`modifier`, `tags`. `ilha` lista, em ordem de fonte, toda construção keel
-reconhecida dentro de corpo: `defer`, `foreach`, `match`, `builtin
-<modificador>.<verbo> → <símbolo>`, `ref`, `array`, `parallel` etc. O C opaco
-entre ilhas não aparece.
+| Linha | Ordem | Posição | Conteúdo |
+| --- | --- | --- | --- |
+| `module` | — | a palavra `module` | o nome, com pontos |
+| `import` | do fonte | a palavra `import` | o módulo, e `as` e `types` quando escritos |
+| `import_c` | do fonte | a palavra `import_c` | as tokens entre `import_c` e `;`, concatenadas: `<stdio.h>` |
+| `decl` | do fonte | a primeira token da declaração | espécie `func`, `var`, `const`, `constexpr`, `type`, `modifier` ou `tags`; o símbolo de backend §2 |
+| `inst` | do primeiro uso | a palavra do modificador, no primeiro uso | o modificador e os argumentos como escritos, separados por um espaço. Só as instâncias que o módulo usa: o fecho sobre os verbos do genérico (parser §5) é dos módulos carregados, que não são impressos |
+| `ilha` | do fonte, pela posição | ver abaixo | ver abaixo |
+
+`ilha` lista toda construção keel reconhecida depois do cabeçalho, em
+assinatura e em corpo. O C opaco entre ilhas não aparece. Nos detalhes, `→`
+separa o que foi escrito do que o parser resolveu; espaços em branco do fonte
+viram um espaço só.
+
+| Espécie | Posição | Detalhe |
+| --- | --- | --- |
+| `type` | primeira token do tipo | `<tipo escrito> → <tipo C>`: aplicação de modificador (`outcome i32`), tipo de módulo (`arena`, `Agent`) |
+| `name` | o nome | `<nome> → <símbolo>`: constante, variável ou valor de tags do módulo ou de import |
+| `call` | primeira token do chamado | `<chamado>/<aridade escrita> → <símbolo>`, e as marcas de adaptação |
+| `from-stack` | primeira token do chamado | como `call`; a região automática é do emissor |
+| `ref` | a palavra `ref` | o nome declarado |
+| `defer` | a palavra `defer` | o conteúdo dos colchetes: `now FILE *fp` |
+| `implicit-init` | o nome declarado | o nome: `arena` sem inicializador recebe `= {0}` |
+| `foreach` | a palavra `foreach` | `<elemento>[, <índice>] : <contêiner> (<tipo keel do contêiner>)` |
+| `match` | a palavra `match` | `<expressão> (<tipo keel>): <braço> <braço> …` |
+| `index` | o contêiner | `<contêiner> → <símbolo do acessor>`, e as marcas |
+| `range-index` | o contêiner | `<contêiner> <intervalo como escrito> → <símbolo> [<símbolo do limite>]`, e as marcas |
+| `array` | a palavra `array` | `<nome> [<dimensões>]` |
+| `array-index` | o nome | `<nome> rank <n>`: o índice com vírgulas |
+
+As marcas de adaptação vêm depois dos símbolos, separadas por espaço. `&<k>`: o
+argumento *k*, contado de 1, recebe `&`, porque o parâmetro declarado no
+chamado é ponteiro e o argumento é o objeto (spec §4.4). `type:<k>`: o
+argumento *k* é um tipo, apagado em tamanho e alinhamento (backend §5.16).
 
 Os módulos importados são carregados (é preciso, para resolver) e não são
-impressos.
+impressos. Os despejos esperados de três casos do golden estão em
+`tools/harness/oracles/parse/`, e o oráculo `m2-parse-dump.sh` os compara em
+quatro níveis cumulativos: `header`, `decl`, `inst`, `ilha`.
 
 ### 5.3 `--stop-after=gen` e os arquivos gerados
 
@@ -630,16 +662,20 @@ import	keel.buffer as buffer types	app/cfg.k:4:1
 import	keel.outcome as outcome types	app/cfg.k:5:1
 import_c	<stdio.h>	app/cfg.k:6:1
 decl	pub constexpr	MAX	app_cfg_MAX	app/cfg.k:8:1
-decl	pub func	soma	app_cfg_soma	app/cfg.k:11:1
-decl	pub func	soma_scratch	app_cfg_soma_scratch	app/cfg.k:30:1
+decl	pub func	sum	app_cfg_sum	app/cfg.k:11:1
+decl	pub func	sum_scratch	app_cfg_sum_scratch	app/cfg.k:30:1
 inst	outcome i32	keel_outcome_i32	app/cfg.k:11:5
 inst	buffer i32	keel_buffer_i32	app/cfg.k:17:5
+ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:11:5
+ilha	type	arena → keel_arena	app/cfg.k:11:21
+ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:12:5
 ilha	ref	fp	app/cfg.k:13:11
-ilha	builtin	outcome.fail → keel_outcome_i32_fail	app/cfg.k:14:21
+ilha	call	outcome.fail/2 → keel_outcome_i32_fail &1	app/cfg.k:14:21
+ilha	defer	now FILE *fp	app/cfg.k:15:5
 …
 ```
 
-(A lista de ilhas segue até o fim de `sum_scratch`; o teste compara a saída inteira.)
+(O despejo inteiro, e os de 009 e 013, estão em `tools/harness/oracles/parse/`.)
 
 ### 8.6 Compilação separada com depfile
 
@@ -723,7 +759,7 @@ Cada marco termina com o seu teste passando e o anterior intacto.
 | --- | --- | --- |
 | **M0** driver | `args.c`, modo transparente, `--cgen-version`/`--cgen-help`, erros de invocação, resolução da base | tabela de `argv` → (opções do cgen, repasse, fonte) em teste de unidade; §8.1, §8.2, e os três primeiros de §8.8 |
 | **M1** lexer | `lexer.c` + `--stop-after=lex` | os casos do [lexer-design §8](lexer-design.md#8-casos-de-aceitação) e §8.4; toda a `/base` e todo `.k` de `golden/cases` lexam sem diagnóstico |
-| **M2** módulos | `paths.c`, `tool.c`, parser de nível de arquivo (`module`, `import`, `import_c`, `extern_c`, assinaturas), `--stop-after=parse` sem ilhas | raízes, `missing-module`, `module-path-mismatch`, `circular-import`, `module-not-found`, `generic-source-without-instance`; §8.5 até `decl` |
+| **M2** módulos | `paths.c`, `tool.c`, parser de nível de arquivo (`module`, `import`, `import_c`, `extern_c`, assinaturas), `--stop-after=parse` sem ilhas | raízes, `missing-module`, `module-path-mismatch`, `circular-import`, `module-not-found`, `generic-source-without-instance`; `m2-parse-dump.sh decl` (§5.2) |
 | **M3** geração sem ilhas | `emit.c`, `writer.c`, `#line`, mangling de nível de arquivo, `--main` | §8.3 byte a byte; segunda execução não muda `mtime` |
 | **M4** cc e depfile | `cc.c`, `depfile.c`, critério de atualização | §8.6; editar `geom.k` faz `main` regerar os headers de `geom` e não escrever `gen/geom.c` |
 | **M5** base | módulos genéricos, instâncias de modificador embutido, `--instance`, despacho de builtin, `defer` | `golden/cases/001`; §8.7 |

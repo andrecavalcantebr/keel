@@ -241,6 +241,13 @@ lexer inteiro, e os casos que só eles tinham (fim de arquivo no meio de
 emenda, comentário ou literal; CR sozinho; NUL; arquivo vazio) viraram
 arquivos pequenos em `oracles/lex/`, um EOF por arquivo. Ficam no git.
 
+**O oráculo do parser (M2 em diante) já existe:** `oracles/m2-parse-dump.sh
+[header|decl|inst|ilha]` compara o `--stop-after=parse` dos casos 001, 009 e
+013 com os despejos escritos à mão em `oracles/parse/*.parse` (formato no
+desenho do cgen §5.2). O nível diz quais linhas contam, então o parser pode
+ser construído por passagem: `header` e `decl` são o M2; `inst` e `ilha`, a
+passagem 3.
+
 **Ideia em discussão, não decidida (2026-09-22):** os reconhecedores são
 todos FSMs — alguns puramente sequenciais (`scan_punct`), outros com ramos
 que se decidem cedo e seguem lineares dali (`scan_number`: o primeiro byte,

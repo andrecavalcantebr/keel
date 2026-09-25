@@ -1,5 +1,6 @@
 /* app/app_ofr.c — generated from app/ofr.k by cgen, C11 profile. */
 #include "app/app_ofr.h"
+#include "keel/keel_array_i32.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_outcome_i32.h"
 #include "keel/keel_range.h"
@@ -31,11 +32,11 @@ keel_slice_i32 app_ofr_from_buffer(keel_range r) {
 
 
 size_t app_ofr_count(void) { return sizeof(app_ofr_v)/sizeof(i32); }
-i32 app_ofr_second(void) { return app_ofr_v[1]; }
-void app_ofr_put(size_t i, i32 x) { app_ofr_v[keel_index(i, 6)] = x; }
-i32 *app_ofr_at_ptr(size_t i) { return &app_ofr_v[keel_index(i, 6)]; }
+i32 app_ofr_second(void) { return keel_array_i32_get(app_ofr_v, 6, 1); }
+void app_ofr_put(size_t i, i32 x) { keel_array_i32_set(app_ofr_v, 6, i, x); }
+i32 *app_ofr_at_ptr(size_t i) { return keel_array_i32_ptr1(app_ofr_v, 6, i); }
 i32 app_ofr_checked(size_t i) {
-    keel_outcome_i32 r = keel_slice_i32_at(keel_slice_i32_from(app_ofr_v, 6), i); if (keel_outcome_i32_failed(r)) return -1;
+    keel_outcome_i32 r = keel_array_i32_at(app_ofr_v, 6, i); if (keel_outcome_i32_failed(r)) return -1;
     return keel_outcome_i32_value(r);
 }
 

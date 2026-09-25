@@ -163,7 +163,7 @@ As palavras abaixo têm função keel nas posições indicadas. Fora delas, apli
 | `type_h` | dentro do `[ ]` depois de `extern_c` (§4.1) |
 | `as`, `types` | na linha `import`, nesta ordem (§4.1) |
 | `pub`, `priv` | antes de declaração de arquivo (§4.1) |
-| `array` | antes do tipo, em declaração de vetor, campo, parâmetro e coluna de `extent` (§4.2, §4.11) |
+| `array` | antes do tipo, em declaração de vetor, campo, parâmetro e coluna de `extent` (§4.2, §4.11). Seguido de `.`, é nome qualificado: o alias usual de `keel.array` (§5.3) |
 | `constexpr` | declaração de arquivo ou de bloco (§4.2); é também palavra C |
 | `ref` | qualificador depois de `*` no declarador (§4.2) |
 | `dim`, `tags`, `type` | na linha `module`, parâmetros do módulo (§4.3). `tags` também inicia declaração de conjunto, seguido do nome e de `[` (§4.9); `type` também declara parâmetro de função, seguido de `IDENT` e de `,` ou `)` (§4.4) |
@@ -280,11 +280,15 @@ spec-c        ::= 'inline' | 'static' | 'extern' | '_Noreturn'
                 | '_Thread_local' | 'thread_local'
                 | ( 'alignas' | '_Alignas' ) '(' <opaque> ')'
                 | '[[' <opaque> ']]' | qual-c
-param-array   ::= { spec-c } 'array' argument { '*' } IDENT dimensions
+param-array   ::= { spec-c } 'array' argument { '*' } IDENT param-dims
+param-dims    ::= '[' dim-binder { ',' <opaque> } ']'
+                | '[' dim-binder ']' { '[' <opaque> ']' }
+                | dimensions
+dim-binder    ::= 'size_t' IDENT
 param-type    ::= 'type' IDENT
 ```
 
-`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome do seu declarador, inclusive quando o declarador é ponteiro a função. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
+`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome do seu declarador, inclusive quando o declarador é ponteiro a função. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `dim-binder` liga um nome à dimensão 0 do vetor recebido (§4.2); só a dimensão 0 o admite. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
 
 #### Tipos e declarações
 
@@ -593,22 +597,28 @@ A aplicação de um modificador ao tipo forma o especificador que precede o decl
 
 | Chamada | Devolve | O que faz |
 | --- | --- | --- |
-| `keel.length(v)` | `size_t` | total de elementos, constante de compilação |
+| `keel.length(v)` | `size_t` | total de elementos; constante de compilação quando as dimensões são conhecidas |
 | `keel.capacity(v)` | `size_t` | total de elementos |
 | `keel.dim(v, k)` | `size_t` | dimensão de índice `k`, a partir de zero; `k` é decimal conhecido |
-| `keel.get(v, i)`, `keel.set(v, i, x)` | `T`, — | lê ou escreve o elemento `i` |
-| `keel.ptr(v)` | `T *` | início do vetor unidimensional |
-| `keel.ptr(v, i)` | `T *` | endereço do elemento `i` |
-| `keel.at(v, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora da extensão, em toda build |
 
-As operações são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. `keel.get`, `keel.set` e `keel.ptr(v, i)` verificam o índice em debug (`array-index-out-of-bounds`); `keel.at` testa em toda build. Protocolos (§5.1): Indexável e Indexável por intervalo, por estas operações; `begin` e `partition` não existem sobre `array`.
+As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice, `foreach`, `apply` e `range-index` sobre `array` são do núcleo e não pedem import. Protocolos (§5.1): Indexável e Indexável por intervalo, pela tradução do núcleo; `begin` e `partition` não existem sobre `array`.
+
+Um parâmetro `array` pode ligar um nome à sua dimensão 0, o **binder**:
+
+```keel
+pub size_t sum(array i32 v[size_t n]) {
+    size_t s = 0;
+    for (size_t i = 0; i < n; i++) s += v[i];
+    return s;
+}
+```
 
 **Reconhecimento**
 
 - Um tipo ou modificador precisa estar registrado; seus argumentos são lidos conforme a aridade declarada. Declaradores simples registram nome, forma de valor ou ponteiro e os marcadores escritos.
 - Declaradores C mais gerais podem receber substituição dos nomes keel sem fornecer um símbolo utilizável como contêiner. O reconhecimento de funções segue a §2.3.
 - Campos keel em `struct` são registrados com o tipo e os marcadores escritos; campos C desconhecidos permanecem opacos. A interface de uma struct pública exporta o necessário para resolver caminhos como `w->dados`, sem interpretar os tipos C dos demais campos.
-- `array` registra que o símbolo é vetor e sua quantidade de dimensões. A extensão unidimensional pode vir do compilador C, inclusive por inicializador; keel não conta os elementos.
+- `array` registra que o símbolo é vetor, o tipo do elemento e a quantidade de dimensões. A extensão unidimensional pode vir do compilador C, inclusive por inicializador; keel não conta os elementos.
 - Em `constexpr`, o nome é o identificador imediatamente anterior ao `=`. Sem inicializador, a declaração segue para o compilador C e não registra constante utilizável pela tradução.
 
 #### 2. Regras
@@ -625,7 +635,7 @@ Declarar tipos e símbolos e registrar as propriedades usadas pelas construçõe
 8. Qualificadores de argumento escritos antes ou depois do tipo normalizam para a mesma identidade. Qualificadores e especificadores C antes do modificador qualificam a declaração externa, são preservados e não mudam o argumento.
 9. Constantes de enum nomeado recebem o escopo do tipo: `M.State.STOPPED`. Enum sem nome usa o escopo do módulo. Dentro do módulo, a constante pode ser escrita sem qualificação; de fora, o nível do tipo não se omite.
 10. `array` não cria tipo: `array T v[2,3]` traduz para `T v[2][3]`. A escrita com colchetes sucessivos também é aceita. Em parâmetro multidimensional, a primeira extensão sai com `static` no C.
-11. `keel.ptr`, `buffer.of` e `slice.of` exigem `array` unidimensional.
+11. `buffer.of` e `slice.of` exigem `array` unidimensional.
 12. As dimensões de um argumento `array` são conferidas contra as do parâmetro: a aridade e as dimensões de índice 1 em diante coincidem, e a dimensão 0 do argumento não é menor que a declarada. A conferência alcança argumento que é símbolo `array` de dimensões conhecidas.
 13. `constexpr` é constante nomeada e tipada, sem endereço e sem usos que exijam lvalue. O compilador C verifica o inicializador contra o tipo escrito, nos limites de cada perfil.
 14. Posições que admitem literal inteiro admitem `constexpr` conhecido, respeitadas as restrições do uso. Quando keel precisa do número, como em `dim` e `keel.dim(v,k)`, lê somente um literal decimal ou um inicializador decimal conhecido; não calcula expressões.
@@ -633,6 +643,11 @@ Declarar tipos e símbolos e registrar as propriedades usadas pelas construçõe
 16. `ptr(x)` entrega ponteiro comum; `ptr(x,i)` entrega o endereço de um elemento.
 17. `restrict` conserva a semântica C em declaradores de ponteiro e não se aplica como prefixo de modificador.
 18. Os nomes emitidos derivam da identidade nominal; sua grafia pertence ao backend.
+19. Em parâmetro, `array T v[size_t N]` liga `N` à dimensão 0 do vetor recebido. O parâmetro unidimensional é admitido com binder e recusado sem ele.
+20. O binder é apagado: a função C recebe um parâmetro `size_t` logo depois do vetor, e no corpo `N` designa esse parâmetro. Não é constante de tradução e não aparece em dimensão de vetor.
+21. Na chamada, keel entrega a dimensão 0 do argumento: de um `array` de arquivo, bloco ou campo de struct, a dimensão declarada ou, sem ela, a do compilador C; de um parâmetro com binder, o binder; de um parâmetro sem binder, a dimensão declarada. Nenhuma dessas formas avalia o argumento. As dimensões de índice 1 em diante seguem a regra 12.
+22. O argumento de um parâmetro com binder é símbolo ou campo `array`. Um ponteiro, uma expressão C e uma coluna de `extent` não carregam dimensão: sem índice, a coluna é o campo C (§4.11).
+23. `keel.length(v)` e `keel.dim(v, 0)` sobre parâmetro com binder designam o binder, multiplicado pelas demais dimensões no caso de `length`.
 
 Referências: [Rationale: constantes nomeadas](keel-rationale.md#constantes-nomeadas) e [marcadores e declarações](keel-rationale.md#marcadores-e-declarações); [Backend: tipos primitivos](keel-c-backend.md#3-tipos-primitivos), [declarações](keel-c-backend.md#51-declarações-substituição-local-de-nome) e [perfis](keel-c-backend.md#9-perfis-de-geração).
 
@@ -652,7 +667,7 @@ i32 *p = origin;
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `c-type-as-argument`, `array-1d-as-parameter`, `array-parameter-without-dimension`, `array-argument-wrong-dimension`, `partial-array-index`, `flat-view-of-n-dim-array`, `nonconstant-dim-index`, `ref-without-initializer`, `ref-arithmetic`, `enum-constant-without-type`, `restrict-on-container`, `hidden-declarator`, `nonscalar-constexpr`, `constexpr-as-lvalue`, `canonical-name-collision`, `reserved-name`, `name-too-long`. `specific-format-unavailable` é do backend ou do compilador C.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `c-type-as-argument`, `array-1d-as-parameter`, `array-parameter-without-dimension`, `array-argument-wrong-dimension`, `binder-argument-not-array`, `binder-as-dimension`, `partial-array-index`, `flat-view-of-n-dim-array`, `nonconstant-dim-index`, `ref-without-initializer`, `ref-arithmetic`, `enum-constant-without-type`, `restrict-on-container`, `hidden-declarator`, `nonscalar-constexpr`, `constexpr-as-lvalue`, `canonical-name-collision`, `reserved-name`, `name-too-long`. `specific-format-unavailable` é do backend ou do compilador C.
 
 Conflitos de nomes seguem a §2.5.
 
@@ -660,6 +675,7 @@ Conflitos de nomes seguem a §2.5.
 
 - O compilador C verifica tipos, inicializadores, dimensões C e acessos fora das verificações de keel.
 - Sobre região C opaca, as dimensões de um argumento `array` não são conferidas.
+- Sobre parâmetro com binder, o índice é verificado contra o binder: a verificação alcança a extensão recebida, e não só o contrato declarado.
 - O programa garante que o índice de `keel.dim(v,k)` designa uma dimensão existente.
 - `ref` não prova validade, não nulidade nem tempo de vida do endereço.
 - Formatos estreitos dependem da guarda de disponibilidade do alvo. A representabilidade de `constexpr` sob C11 está na §6.3.
@@ -837,6 +853,7 @@ Resolver chamadas keel a partir de módulos, assinaturas e identidades declarada
    | Tipo escrito em parâmetro `type` de seleção | `slice.from(T,p,n)` |
    | Contêiner em outro argumento | `buffer.clone(a,x)`; `slice.clone(a,x)` |
    | Tipo do alvo declarado, atribuído ou retornado | `buffer.from(p,cap)` |
+   | Tipo do elemento de um argumento `array`, num parâmetro `array T v[…]` com `T` parâmetro da linha `module` | `array.get(v,i)` e os demais verbos de `keel.array` |
 
 5. A adaptação de argumentos usa a forma declarada do parâmetro e do símbolo:
 
@@ -1456,6 +1473,7 @@ Condições no [catálogo](#62-catálogo). De keel, na tradução: `extent-count
 - Um elemento só é acessível abaixo da contagem: para acrescentar uma linha, o programa incrementa a contagem antes de escrever nela.
 - Mudar uma capacidade interna de coluna por ponteiro muda o endereço dos elementos; reorganizar o armazenamento é do programa.
 - Aritmética sobre a coluna (`P.col + i`) e acesso fora da forma reconhecida não são verificados.
+- Sem índice, a coluna é o campo C, e não um `array` para a §4.2: `keel.length`, `keel.dim`, `buffer.of`, `slice.of`, os verbos de `keel.array` e os parâmetros com binder não a recebem. A extensão de uma coluna é a contagem, e o programa a escreve: `slice.from(f32, p->x, p->len)`.
 
 ## 5. Protocolos e módulos da base
 
@@ -1480,7 +1498,7 @@ Um protocolo é o conjunto de verbos que uma construção do núcleo exige do ti
 | Etiquetado | `tag` | `match` | `tagged`, `corot` |
 | Falível | `failed`, mais `win` para a forma de default | `else` | `outcome` |
 
-`array` participa de Indexável e de Indexável por intervalo pelas operações do núcleo qualificadas por `keel` (§4.2, §4.4). Um valor cujo tipo é um conjunto `tags` é operando de `match` sem verbo (§4.9).
+`array` participa de Indexável e de Indexável por intervalo pelo núcleo: `x[i]`, `foreach`, `apply` e `x[a..b]` sobre `array` são traduzidos sem verbo (§4.2, §4.5). As chamadas explícitas de acesso são de `keel.array` (§5.3). Um valor cujo tipo é um conjunto `tags` é operando de `match` sem verbo (§4.9).
 
 #### O que um módulo do programa declara
 
@@ -1516,7 +1534,7 @@ A convenção abaixo é a da base; um módulo do programa pode segui-la ou não.
 | Módulo | O que declara | Contrato |
 | --- | --- | --- |
 | `keel.arena` | o tipo `arena`, seus construtores e verbos | §5.2 |
-| `keel.buffer`, `keel.slice`, `keel.range` | as sequências, o trecho, o intervalo, e os protocolos de acesso, cursor e partição | §5.3 |
+| `keel.buffer`, `keel.slice`, `keel.range`, `keel.array` | as sequências, o trecho, o intervalo, o acesso a `array`, e os protocolos de acesso, cursor e partição | §5.3 |
 | `keel.tagged` | o modificador que associa etiqueta a valor | §5.4 |
 | `keel.outcome`, `keel.corot` | o modificador de resultado final, de dois estados, e o tipo de estado cooperativo, de três | §5.5 |
 | `keel.routine` | a tabela de participantes e as composições `seq` e `par` | §5.6 |
@@ -1604,7 +1622,7 @@ De keel, na tradução; condições no [catálogo](#62-catálogo): `nonconstant-
 - A análise de escape e de reset é lexical: chamadas C, parâmetros de saída e cópias escapam dela.
 - A arena não sincroniza o topo. Antes de `parallel`, pode-se recortar uma arena por worker.
 
-### 5.3 `keel.buffer`, `keel.slice` e `keel.range`
+### 5.3 `keel.buffer`, `keel.slice`, `keel.range` e `keel.array`
 
 #### 1. Sintaxe
 
@@ -1619,7 +1637,16 @@ slice i32 external = slice.from(i32, p, n);
 range r = start..end;
 ```
 
-`buffer T` é sequência com comprimento e capacidade; `slice T` é trecho com comprimento e ponteiro; `range` é intervalo de `size_t`.
+```keel
+import keel.array as array;
+
+array i32 v[8];
+array.set(v, 3, 7);
+i32 x = array.get(v, 3);
+outcome i32 r = array.at(v, 9);
+```
+
+`buffer T` é sequência com comprimento e capacidade; `slice T` é trecho com comprimento e ponteiro; `range` é intervalo de `size_t`; `keel.array` é o acesso por chamada a um `array` unidimensional.
 
 **`buffer`**
 
@@ -1639,7 +1666,7 @@ range r = start..end;
 | `buffer.pop(b)` | `T *` | retira o último e devolve seu endereço; `NULL` se vazio |
 | `buffer.clear(b)` | — | comprimento zero, mesma capacidade e região |
 | `buffer.at(b, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora do comprimento, em toda build |
-| `buffer.as_slice(b)` | [`slice T`](#53-keelbuffer-keelslice-e-keelrange) | vista do comprimento atual |
+| `buffer.as_slice(b)` | [`slice T`](#53-keelbuffer-keelslice-keelrange-e-keelarray) | vista do comprimento atual |
 | `buffer.as_slice(b, r)` | `slice T` | vista dos limites do `range` `r` |
 | `buffer.as_slice(b, a, c)` | `slice T` | vista de `[a, c)` |
 | `buffer.clone(a, b)` | [`outcome buffer T`](#55-keeloutcome-e-keelcorot) | cópia do comprimento atual na [`arena`](#52-keelarena) `a`; falha sem espaço |
@@ -1673,6 +1700,16 @@ range r = start..end;
 | `range.get(r, i)` | `size_t` | `first + i` |
 | `partition(r, k, w)` | `range` | parte `w` de `k`, para `parallel` (§4.8) |
 
+**`array`**
+
+| Chamada | Devolve | O que faz |
+| --- | --- | --- |
+| `array.get(v, i)` | `T` | cópia do elemento `i` |
+| `array.set(v, i, x)` | — | escreve o elemento `i` |
+| `array.ptr(v)` | `T *` | início do vetor |
+| `array.ptr(v, i)` | `T *` | endereço do elemento `i` |
+| `array.at(v, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora da extensão, em toda build |
+
 Protocolos (§5.1): Indexável — `length`, `get`, `ptr`; Contável — `first`, `limit`; Percorrível por cursor — `begin`, `has_next`, `next`; Particionável — `partition`; Indexável por intervalo — `buffer.as_slice` e `slice.of`. O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção.
 
 **Reconhecimento**
@@ -1680,6 +1717,7 @@ Protocolos (§5.1): Indexável — `length`, `get`, `ptr`; Contável — `first`
 - A instância vem das declarações ou da origem indicada na §4.4.
 - `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of` exige `buffer`, `slice` ou `array` unidimensional de elemento compatível.
 - `a..b` constrói um `range`. Os limites são expressões C; `..` é reconhecido fora de literais, comentários e diretivas.
+- Os verbos de `keel.array` recebem `array` unidimensional, pelo parâmetro `array T v[size_t N]`: a instância vem do tipo do elemento (§4.4), e a extensão, do binder (§4.2).
 
 #### 2. Regras
 
@@ -1697,6 +1735,7 @@ Sequências de comprimento variável, trechos de extensão fixa e intervalos.
 10. A posição devolvida por `pop` continua no armazenamento, fora do comprimento, e pode ser reutilizada pela próxima inserção.
 11. `clone` copia o comprimento da origem, e não a capacidade.
 12. Indexação e `range-index` seguem a §4.5.
+13. `keel.array` não declara tipo nem modificador: a instância é a família de verbos de um tipo de elemento. As constantes de `array` — `length`, `capacity`, `dim` — ficam no núcleo (§4.2).
 
 Referências: [Rationale: memória por região](keel-rationale.md#memória-por-região); [Rationale: acesso e travessia](keel-rationale.md#acesso-e-travessia); [Backend: contêineres](keel-c-backend.md#52-containers-struct-e-funções-static-inline); [Backend: acessor verificado](keel-c-backend.md#513-at--o-acessor-verificado).
 
@@ -1706,7 +1745,7 @@ O [exemplo 3 do README](README.md#3-trecho-fixo-elementos-mutáveis-e-intervalo)
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `buffer-over-const`, `element-copy-in-get-set`, `buffer-of-unknown-size`, `slice-from-ref`, `open-range-outside-index`. Do backend, em execução debug: `index-out-of-length`, `set-out-of-length`. Qualificadores e compatibilidade das cópias são do compilador C.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `buffer-over-const`, `element-copy-in-get-set`, `buffer-of-unknown-size`, `slice-from-ref`, `open-range-outside-index`. Do backend, em execução debug: `index-out-of-length`, `set-out-of-length` e, pelos verbos de `keel.array`, `array-index-out-of-bounds`. Qualificadores e compatibilidade das cópias são do compilador C.
 
 #### 5. Casos especiais
 
@@ -1940,7 +1979,7 @@ if (outcome.ok(r)) finish(&ctx);
 | `routine.state(slot)` | [`corot`](#55-keeloutcome-e-keelcorot) | estado final do slot |
 | `routine.code(slot)` | `i32` | código do estado do slot |
 
-`s` é uma [`slice slot`](#53-keelbuffer-keelslice-e-keelrange), obtida de um `array` ou de um `buffer` por `slice.of`. O parâmetro do módulo é o tipo do contexto, e só ele.
+`s` é uma [`slice slot`](#53-keelbuffer-keelslice-keelrange-e-keelarray), obtida de um `array` ou de um `buffer` por `slice.of`. O parâmetro do módulo é o tipo do contexto, e só ele.
 
 **Reconhecimento**
 
@@ -2117,11 +2156,13 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `index-out-of-length` | `get` ou `ptr(x, i)` — e, por eles, o açúcar `x[i]` — com índice fora de `length`, sobre `buffer` ou `slice` | `debug` | Backend, em execução | §5.3 |
 | `set-out-of-length` | `set` com índice fora de `length` | `debug` | Backend, em execução | §5.3 |
 | `buffer-of-unknown-size` | `buffer.of` de um argumento sobre símbolo que não é `array` | `error` | keel | §5.3 |
-| `array-1d-as-parameter` | `array` unidimensional em parâmetro de função | `error` | keel | §4.2 |
+| `array-1d-as-parameter` | `array` unidimensional em parâmetro de função, sem binder | `error` | keel | §4.2 |
 | `array-parameter-without-dimension` | `array T v[]` sem dimensão em parâmetro | `error` | keel | §4.2 |
 | `array-argument-wrong-dimension` | Argumento `array` com aridade diferente, dimensão de índice 1 em diante diferente, ou dimensão 0 menor que a do parâmetro | `error` | keel | §4.2 |
 | `partial-array-index` | Indexação parcial de `array` multidimensional | `error` | keel | §4.2 |
-| `flat-view-of-n-dim-array` | `keel.ptr`, `buffer.of` ou `slice.of` sobre `array` multidimensional | `error` | keel | §4.2 |
+| `flat-view-of-n-dim-array` | `buffer.of` ou `slice.of` sobre `array` multidimensional | `error` | keel | §4.2 |
+| `binder-argument-not-array` | Argumento de parâmetro com binder de dimensão que não é símbolo ou campo `array`, inclusive coluna de `extent` | `error` | keel | §4.2 |
+| `binder-as-dimension` | Binder de dimensão usado como dimensão de vetor | `error` | keel | §4.2 |
 | `nonconstant-dim-index` | Índice de `keel.dim(v,k)` sem valor decimal conhecido | `error` | keel | §4.2 |
 | `ref-without-initializer` | `ref` sem inicializador | `error` | keel | §4.2 |
 | `ref-arithmetic` | Operador aditivo binário, `+=`, `-=`, incremento, decremento ou índice aplicado a símbolo `ref`; inclui `q - p` com `p` `ref`, sem determinar o tipo de `q` | `error` | keel | §4.2 |
@@ -2144,7 +2185,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `instance-field-access` | Acesso direto a campo de instância de modificador | `warning` | Backend / compilador C | §4.4 |
 | `indirect-import` | Uso de símbolo de módulo não importado diretamente | `info` | keel | §4.1 |
 | `modifier-outside-generic` | `modifier` fora de módulo genérico | `error` | keel | §4.3 |
-| `parameter-name-reuse` | Declaração de símbolo com o nome de um parâmetro do módulo | `error` | keel | §4.3 |
+| `parameter-name-reuse` | Declaração de símbolo, ou binder de dimensão, com o nome de um parâmetro do módulo | `error` | keel | §4.3 |
 | `circular-generic` | Módulo genérico que se instancia, com a cadeia na mensagem | `error` | keel | §4.3 |
 | `layout-cycle` | Cadeia de tipos que se contêm por valor atravessando instância de modificador, com a cadeia na mensagem | `error` | keel | §4.3 |
 | `protocol-on-parameter` | Construção keel aplicada a valor cujo tipo é parâmetro do módulo genérico, com a construção na mensagem | `error` | keel | §4.3 |

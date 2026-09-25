@@ -135,7 +135,8 @@ alloc(a,n,sz,al) → keel_arena_alloc3
 
 A regra vale também para função de módulo não genérico, com o primeiro
 argumento no papel de contêiner. O número é o de argumentos escritos em keel:
-um parâmetro `type` apagado conta um, embora saia como dois no C (§5.16).
+um parâmetro `type` apagado conta um, embora saia como dois no C (§5.16), e um
+binder de dimensão não conta, embora saia como um `size_t` (§5.18).
 
 **Com `dim`, o sufixo conta índices do call site, não argumentos do C** (linguagem §4.3). É a única exceção à frase acima:
 
@@ -1118,19 +1119,25 @@ Todo builtin que pode falhar é gerado com `[[nodiscard]]`: ignorar o retorno de
 
 Verificação de limites em `get`, `set` e `ptr(x,i)` é escrita no corpo do verbo e ligada por `KEEL_CHECKS` (§5.17).
 
-**`array` no despacho.** Sobre símbolo `array` unidimensional, `length` e `capacity` saem como `sizeof(v)/sizeof(<elem>)` — o tipo do elemento vem da tabela, não de `*(v)`. Sobre multidimensional, o idioma `sizeof(v)/sizeof(*(v))` daria a primeira dimensão, então o backend emite `sizeof(v)/sizeof(i32)`. `dim(v,k)` sai como literal. Em parâmetro multidimensional, `length` **não** pode usar `sizeof` e emite o produto literal das dimensões.
+**`array` no despacho.** Sobre símbolo `array` unidimensional, `length` e `capacity` saem como `sizeof(v)/sizeof(<elem>)` — o tipo do elemento vem da tabela, não de `*(v)`. Sobre multidimensional, o idioma `sizeof(v)/sizeof(*(v))` daria a primeira dimensão, então o backend emite `sizeof(v)/sizeof(i32)`. `dim(v,k)` sai como literal. Em parâmetro multidimensional, `length` **não** pode usar `sizeof` e emite o produto literal das dimensões; com binder, o produto usa o binder no lugar da dimensão 0 (§5.18).
 
-As demais operações do núcleo sobre `array` unidimensional (linguagem §4.2) são qualificadas pelo módulo `keel`, mas não declaradas nele: são genéricas no elemento e leem a extensão da tabela, o que nenhuma declaração keel expressa. O lowering é este, com `d` a dimensão declarada:
+**`keel.array`** é genérico sem modificador (linguagem §5.3). A instância é a
+família de verbos de um tipo de elemento, `keel_array_<T>_<verbo>`, emitida em
+`keel/keel_array_<T>.h`. O `.type.h` da instância não define tipo nenhum: existe
+porque toda instância gera os dois headers (§4.3.2), e só inclui `keel.type.h`. O
+binder de cada verbo recebe a dimensão do argumento (§5.18), e `ptr(v)` e
+`ptr(v, i)` saem `_ptr` e `_ptr1`. O índice do corpo passa por `keel_index`
+contra o binder (§5.3), e `at` testa em toda build.
 
-```plain
-keel.get(v, i)      →  v[keel_index(i, d)]
-keel.set(v, i, x)   →  v[keel_index(i, d)] = x
-keel.ptr(v)         →  v
-keel.ptr(v, i)      →  &v[keel_index(i, d)]
-keel.at(v, i)       →  keel_slice_T_at(keel_slice_T_from(v, d), i)
+```keel
+array i32 v[8];
+i32 x = array.get(v, 3);
 ```
 
-Com índice e dimensão decimais conhecidos, `keel_index` não aparece: a tradução já conferiu. `keel.at` é o `at` do `slice` sobre a vista do vetor, e testa em toda build.
+```c
+i32 v[8];
+i32 x = keel_array_i32_get(v, 8, 3);
+```
 
 **`a..b` é `range.of(a, b)`** fora da travessia: `range r = 2..5;` sai `keel_range r = keel_range_of(2, 5);`. Em `foreach`, o literal não constrói `range`: os limites entram direto no laço (§5.7).
 
@@ -1173,7 +1180,8 @@ a verificação ali afirma o contrato declarado, não a extensão recebida. Ele 
 acusa falso — ultrapassar o `d0` escrito é defeito qualquer que seja o vetor
 que chegou —, mas também não alcança o chamador que entregou menos do que
 prometeu. Esse é pego do lado da chamada, na tradução, pelo
-`array-argument-wrong-dimension` (linguagem §4.2).
+`array-argument-wrong-dimension` (linguagem §4.2). Com binder, a dimensão 0 é
+o `size_t` que chegou (§5.18), e a verificação alcança a extensão recebida.
 
 Quando índice e dimensão são ambos decimais conhecidos, sai o colchete simples: a
 tradução já conferiu, e é o `array-index-above-dimension` (linguagem §4.5).
@@ -2178,6 +2186,52 @@ O açúcar `x[i]` sobre `buffer` e `slice` é `*ptr(x, i)` (§5.3), e é verific
 | função de acesso de `extent` (§5.15) | um `KEEL_CHECK` por índice, com o invariante do grupo | `extent-index-out-of-bounds` |
 
 Um módulo do programa pode escrever `KEEL_CHECK` nos próprios verbos: é C comum, e o identificador é texto livre, fora do catálogo.
+
+### 5.18 Binder de dimensão
+
+`array T v[size_t N]` sai como o vetor sem a dimensão 0, seguido de um `size_t`
+(linguagem §4.2). O nome C do binder é `keel__N`, como o do parâmetro `type`
+apagado, para que um `#define N` do programa não o alcance; cada `N` do corpo é
+reescrito.
+
+```keel
+//keel
+pub size_t sum(array i32 v[size_t n]) {
+    size_t s = 0;
+    for (size_t i = 0; i < n; i++) s += v[i];
+    return s;
+}
+pub f32 first_col(array f32 m[size_t r, 4]) { … }
+```
+
+```c
+//C gerado
+size_t app_sum(i32 v[], size_t keel__n) {
+    size_t s = 0;
+    for (size_t i = 0; i < keel__n; i++) s += v[keel_index(i, keel__n)];
+    return s;
+}
+f32 app_first_col(f32 m[][4], size_t keel__r) { … }
+```
+
+Na chamada, o argumento extra vem logo depois do vetor:
+
+| Argumento | Dimensão entregue |
+| --- | --- |
+| `array i32 v[8]`, de arquivo, bloco ou campo de struct | `8` |
+| `array char s[] = "keel"` | `sizeof(s)/sizeof(s[0])` |
+| parâmetro com binder `n` | `keel__n` |
+| parâmetro `array i32 m[8, 4]`, sem binder | `8` |
+
+1. **A dimensão entregue não avalia o argumento.** Literal, `sizeof` sobre
+   vetor de tamanho fixo e nome de parâmetro não têm efeito, e por isso o
+   caminho do argumento é copiado uma vez só, como escrito.
+2. **O índice verifica a extensão recebida.** Sobre o parâmetro, `v[i]` sai
+   `v[keel_index(i, keel__n)]` (§5.3, §5.17): ao contrário da dimensão 0
+   declarada, que é contrato, o binder é o tamanho do vetor que chegou.
+3. **`length` e `dim`.** `keel.length(v)` sai `keel__n`, multiplicado pelas
+   demais dimensões; `keel.dim(v, 0)`, `keel__n`.
+4. **Sufixo de aridade.** O binder não é argumento escrito e não conta (§2.1).
 
 ## 6. Mapeamento de linhas
 

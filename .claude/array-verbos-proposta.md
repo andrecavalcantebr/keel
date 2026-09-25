@@ -1,5 +1,13 @@
 # `array` como cidadão de primeira classe — verbos com corpo em `keel.k`
 
+> **Decidido e aplicado em 2026-09-25**, com mudanças: o binder é
+> `array T v[size_t N]` (explícito, por causa de `#define N`), só na dimensão 0;
+> as constantes (`length`, `capacity`, `dim`) ficam em `keel`, e `get`, `set`,
+> `ptr` e `at` vão para `module keel.array type T;`, selecionado pelo tipo do
+> elemento (saída A2). O texto normativo está na spec §4.2, §5.3, no rationale
+> ("O tamanho de um parâmetro `array`") e no backend §5.18. Este briefing fica
+> como histórico.
+
 Briefing de uma discussão de design (sessão remota, 2026-09-25), ainda **não
 decidida** — nada foi escrito nos normativos. Traz pro Claude Code do PC pra
 continuar dali.

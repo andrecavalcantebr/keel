@@ -675,7 +675,7 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`keel-rationale.md`](keel-rationale.md) | as razões; nada ali é regra |
 | [`keel-c-backend.md`](keel-c-backend.md) | o que depende do alvo: nomes, artefatos, perfis |
 | [`cgen-tool-spec.md`](cgen-tool-spec.md) | o que depende da invocação |
-| [`base/`](base/) | os nove módulos da base, em keel |
+| [`base/`](base/) | os dez módulos da base, em keel |
 | [`golden/`](golden/) | 22 casos com a saída C esperada, nos dois perfis |
 | [`design/`](design/) | desenho da implementação, e as ideias que não são v0 |
 

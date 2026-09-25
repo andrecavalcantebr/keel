@@ -23,11 +23,11 @@ int main(void) {
     if (fb.len != 3 || fb.ptr[0] != 11) return 6;
 
     if (app_ofr_count() != 6) return 7;                 /* keel.length */
-    if (app_ofr_second() != 11) return 8;               /* keel.get */
-    app_ofr_put(5, 50);                                 /* keel.set */
-    if (*app_ofr_at_ptr(5) != 50) return 9;             /* keel.ptr */
-    if (app_ofr_checked(5) != 50) return 10;            /* keel.at, inside */
-    if (app_ofr_checked(6) != -1) return 11;            /* keel.at, outside: every build */
+    if (app_ofr_second() != 11) return 8;               /* array.get */
+    app_ofr_put(5, 50);                                 /* array.set */
+    if (*app_ofr_at_ptr(5) != 50) return 9;             /* array.ptr */
+    if (app_ofr_checked(5) != 50) return 10;            /* array.at, inside */
+    if (app_ofr_checked(6) != -1) return 11;            /* array.at, outside: every build */
 
     if (app_ofr_inverted() != 0) return 12;             /* range.of(5, 2) is empty */
     if (app_ofr_literal() != 3) return 13;              /* 2..5 */

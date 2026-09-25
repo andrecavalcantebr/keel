@@ -4,7 +4,7 @@ import keel.slice   as slice   types;
 import keel.buffer  as buffer  types;
 import keel.range   as range   types;
 import keel.outcome as outcome types;
-
+import keel.array   as array;
 pub array i32 v[6] = {10, 11, 12, 13, 14, 15};
 
 /* slice.of over an array: the core supplies the extent from the table
@@ -22,13 +22,13 @@ pub slice i32 from_buffer(range r) {
     return slice.of(b, r);
 }
 
-/* core operations over array (spec §4.2) */
+/* the constant is core (spec §4.2); element access is keel.array (§5.3) */
 pub size_t count(void) { return keel.length(v); }
-pub i32 second(void) { return keel.get(v, 1); }
-pub void put(size_t i, i32 x) { keel.set(v, i, x); }
-pub i32 *at_ptr(size_t i) { return keel.ptr(v, i); }
+pub i32 second(void) { return array.get(v, 1); }
+pub void put(size_t i, i32 x) { array.set(v, i, x); }
+pub i32 *at_ptr(size_t i) { return array.ptr(v, i); }
 pub i32 checked(size_t i) {
-    outcome i32 r = keel.at(v, i) else return -1;
+    outcome i32 r = array.at(v, i) else return -1;
     return outcome.value(r);
 }
 

@@ -561,7 +561,7 @@ sozinho. O que chega perto é a composição das duas, com a disciplina de pilha
 o modo de falha é testável, e quem lê sabe de onde saiu a memória.
 
 Referência: [spec §5.2](keel-spec.md#52-keelarena) e
-[§5.3](keel-spec.md#53-keelbuffer-keelslice-e-keelrange).
+[§5.3](keel-spec.md#53-keelbuffer-keelslice-keelrange-e-keelarray).
 
 ## Memória por região
 
@@ -680,6 +680,64 @@ As alternativas já existem: uma arena de rascunho
 é o `[len, MAX]` de `extent`.
 
 Referência: [spec §4.4](keel-spec.md#44-resolução-de-operações).
+
+## O tamanho de um parâmetro `array`
+
+keel sabe a dimensão de todo `array` que declara, inclusive de parâmetro, e até
+aqui não emprestava esse número ao corpo da função. O binder empresta:
+`array T v[size_t N]` liga `N` ao tamanho que chegou. É o mesmo mecanismo de
+`else`, que liga o valor de um `outcome`, e de `a..b`, que liga os limites de
+um `range`: keel escreve no C o que o programador escreveria à mão, e o nome
+escrito diz onde. É o truque de macro como linguagem, com escopo e conferência.
+
+**Apagado, e por isso não é o `dim` recusado.** O `dim` como parâmetro de
+função foi recusado porque, apagado, só serviria para dimensionar um vetor
+local, e aí é VLA. O binder é outra coisa: um `size_t` que a função recebe e
+usa como valor — limite de laço, verificação de índice, comprimento devolvido.
+Usá-lo como dimensão é recusado (`binder-as-dimension`), e é essa recusa que o
+mantém fora da porta que o `dim` abriria.
+
+**Explícito, porque o nome nu já tem dono.** `array i32 m[N]` com
+`#define N 10` é C comum, e keel não vê macro. Se um `IDENT` desconhecido na
+dimensão virasse binder, a assinatura C da função mudaria em silêncio. O
+`size_t` na frente faz do binder uma declaração, como `type` faz do parâmetro
+de tipo.
+
+**O parâmetro unidimensional volta.** No C, ele vira um ponteiro que esquece o
+tamanho. Com binder, o tamanho vem junto, e a recusa fica só para a forma sem
+binder.
+
+**A dimensão entregue nunca avalia o argumento.** Na chamada, ela é a
+dimensão declarada, um `sizeof` ou o nome de outro binder, e nenhum dos três
+avalia o caminho: `f(ws[i++].v)` incrementa `i` uma vez. É também por isso que
+a coluna de um `extent` fica de fora. A extensão dela é a contagem, um campo
+lido em execução pelo mesmo caminho; entregá-la avaliaria o caminho duas vezes,
+e entregar a capacidade no lugar deixaria passar o que a contagem existe para
+barrar. A coluna sem índice já é o campo C, e o programa escreve a contagem:
+`slice.from(f32, p->x, p->len)`.
+
+**Por que `get` saiu do núcleo.** Com corpo escrito em keel, `get`, `set`, `ptr`
+e `at` usam `T` por valor e fazem aritmética sobre `T *`. O apagamento de
+`type` não cobre isso (ver acima), e a saída é a que a base já usa: um módulo
+genérico, `keel.array type T`, em que o tipo do elemento do argumento escolhe a
+instância, como o tipo declarado de um `buffer` escolhe a dele. Nada é deduzido
+de expressão C, e por isso a recusa da função genérica livre continua de pé.
+`length`, `capacity` e `dim` ficam no núcleo porque não usam `T` e porque o
+valor deles é ser constante de compilação, o que uma chamada de função não
+seria. A divisão é entre fato da declaração e operação sobre o conteúdo.
+
+**Um genérico sem tipo.** `keel.array` não declara modificador: a instância é
+só a família de verbos de um tipo de elemento. Nada na linha `module` exigia um
+tipo novo — `type T` é substituição textual —, e o caso não tinha aparecido
+porque todo genérico da base, até aqui, construía um descritor.
+
+**A troca de nome é coerência.** `keel.get(v, i)` passa a `array.get(v, i)`, a
+mesma forma de `buffer.get(xs, i)`. O import explícito resolve também o ciclo:
+`keel.array` importa `keel.outcome` como qualquer módulo da base, e o prelúdio
+continua sem import.
+
+Referência: [spec §4.2](keel-spec.md#42-tipos-declarações-e-marcadores) e
+[§5.3](keel-spec.md#53-keelbuffer-keelslice-keelrange-e-keelarray).
 
 ## Memória e visão: a direção da conversão
 
@@ -1252,7 +1310,7 @@ elementos perto do fim e recebe menos, e deixaria `x[a..b]` com um regime
 diferente do de `x[i]`. Quem quer a forma total escreve o verbo, como faz com
 `at`.
 
-Referência: [spec §5.3–4.9](keel-spec.md#53-keelbuffer-keelslice-e-keelrange).
+Referência: [spec §5.3–4.9](keel-spec.md#53-keelbuffer-keelslice-keelrange-e-keelarray).
 
 ## Cursor explícito
 

@@ -2,7 +2,8 @@ Notas do caso.
 
 O caso fecha o que a spec §§4.2 e 5.3 prometiam e a base ainda não escrevia:
 `slice.of` nas três aridades, sobre `array`, `slice` e `buffer`; `buffer.of(v)`
-sobre `array`; as operações do núcleo sobre `array`; e `range.of`.
+sobre `array`; a constante do núcleo e os verbos de `keel.array` sobre
+`array`; e `range.of`.
 
 Comentários dos esperados
 =========================
@@ -16,8 +17,10 @@ Comentários dos esperados
   `slice`. Sobre `buffer`, o verbo é o `as_slice` do buffer — `_as_slice1` com
   o `range`.
 - `buffer.of(v)` é o `of(p, n)` do buffer com `n` vindo da tabela.
-- `keel.length(v)` sai por `sizeof`; `keel.get(v, 1)`, com índice e dimensão
-  decimais conhecidos, sai com o colchete simples; `keel.set` e `keel.ptr`
-  passam por `keel_index` (backend §5.17); `keel.at` é o `at` do `slice` sobre
-  a vista do vetor, e testa em toda build.
+- `keel.length(v)` é do núcleo e sai por `sizeof`. `array.get`, `array.set`,
+  `array.ptr` e `array.at` são os verbos da instância `keel.array i32`
+  (backend §5.2): o binder recebe a dimensão declarada, `6`, logo depois do
+  vetor (backend §5.18), e o índice passa por `keel_index` dentro do verbo.
+  `ptr(v, i)` sai `_ptr1`, pela aridade (backend §2.1); `at` testa em toda
+  build.
 - `a..b` é `range.of(a, b)`, que torna vazio um intervalo invertido.

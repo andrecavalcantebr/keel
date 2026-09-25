@@ -20,7 +20,7 @@ Onde **decide** algo que os normativos deixam aberto, a decisão vem marcada
 
 ## 1. O que falta hoje, e por que ele vem antes dos testes
 
-O catálogo da spec §6.2 tem 135 identificadores, e para cada um dá a condição, a
+O catálogo da spec §6.2 tem 148 identificadores, e para cada um dá a condição, a
 severidade, o responsável e a seção. **Não dá o texto da mensagem.** Nenhuma
 mensagem de diagnóstico do keel existe escrita em lugar nenhum do repositório.
 

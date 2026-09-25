@@ -1327,7 +1327,7 @@ void ast_eval(keel_tagged_ast_Kind_ast_NodeRef t) {
 8. `N` conta os `match` da função, e reinicia a cada função (ferramenta §6.1). [D12](#10-decisões-de-emissão)
 9. Nada é emitido em volta do despacho: o laço é do programa, e escrever a etiqueta — `tagged.mark(t, MUL)` — é chamada comum, que não redespacha. [R: estrutura de controle](keel-rationale.md#estrutura-de-controle-e-máquina-completa)
 10. O campo de etiqueta do `tagged` é `i32`. Um parâmetro declarado com o nome do parâmetro `tags` sai com o tipo do `enum`: `void keel_tagged_ast_Kind_ast_NodeRef_mark(… , ast_Kind e)`. [R: conjuntos fechados](keel-rationale.md#conjuntos-fechados-e-exaustividade)
-11. O `match … {` vira de três a N+2 linhas de saída; o mapeamento diverge e ressincroniza com um `#line` logo depois, uma vez. Do primeiro rótulo em diante o corpo é copiado e volta a mapear 1:1 (§6, regra 2).
+11. O despacho diverge do mapeamento de linhas (§6): cada rótulo de braço é precedido de um `#line` com a linha do rótulo no `.k`, e o fim do `match`, de outro com a linha seguinte à do `}` que o fecha. Dentro de cada braço, o corpo mapeia 1:1. O exemplo acima omite os `#line`. [D35](#10-decisões-de-emissão)
 
 **Verificações:** `tag-out-of-range`, no `default` (§5.17). A pertinência da etiqueta escrita é da tradução (linguagem §4.3).
 
@@ -1981,7 +1981,8 @@ Daí decorre o comportamento de cada região:
 | Declaração levada a header — tipo, protótipo, `extern`, `constexpr` de módulo | sim: o header as reúne fora da ordem e do espaçamento do fonte | uma antes de cada declaração que não seja a linha seguinte da anterior |
 | Expansão de builtin ocupando mais de uma linha | sim | ressincroniza depois |
 | Código injetado — struct de instância, cleanup de `defer`, temporário de `return` | sim | ressincroniza depois |
-| Gestor de `parallel` e despacho de `match` | sim | ressincroniza uma vez, depois do bloco |
+| Gestor de `parallel` | sim | ressincroniza uma vez, depois do bloco |
+| Despacho de `match` | sim | uma antes de cada rótulo de braço, e uma depois do fim (§5.6) |
 | Cláusula `else` — declaração mais `if`, nas duas formas | não, cabe numa linha | nenhuma |
 | `at` — chamada de instância | não | nenhuma |
 | Sintético — `#include` do próprio `.type.h`/`.h`, do prelúdio, dos headers de instância | — | **nenhuma**: falha ali é bug de ferramenta ou de build, não erro do usuário |
@@ -2272,6 +2273,7 @@ alternativa em aberto.
 | 32 | O prelúdio prova o formato dos flutuantes, e não o tamanho | §4.2. `sizeof == 4` não distingue binary32 de um float de 32 bits que não é IEEE, e o §3.1 promete o formato. `__STDC_IEC_559__` é opcional, e vários alvos com IEEE de verdade não o definem por causa de exceções e arredondamento |
 | 33 | O modo fora de linha é do genérico, e não do uso | §4.4. O header da instância é função do genérico e do argumento, byte a byte igual para todos; se `instance` o alterasse, ele dependeria de existir um `instances.k` em algum lugar da árvore. É a definição única do C explicitada: o header da instância é o `extern int g;`, e `instance` é o `int g;`. A instância faltando ser erro de link é a taxa que justifica o default inline |
 | 34 | Nome e layout de tipo gerado não são interface | §4.5. Se os campos fossem contrato, nada garantiria as invariantes que os verbos existem para manter — `push` respeitando `cap`, `len` nunca acima da capacidade. Um `xs.len++` bastaria para voltar a vetor cru com struct em volta |
+| 35 | Um `#line` antes de cada braço de `match` | §5.6. O `switch` de despacho não existe no `.k`, e cada braço termina com duas linhas que também não existem — o `}` e o `goto` para o fim. Um `#line` só, depois do despacho, deixaria o mapeamento escorregar duas linhas por braço. Juntar essas linhas à do rótulo seguinte pouparia os `#line`, mas o primeiro braço precisaria de um de qualquer modo, e o C ficaria ilegível |
 
 ---
 

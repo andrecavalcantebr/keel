@@ -21,7 +21,6 @@ size_t k_lexer_splice_width(keel_slice_char source, size_t pos) {
 
 int k_lexer_peek_at(keel_slice_char source, size_t pos, size_t *width_out) {
     size_t current = pos;
-    size_t width = 0;
 
     while (current < source.len) {
         size_t splice_width = k_lexer_splice_width(source, current);

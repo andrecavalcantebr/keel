@@ -5,9 +5,9 @@
 extern int k_lexer_peek_at(keel_slice_char source, size_t pos, size_t *width_out);
 
 size_t k_lexer_scan_identifier(keel_slice_char source, size_t pos) {
-    size_t start = pos;
     while (true) {
-        int ch = k_lexer_peek_at(source, pos, NULL);
+        size_t w0;
+        int ch = k_lexer_peek_at(source, pos, &w0);
         if (ch == -1) {
             break;
         }
@@ -15,9 +15,9 @@ size_t k_lexer_scan_identifier(keel_slice_char source, size_t pos) {
         // Rule 1: universal character name
         if (ch == '\\') {
             size_t width;
-            int next_ch = k_lexer_peek_at(source, pos + 1, &width);
+            int next_ch = k_lexer_peek_at(source, pos + w0, &width);
             if (next_ch == 'u' || next_ch == 'U') {
-                size_t hex_pos = pos + 1 + width;
+                size_t hex_pos = pos + w0 + width;
                 bool valid = true;
                 int hex_count = (next_ch == 'u') ? 4 : 8;
 
@@ -51,9 +51,7 @@ size_t k_lexer_scan_identifier(keel_slice_char source, size_t pos) {
             (ch >= 'A' && ch <= 'Z') ||
             (ch >= '0' && ch <= '9') ||
             ch == '_') {
-            size_t width;
-            k_lexer_peek_at(source, pos, &width);
-            pos += width;
+            pos += w0;
             continue;
         }
 

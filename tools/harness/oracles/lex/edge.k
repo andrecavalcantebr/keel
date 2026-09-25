@@ -15,4 +15,9 @@ fo\
 o "a\
 b" @ $
 #define F(x) match(x)
+a /* x \
+*/ b /*y*\
+/ c /\
+* z */ d
+caf\u00e9 \U0001F600x \u12 u8'q' u8 'r'
 #

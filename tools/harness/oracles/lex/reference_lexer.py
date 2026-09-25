@@ -18,6 +18,30 @@ P2 = ["->", "++", "--", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||", "*=", "/
       "%=", "+=", "-=", "&=", "^=", "|=", "##", ".."]
 P1 = set("[](){}.&*+-~!/%<>^|?:;=,#")
 
+HEX = set(b"0123456789abcdefABCDEF")
+
+def ucn_len(L, k):
+    """Length of the universal character name at L[k] (\\uXXXX or
+    \\UXXXXXXXX), or 0."""
+    if k + 1 >= len(L) or L[k] != 0x5c or L[k+1] not in (0x75, 0x55):
+        return 0
+    n = 4 if L[k+1] == 0x75 else 8
+    digits = L[k+2:k+2+n]
+    return 2 + n if len(digits) == n and all(d in HEX for d in digits) else 0
+
+def is_ident(logical):
+    b = logical.encode("latin-1")
+    k = 0
+    while k < len(b):
+        u = ucn_len(b, k)
+        if u:
+            k += u; continue
+        ch = chr(b[k])
+        if not (ch.isascii() and (ch.isalpha() or ch == "_" or (k > 0 and ch.isdigit()))):
+            return False
+        k += 1
+    return len(b) > 0
+
 def main():
     path = sys.argv[1]
     name = sys.argv[2] if len(sys.argv) > 2 else path
@@ -92,7 +116,7 @@ def main():
             q = None
             if c in "\"'": q = k
             elif c in "uUL" and at(k+1) in (0x22, 0x27): q = k + 1
-            elif c == "u" and at(k+1) == 0x38 and at(k+2) == 0x22: q = k + 2
+            elif c == "u" and at(k+1) == 0x38 and at(k+2) in (0x22, 0x27): q = k + 2
             if q is not None:
                 opener = L[q]; k = q + 1
                 while k < n:
@@ -100,9 +124,14 @@ def main():
                     if L[k] == 0x5c: k = min(k + 2, n); continue
                     if L[k] in (0x0a, 0x0d): break
                     k += 1
-            elif c.isascii() and (c.isalpha() or c == "_"):
-                while k < n and (chr(L[k]).isascii() and (chr(L[k]).isalnum() or L[k] == 0x5f)):
-                    k += 1
+            elif (c.isascii() and (c.isalpha() or c == "_")) or ucn_len(L, k):
+                while k < n:
+                    if chr(L[k]).isascii() and (chr(L[k]).isalnum() or L[k] == 0x5f):
+                        k += 1
+                    elif ucn_len(L, k):
+                        k += ucn_len(L, k)
+                    else:
+                        break
             elif c.isdigit() or (c == "." and at(k+1) != -1 and chr(at(k+1)).isdigit()):
                 prev = None
                 while k < n:
@@ -124,15 +153,14 @@ def main():
         logical = bytes(L[s:k]).decode("latin-1")
         if cls is None:
             if logical in C_WORDS: cls = "cword"
-            elif (logical[0].isascii() and (logical[0].isalpha() or logical[0] == "_")
-                  and all(ch.isascii() and (ch.isalnum() or ch == "_") for ch in logical)):
+            elif is_ident(logical):
                 cls = "ident"
             elif logical[0].isdigit() or (logical[0] == "." and len(logical) > 1 and logical[1].isdigit()):
                 cls = "number"
             else:
                 body = logical[2:] if logical.startswith("u8") else logical[1:] if logical[:1] in "uUL" else logical
                 if body.startswith('"'): cls = "string"
-                elif (logical[1:] if logical[:1] in "uUL" else logical).startswith("'"): cls = "char"
+                elif body.startswith("'"): cls = "char"
                 elif logical[0] in P1: cls = "punct"
                 else: cls = "other"
         out.append((start_phys, cls, spell_phys))

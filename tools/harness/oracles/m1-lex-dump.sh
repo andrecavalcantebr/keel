@@ -6,10 +6,15 @@
 #      -fsanitize=address,undefined, which is the one exercised below;
 #   2. the fixed cases in oracles/lex/cases.txt must match their .tokens
 #      byte for byte;
-#   3. every .k in golden/cases and base must lex, and match the independent
-#      reference (oracles/lex/reference_lexer.py).
+#   3. every .k in golden/cases and base must lex with no diagnostic (exit 0,
+#      empty stderr), and match the independent reference
+#      (oracles/lex/reference_lexer.py);
+#   4. the lexer diagnostics: diag.k gives exactly diag.stderr and exits 1;
+#      diag-base.k, a module of the base, may #define KEEL_ names: nothing on
+#      stderr, exit 0.
 #
-# The .tokens files are the expectation: they are NOT regenerated from cgen.
+# The .tokens and .stderr files are the expectation: they are NOT regenerated
+# from cgen. diag.stderr was checked by hand against lexer-design §4, §6, §8.
 set -u
 D=tools/harness/oracles/lex
 BIN=$(mktemp)
@@ -44,6 +49,17 @@ for f in $(find golden/cases base -name '*.k' | sort); do
         bad=1
     }
 done
+
+out=$("$BIN" --stop-after=lex "$D/diag.k" 2>&1 >/dev/null); rc=$?
+[ $rc -eq 1 ] || { echo "FAIL: $D/diag.k exited $rc, want 1"; bad=1; }
+printf '%s\n' "$out" | diff -u "$D/diag.stderr" - > /tmp/lexdiag.$$ || {
+    echo "FAIL: $D/diag.k diagnostics differ from diag.stderr:"
+    head -20 /tmp/lexdiag.$$
+    bad=1
+}
+rm -f /tmp/lexdiag.$$
+out=$("$BIN" --stop-after=lex "$D/diag-base.k" 2>&1 >/dev/null); rc=$?
+[ $rc -eq 0 ] && [ -z "$out" ] || { echo "FAIL: $D/diag-base.k exited $rc: $out"; bad=1; }
 
 [ $bad -eq 0 ] && echo "ok     cgen --stop-after=lex        (cgen design §5.1)"
 exit $bad

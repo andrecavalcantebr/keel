@@ -223,22 +223,17 @@ caractere a caractere, à mão — errou comprimento/ordem de letras em
 forma já usada em `token_predicates_words.c` (tabela `{palavra, TKPpKind}`
 percorrida com `strlen`+`memcmp`), passou de primeira.
 
-**Próximos passos, em ordem:**
-
-1. `k_lexer_next` — o despachante que junta os sete reconhecedores num só
-   token, decidindo qual `scan_*` chamar a partir do byte lógico em `pos`
-   (via `k_lexer_peek_at`) e do estado `line_clean` (só relevante para `#`).
-2. A tabela de linha/coluna, dona da ferramenta (`cgen-tool-spec.md §5.1`,
-   `lexer-design.md §2`): o `engine/` devolve offsets físicos: quem traduz
-   para `linha:coluna` é o `tool/`.
-3. Ligar `--stop-after=lex` em `tool/main.c`.
-4. Só a partir daqui o oráculo de integração fica possível: rodar o
-   `cgen --stop-after=lex` de verdade contra um `.k` pequeno e comparar a
-   saída, linha a linha, com um dump de tokens esperado escrito à mão (dado,
-   não código C paralelo) — resolve a redundância "escrever a referência já
-   é escrever o entregável" que motivou essa mudança de direção.
-5. Validar against `/base` e todo `.k` de `golden/cases`: devem lexar sem
-   diagnóstico — critério de aceitação de M1 em `design/cgen-tool.md §9`.
+**M1 fechado (2026-09-24), escrito pelo Claude, fora do laço:**
+`k_lexer_next`, o ponto de entrada `k_parser_keel`, `--stop-after=lex`, os
+diagnósticos léxicos (`engine/diag.c`, `tool/report.c`) e as correções de
+borda (emenda dentro de delimitador de comentário, predicados sobre a grafia
+lógica, nome universal de caractere, `u8'x'`). O oráculo de integração é
+`oracles/m1-lex-dump.sh`: despejos fixos (`lex/*.tokens`), o lexer de
+referência independente (`lex/reference_lexer.py`) contra todo `.k` do golden
+e da `/base`, e os diagnósticos (`lex/diag.k` → `lex/diag.stderr`). Montar
+tarefa para o modelo local custava mais que escrever direto; o modelo local
+volta a valer a partir do parser, quando houver despejos esperados de
+`--stop-after=parse` para os casos do golden.
 
 **Ideia em discussão, não decidida (2026-09-22):** os reconhecedores são
 todos FSMs — alguns puramente sequenciais (`scan_punct`), outros com ramos

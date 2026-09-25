@@ -47,21 +47,8 @@ static void put_escaped(KOut *o, KToken t) {
     }
 }
 
-/* The logical spelling — splices removed — into dst, up to cap bytes.
-   Returns the full logical length, which may exceed cap. */
-static size_t logical(KToken t, char *dst, size_t cap) {
-    size_t n = 0, pos = 0, w;
-    int c;
-    while ((c = k_lexer_peek_at(t, pos, &w)) != -1) {
-        if (n < cap) dst[n] = (char)c;
-        n++;
-        pos += w;
-    }
-    return n;
-}
-
-static bool is_punct_byte(char c) {
-    return c != '\0' && strchr("[](){}.&*+-~!/%<>^|?:;=,#", c) != NULL;
+static bool is_punct_byte(int c) {
+    return c > 0 && strchr("[](){}.&*+-~!/%<>^|?:;=,#", c) != NULL;
 }
 
 /* The class is computed on the logical spelling [D7], in the order of cgen
@@ -75,26 +62,20 @@ static const char *token_class(KToken t, bool directive, TKPpKind kind) {
             default:          return "pp-other";
         }
     }
-    char buf[256];
-    size_t n = logical(t, buf, sizeof buf);
-    KToken l = { n < sizeof buf ? n : sizeof buf, buf };
-    if (n <= sizeof buf) {
-        if (k_token_is_c_word(l)) return "cword";
-        if (k_token_is_ident(l))  return "ident";
-    } else if ((buf[0] >= 'a' && buf[0] <= 'z') || (buf[0] >= 'A' && buf[0] <= 'Z') || buf[0] == '_') {
-        return "ident";                  /* longer than any C word */
-    }
-    if (k_token_is_number(l)) return "number";
-    if (k_token_is_string(l)) return "string";
-    if (k_token_is_char(l))   return "char";
-    if (n > 0 && is_punct_byte(buf[0])) return "punct";
+    if (k_token_is_c_word(t)) return "cword";
+    if (k_token_is_ident(t))  return "ident";
+    if (k_token_is_number(t)) return "number";
+    if (k_token_is_string(t)) return "string";
+    if (k_token_is_char(t))   return "char";
+    if (is_punct_byte(k_lexer_peek_at(t, 0, NULL))) return "punct";
     return "other";
 }
 
-size_t k_parser_keel(keel_slice_char input, keel_slice_char output) {
+size_t k_parser_keel(keel_slice_char input, keel_slice_char output,
+                     KDiagnosticSink *diagnostics) {
     KOut o = { output, 0 };
     KLexer lexer;
-    k_lexer_init(&lexer, input);
+    k_lexer_init(&lexer, input, diagnostics);
 
     size_t line = 1, col = 1, at = 0;
     for (;;) {

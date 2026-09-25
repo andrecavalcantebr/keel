@@ -22,10 +22,10 @@ size_t k_lexer_scan_quoted(keel_slice_char source, size_t pos, bool *unterminate
             current = next_pos + width;
             next_pos = current;
             next_ch = k_lexer_peek_at(source, next_pos, &width);
-            if (next_ch != '"') {
+            if (next_ch != '"' && next_ch != '\'') {
                 return current;
             }
-            opener = '"';
+            opener = next_ch;   /* u8 before a char is C23 */
             current = next_pos + width;
         } else {
             // Skip u, U, or L prefix

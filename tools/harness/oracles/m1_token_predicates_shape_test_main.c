@@ -44,13 +44,22 @@ int main(void) {
     CHECK(k_token_is_char(tok("u'x'")), "u-prefixed char literal");
     CHECK(k_token_is_char(tok("U'x'")), "U-prefixed char literal");
     CHECK(k_token_is_char(tok("L'x'")), "L-prefixed char literal");
-    CHECK(!k_token_is_char(tok("u8'x'")), "u8 is not a valid char prefix in C");
+    CHECK(k_token_is_char(tok("u8'x'")), "u8-prefixed char literal (C23)");
+    CHECK(!k_token_is_string(tok("u8'x'")), "a u8 char literal is not a string");
     CHECK(!k_token_is_char(tok("\"x\"")), "a string literal is not a char");
 
     CHECK(k_token_is_punct(tok("->"), "->"), "-> matches itself");
     CHECK(!k_token_is_punct(tok("->"), "-"), "-> does not match a shorter prefix");
     CHECK(k_token_is_punct(tok("..."), "..."), "... matches itself");
     CHECK(!k_token_is_punct(tok(".."), "..."), ".. does not match ...");
+
+    /* the logical spelling: splices are skipped (lexer-design §5, [D7]) */
+    CHECK(k_token_is_number(tok("\\\n42")), "splice before a digit");
+    CHECK(k_token_is_number(tok(".\\\r\n5")), "splice (CRLF) inside .5");
+    CHECK(k_token_is_string(tok("u\\\n8\"x\"")), "splice inside the u8 prefix");
+    CHECK(k_token_is_char(tok("L\\\r'x'")), "splice (CR) after L");
+    CHECK(k_token_is_punct(tok("-\\\n>"), "->"), "-> split by a splice");
+    CHECK(!k_token_is_punct(tok("-\\\n>"), "-"), "a split -> is not -");
 
     KToken empty = { .len = 0, .ptr = "" };
     CHECK(!k_token_is_number(empty), "empty token is not a number");

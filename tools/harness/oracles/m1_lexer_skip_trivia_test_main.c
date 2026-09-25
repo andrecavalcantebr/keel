@@ -59,6 +59,14 @@ int main(void) {
     }
 
     /* already at end of input */
+    /* a splice may sit before any byte of a comment delimiter: each byte
+       has its own width */
+    { const char *s = "/* x \\\n*/y"; CHECK_EQ(k_lexer_skip_trivia(sl(s, 10), 0), 9, "`*` splice `/` closes the block comment"); }
+    { const char *s = "/*x*\\\n/y"; CHECK_EQ(k_lexer_skip_trivia(sl(s, 8), 0), 7, "`*` then splice then `/` closes it too"); }
+    { const char *s = "/\\\r\n* x */y"; CHECK_EQ(k_lexer_skip_trivia(sl(s, 11), 0), 10, "`/` splice(CRLF) `*` opens a block comment"); }
+    { const char *s = "\\\n//x\ny"; CHECK_EQ(k_lexer_skip_trivia(sl(s, 7), 0), 5, "a splice before `//` still starts a line comment"); }
+    { const char *s = "/* x *\\\n"; CHECK_EQ(k_lexer_skip_trivia(sl(s, 8), 0), 8, "unclosed, ending in a splice: EOF"); }
+
     { const char *s = "x"; CHECK_EQ(k_lexer_skip_trivia(sl(s, 1), 1), 1, "pos already at source.len"); }
 
     /* a single '/' that is not the start of any comment is not trivia */

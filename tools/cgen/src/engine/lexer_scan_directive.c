@@ -48,7 +48,7 @@ size_t k_lexer_scan_directive(keel_slice_char source, size_t pos, TKPpKind *pp_k
 
     while (keyword_len < 8) {
         int c = k_lexer_peek_at(source, keyword_offset, &width);
-        if (c == -1 || !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z')) {
+        if (c == -1 || (!(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z'))) {
             break;
         }
         keyword[keyword_len++] = (char)c;

@@ -41,6 +41,19 @@ int main(void) {
     CHECK(!k_token_is_ident(tok("_Atomic")), "_Atomic is not an ident");
     CHECK(k_token_is_ident(tok("_private")), "_private is an ident");
 
+    /* the logical spelling: splices are skipped (lexer-design §5, [D7]) */
+    CHECK(k_token_is_c_word(tok("ret\\\nurn")), "ret-splice-urn is return");
+    CHECK(!k_token_is_ident(tok("ret\\\r\nurn")), "ret-splice(CRLF)-urn is not an ident");
+    CHECK(k_token_is_ident_named(tok("fo\\\no"), "foo"), "fo-splice-o is named foo");
+    CHECK(k_token_is_c_word_named(tok("in\\\nt"), "int"), "in-splice-t is the c word int");
+
+    /* universal character names (lexer-design §5) */
+    CHECK(k_token_is_ident(tok("caf\\u00e9")), "caf\\u00e9 is an ident");
+    CHECK(k_token_is_ident(tok("\\U0001F600x")), "an ident may start with \\U");
+    CHECK(!k_token_is_ident(tok("caf\\u00e")), "\\u needs 4 hex digits");
+    CHECK(!k_token_is_ident(tok("caf\\u00eg")), "\\u takes hex digits only");
+    CHECK(!k_token_is_ident(tok("a\\x41")), "\\x is not a universal character name");
+
     const char *words[] = {"int", "return", "struct", "_Bool", "while", "volatile"};
     for (size_t i = 0; i < sizeof(words) / sizeof(*words); i++) {
         KToken t = tok(words[i]);

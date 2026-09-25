@@ -118,6 +118,11 @@ static const char *const k_contextual_words[] = {
 };
 ```
 
+A reserva vale para o fonte do usuário (backend §4.2). Os módulos da base,
+os que começam por `module keel` ou `module keel.<nome>`, são donos dos nomes
+`KEEL_`: é o prelúdio que define `KEEL_CHECKS` e `KEEL_CHECK` (backend §5.17).
+O lexer reconhece isso nas duas primeiras tokens do fonte, sem parser.
+
 Essa é a lista de palavras-chave contextuais do núcleo keel. Ela não cria outra
 classe de token: salvo `constexpr` e `else`, que são palavras C, as grafias
 continuam identificadores até a posição da gramática que lhes dá significado.

@@ -20,7 +20,9 @@ trap 'rm -f "$FAKECC" "$FAKECC_LOG" "$CGEN"' EXIT
 
 gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen \
     -fsanitize=address,undefined -fno-sanitize-recover=all -g -O0 \
-    "$SRC" "$ROOTS" "$MATCH_OPT" "$BASE_RESOLVE" -o "$CGEN"
+    "$SRC" "$ROOTS" "$MATCH_OPT" "$BASE_RESOLVE" \
+    $(find tools/cgen/src -name '*.c' ! -name main.c ! -name roots.c \
+          ! -name match_option.c ! -name base_resolve.c) -o "$CGEN"
 if [ $? -ne 0 ]; then
     echo "FAIL: sanitizer build failed (see above)"
     exit 1

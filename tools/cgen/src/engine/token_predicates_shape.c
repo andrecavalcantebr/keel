@@ -4,82 +4,54 @@
 
 typedef keel_slice_char KToken;
 
+extern int k_lexer_peek_at(keel_slice_char source, size_t pos, size_t *width_out);
+
+/* The predicates read the logical spelling: splices are skipped (lexer-design
+   §5, [D7]). `c` is the n-th logical byte of t, or -1 past the end. */
+static int logical_at(KToken t, size_t n) {
+    size_t pos = 0, w;
+    int c = k_lexer_peek_at(t, pos, &w);
+    while (c >= 0 && n > 0) {
+        pos += w;
+        c = k_lexer_peek_at(t, pos, &w);
+        n--;
+    }
+    return c;
+}
+
+static bool is_digit(int c) {
+    return c >= '0' && c <= '9';
+}
+
+/* how many logical bytes the u8, u, U or L prefix takes, if the literal
+   has one */
+static size_t prefix_len(KToken t) {
+    int c0 = logical_at(t, 0);
+    if (c0 == 'u' && logical_at(t, 1) == '8') return 2;
+    if (c0 == 'u' || c0 == 'U' || c0 == 'L') return 1;
+    return 0;
+}
+
 bool k_token_is_number(KToken t) {
-    if (t.len == 0) return false;
-    
-    char first = t.ptr[0];
-    if (first >= '0' && first <= '9') {
-        return true;
-    }
-    
-    if (first == '.') {
-        if (t.len > 1) {
-            char second = t.ptr[1];
-            if (second >= '0' && second <= '9') {
-                return true;
-            }
-        }
-    }
-    
-    return false;
+    int c0 = logical_at(t, 0);
+    return is_digit(c0) || (c0 == '.' && is_digit(logical_at(t, 1)));
 }
 
 bool k_token_is_string(KToken t) {
-    if (t.len == 0) return false;
-    
-    const char *ptr = t.ptr;
-    size_t len = t.len;
-    
-    // Check for optional prefix
-    if (len >= 2 && ptr[0] == 'u' && ptr[1] == '8') {
-        ptr += 2;
-        len -= 2;
-    } else if (len >= 1) {
-        if (ptr[0] == 'u' || ptr[0] == 'U' || ptr[0] == 'L') {
-            ptr += 1;
-            len -= 1;
-        }
-    }
-    
-    // Must have a quote after prefix
-    if (len == 0) return false;
-    
-    if (*ptr == '"') {
-        return true;
-    }
-    
-    return false;
+    return logical_at(t, prefix_len(t)) == '"';
 }
 
+/* u8 is a char prefix since C23 */
 bool k_token_is_char(KToken t) {
-    if (t.len == 0) return false;
-    
-    const char *ptr = t.ptr;
-    size_t len = t.len;
-    
-    // Check for optional prefix
-    if (len >= 1) {
-        if (ptr[0] == 'u' || ptr[0] == 'U' || ptr[0] == 'L') {
-            ptr += 1;
-            len -= 1;
-        }
-    }
-    
-    // Must have a quote after prefix
-    if (len == 0) return false;
-    
-    if (*ptr == '\'') {
-        return true;
-    }
-    
-    return false;
+    return logical_at(t, prefix_len(t)) == '\'';
 }
 
 bool k_token_is_punct(KToken t, const char *spelling) {
-    if (t.len == 0 || spelling == NULL) return false;
-    
-    size_t spell_len = strlen(spelling);
-    if (spell_len != t.len) return false;
-    
-    return memcmp(t.ptr, spelling, t.len) == 0;
+    if (spelling == NULL) return false;
+    size_t pos = 0, w;
+    for (; *spelling; spelling++) {
+        if (k_lexer_peek_at(t, pos, &w) != (unsigned char)*spelling) return false;
+        pos += w;
+    }
+    return k_lexer_peek_at(t, pos, NULL) < 0;
 }

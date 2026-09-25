@@ -20,7 +20,7 @@ temporário, sem `mkstemp`, sem limpeza.
 | Arquivo | Desenho |
 | --- | --- |
 | `lexer.h`, `lexer.c`, `lexer_*.c` | [lexer-design.md](../../../../design/lexer-design.md) |
-| `parser_keel.c` | ponto de entrada, `k_parser_keel`; por ora, o despejo de tokens do `--stop-after=lex` ([desenho do cgen §5.1](../../../../design/cgen-tool.md#51---stop-afterlex)) |
+| `parser_keel.c` | ponto de entrada, `k_parser_keel(input, output, diagnostics)`; por ora, o despejo de tokens do `--stop-after=lex` ([desenho do cgen §5.1](../../../../design/cgen-tool.md#51---stop-afterlex)) |
 | `parser.c`, `symtab.c` | [parser-design.md](../../../../design/parser-design.md) |
 | `emit/` | [codegen-design.md](../../../../design/codegen-design.md) |
-| `diag.c` | [diag-design.md](../../../../design/diag-design.md) |
+| `diag.h`, `diag.c` | [diag-design.md](../../../../design/diag-design.md): o sink, que acumula na memória dada por quem chama; a tabela tem por ora só os diagnósticos do lexer |

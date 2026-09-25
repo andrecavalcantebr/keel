@@ -29,4 +29,8 @@ gcc -std=c2x -I tools/cgen/gen -Wall -Wextra \
     exit 1
 }
 
-"$BIN"
+# a recognizer that never returns is a failure, not a hang
+timeout 10 "$BIN"
+rc=$?
+[ $rc -eq 124 ] && echo "FAIL: timed out (a loop that does not advance?)"
+exit $rc

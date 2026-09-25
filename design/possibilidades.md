@@ -21,6 +21,77 @@ rationale ou o backend, e sai daqui.
 Candidatos a módulo, sem contrato fechado nem `.k`. Nenhum pede trabalho de
 núcleo: cabem em `module`/`modifier` com `dim`/`type`/`tags`.
 
+### `keel.pair`: `pair` e `pairs`
+
+Candidato próximo. Um módulo com dois modificadores de mesma assinatura `type`
+de dois parâmetros (spec §4.3 admite mais de um modificador por módulo):
+
+```keel
+module keel.pair type K, V;
+pub modifier pair { K key; V value; }
+pub modifier pairs byref { K *keys; V *values; size_t len, cap; }
+```
+
+```keel
+pair size_t size_t minmax(slice const i32 s);
+
+pairs u32 f32 weights = pairs.from(keys, values, capacity);
+pairs.push(weights, 7, 0.5f);
+f32 *w = pairs.find(weights, 7);   // linear scan over keys
+```
+
+`pairs K V` é uma tabela de chave e valor com o layout de um `extent` de
+duas colunas: dois vetores paralelos sob um único `len`/`cap`, e não um
+`buffer pair K V`. A busca percorre só a coluna de chaves, contígua. Com uma
+coluna que cabe na cache, a varredura sequencial com o prefetcher, e com SIMD
+quando `K` é um inteiro, pode vencer o hash: não há função de hash, nem
+ponteiro até o bucket, nem colisão. Achada a posição `i`, o valor está em
+`values[i]`. Separar as colunas também elimina o padding entre `K` e `V`:
+`pair u8 f64` ocupa 16 bytes, e `pairs u8 f64` ocupa 9 bytes por entrada. Até a
+versão 1.23, o bucket do `map` de Go guardava as chaves juntas e os valores
+juntos pelo mesmo motivo.
+
+`pair K V` é o valor avulso, e é o que `pairs` entrega numa travessia ou num
+`get`, montado por cópia das duas colunas. Como `pairs` não guarda `pair`,
+não há `ptr` para um `pair` inteiro, só para a chave ou para o valor.
+
+Os três níveis:
+
+| Forma | Layout | Busca |
+| --- | --- | --- |
+| `pair K V` | um valor, os dois campos juntos | nenhuma |
+| `pairs K V` | duas colunas, na ordem de inserção | linear sobre as chaves |
+| `map K V` | `buffer` com hash | hash |
+
+`map` é outro módulo e fica para depois. Pode entregar `pair` como elemento
+percorrido, mas nem `pair` nem `pairs` dependem dele.
+
+Abertos:
+
+- **O ponto de cruzamento com o hash é empírico**, e depende do tamanho de `K`,
+  do nível de cache e do custo da comparação. A entrada só afirma o regime:
+  poucas entradas, chave pequena, muitas buscas. Um benchmark contra um `map`
+  deve fixar a faixa antes que a documentação recomende um ou outro.
+- **`extent` genérico.** O corpo de `modifier` é C opaco, e `K *keys` é um
+  ponteiro comum, não uma coluna de `extent`: `weights.keys[i]` não tem a
+  verificação da §4.11. Um modificador que declarasse colunas seria extensão
+  da linguagem, do escopo da §2 abaixo.
+- **Chave com `==`.** A comparação de `find` serve para inteiros, ponteiros e
+  enums; `struct` e string pedem uma função de igualdade, como parâmetro do
+  verbo ou numa variante.
+- **Chave duplicada.** `push` recusa, sobrescreve ou aceita e deixa `find`
+  achar a primeira ocorrência.
+- **Ordem.** Com as chaves mantidas em ordem, `find` vira busca binária, e
+  `push` passa a deslocar as duas colunas. Pode ser um terceiro modificador
+  com a mesma memória.
+- O par memória/visão: uma visão de `pairs` seria um par de `slice` com o
+  mesmo comprimento.
+- Com `V` igual a `void`, a regra 11 da §4.3 omite `value` e `values`:
+  `pairs K void` vira um conjunto com busca linear, o que talvez seja útil, e
+  `pair K void` fica reduzido a um campo, o que talvez valha recusar.
+- `pair` não carrega significado de erro. Resultado com falha é `outcome`
+  (spec §5.5); `find` devolve ponteiro nulo ou `outcome`.
+
 ### `keel.buffer(N)` / `keel.slice(N)`
 
 *soa* homogêneo: `N` colunas paralelas do mesmo tipo `T`, sincronizadas por um
@@ -117,6 +188,55 @@ bitbuffer(1) u8 marked;   // bitmask
 
 Uso já à vista: a tabela de estados de `keel.routine` (spec §5.6) poderia ser
 `bitbuffer(1)`, e a presença de componente numa leitura ECS (§3) também.
+
+### `keel.grid`: `box(N)` e `index(N)`
+
+A extensão de `range` para N dimensões. `range` está para `size_t` assim como
+`box(N)`, o produto de `N` intervalos, está para `index(N)`, a coordenada de
+um elemento. Precedentes: `CartesianIndex`/`CartesianIndices` de Julia, o
+`operator[]` do `mdspan` do C++23 com índices em `std::array`, e os domínios
+de Chapel.
+
+```keel
+module keel.grid dim N;
+pub modifier index { size_t i[N]; }
+pub modifier box { size_t first[N], limit[N]; }
+```
+
+```keel
+index(2) argmax(array f32 m[R, C]);
+
+index(2) p = (index(2)){ r, c };
+m[p.i[0], p.i[1]] = 0.0f;
+```
+
+O uso mais fraco é receber uma coordenada como parâmetro, porque
+`f(v, I, x)` pouco ganha sobre `f(v, i, j, x)`. O ganho está em:
+
+- **devolver e guardar posições**: `argmax`, matriz esparsa em COO (uma
+  `buffer` de `index(2)` com os valores), busca em grade, coordenadas de
+  pixel, vizinhos de estêncil (`I` mais um deslocamento);
+- **código independente da quantidade de dimensões**: `box(N)` é Contável
+  (`foreach` produz `index(N)`) e Particionável (`parallel` em blocos), como
+  `range` (spec §5.1);
+- **vista multidimensional**: `v[box]` como `range-index` de N dimensões, que
+  a spec §4.5 já deixa aos módulos que o implementam.
+
+Abertos:
+
+- **Açúcar `v[I]`.** Com `I` de tipo `index(k)` e `v` um `array` de `k`
+  dimensões, `v[I]` expandiria para `v[I.i[0]]...[I.i[k-1]]`, com a
+  verificação de cada dimensão (spec §4.5, regra 12). Esse açúcar é trabalho de
+  núcleo, não de módulo: sem ele, `keel.grid` fica só com o acesso campo a
+  campo.
+- **Sem literal `[a,b]`.** `a..b` funciona porque `..` não é token C; um `[`
+  em posição de expressão colide com designador (`{ [0] = x }`) e com atributo
+  C23 (`[[nodiscard]]`). A construção fica no literal composto
+  `(index(2)){ a, b }` ou num verbo `index.of(a, b)`.
+- `box(N)` com `first`/`limit` separados ou como `range r[N]`; a segunda forma
+  reaproveita os verbos de `range` dimensão a dimensão.
+- O nome `array` não serve ao módulo: já é o marcador do núcleo e
+  `keel.array`.
 
 ### `keel.slice.from(T, p, range)`
 

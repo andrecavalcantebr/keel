@@ -29,7 +29,7 @@ bad=0
 while read -r f; do
     [ -n "$f" ] || continue
     exp="$D/$(basename "$f" .k).tokens"
-    out=$("$BIN" --stop-after=lex "$f" 2>&1) || { echo "FAIL: $f — cgen exited $?"; echo "$out" | tail -5; bad=1; continue; }
+    out=$(timeout 10 "$BIN" --stop-after=lex "$f" 2>&1) || { echo "FAIL: $f — cgen exited $?"; echo "$out" | tail -5; bad=1; continue; }
     printf '%s\n' "$out" | diff -u "$exp" - > /tmp/lexdiff.$$ || {
         echo "FAIL: $f differs from $exp (first lines of the diff):"
         head -20 /tmp/lexdiff.$$
@@ -39,7 +39,7 @@ done < "$D/cases.txt"
 rm -f /tmp/lexdiff.$$
 
 for f in $(find golden/cases base -name '*.k' | sort); do
-    out=$("$BIN" --stop-after=lex "$f" 2>&1) || { echo "FAIL: $f — cgen exited $?"; echo "$out" | tail -5; bad=1; continue; }
+    out=$(timeout 10 "$BIN" --stop-after=lex "$f" 2>&1) || { echo "FAIL: $f — cgen exited $?"; echo "$out" | tail -5; bad=1; continue; }
     ref=$(python3 "$D/reference_lexer.py" "$f")
     [ "$out" = "$ref" ] || {
         echo "FAIL: $f disagrees with the reference lexer:"
@@ -50,7 +50,7 @@ for f in $(find golden/cases base -name '*.k' | sort); do
     }
 done
 
-out=$("$BIN" --stop-after=lex "$D/diag.k" 2>&1 >/dev/null); rc=$?
+out=$(timeout 10 "$BIN" --stop-after=lex "$D/diag.k" 2>&1 >/dev/null); rc=$?
 [ $rc -eq 1 ] || { echo "FAIL: $D/diag.k exited $rc, want 1"; bad=1; }
 printf '%s\n' "$out" | diff -u "$D/diag.stderr" - > /tmp/lexdiag.$$ || {
     echo "FAIL: $D/diag.k diagnostics differ from diag.stderr:"
@@ -58,7 +58,7 @@ printf '%s\n' "$out" | diff -u "$D/diag.stderr" - > /tmp/lexdiag.$$ || {
     bad=1
 }
 rm -f /tmp/lexdiag.$$
-out=$("$BIN" --stop-after=lex "$D/diag-base.k" 2>&1 >/dev/null); rc=$?
+out=$(timeout 10 "$BIN" --stop-after=lex "$D/diag-base.k" 2>&1 >/dev/null); rc=$?
 [ $rc -eq 0 ] && [ -z "$out" ] || { echo "FAIL: $D/diag-base.k exited $rc: $out"; bad=1; }
 
 [ $bad -eq 0 ] && echo "ok     cgen --stop-after=lex        (cgen design §5.1)"

@@ -1,0 +1,5 @@
+tools/harness/oracles/lex/cr.k:1:1: ident "a"
+tools/harness/oracles/lex/cr.k:2:1: ident "b\\\rc"
+tools/harness/oracles/lex/cr.k:4:1: pp-if "#if X\r"
+tools/harness/oracles/lex/cr.k:5:1: pp-endif "#endif\r"
+tools/harness/oracles/lex/cr.k:6:1: eof

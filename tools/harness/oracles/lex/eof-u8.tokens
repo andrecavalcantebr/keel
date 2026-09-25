@@ -1,0 +1,3 @@
+tools/harness/oracles/lex/eof-u8.k:1:1: ident "x"
+tools/harness/oracles/lex/eof-u8.k:1:3: ident "u8"
+tools/harness/oracles/lex/eof-u8.k:1:5: eof

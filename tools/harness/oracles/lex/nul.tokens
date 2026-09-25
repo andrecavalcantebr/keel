@@ -1,0 +1,4 @@
+tools/harness/oracles/lex/nul.k:1:1: ident "a"
+tools/harness/oracles/lex/nul.k:1:2: other "\x00"
+tools/harness/oracles/lex/nul.k:1:3: ident "b"
+tools/harness/oracles/lex/nul.k:2:1: eof

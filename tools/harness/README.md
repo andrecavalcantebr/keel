@@ -235,6 +235,12 @@ tarefa para o modelo local custava mais que escrever direto; o modelo local
 volta a valer a partir do parser, quando houver despejos esperados de
 `--stop-after=parse` para os casos do golden.
 
+Os oráculos por reconhecedor (`m1-lexer-*`, `m1-token-predicates-*`) e as
+tarefas deles saíram em 2026-09-24: o despejo testa cada reconhecedor pelo
+lexer inteiro, e os casos que só eles tinham (fim de arquivo no meio de
+emenda, comentário ou literal; CR sozinho; NUL; arquivo vazio) viraram
+arquivos pequenos em `oracles/lex/`, um EOF por arquivo. Ficam no git.
+
 **Ideia em discussão, não decidida (2026-09-22):** os reconhecedores são
 todos FSMs — alguns puramente sequenciais (`scan_punct`), outros com ramos
 que se decidem cedo e seguem lineares dali (`scan_number`: o primeiro byte,

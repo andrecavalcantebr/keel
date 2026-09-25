@@ -24,8 +24,8 @@ without breaking that.
 | `tools/cgen/src/engine/parser_keel.c` | `k_parser_keel`: the token dump, and later the parser |
 | `tools/cgen/src/tool/stop_lex.c` | `--stop-after=lex`: reads the file, sizes the dump and the diagnostics, prefixes the file name |
 | `tools/cgen/src/tool/report.c` | prints diagnostics as `<file>:<line>:<col>: <severity>: <message> [<name>]` |
-| `tools/harness/oracles/m1-lex-dump.sh` | the oracle for everything here |
-| `tools/harness/oracles/lex/` | fixed cases (`cases.txt`), their expected dumps (`*.tokens`), `edge.k`, `reference_lexer.py`, and the diagnostics cases `diag.k` → `diag.stderr`, `diag-base.k` |
+| `tools/harness/oracles/m1-lex-dump.sh` | the oracle for everything here; each recognizer is tested through the dump, not in isolation |
+| `tools/harness/oracles/lex/` | fixed cases (`cases.txt`), their expected dumps (`*.tokens`): `edge.k`, `edge2.k`, one small file per EOF and line-ending case (`eof-*.k`, `cr.k`, `nul.k`, `empty.k`); `reference_lexer.py`; and the diagnostics cases `diag.k` → `diag.stderr`, `diag-base.k` |
 
 ## Read before changing anything
 
@@ -46,11 +46,10 @@ without breaking that.
    `reference_lexer.py` and is read line by line against the design before it
    is committed. If you believe an expected line is wrong, stop and report it,
    citing the design paragraph.
-3. **Keep the signatures in `lexer.h`.** Each recognizer and predicate also has
-   its own oracle (`tools/harness/oracles/m1-*.sh`) that compiles that one file
-   in isolation. After touching one, run its oracle too.
+3. **Keep the signatures in `lexer.h`.** The parser is built on them.
 4. **Never read past `source.len`, and every loop advances.** The oracle builds
-   with `-fsanitize=address,undefined`; an out-of-bounds read fails it.
+   with `-fsanitize=address,undefined`; an out-of-bounds read fails it, and a
+   loop that does not advance times out (exit 124).
 5. Code and comments in English, C23 (`-std=c2x`). Engine functions are
    `k_…`, tool functions `cgen_…`.
 
@@ -59,8 +58,6 @@ without breaking that.
 ```sh
 make -C tools/cgen
 sh tools/harness/oracles/m1-lex-dump.sh
-# after touching a recognizer or predicate, its own oracle, e.g.:
-sh tools/harness/oracles/m1-lexer-skip-trivia.sh tools/cgen/src/engine/lexer_skip_trivia.c
 ```
 
 `m1-lex-dump.sh` checks four things: the build, the fixed cases against their

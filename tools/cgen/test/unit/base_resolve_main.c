@@ -1,4 +1,4 @@
-/* Hand-written driver for tools/harness/tasks/m0-base-resolve.md. Not
+/* Unit test of tool/, first written as the oracle of the harness task m0-base-resolve.md. Not
  * model-generated. argv[1], if present, is passed through as the explicit
  * --base-dir; if absent, resolution must fall back to the real executable's
  * own path (/proc/self/exe on Linux), which is exactly why the oracle

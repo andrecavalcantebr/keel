@@ -4,11 +4,11 @@
 #
 #   1. builds cgen as usual (make -C tools/cgen), and a copy with
 #      -fsanitize=address,undefined, which is the one exercised below;
-#   2. the fixed cases in oracles/lex/cases.txt must match their .tokens
+#   2. the fixed cases in test/lex/cases.txt must match their .tokens
 #      byte for byte;
 #   3. every .k in golden/cases and base must lex with no diagnostic (exit 0,
 #      empty stderr), and match the independent reference
-#      (oracles/lex/reference_lexer.py);
+#      (test/lex/reference_lexer.py);
 #   4. the lexer diagnostics: diag.k gives exactly diag.stderr and exits 1;
 #      diag-base.k, a module of the base, may #define KEEL_ names: nothing on
 #      stderr, exit 0.
@@ -16,7 +16,7 @@
 # The .tokens and .stderr files are the expectation: they are NOT regenerated
 # from cgen. diag.stderr was checked by hand against lexer-design §4, §6, §8.
 set -u
-D=tools/harness/oracles/lex
+D=tools/cgen/test/lex
 BIN=$(mktemp)
 trap 'rm -f "$BIN"' EXIT
 

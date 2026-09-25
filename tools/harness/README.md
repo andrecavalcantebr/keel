@@ -183,7 +183,7 @@ id: m0-args-partition
 output: tools/cgen/src/tool/main.c
 acceptance:
   - "make -C tools/cgen"
-  - "sh tools/harness/oracles/m0-args-partition.sh"
+  - "sh tools/cgen/test/cli/args_partition.sh"
 max_attempts: 5
 ---
 ```
@@ -228,7 +228,7 @@ percorrida com `strlen`+`memcmp`), passou de primeira.
 diagnósticos léxicos (`engine/diag.c`, `tool/report.c`) e as correções de
 borda (emenda dentro de delimitador de comentário, predicados sobre a grafia
 lógica, nome universal de caractere, `u8'x'`). O oráculo de integração é
-`oracles/m1-lex-dump.sh`: despejos fixos (`lex/*.tokens`), o lexer de
+`tools/cgen/test/lex_dump.sh`: despejos fixos (`lex/*.tokens`), o lexer de
 referência independente (`lex/reference_lexer.py`) contra todo `.k` do golden
 e da `/base`, e os diagnósticos (`lex/diag.k` → `lex/diag.stderr`). Montar
 tarefa para o modelo local custava mais que escrever direto; o modelo local
@@ -239,11 +239,11 @@ Os oráculos por reconhecedor (`m1-lexer-*`, `m1-token-predicates-*`) e as
 tarefas deles saíram em 2026-09-24: o despejo testa cada reconhecedor pelo
 lexer inteiro, e os casos que só eles tinham (fim de arquivo no meio de
 emenda, comentário ou literal; CR sozinho; NUL; arquivo vazio) viraram
-arquivos pequenos em `oracles/lex/`, um EOF por arquivo. Ficam no git.
+arquivos pequenos em `tools/cgen/test/lex/`, um EOF por arquivo. Ficam no git.
 
-**O oráculo do parser (M2 em diante) já existe:** `oracles/m2-parse-dump.sh
+**O oráculo do parser (M2 em diante) já existe:** `tools/cgen/test/parse_dump.sh
 [header|decl|inst|ilha]` compara o `--stop-after=parse` dos casos 001, 009 e
-013 com os despejos escritos à mão em `oracles/parse/*.parse` (formato no
+013 com os despejos escritos à mão em `tools/cgen/test/parse/*.parse` (formato no
 desenho do cgen §5.2). O nível diz quais linhas contam, então o parser pode
 ser construído por passagem: `header` e `decl` são o M2; `inst` e `ilha`, a
 passagem 3.
@@ -260,3 +260,12 @@ código mais uniforme e evitaria bugs de "ramo esquecido" como o de
 `scan_directive` acima. Custo: desenhar a tabela de estados é mais trabalho
 de preparo por tarefa do que escrever regras em prosa. Ainda não aplicada a
 nenhuma tarefa; avaliar ao escrever a tarefa de `k_lexer_next`.
+
+**Os oráculos viraram a suíte do cgen (2026-09-25).** O que era `oracles/` —
+os testes de `tool/` das tarefas M0 e M1, o despejo do lexer e o do parser —
+mora em `tools/cgen/test/` e roda com `make -C tools/cgen check`
+(`PARSE_LEVEL=header|decl|inst|ilha` inclui o parser). As tarefas `tasks/m0-*`
+e `m1-read-source` ficam como histórico: os comandos de aceitação delas apontam
+para os caminhos antigos. Tarefa nova para o modelo local usa os testes de lá
+como aceitação.
+

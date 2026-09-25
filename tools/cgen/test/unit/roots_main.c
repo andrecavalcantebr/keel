@@ -1,4 +1,4 @@
-/* Hand-written driver for tools/harness/tasks/m0-roots-check.md. Not
+/* Unit test of tool/, first written as the oracle of the harness task m0-roots-check.md. Not
  * model-generated. */
 
 #include <stdbool.h>

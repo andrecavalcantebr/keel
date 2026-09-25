@@ -4,9 +4,9 @@
 # generated C file by loop.py.
 set -u
 
-SRC="$1"
-HARNESS_DIR=tools/harness
-TESTMAIN="$HARNESS_DIR/oracles/m0_base_resolve_test_main.c"
+SRC=tools/cgen/src/tool/base_resolve.c
+
+TESTMAIN=tools/cgen/test/unit/base_resolve_main.c
 BIN=$(mktemp)
 WORK=$(mktemp -d)
 trap 'rm -f "$BIN"; rm -rf "$WORK"' EXIT

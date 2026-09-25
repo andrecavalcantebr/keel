@@ -38,6 +38,10 @@ $(PRJ): $(objects)
 run:
 	./$(PRJ)
 
+# the test suite (cgen design §10); PARSE_LEVEL=header|decl|inst|ilha adds the parser
+check: all
+	@sh test/run.sh
+
 # A fronteira do motor, verificada sem compilar nada. Mesma espécie de
 # invariante estrutural que o runner do golden aplica ao gerado (I1, I2), e
 # pela mesma razão: regra que só se verifica lendo o código é regra que se

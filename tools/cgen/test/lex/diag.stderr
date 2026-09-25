@@ -1,0 +1,8 @@
+tools/cgen/test/lex/diag.k:2:11: error: string literal has no closing `"` before the end of the line; write `\n` for a newline inside it [literal-with-newline]
+tools/cgen/test/lex/diag.k:3:2: error: string literal has no closing `"` before the end of the line; write `\n` for a newline inside it [literal-with-newline]
+tools/cgen/test/lex/diag.k:4:10: error: character literal has no closing `'` before the end of the line; write `\n` for a newline inside it [literal-with-newline]
+tools/cgen/test/lex/diag.k:6:9: error: cannot `#define` `keel_x`: names starting with `keel_` or `KEEL_` are reserved to keel [define-over-keel-name]
+tools/cgen/test/lex/diag.k:7:9: error: cannot `#define` `KEEL_CHECKS`: names starting with `keel_` or `KEEL_` are reserved to keel [define-over-keel-name]
+tools/cgen/test/lex/diag.k:8:8: error: cannot `#undef` `constexpr`: it is a keel word [define-over-keel-name]
+tools/cgen/test/lex/diag.k:9:18: error: cannot `#undef` `match`: it is a keel word [define-over-keel-name]
+tools/cgen/test/lex/diag.k:10:9: error: cannot `#define` `match`: it is a keel word [define-over-keel-name]

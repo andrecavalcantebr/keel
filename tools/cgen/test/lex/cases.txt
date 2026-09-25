@@ -1,0 +1,17 @@
+golden/cases/009-match-tags/ag.k
+golden/cases/013-sugar/app/ac.k
+golden/cases/020-extent/app/pos.k
+tools/cgen/test/lex/edge.k
+tools/cgen/test/lex/edge2.k
+tools/cgen/test/lex/eof-backslash.k
+tools/cgen/test/lex/eof-splice.k
+tools/cgen/test/lex/eof-line-comment.k
+tools/cgen/test/lex/eof-block-comment.k
+tools/cgen/test/lex/eof-block-splice.k
+tools/cgen/test/lex/eof-u8.k
+tools/cgen/test/lex/eof-string.k
+tools/cgen/test/lex/eof-escape.k
+tools/cgen/test/lex/eof-directive.k
+tools/cgen/test/lex/cr.k
+tools/cgen/test/lex/nul.k
+tools/cgen/test/lex/empty.k

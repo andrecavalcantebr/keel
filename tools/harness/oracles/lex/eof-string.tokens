@@ -1,3 +1,0 @@
-tools/harness/oracles/lex/eof-string.k:1:1: ident "x"
-tools/harness/oracles/lex/eof-string.k:1:3: string "\"abc"
-tools/harness/oracles/lex/eof-string.k:1:7: eof

@@ -430,7 +430,7 @@ argumento *k* é um tipo, apagado em tamanho e alinhamento (backend §5.16).
 
 Os módulos importados são carregados (é preciso, para resolver) e não são
 impressos. Os despejos esperados de três casos do golden estão em
-`tools/harness/oracles/parse/`, e o oráculo `m2-parse-dump.sh` os compara em
+`tools/cgen/test/parse/`, e o teste `parse_dump.sh` os compara em
 quatro níveis cumulativos: `header`, `decl`, `inst`, `ilha`.
 
 ### 5.3 `--stop-after=gen` e os arquivos gerados
@@ -675,7 +675,7 @@ ilha	defer	now FILE *fp	app/cfg.k:15:5
 …
 ```
 
-(O despejo inteiro, e os de 009 e 013, estão em `tools/harness/oracles/parse/`.)
+(O despejo inteiro, e os de 009 e 013, estão em `tools/cgen/test/parse/`.)
 
 ### 8.6 Compilação separada com depfile
 
@@ -759,7 +759,7 @@ Cada marco termina com o seu teste passando e o anterior intacto.
 | --- | --- | --- |
 | **M0** driver | `args.c`, modo transparente, `--cgen-version`/`--cgen-help`, erros de invocação, resolução da base | tabela de `argv` → (opções do cgen, repasse, fonte) em teste de unidade; §8.1, §8.2, e os três primeiros de §8.8 |
 | **M1** lexer | `lexer.c` + `--stop-after=lex` | os casos do [lexer-design §8](lexer-design.md#8-casos-de-aceitação) e §8.4; toda a `/base` e todo `.k` de `golden/cases` lexam sem diagnóstico |
-| **M2** módulos | `paths.c`, `tool.c`, parser de nível de arquivo (`module`, `import`, `import_c`, `extern_c`, assinaturas), `--stop-after=parse` sem ilhas | raízes, `missing-module`, `module-path-mismatch`, `circular-import`, `module-not-found`, `generic-source-without-instance`; `m2-parse-dump.sh decl` (§5.2) |
+| **M2** módulos | `paths.c`, `tool.c`, parser de nível de arquivo (`module`, `import`, `import_c`, `extern_c`, assinaturas), `--stop-after=parse` sem ilhas | raízes, `missing-module`, `module-path-mismatch`, `circular-import`, `module-not-found`, `generic-source-without-instance`; `test/parse_dump.sh decl` (§5.2) |
 | **M3** geração sem ilhas | `emit.c`, `writer.c`, `#line`, mangling de nível de arquivo, `--main` | §8.3 byte a byte; segunda execução não muda `mtime` |
 | **M4** cc e depfile | `cc.c`, `depfile.c`, critério de atualização | §8.6; editar `geom.k` faz `main` regerar os headers de `geom` e não escrever `gen/geom.c` |
 | **M5** base | módulos genéricos, instâncias de modificador embutido, `--instance`, despacho de builtin, `defer` | `golden/cases/001`; §8.7 |

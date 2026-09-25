@@ -1,0 +1,3 @@
+tools/cgen/test/lex/eof-backslash.k:1:1: ident "x"
+tools/cgen/test/lex/eof-backslash.k:1:3: other "\\"
+tools/cgen/test/lex/eof-backslash.k:1:4: eof

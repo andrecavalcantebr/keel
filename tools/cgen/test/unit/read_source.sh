@@ -4,8 +4,8 @@
 # generated C file by loop.py.
 set -u
 
-SRC="$1"
-TESTMAIN=tools/harness/oracles/m1_read_source_test_main.c
+SRC=tools/cgen/src/tool/read_source.c
+TESTMAIN=tools/cgen/test/unit/read_source_main.c
 BIN=$(mktemp)
 trap 'rm -f "$BIN"' EXIT
 

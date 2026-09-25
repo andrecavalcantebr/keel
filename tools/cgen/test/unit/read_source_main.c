@@ -1,4 +1,4 @@
-/* Hand-written driver for tools/harness/tasks/m1-read-source.md. Not
+/* Unit test of tool/, first written as the oracle of the harness task m1-read-source.md. Not
  * model-generated. */
 
 #define _POSIX_C_SOURCE 200809L

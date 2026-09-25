@@ -24,8 +24,8 @@ without breaking that.
 | `tools/cgen/src/engine/parser_keel.c` | `k_parser_keel`: the token dump, and later the parser |
 | `tools/cgen/src/tool/stop_lex.c` | `--stop-after=lex`: reads the file, sizes the dump and the diagnostics, prefixes the file name |
 | `tools/cgen/src/tool/report.c` | prints diagnostics as `<file>:<line>:<col>: <severity>: <message> [<name>]` |
-| `tools/harness/oracles/m1-lex-dump.sh` | the oracle for everything here; each recognizer is tested through the dump, not in isolation |
-| `tools/harness/oracles/lex/` | fixed cases (`cases.txt`), their expected dumps (`*.tokens`): `edge.k`, `edge2.k`, one small file per EOF and line-ending case (`eof-*.k`, `cr.k`, `nul.k`, `empty.k`); `reference_lexer.py`; and the diagnostics cases `diag.k` → `diag.stderr`, `diag-base.k` |
+| `tools/cgen/test/lex_dump.sh` | the oracle for everything here; each recognizer is tested through the dump, not in isolation |
+| `tools/cgen/test/lex/` | fixed cases (`cases.txt`), their expected dumps (`*.tokens`): `edge.k`, `edge2.k`, one small file per EOF and line-ending case (`eof-*.k`, `cr.k`, `nul.k`, `empty.k`); `reference_lexer.py`; and the diagnostics cases `diag.k` → `diag.stderr`, `diag-base.k` |
 
 ## Read before changing anything
 
@@ -57,10 +57,10 @@ without breaking that.
 
 ```sh
 make -C tools/cgen
-sh tools/harness/oracles/m1-lex-dump.sh
+sh tools/cgen/test/lex_dump.sh
 ```
 
-`m1-lex-dump.sh` checks four things: the build, the fixed cases against their
+`lex_dump.sh` checks four things: the build, the fixed cases against their
 `.tokens` byte for byte, every `.k` of `golden/cases` and `base` against the
 reference lexer with no diagnostic, and the diagnostics of `diag.k` against
 `diag.stderr`. It prints `ok` at the end, or the first lines of each diff.
@@ -87,9 +87,9 @@ reference lexer with no diagnostic, and the diagnostics of `diag.k` against
 ## Adding behaviour
 
 For anything the lexer should now do differently: add a line to
-`oracles/lex/edge.k` (before its last line, a `#` with no newline, which tests
+`test/lex/edge.k` (before its last line, a `#` with no newline, which tests
 a directive at EOF), regenerate **only** `edge.tokens` with
-`python3 tools/harness/oracles/lex/reference_lexer.py tools/harness/oracles/lex/edge.k > tools/harness/oracles/lex/edge.tokens`,
+`python3 tools/cgen/test/lex/reference_lexer.py tools/cgen/test/lex/edge.k > tools/cgen/test/lex/edge.tokens`,
 and check the new lines by hand against the design. If the reference lexer
 itself lacks the behaviour, extend it first, from the design, not from your C.
 A new diagnostic goes into `diag.k`, and its expected line into `diag.stderr`,

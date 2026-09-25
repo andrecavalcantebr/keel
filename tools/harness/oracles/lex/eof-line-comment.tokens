@@ -1,2 +1,0 @@
-tools/harness/oracles/lex/eof-line-comment.k:1:1: ident "x"
-tools/harness/oracles/lex/eof-line-comment.k:1:7: eof

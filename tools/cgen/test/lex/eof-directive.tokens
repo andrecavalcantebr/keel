@@ -1,0 +1,3 @@
+tools/cgen/test/lex/eof-directive.k:1:1: ident "x"
+tools/cgen/test/lex/eof-directive.k:2:1: pp-endif "#endif"
+tools/cgen/test/lex/eof-directive.k:2:7: eof

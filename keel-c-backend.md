@@ -1836,19 +1836,14 @@ Daí decorre o comportamento de cada região:
 
 A linha de `import_c` merece nota, porque é o caso que o critério "copiado versus gerado" deixaria escapar: `#include <tgmath.h>` é gerado, não copiado, mas é tradução um-para-um de uma linha que o usuário escreveu, e falha com frequência — nome errado, `-I` faltando, header que só existe em outra plataforma. Sem a diretiva, `fatal error: tgmath.h: No such file or directory` aponta para um `.h` que ninguém escreveu.
 
-Quatro regras de emissão decorrem da invariante:
+**Regras**
 
-1. **Texto copiado nunca é reindentado nem reformatado.** Reformatar destrói o alinhamento e, com ele, a posição de todo diagnóstico do compilador C naquela região. A mesma condição se estende à região de imports: preservar as linhas em branco é o que faz uma diretiva só cobrir o bloco inteiro.
+1. Texto copiado nunca é reindentado nem reformatado: reformatar destruiria a posição de todo diagnóstico do compilador C naquela região. Na região de imports, as linhas em branco são preservadas, e uma diretiva só cobre o bloco inteiro.
+2. Em corpo de função, o lowering de uma linha de fonte ocupa uma linha de saída: uma chamada de verbo longa sai numa linha só, e uma expansão de dois statements também. É a única concessão deliberada ao princípio 2 da linguagem. [D61](#10-decisões-de-emissão)
+3. O `.c` preserva a estrutura de linhas do fonte: toda linha do `.k` tem a sua no `.c`, e o que vai para header — tipos, protótipos, `constexpr` de módulo —, os `import` e `import_c`, a linha `module` e os comentários deixam linha vazia. Os `#include` sintéticos vêm antes, um único `#line 1` abre o fonte, e só as expansões de várias linhas pedem ressincronização.
+4. Comentários não chegam ao C: cada um vira espaços da mesma largura, com as quebras preservadas, e o espaço que sobra no fim da linha é cortado. A exceção é `extern_c`, cujo conteúdo é C e atravessa intacto (linguagem §2.4).
+5. A string do arquivo no `#line` é o caminho normalizado do módulo, com a extensão `.k`.
 
-2. **Em corpo de função, o lowering de uma linha de fonte ocupa preferencialmente uma linha de saída.** Uma chamada de builtin longa sai numa linha só em vez de quebrada em três, e uma expansão de dois statements sai numa linha só — porque quebrar custa um `#line` a cada statement e, sem ele, todo o resto do corpo passa a apontar para a linha errada. Com a regra, o corpo inteiro mapeia 1:1 a partir da diretiva única da regra 3.
-
-   O custo é linha gerada mais longa que a que um humano escreveria. É a **única concessão deliberada ao princípio 2** desta especificação, e ela se paga: é o que faz cada erro do compilador C cair na linha certa do `.k`, que é a razão de o princípio 3 funcionar.
-
-3. **O `.c` preserva a estrutura de linhas do fonte.** Toda linha do `.k` tem a sua linha no `.c`: o que vai para header — tipos, protótipos, `constexpr` de módulo —, os `import` e `import_c`, a linha `module` e os comentários deixam linha vazia. Os `#include` sintéticos vêm antes, e um único `#line 1` abre o fonte; daí em diante, só as expansões de várias linhas pedem ressincronização. Linha vazia a mais é C comum; se incomodar, a alternativa é trocar cada sequência delas por um `#line`, e a invariante vale igual.
-
-4. **Comentários não chegam ao C.** Cada comentário vira espaços da mesma largura, com as quebras de linha preservadas, e o espaço que sobra no fim da linha é cortado: o de fim de linha some, e o do meio preserva a coluna do que vem depois. A exceção é `extern_c`, cujo conteúdo é C e atravessa intacto (linguagem §2.4).
-
-A string do arquivo é o caminho normalizado do módulo, com a extensão `.k`.
 
 ### 6.1 Diagnóstico dentro de instância
 
@@ -1867,15 +1862,14 @@ O `note:` é do cgen, não do compilador C, e é a única informação que o map
 
 ## 7. Propriedades exigidas do conteúdo gerado
 
-Estas são propriedades do **conteúdo**, e por isso deste documento. Como o conteúdo chega ao disco — escrita atômica, comparação antes de gravar, critério de timestamp — é da ferramenta (`cgen-tool-spec.md` §5 e §6).
+Estas são propriedades do conteúdo, e por isso deste documento. Como o conteúdo chega ao disco — escrita atômica, comparação antes de gravar, critério de atualização — é da ferramenta (`cgen-tool-spec.md` §5 e §6).
 
 ### 7.1 Determinismo
 
-> **Mesmas entradas, saída byte a byte idêntica, em qualquer máquina.**
+**Regras**
 
-É o que torna o modelo por arquivo seguro. Dois módulos compilados separadamente geram o mesmo header de instância, cada um por sua conta; como o conteúdo é idêntico, a segunda escrita vira no-op e a corrida sob `make -j` é inofensiva — tanto faz quem renomeia por último. Sem determinismo, os dois ficariam se sobrescrevendo em laço, retriggando compilação sem fim.
-
-É também o que permite teste por comparação de saída. As fontes de variação que costumam quebrá-lo na implementação estão catalogadas em ferramenta §6.1.
+1. Mesmas entradas dão saída byte a byte idêntica, em qualquer máquina. [D56](#10-decisões-de-emissão)
+2. As fontes de variação que costumam quebrar isso na implementação estão catalogadas na ferramenta §6.1.
 
 ### 7.2 De que cada arquivo é função
 
@@ -1887,48 +1881,26 @@ Estas são propriedades do **conteúdo**, e por isso deste documento. Como o con
 | header de instância de modificador **do usuário**, e o `.c` de instância pedida por `--instance` | o nome **e** o corpo do módulo genérico |
 | unidade de ponto de entrada | o nome do módulo pedido na invocação |
 
-**A primeira linha é a nova, e ela é mais estreita de propósito.** O `.type.h` de
-`A` não depende da interface de `B`: depende só dos tipos de `B` que `A` menciona
-por valor. Mexer numa assinatura de `B` não muda o `.type.h` de `A`, e é essa
-estreiteza que o §7.3 cobra em recompilação poupada.
+**Regras**
 
-**A segunda linha tem duas metades, e a segunda delas é fácil de perder.** O C de `A`
-depende de `B` porque a tradução consulta a interface de `B` em dois lugares que a
-linguagem já nomeia: o `&` de adaptação vem do **parâmetro declarado no callee**
-(linguagem §4.4), e o despacho decide entre verbo de tipo e função de módulo
-lendo a assinatura de lá.
+1. O `.type.h` de `A` depende só dos tipos de `B` que `A` menciona por valor, e não da interface de `B`: mudar uma assinatura de `B` não muda o `.type.h` de `A` (§7.3).
+2. O `.h` e o `.c` de `A` dependem da interface de `B`, porque a tradução a consulta em dois lugares: o `&` de adaptação vem do parâmetro declarado no chamado (linguagem §4.4), e o despacho entre verbo de tipo e função de módulo lê a assinatura de lá. Editar `b.k` muda o `.c` de `A` sem que `a.k` seja tocado, e o critério de atualização da ferramenta §5 reflete isso.
+3. O header de instância de modificador embutido é função pura do próprio nome, que é o nome do arquivo: se ele existe e foi escrito pela mesma versão do gerador, é idêntico, e basta um `stat`. Dentro de uma invocação, cada instância é considerada uma vez, por memoização.
+4. O header de instância de modificador do usuário depende também do corpo do genérico: editar o `push` de `coll.k` muda `coll_stack_i32.h` sem mudar o nome dele (ferramenta §5.1).
 
 ```keel
 /* b.k */  pub void consume(slice i32 s);     →  A emit  b_consume(s)
 /* b.k */  pub void consume(slice i32 *s);    →  A emit  b_consume(&s)
 ```
 
-Editar `b.k` muda o `.c` de `A` sem que `A.k` seja tocado. **O critério de
-atualização tem de refletir isso**, e é ferramenta §5 que o escreve.
-
-A terceira linha é a que paga o custo da repetição. Como todo módulo que usa o tipo gera os headers, numa árvore grande a mesma instância é considerada muitas vezes:
-
-> O conteúdo de um header de instância de modificador embutido é **função pura do próprio nome**, e o nome é o nome do arquivo. Se ele existe e foi escrito pela mesma versão do gerador, é necessariamente idêntico — basta um `stat`.
-
-É o que separa esses headers dos do módulo: o `.type.h`/`.h`/`.c` de um módulo depende do **conteúdo** do fonte, e por isso precisa de comparação; a instância de `buffer` depende apenas do **nome**. Dentro de uma invocação, cada instância é considerada uma vez só, por memoização.
-
-**Instância de modificador do usuário não tem essa propriedade**, e é a única coisa que os módulos genéricos custam aqui: editar o `push` de `coll.k` muda `coll_stack_i32.h` sem mudar o nome dele. O critério de atualização correspondente é ferramenta §5.1.
-
-O número de instâncias distintas é limitado pelo fonte, não pelo número de módulos — um projeto real tem dezenas, não milhares —, então o custo em regime é alguns `stat` por invocação e nenhuma escrita.
-
 ### 7.3 Consequência: o depfile é transitivo
 
-As funções da instância saem inline num header, então toda unidade de tradução que a inclui **embute o código**. Editar `coll.k` tem que retriggar não só quem escreveu `stack i32`, mas todo módulo que alcance esse header por transitividade. O formato e a emissão são de ferramenta §4.5; a razão é esta linha.
+**Regras**
 
-**O corte do §4.3.2 limita esse alcance só no caminho de layout.** Editar um
-corpo ou uma assinatura muda o `.h` e mais nada; um header gerado que só precisa
-do tipo alcança o `.type.h`, que não mudou. Quem chama inclui o `.h` (regras 2 e
-3), então recompila — é o preço de não haver um header só de protótipos
-([justificativa](keel-rationale.md#dois-headers-tipo-e-uso)). Quem quiser a
-granularidade fina num `.c` escrito à mão ainda pode incluir só o `.type.h`: o
-arquivo existe, só não é o padrão.
-
-A ressalva que sobra é a mesma do make: se o próprio gerador mudar, os gerados ficam obsoletos sem que timestamp nenhum acuse, e a saída é apagar o diretório de destino.
+1. As funções de instância saem inline num header, e toda unidade de tradução que o inclui embute o código: editar `coll.k` recompila todo módulo que alcança esse header por transitividade. O formato do depfile é da ferramenta §4.5.
+2. O corte do §4.3.2 limita esse alcance só no caminho de layout. Editar um corpo ou uma assinatura muda o `.h` e mais nada; um header gerado que só precisa do tipo alcança o `.type.h`, que não mudou. Quem chama inclui o `.h` (§4.3.2, regras 3 e 4), e recompila. [R: dois headers, tipo e uso](keel-rationale.md#dois-headers-tipo-e-uso)
+3. Um `.c` escrito à mão pode incluir só o `.type.h`, para a granularidade fina: o arquivo existe, só não é o padrão.
+4. Se o próprio gerador mudar, os gerados ficam obsoletos sem que data nenhuma acuse, e a saída é apagar o diretório de destino.
 
 ---
 
@@ -1962,12 +1934,13 @@ linguagem não tiver nomeado a forma**.
 | `static_assert(c, m)` | igual | `_Static_assert(c, m)` — sempre com mensagem, que o C11 exige |
 | `alignof` · `alignas` | igual | `_Alignof` · `_Alignas` |
 | `bool` | igual | o prelúdio acrescenta `<stdbool.h>`, ao lado do `<stdint.h>` do §4.2 |
-| `[[nodiscard]]` (§5.3) | igual | **omitido**: a alternativa seria `__attribute__`, e extensão de compilador está fora |
+| `[[nodiscard]]` (§5.2) | igual | **omitido**: a alternativa seria `__attribute__`, e extensão de compilador está fora |
 | `constexpr` (linguagem §4.2) | declaração verbatim | macro do símbolo manglado, mais a conferência do inicializador (§9.2) |
 
-E o que **não** varia, porque a linguagem nomeou a forma: o `#pragma omp` do
-`parallel`, o mangling do §2, o `#line` do §6, e — desde que o `auto` e o
-`typeof_unqual` saíram — o lowering inteiro do `defer` (§5.5).
+**Regras**
+
+1. O perfil não muda a linguagem: os dois aceitam e recusam o mesmo conjunto de programas (linguagem §6.3). Recusar sob um e aceitar sob o outro é não-conformidade nos dois.
+2. Não variam, porque a linguagem nomeou a forma: o `#pragma omp` de `parallel`, o mangling (§2), o `#line` (§6) e o lowering do `defer` (§5.5).
 
 ### 9.2 `constexpr` sob C11
 
@@ -1981,49 +1954,6 @@ priv constexpr int K = 1 << 4;
 #define app_K ((int)(1 << 4))
 static const int app_K__chk = (1 << 4);      /* checks the restriction and the constancy */
 ```
-
-**O cast é obrigatório**, e é ele que preserva o sentido. Sem ele, quatro classes
-de programa **válido** mudam de resultado em silêncio, o que seria o princípio 1
-da linguagem quebrado:
-
-| No fonte | Com `((T)…)` | Sem o cast |
-| --- | --- | --- |
-| `constexpr f32 K = 1;` … `K/2` | `0.5f` | `1/2` → `0` |
-| `constexpr u8 B = 1;` … `sizeof B` | `1` | `sizeof(1)` → `4` |
-| `constexpr size_t N = 1;` … `i < N`, `int i = -1` | falso | verdadeiro |
-| `_Generic(K, float: a, int: b)` | ramo `float` | ramo `int` |
-
-**O objeto de conferência devolve o que o cast escondeu.** Um cast torna bem
-tipado o que não era, então `constexpr char *S = 10;` deixaria de ser
-diagnosticado em lugar nenhum. `static const T … = INIT;` em escopo de bloco ou
-de arquivo submete `INIT` a **duas** verificações que o cast dispensaria:
-
-| | Porque |
-| --- | --- |
-| **restrição de tipo** | é inicialização, e vale a mesma regra de `(char *){10}` — violação, na linha da declaração |
-| **constância** | o C exige que o inicializador de objeto com duração estática seja **expressão constante**, e é isso que recusa `constexpr int K = f();` |
-
-A segunda é a razão de o `_Static_assert(sizeof((T){INIT}) > 0, …)` ter saído. O
-literal composto em escopo de bloco **não** exige inicializador constante — o
-`sizeof` conferia o tipo e deixava passar `constexpr int K = f();`, que o C23
-recusa. Sob a forma antiga, o `K + K` do programa chamaria `f()` duas vezes, e o
-perfil C11 aceitaria um programa que o C23 nega. Sob `static const` os dois
-recusam.
-
-O objeto de conferência é `static const`, nunca referenciado e sempre elidível; o
-nome sai do símbolo mais o sufixo `__chk`, no espaço reservado do §2.
-
-**Fica um resíduo, e ele é o único da tabela do §9.1 que custa diagnóstico:** o
-C23 exige que o valor seja *exatamente representável* no tipo, e a inicialização
-só faz a conversão. `constexpr u8 B = 300;` é error sob C23 e no máximo
-`-Woverflow` sob C11. Está registrado na linguagem §6.3, e é o único item de lá
-que fala do perfil.
-
-**Escopo de bloco pede o par.** Em escopo de arquivo o símbolo já leva o prefixo do
-módulo, e nada mais no arquivo casa com ele. Em escopo de bloco não há prefixo
-(linguagem §4.2), e duas funções do mesmo arquivo podem declarar `constexpr size_t
-N` com valores diferentes. **A macro não leva o nome do usuário:** ela recebe um
-nome gerado no espaço reservado, e o backend **reescreve os usos** dentro do bloco.
 
 ```keel
 //keel
@@ -2045,35 +1975,23 @@ static void app_f(struct S *s) {
 }
 ```
 
-Três regras, e as três existem por um caso concreto:
+**Regras**
 
-1. **O nome é `keel__<símbolo>_<ordinal do block>`.** O prefixo reservado (§2)
-   garante que ele não colida com símbolo do usuário nem com macro vinda de
-   header; o nome do usuário no meio é o que mantém o gerado legível, que é o
-   princípio 2; o ordinal separa dois blocos irmãos que declarem o mesmo `N`.
-2. **Os usos são reescritos, e keel só reescreve símbolo que ele mesmo declarou** —
-   é a mesma operação do mangling do §2, aplicada em escopo de bloco. **`IDENT`
-   precedido de `.` ou `->`, e designador `.x =`, não são reescritos**: são nome
-   de membro, e a regra é a que a linguagem §4.3 já usa para resolver o `.`.
-3. **Sem isso, `s->N` viraria `s->((size_t)8)`.** O pré-processador não sabe o que
-   é membro, e a macro com o nome do usuário captura **toda** ocorrência do token
-   no resto do bloco. Era o pior vazamento da forma anterior, e é erro do
-   compilador C com mensagem que não aponta a causa.
+1. `constexpr T K = INIT;` sai `#define M_K ((T)(INIT))`: a macro do símbolo manglado, com o cast. [D57](#10-decisões-de-emissão)
+2. Um objeto de conferência, `static const T M_K__chk = (INIT);`, submete `INIT` à restrição de tipo da inicialização e à exigência de expressão constante, que o cast dispensaria: é o que recusa `constexpr char *S = 10;` e `constexpr int K = f();`. Ele nunca é referenciado e é elidível. [D58](#10-decisões-de-emissão)
+3. Resta uma diferença: o C23 exige valor exatamente representável no tipo, e a inicialização do C11 só converte. `constexpr u8 B = 300;` é erro sob C23, e no máximo `-Woverflow` sob C11 (linguagem §6.3).
+4. Em escopo de bloco, a macro recebe nome gerado, `keel__<símbolo>_<N>` (§2.3), e o backend reescreve os usos dentro do bloco. `IDENT` precedido de `.` ou `->`, e o designador `.x =`, não são reescritos: são nome de membro. [D59](#10-decisões-de-emissão)
+5. O `#undef` sai no fim do bloco léxico, e limita a vida da macro ao que o fonte dizia.
+6. Sob C23 a declaração sai verbatim, sem macro, nome gerado, reescrita nem objeto de conferência. É a recusa do endereço (linguagem §4.2) que permite ao C23 não pagar nada disso e aceitar o mesmo conjunto de programas. [D60](#10-decisões-de-emissão)
 
-O `#undef` no fim do bloco léxico deixa de ser necessário — nomes gerados não
-colidem entre si nem com nada — e continua sendo emitido, porque limita a vida da
-macro ao que o fonte dizia.
+Sem o cast da regra 1, quatro classes de programa válido mudariam de resultado em silêncio:
 
-**Isto não é gerar truque de macro.** O que a linguagem existe para dispensar é a
-macro que **constrói estrutura** — colagem de token, X-Macro, `TRY`/`CATCH` —, que
-some do depurador e do diagnóstico. Uma constante nomeada não some de lugar nenhum,
-e `#define MAX ((size_t)4096)` é o que um C99 bem escrito faz. O princípio 2 está
-satisfeito por leitura direta.
-
-**E nada disto existe sob C23**, que emite a declaração verbatim. A macro, o nome
-gerado, a reescrita e o objeto de conferência são todos o preço de um perfil que
-não tem a construção — e é a recusa do endereço (linguagem §4.2) que permite ao
-C23 não pagar nenhum deles e ainda assim aceitar o mesmo conjunto de programas.
+| No fonte | Com `((T)…)` | Sem o cast |
+| --- | --- | --- |
+| `constexpr f32 K = 1;` … `K/2` | `0.5f` | `1/2` → `0` |
+| `constexpr u8 B = 1;` … `sizeof B` | `1` | `sizeof(1)` → `4` |
+| `constexpr size_t N = 1;` … `i < N`, `int i = -1` | falso | verdadeiro |
+| `_Generic(K, float: a, int: b)` | ramo `float` | ramo `int` |
 
 ---
 
@@ -2141,6 +2059,12 @@ alternativa em aberto.
 | 53 | A composição cooperativa não injeta região | §5.10. As versões anteriores emitiam gestores para `coseq` e `copar`, com laço, rótulo de finalização e reafirmação do código de resultado. O que era emissão virou fonte keel da base, que o backend já sabe traduzir: construção que a biblioteca alcança sai do backend |
 | 54 | `corot` é uma struct de um campo, e não um `typedef` de inteiro | §5.14. Não custa nada: struct de um `i32` volta em registrador no SysV x86-64 (`EAX`), em AArch64 (`X0`) e em ARM32 e RISC-V. E compra o compilador C recusando `if (r)`, `r == 0` e a mistura com um código de `outcome` |
 | 55 | `corot.fault` não normaliza o sinal do código | §5.14. Normalizar transformaria um erro do programa num estado que ele não pediu |
+| 56 | A saída é determinística | §7.1. Dois módulos compilados em separado geram o mesmo header de instância; com conteúdo idêntico, a segunda escrita não muda nada, e a corrida sob `make -j` é inofensiva. Sem determinismo, os dois se sobrescreveriam em laço, disparando compilação sem fim. É também o que permite testar por comparação de saída |
+| 57 | Sob C11, `constexpr` sai como macro com cast | §9.2. Sem o cast, programas válidos mudam de resultado em silêncio — `K/2` inteiro, `sizeof B` de `int`, comparação com sinal, ramo errado de `_Generic` —, o que quebraria o princípio 1 da linguagem |
+| 58 | A conferência do `constexpr` sob C11 é um `static const`, e não `_Static_assert(sizeof((T){INIT}) > 0)` | §9.2. O literal composto em escopo de bloco não exige inicializador constante: conferia o tipo e deixava passar `constexpr int K = f();`, que o C23 recusa. O `K + K` do programa chamaria `f()` duas vezes, e o C11 aceitaria o que o C23 nega |
+| 59 | Em bloco, a macro do `constexpr` tem nome gerado, e os usos são reescritos | §9.2. Com o nome do usuário, a macro capturaria toda ocorrência do token no resto do bloco: `s->N` viraria `s->((size_t)8)`, erro do compilador C com mensagem que não aponta a causa. O prefixo `keel__` não colide com símbolo nem com macro de header, o nome do usuário no meio mantém o gerado legível, e o ordinal separa dois blocos irmãos |
+| 60 | A macro do `constexpr` sob C11 não é truque de macro | §9.2. O que a linguagem dispensa é a macro que constrói estrutura — colagem de token, X-Macro, `TRY`/`CATCH` —, que some do depurador e do diagnóstico. Uma constante nomeada não some de lugar nenhum, e `#define MAX ((size_t)4096)` é o que um C99 bem escrito faz |
+| 61 | Uma linha de fonte, uma linha de saída, mesmo quando longa | §6. Quebrar custaria um `#line` por statement, e sem ele todo o resto do corpo apontaria para a linha errada. A linha gerada fica mais longa que a de um humano, e se paga: é o que faz cada erro do compilador C cair na linha certa do `.k`, a razão de o princípio 3 funcionar. Linha vazia a mais no `.c` é C comum; trocar sequências delas por `#line` manteria a invariante |
 
 ---
 

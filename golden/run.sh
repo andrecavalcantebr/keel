@@ -74,7 +74,7 @@ for t in $(find c23 c11 cases/*/expected -name '*.type.h' | sort); do
   [ -z "$bad" ] || { printf 'STRUCT %s — .type.h including outside its layer:\n%s\n' "$t" "$bad"; structure=$((structure+1)); }
 done
 
-# I2: the .h sections (rule 2) — every #include of a .type.h comes before the
+# I2: the .h sections (backend §4.3.2, rule 3) — every #include of a .type.h comes before the
 # first #include of a .h. The prototypes sit between the two blocks, and it is
 # that order which makes every reachable prototype arrive before the first body.
 for h in $(find c23 c11 cases/*/expected -name '*.h' ! -name '*.type.h' | sort); do

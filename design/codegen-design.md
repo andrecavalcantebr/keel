@@ -152,7 +152,7 @@ primeira vez, porque as três compilam e só falham depois:
 
 ### 4.1 As quatro seções do `.h`
 
-O `.h` tem quatro seções, nesta ordem (backend §4.3.2, regra 2), e o runner do
+O `.h` tem quatro seções, nesta ordem (backend §4.3.2, regra 3), e o runner do
 golden verifica a ordem sem compilar nada (invariantes I1 e I2):
 
 ```

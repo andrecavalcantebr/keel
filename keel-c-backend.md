@@ -51,9 +51,10 @@ A linguagem fixa o **nome canônico** de cada tipo no ponto de declaração (lin
 | `M.mod(D)` aplicado a `A` — modificador com `dim` parametrizado | `M_mod_<D>_<A canônico>` |
 | `M.Tipo.CONST` — constante de enum nomeado | `M_Tipo_CONST` |
 
-**A grafia gerada nunca contém `__` nem começa por `_` seguido de maiúscula.** O
-C reserva as duas formas à implementação, e a regra de qualificador acima chega
-nelas sozinha: `_Atomic u32` daria `_Atomic_u32`, e `keel_buffer__Atomic_u32`
+**A grafia gerada nunca contém `__` nem começa por `_` seguido de maiúscula.**
+O começo por `_` e maiúscula é reservado pelo C; o `__` fica livre para os nomes
+que o backend cria (§2.3). A regra de qualificador acima chegaria nas duas
+formas sozinha: `_Atomic u32` daria `_Atomic_u32`, e `keel_buffer__Atomic_u32`
 tem `__` no meio. **Qualificador que começa por `_` perde o underscore inicial e
 baixa a caixa** — é a única normalização de grafia do mangling, e existe para
 essa colisão:
@@ -217,13 +218,25 @@ manga, porque só ele muda o tipo do elemento.
 | --- | --- |
 | Instância de modificador do módulo `M` e suas funções | `M_` — `keel_` para os da camada zero |
 | Tipo, função e variável do usuário no módulo `M` | `M_` |
-| Temporários gerados | `keel__t<N>` |
-| Rótulos de cleanup | `keel__cl<N>` |
-| Structs de captura de `defer` | `keel__c<N>` |
-| Vetores de `arena_from_stack` | `keel__st<N>` |
+| Nome criado pelo backend, sem origem no fonte | `keel__` |
 | Tipo da camada zero (`i32`, `f32`, `size_t`, …) | nenhum — mesma grafia no fonte e no C |
 
-Identificadores começando com `keel_` ou `KEEL_` são reservados: declará-los ou defini-los no fonte do usuário é erro (`reserved-name`, `define-over-keel-name`). Usar os nomes do prelúdio, como `KEEL_CHECK` (§5.17), é permitido. `KEEL_CHECKS` chega pela linha de comando do compilador C, e não por `#define` no fonte.
+1. Todo nome que o backend cria sem origem no fonte começa por `keel__`. O mangling nunca produz `__` (§2.1), e o programa não declara nada em `keel_`: nenhum nome `keel__` coincide com símbolo do programa ou da base, e o backend os cria sem consultar a tabela de símbolos. [D15](#10-decisões-de-emissão)
+2. `<N>` é um contador por função, na ordem de emissão.
+3. Identificadores começando com `keel_` ou `KEEL_` são reservados: declará-los ou defini-los no fonte do usuário é erro (`reserved-name`, `define-over-keel-name`). Usar os nomes do prelúdio, como `KEEL_CHECK` (§5.17), é permitido. `KEEL_CHECKS` chega pela linha de comando do compilador C, e não por `#define` no fonte.
+
+| Nome gerado | O quê | Onde |
+| --- | --- | --- |
+| `keel__c<N>` | struct de captura do `defer`; ponteiro para o contêiner de `foreach`, `apply` e `parallel` | §5.5, §5.7, §5.9 |
+| `keel__n<N>`, `keel__i<N>` | comprimento e índice de `foreach` e `apply` | §5.7 |
+| `keel__f<N>`, `keel__l<N>` | `first` e `limit` da forma contável de `foreach` | §5.7 |
+| `keel__rv<N>`, `keel__e<N>` | valor de retorno e rótulo de saída da escada de cleanup | §5.5 |
+| `keel__m<N>_<TAG>`, `keel__m<N>_end` | rótulos de braço e de fim de `match` | §5.6 |
+| `keel__end<N>` | saída do worker de `parallel` | §5.9 |
+| `keel__st<N>` | vetor de `arena.from_stack` | §5.4 |
+| `keel__X_size`, `keel__X_align` | parâmetro `type X` apagado | §5.16 |
+| `keel__N` | binder de dimensão `N` | §5.18 |
+| `keel__N_<N>` | `constexpr N` de bloco sob C11, como macro local | §9.2 |
 
 ### 2.4 Limite de comprimento
 
@@ -423,7 +436,7 @@ símbolo manglado do §2.1, com o argumento quando há:
 | `module net.http;` | `net/` | `net_http.h` |
 | `module lst;` | — | `lst.h` |
 | instância `buffer i32` de `keel.buffer` | `keel/` | `keel_buffer_i32.h` |
-| instância `stack i32` de `stack` | — | `pilha_stack_i32.h` |
+| instância `stack i32` de `stack` | — | `stack_stack_i32.h` |
 
 **A regra é uma só para módulo e para instância**, e é o que ela compra que a
 justifica ([justificativa: o nome do arquivo gerado é o símbolo](keel-rationale.md#o-nome-do-arquivo-gerado-é-o-símbolo)):
@@ -1459,7 +1472,7 @@ num dos cinco, e as seções que o fazem são estas:
 | Escrito | Já baixa para | |
 | --- | --- | --- |
 | `win` · `fail` | `goto keel__end<N>` | §5.9, regra 8 |
-| `break` no nível do braço de `match` | `goto keel__m<N>_end` | §5.6, regra 4 |
+| `break` no nível do braço de `match` | `goto keel__m<N>_end` | §5.6, regra 6 |
 | cláusula `else` | `if (…failed(x)) return …;` | §5.12 |
 | corpo de `foreach` e de `parallel` | `for` comum — o `break` e o `continue` do usuário são C ordinário | §5.7, §5.9 |
 
@@ -1547,19 +1560,22 @@ em termos dos cinco terminadores do C é o que a mantém com um caso só.**
 
 ### 5.6 `tags` e `match`
 
-O conjunto de tags sai como `enum`; o despacho sai como **salto por `goto` e blocos rotulados**. Nunca como um `switch` com o corpo do usuário dentro dele.
+**Forma:** `tags Nome [ … ];` e `match (x) { TAG: … }` (linguagem §4.9).
+
+**Emissão**
 
 ```keel
 //keel
+typedef struct Node *NodeRef;
 pub tags Kind [LIT, ADD, MUL];
 
-pub void eval(tagged Kind struct Node *n) {
-    match (n) {
+pub void eval(tagged Kind NodeRef t) {
+    match (t) {
         LIT:
-            leaf(tagged.value(n));
+            leaf(tagged.value(t));
         ADD:
         MUL:
-            binary(tagged.value(n));
+            binary(tagged.value(t));
     }
 }
 ```
@@ -1572,43 +1588,42 @@ typedef enum ast_Kind {
     ast_Kind_MUL
 } ast_Kind;
 
-void ast_eval(keel_tagged_ast_Kind_ast_Node *n) {
-    switch (n->tag) {                                 /* jumps only: nothing of the user's here */
+void ast_eval(keel_tagged_ast_Kind_ast_NodeRef t) {
+    switch (t.tag) {                                  /* jumps only: nothing of the user's here */
     case ast_Kind_LIT: goto keel__m0_LIT;
     case ast_Kind_ADD: goto keel__m0_ADD;
     case ast_Kind_MUL: goto keel__m0_MUL;
-    default:           goto keel__m0_end;
+    default:           KEEL_CHECK(0, "tag-out-of-range"); goto keel__m0_end;
     }
     keel__m0_LIT: {
-        ast_leaf(keel_tagged_ast_Kind_ast_Node_value(n));
+        ast_leaf(keel_tagged_ast_Kind_ast_NodeRef_value(&t));
     }
     goto keel__m0_end;
     keel__m0_ADD:
     keel__m0_MUL: {
-        ast_binary(keel_tagged_ast_Kind_ast_Node_value(n));
+        ast_binary(keel_tagged_ast_Kind_ast_NodeRef_value(&t));
     }
     keel__m0_end: ;
 }
 ```
 
-Sete regras de emissão, e cada uma existe por um motivo concreto:
+**Regras**
 
-1. **O `switch` de despacho contém apenas saltos.** Nenhum código do usuário mora dentro dele, e é isso que faz `break` e `continue` do usuário ligarem ao laço ou `switch` dele. Um `switch` com o corpo dentro reservaria `break` para o despacho.
-2. **O rótulo vai antes da chave de abertura**, e as chaves são o escopo do braço que a linguagem §4.9 exige — não um detalhe de emissão. Saltar para um rótulo interno entraria no meio do escopo e **os inicializadores das declarações não rodariam** — legal em C, e o tipo de bug que ninguém encontra. Com o rótulo fora, o salto entra pelo topo e declaração de braço se comporta normalmente.
-3. **Cada bloco de braço é seguido de `goto <m>_end`.** É o fim de braço da linguagem §4.9, e é o que elimina fallthrough. No último braço o salto é omitido: ele cairia na linha seguinte, e ninguém escreveria isso à mão (princípio 2). **Rótulos consecutivos empilham antes da mesma chave** — `keel__m0_ADD: keel__m0_MUL: { … }` —, que é como o braço compartilhado da linguagem §4.9 se materializa sem duplicar o corpo e sem reabrir fallthrough.
-4. **`break` no nível do braço é `goto <m>_end`**, de qualquer profundidade de escopo dentro do braço — a razão de o despacho ser por rótulo. Um `break` que pertença a laço ou `switch` escrito pelo usuário dentro do braço **não é reescrito**: quem decide é a estrutura C que o contém, reconhecida pela linguagem §2.2. `return` e os demais pontos de saída pertencem à função e atravessam como sempre, com o cleanup do §5.5.
-5. **O operando é lido uma vez, pelo valor ou pelo verbo `tag`.** Quando o tipo declarado do operando é o conjunto (linguagem §4.9), a etiqueta é o próprio valor: `switch (k)`, ou `switch (*app_ast_ast_kind_ptr(&t, i))` sobre uma coluna de `extent` (§5.15). Sobre uma instância de `tagged` isso é o acesso ao campo, e sai como tal; sobre outro tipo que declare `tag` — `corot`, por exemplo — sai a chamada do verbo, e o `switch` é sobre o valor devolvido. O campo da etiqueta é `i32`, e não o `enum`: é o que mantém a largura estável na ABI e o que permite ao `corot` participar sem mudar de representação.
-   **Na escrita a assimetria aparece no C:** um parâmetro declarado com o nome do parâmetro `tags` sai com o tipo do `enum` — `void keel_tagged_ast_Kind_ast_Node_mark(… , ast_Kind e)` —, e a atribuição ao campo é a conversão usual de `enum` para `i32`. A verificação de pertinência é da tradução (linguagem §4.3); o C não a faria, porque enum e int se convertem em silêncio.
-6. **Não há verbo de transição no despacho.** `tagged.mark(n, MUL)` é chamada comum, e o que keel faz na constante nua é a reescrita de escopo de enum (§2.1). Escrever a etiqueta não redespacha: o `switch` já executou.
-7. **`default:` sai sempre**, saltando para o fim. Etiqueta fora de faixa é possível quando o valor vem de memória — `memset`, arquivo, rede. Um `KEEL_CHECK(0, "tag-out-of-range")` o precede (§5.17). Ele não é braço: a exaustividade já foi verificada na tradução, sobre a lista declarada.
+1. O conjunto sai como `enum` nomeado `M_<conjunto>`, com as constantes `M_<conjunto>_<tag>` (§2.1), na ordem da lista declarada; um valor escrito sai literalmente. `pub` põe o `enum` no `.type.h`, `priv` no `.c` (§4.3.2). [D11](#10-decisões-de-emissão)
+2. O despacho é um `switch` que contém só saltos: um `case` por tag, com `goto` para o rótulo do braço, e `default`. [R: estrutura de controle](keel-rationale.md#estrutura-de-controle-e-máquina-completa)
+3. O operando é lido uma vez: o próprio valor, quando o tipo declarado é o conjunto — `switch (k)`, ou `switch (*app_ast_ast_kind_ptr(&t, i))` sobre coluna de `extent` (§5.15); o campo de etiqueta, sobre instância de `tagged`; a chamada do verbo `tag`, sobre outro tipo que o declare, como `corot`. [R: conjuntos fechados](keel-rationale.md#conjuntos-fechados-e-exaustividade)
+4. Cada braço é um bloco, com o rótulo `keel__m<N>_<TAG>` antes da chave de abertura. Rótulos consecutivos empilham antes da mesma chave: `keel__m0_ADD: keel__m0_MUL: { … }`. [D10](#10-decisões-de-emissão)
+5. Cada bloco, salvo o último, é seguido de `goto keel__m<N>_end`, e o despacho termina em `keel__m<N>_end: ;`. [R: estrutura de controle](keel-rationale.md#estrutura-de-controle-e-máquina-completa)
+6. `break` no nível do braço sai `goto keel__m<N>_end`, de qualquer profundidade de escopo dentro do braço. `break` e `continue` de laço ou `switch` escrito pelo programa dentro do braço não são reescritos. `return` atravessa com o cleanup do §5.5. [R: estrutura de controle](keel-rationale.md#estrutura-de-controle-e-máquina-completa)
+7. `default:` sai sempre, com `KEEL_CHECK(0, "tag-out-of-range")` e salto para o fim. Não é braço. [R: conjuntos fechados](keel-rationale.md#conjuntos-fechados-e-exaustividade)
+8. `N` conta os `match` da função, e reinicia a cada função (ferramenta §6.1). [D12](#10-decisões-de-emissão)
+9. Nada é emitido em volta do despacho: o laço é do programa, e escrever a etiqueta — `tagged.mark(t, MUL)` — é chamada comum, que não redespacha. [R: estrutura de controle](keel-rationale.md#estrutura-de-controle-e-máquina-completa)
+10. O campo de etiqueta do `tagged` é `i32`. Um parâmetro declarado com o nome do parâmetro `tags` sai com o tipo do `enum`: `void keel_tagged_ast_Kind_ast_NodeRef_mark(… , ast_Kind e)`. [R: conjuntos fechados](keel-rationale.md#conjuntos-fechados-e-exaustividade)
+11. O `match … {` vira de três a N+2 linhas de saída; o mapeamento diverge e ressincroniza com um `#line` logo depois, uma vez. Do primeiro rótulo em diante o corpo é copiado e volta a mapear 1:1 (§6, regra 2).
 
-**O laço é do usuário, e o backend não o emite.** Um `match` executa um braço por passagem; repetir é `while` escrito no fonte. É a decisão da linguagem §4.9 de não ter opinião sobre a política de avanço, e para o backend significa que não há nada a gerar em volta do despacho.
+**Verificações:** `tag-out-of-range`, no `default` (§5.17). A pertinência da etiqueta escrita é da tradução (linguagem §4.3).
 
-**Os rótulos levam um contador por função** — `keel__m<N>_<TAG>` —, e não o nome da construção, porque `match` não tem nome no fonte. O contador reinicia por função (`ferramenta §6.1`), então inserir um `match` antes de outro renomeia os rótulos dos seguintes **dentro daquela função**. Isso não alcança o `.h` nem símbolo de link: o custo é o `.c` daquela unidade diferir, e ele já ia diferir porque a função foi editada.
-
-**O `enum` vem da declaração `tags`**, e não do corpo do `match`. `pub` o põe no `.h`, `priv` no `.c`, pela regra normal de posicionamento (§4.1). O nome é o do §2.1 — `M_<conjunto>`, com as constantes `M_<conjunto>_<tag>`, **exatamente como qualquer enum nomeado do módulo**. **A ordem das constantes vem da lista declarada**, e um valor escrito é emitido literalmente: é a diferença entre um valor de tag que é contrato e um que é consequência da ordem de edição, e importa porque este enum atravessa o `.h` e pode estar gravado em memória, arquivo ou rede — a mesma razão de o `default:` existir.
-
-**Mapeamento de linhas.** O despacho é a maior região injetada da linguagem: uma linha de fonte — o `match … {` — vira de três a N+2 linhas de saída. Diverge, e portanto ressincroniza com um `#line` logo depois, uma vez. Do primeiro rótulo em diante o corpo é copiado e volta a mapear 1:1, pela regra 2 do §6.
+**Perfis:** iguais.
 
 ### 5.7 `foreach` e `apply`
 
@@ -1864,9 +1879,11 @@ Três regras:
 
 ### 5.12 Cláusula `else`
 
-O lowering é uma linha, e é o que a linguagem §4.10 define: a declaração, ou a atribuição, sai como estava, seguida de um `if` cujo teste vem do verbo `failed` da instância. São **duas formas**, e o backend as recebe já separadas pelo parser (linguagem §4.7) — ele não olha para o operando.
+**Forma:** `decl = expr else stmt;`, na forma de saída, e `decl = expr else valor;`, na de default (linguagem §4.10). O parser entrega as duas já separadas.
 
-**Forma de saída** — o statement entra no `if`, verbatim:
+**Emissão**
+
+Forma de saída — o statement entra no `if`, como escrito:
 
 ```keel
 //keel
@@ -1882,7 +1899,7 @@ keel_outcome_u32 n = cfg_port(path); if (keel_outcome_u32_failed(n)) { log(path)
 r = cfg_le(path); if (keel_outcome_cfg_Cfg_failed(r)) break;
 ```
 
-**Forma de default** — o próprio resultado e a expressão de default são argumentos do `win` da instância:
+Forma de default — o resultado e o valor de default são argumentos do `win` da instância:
 
 ```keel
 //keel
@@ -1894,19 +1911,23 @@ outcome string name = login() else string.from("(noname)");
 keel_outcome_keel_string name = app_login(); if (keel_outcome_keel_string_failed(name)) keel_outcome_keel_string_win1(&name, keel_string_from("(noname)"));
 ```
 
-Cinco regras de emissão:
+**Regras**
 
-1. **O teste é sempre a chamada a `failed` da instância**, pelo despacho normal do §5.2 — nunca `if (!x)`. Ponteiro não é falível (linguagem §4.10), então não há segundo caso a emitir, e o backend não classifica tipo nenhum.
-2. **Sai numa linha só**, declaração e `if`, pela regra 2 do §6. É o que faz o corpo continuar mapeando 1:1 e dispensa ressincronizar — ao contrário do `match` e do `parallel`, que não têm como caber. Vale para as duas formas: a de default acrescenta a chamada de ajuste ao próprio objeto.
-3. **O operando é copiado verbatim nas duas formas.** Nada é sintetizado dentro dele: não há desembrulho, não há conversão, não há `return` implícito. O que muda é **onde** ele é colado — dentro do `if` na forma de saída, como segundo argumento de `M_win1(&resultado, …)` na de default.
-4. **Na forma de default, o receptor de `win` é o próprio símbolo.** A chamada recebe seu endereço e o valor de default; o verbo ajusta o objeto. Não há reatribuição obrigatória da cópia retornada, temporário, literal composto nem escrita direta de campo na expansão de `else`. Um tipo falível sem `win` é error `else-default-without-win` e não chega ao backend.
-5. **Nenhum temporário é criado.** O símbolo — declarado ali, ou declarado antes e atribuído aqui — é o que a cláusula lê e o que ela repara, e é ele que já está em escopo.
+1. A declaração, ou a atribuição, sai como escrita, seguida de `if (M_failed(x))` na mesma linha. O teste é sempre a chamada a `failed` da instância, pelo despacho do §5.2, e nunca `if (!x)`. [D13](#10-decisões-de-emissão) [R: resultados finais](keel-rationale.md#resultados-finais-e-estados-cooperativos)
+2. Na forma de saída, o statement entra no `if` como escrito. Na de default, o `if` chama `M_win1(&x, valor)`, com o valor como escrito. [R: resultado recebido pelo verbo](keel-rationale.md#resultado-recebido-pelo-verbo)
+3. O receptor de `win` é o próprio símbolo, por endereço. Não há temporário, reatribuição da cópia devolvida, literal composto nem escrita direta de campo. [R: resultado recebido pelo verbo](keel-rationale.md#resultado-recebido-pelo-verbo)
+4. Nada é sintetizado dentro do operando: não há desembrulho, conversão nem `return` implícito.
+5. `corot` não declara `failed` e não chega a este lowering (linguagem §5.5). [R: resultados finais](keel-rationale.md#resultados-finais-e-estados-cooperativos)
 
-`corot` não participa do protocolo: declara `faulted`, não `failed`. O predicado emitido é `keel_corot_faulted`, com teste `code > 0`. Não há exclusão adicional baseada na presença de `ongoing`. `outcome.failed` continua testando `code != 0`.
+**Verificações:** nenhuma de `debug`. `else-default-without-win` é da tradução e não chega ao backend.
+
+**Perfis:** iguais.
 
 ### 5.13 `at` — o acessor verificado
 
-`at` é o único verbo da base cuja checagem sobrevive ao release, e a emissão diz isso sem `#ifdef`:
+**Forma:** `buffer.at(xs, i)`, `slice.at(s, i)` e `array.at(v, i)` (linguagem §5.3).
+
+**Emissão**
 
 ```keel
 //keel
@@ -1923,10 +1944,14 @@ static inline keel_outcome_i32 keel_buffer_i32_at(keel_buffer_i32 *b, size_t i) 
 keel_outcome_i32 v = keel_buffer_i32_at(&xs, idx); if (keel_outcome_i32_failed(v)) return -1;
 ```
 
-Duas regras:
+**Regras**
 
-1. **A comparação não é condicional de build.** Ao contrário das checagens de `get`, `set` e `ptr` (§5.3), que saem entre as macros de `debug`, esta é código comum da instância. É o que a linguagem §5.3 promete, e a promessa é o motivo de o verbo existir.
-2. **Fora de faixa sai por `none`, não por um código.** O produtor é o do §5.14, e nenhum valor de erro é inventado aqui — o backend não tem catálogo de erro e não deve ganhar um.
+1. A comparação é código comum da instância, fora de `KEEL_CHECK`: vale em toda build. [R: acesso e travessia](keel-rationale.md#acesso-e-travessia)
+2. Fora de faixa, `at` devolve `none` (§5.14). O backend não cria código de erro. [D14](#10-decisões-de-emissão)
+
+**Verificações:** nenhuma de `debug`; a comparação é a verificação.
+
+**Perfis:** iguais.
 
 ### 5.14 `outcome` e `corot`
 
@@ -2353,63 +2378,14 @@ A ressalva que sobra é a mesma do make: se o próprio gerador mudar, os gerados
 
 ## 8. Diagnósticos deste documento
 
-| Identificador | Diagnóstico | Sev. |
-| --- | --- | --- |
-| `name-too-long` | Nome gerado acima do teto de comprimento (255, ou 63 sob `--pedantic-names`) | `error` |
-| `reserved-name` | Identificador declarado pelo programa nos espaços reservados `keel_` e `KEEL_` | `error` |
-| `set-out-of-length` | `set` com índice fora de `length` | `debug` |
-| `instance-field-access` | Acesso direto a campo de instância de modificador, fora do módulo que a declara | `warning` |
-| `tag-out-of-range` | Etiqueta fora da lista declarada do conjunto | `debug` |
-| `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` |
-| `index-out-of-length` | `get` ou `ptr(x, i)` sobre `buffer` ou `slice` com índice fora de `length` | `debug` |
-| `array-index-out-of-bounds` | Índice de `array` fora da dimensão declarada | `debug` |
-| `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` |
-| `alloc-overflow` | `arena.alloc` cujo `n * sz` não cabe em `size_t` | `debug` |
-| `extent-index-out-of-bounds` | Índice de coluna de `extent` fora da contagem, ou contagem acima da capacidade | `debug` |
-| `layout-cycle` | Cadeia de tipos que se contêm por valor atravessando instância de modificador | `error` |
+Os identificadores que o backend ou o C emitido produzem. A condição de cada um
+está no [catálogo da spec](keel-spec.md#62-catálogo), que é a fonte única.
 
-Os identificadores são os do [catálogo da spec](keel-spec.md#62-catálogo). A spec define a condição normativa; esta tabela reúne os casos relacionados ao backend.
-
----
-
-## Anexo — Levantamento de significância de identificador
-
-Base factual do teto do §2.4. Levantado em 2026-08-24; os números são os que a
-documentação de cada fornecedor publica, não medições.
-
-### O que o padrão garante
-
-| Edição | Interno / macro | Externo |
-| --- | --- | --- |
-| C89/C90 | 31 | 6 |
-| C99, C11, C17, C23 | 63 | **31** |
-
-Nenhuma edição posterior a C99 alterou estes números; C23 os mantém.
-
-### O que os compiladores fazem
-
-| Compilador | Significância | Observação |
-| --- | --- | --- |
-| GCC | interno: todos; externo: definido pelo linker | "para quase todos os alvos, todos os caracteres são significativos" |
-| Clang / Arm Compiler 6 (`armclang`) | ilimitado | |
-| TI Arm Clang, MSP430, TMS320C28x | ilimitado | documentado como *implementation-defined behavior* |
-| MSVC | 2048 significativos; nomes externos 2047 | `/H` só **reduz**, e está obsoleta desde VS 2005 |
-| Microchip XC16 / XC32 | sem limite imposto; ≥ 255 garantidos | |
-| Microchip XC8 | C99: sem limite. C90 em PIC: 31 por padrão, extensível | modo C90 não se aplica: o keel gera C23 |
-| **IAR Embedded Workbench** | **255** | **é o piso do levantamento** |
-
-**Conclusão.** Entre toolchains capazes de C23, o pior caso é 255. O único número menor encontrado — 31, do XC8 — só existe em modo C90, que este backend nunca produz.
-
-### Fontes
-
-- [cppreference — *Identifier*, limites de tradução por edição do padrão](https://en.cppreference.com/c/language/identifier)
-- [GCC — *Identifiers implementation*](https://gcc.gnu.org/onlinedocs/gcc/Identifiers-implementation.html)
-- [Microsoft Learn — *Identifiers (C++)*](https://learn.microsoft.com/en-us/cpp/cpp/identifiers-cpp?view=msvc-170)
-- [Microsoft Learn — */H (Restrict Length of External Names)*](https://learn.microsoft.com/en-us/cpp/build/reference/h-restrict-length-of-external-names?view=msvc-170)
-- [Texas Instruments — *Arm C Implementation-Defined Behavior*](https://software-dl.ti.com/codegen/docs/tiarmclang/compiler_tools_user_guide/compiler_manual/c_cpp_language_implementation/c_implementation_defined_behavior.html)
-- [Microchip — *The Number of Significant Initial Characters in an Identifier*](https://onlinedocs.microchip.com/oxy/GUID-BD1C16C8-7FA3-4D73-A4BE-241EE05EF592-en-US-6/GUID-CA7FD647-B8A0-497D-A3D4-931B200CFBB5.html)
-- [IAR — *C/C++ Compiler Reference Guide*, 255 caracteres significativos](https://wwwfiles.iar.com/m32c/guides/EWM32C_CompilerReference.pdf)
-- [SEI CERT C — *DCL23-C*, unicidade de identificadores mutuamente visíveis](https://wiki.sei.cmu.edu/confluence/display/c/DCL23-C.+Guarantee+that+mutually+visible+identifiers+are+unique)
+| Severidade | Identificadores |
+| --- | --- |
+| `error` | `name-too-long` (§2.4), `reserved-name` (§2.3), `specific-format-unavailable` (§3.2), `layout-cycle` (§4.3.1) |
+| `warning` | `instance-field-access` (§4.5) |
+| `debug` (§5.17) | `index-out-of-length`, `set-out-of-length`, `array-index-out-of-bounds`, `range-index-out-of-bounds`, `extent-index-out-of-bounds`, `tag-out-of-range`, `alloc-overflow` |
 
 ---
 
@@ -2547,8 +2523,10 @@ C23 não pagar nenhum deles e ainda assim aceitar o mesmo conjunto de programas.
 
 ## 10. Decisões de emissão
 
-Nove pontos que estiveram abertos enquanto o lowering se firmava. Ficam aqui
-com o motivo, como decisão registrada — não como alternativa em aberto.
+As seções do capítulo 5 dizem o que sai; esta tabela diz por quê, quando o
+motivo é do backend e não da linguagem — o da linguagem está no
+[rationale](keel-rationale.md). Cada linha é decisão registrada, não
+alternativa em aberto.
 
 | | Decisão | Por quê |
 | --- | --- | --- |
@@ -2561,3 +2539,50 @@ com o motivo, como decisão registrada — não como alternativa em aberto.
 | 7 | A base fica toda `pub inline`; não há `.c` por instância distribuído pronto | em laço quente o inline é o que mantém o código junto do dado, e isso é objetivo da linguagem, não detalhe de emissão. O preço — `--instance` sobre a base emitir `redundant-instance` sempre — é consequência anunciada ([rationale](keel-rationale.md#prelúdio-e-base-mínima)) |
 | 8 | O acesso de coluna de `extent` é sempre pela função de acesso, em qualquer modo de verificação | §5.15. Um caminho de emissão só: é ele que avalia o caminho e cada índice uma vez, como o §5.3 exige, e que deixa o `assert` por dimensão sem duplicar expressão |
 | 9 | As verificações `debug` são chaveadas por `KEEL_CHECKS` no compilador C, e não na geração | §5.17. O C gerado é o mesmo nos dois modos, então o header de instância segue função só do nome, e trocar de modo não pede regerar. Cada verificação fica num corpo de função, onde os argumentos já foram avaliados uma vez |
+| 10 | O rótulo de braço de `match` vem antes da chave de abertura | §5.6. Saltar para um rótulo interno entraria no meio do escopo, e os inicializadores das declarações do braço não rodariam — legal em C, e o tipo de bug que ninguém encontra. O último braço não leva `goto` para o fim, que ninguém escreveria à mão |
+| 11 | As constantes do `enum` de `tags` saem na ordem declarada, e um valor escrito sai literalmente | §5.6. O `enum` atravessa o `.h` e pode estar gravado em memória, arquivo ou rede: o valor de uma tag é contrato, e não consequência da ordem de edição |
+| 12 | Os rótulos de `match` levam um contador por função, e não um nome | §5.6. `match` não tem nome no fonte. Inserir um `match` renomeia os rótulos dos seguintes só dentro da mesma função, que não chega ao `.h` nem a símbolo de link — e o `.c` já ia diferir, porque a função foi editada |
+| 13 | A cláusula `else` sai numa linha só, declaração e `if` | §5.12. O corpo continua mapeando 1:1 e dispensa ressincronizar, ao contrário de `match` e `parallel`, que não cabem numa linha |
+| 14 | `at` fora de faixa devolve `none`, e não um código | §5.13. O backend não tem catálogo de erro e não deve ganhar um: o produtor é o de `outcome` (§5.14) |
+| 15 | Todo nome criado pelo backend começa por `keel__` | §2.3. O mangling nunca produz `__`, e o programa não declara nada em `keel_`: o espaço é só do backend, e um nome novo não pede consulta à tabela de símbolos nem pode colidir com um símbolo que a base venha a ter — a função `m0` de um módulo sairia `keel_m0`, o rótulo, `keel__m0_LIT` |
+
+---
+
+## Anexo — Levantamento de significância de identificador
+
+Base factual do teto do §2.4. Levantado em 2026-08-24; os números são os que a
+documentação de cada fornecedor publica, não medições.
+
+### O que o padrão garante
+
+| Edição | Interno / macro | Externo |
+| --- | --- | --- |
+| C89/C90 | 31 | 6 |
+| C99, C11, C17, C23 | 63 | **31** |
+
+Nenhuma edição posterior a C99 alterou estes números; C23 os mantém.
+
+### O que os compiladores fazem
+
+| Compilador | Significância | Observação |
+| --- | --- | --- |
+| GCC | interno: todos; externo: definido pelo linker | "para quase todos os alvos, todos os caracteres são significativos" |
+| Clang / Arm Compiler 6 (`armclang`) | ilimitado | |
+| TI Arm Clang, MSP430, TMS320C28x | ilimitado | documentado como *implementation-defined behavior* |
+| MSVC | 2048 significativos; nomes externos 2047 | `/H` só **reduz**, e está obsoleta desde VS 2005 |
+| Microchip XC16 / XC32 | sem limite imposto; ≥ 255 garantidos | |
+| Microchip XC8 | C99: sem limite. C90 em PIC: 31 por padrão, extensível | modo C90 não se aplica: o keel gera C23 |
+| **IAR Embedded Workbench** | **255** | **é o piso do levantamento** |
+
+**Conclusão.** Entre toolchains capazes de C23, o pior caso é 255. O único número menor encontrado — 31, do XC8 — só existe em modo C90, que este backend nunca produz.
+
+### Fontes
+
+- [cppreference — *Identifier*, limites de tradução por edição do padrão](https://en.cppreference.com/c/language/identifier)
+- [GCC — *Identifiers implementation*](https://gcc.gnu.org/onlinedocs/gcc/Identifiers-implementation.html)
+- [Microsoft Learn — *Identifiers (C++)*](https://learn.microsoft.com/en-us/cpp/cpp/identifiers-cpp?view=msvc-170)
+- [Microsoft Learn — */H (Restrict Length of External Names)*](https://learn.microsoft.com/en-us/cpp/build/reference/h-restrict-length-of-external-names?view=msvc-170)
+- [Texas Instruments — *Arm C Implementation-Defined Behavior*](https://software-dl.ti.com/codegen/docs/tiarmclang/compiler_tools_user_guide/compiler_manual/c_cpp_language_implementation/c_implementation_defined_behavior.html)
+- [Microchip — *The Number of Significant Initial Characters in an Identifier*](https://onlinedocs.microchip.com/oxy/GUID-BD1C16C8-7FA3-4D73-A4BE-241EE05EF592-en-US-6/GUID-CA7FD647-B8A0-497D-A3D4-931B200CFBB5.html)
+- [IAR — *C/C++ Compiler Reference Guide*, 255 caracteres significativos](https://wwwfiles.iar.com/m32c/guides/EWM32C_CompilerReference.pdf)
+- [SEI CERT C — *DCL23-C*, unicidade de identificadores mutuamente visíveis](https://wiki.sei.cmu.edu/confluence/display/c/DCL23-C.+Guarantee+that+mutually+visible+identifiers+are+unique)

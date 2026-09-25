@@ -1257,44 +1257,45 @@ Referências: [Rationale: conjuntos fechados e exaustividade](keel-rationale.md#
 //keel
 module ast;
 import keel.tagged as tagged types;
-import keel.buffer as buffer types;
 
 struct Node { u32 a, b; };
+typedef struct Node *NodeRef;
 pub tags Kind [LIT, ADD, MUL];
 
-pub void eval(tagged Kind struct Node *n) {
-    match (n) {
+pub void eval(tagged Kind NodeRef t) {
+    match (t) {
         LIT:
-            leaf(tagged.value(n));
+            leaf(tagged.value(t));
         ADD:
         MUL:
-            binary(tagged.value(n));
+            binary(tagged.value(t));
     }
 }
 ```
 
 ```c
 //C gerado
-typedef enum { ast_Kind_LIT, ast_Kind_ADD, ast_Kind_MUL } ast_Kind;
+typedef enum ast_Kind { ast_Kind_LIT, ast_Kind_ADD, ast_Kind_MUL } ast_Kind;
 
 struct ast_Node { u32 a, b; };
+typedef struct ast_Node *ast_NodeRef;
 
-typedef struct {
-    int32_t tag;
-    struct ast_Node value;
-} keel_tagged_ast_Kind_ast_Node;
+typedef struct keel_tagged_ast_Kind_ast_NodeRef {
+    i32 tag;
+    ast_NodeRef value;
+} keel_tagged_ast_Kind_ast_NodeRef;
 
-void ast_eval(keel_tagged_ast_Kind_ast_Node *n) {
-    switch (n->tag) {
+void ast_eval(keel_tagged_ast_Kind_ast_NodeRef t) {
+    switch (t.tag) {
     case ast_Kind_LIT: goto keel__m0_LIT;
     case ast_Kind_ADD: goto keel__m0_ADD;
     case ast_Kind_MUL: goto keel__m0_MUL;
-    default:      goto keel__m0_end;
+    default:           KEEL_CHECK(0, "tag-out-of-range"); goto keel__m0_end;
     }
-    keel__m0_LIT: { ast_leaf(n->value); }
+    keel__m0_LIT: { ast_leaf(keel_tagged_ast_Kind_ast_NodeRef_value(&t)); }
     goto keel__m0_end;
     keel__m0_ADD:
-    keel__m0_MUL: { ast_binary(n->value); }
+    keel__m0_MUL: { ast_binary(keel_tagged_ast_Kind_ast_NodeRef_value(&t)); }
     keel__m0_end: ;
 }
 ```
@@ -2223,7 +2224,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `inverted-range-index` | Índice por intervalo com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
 | `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
 | `array-index-above-dimension` | Índice de `array` decimal conhecido acima da dimensão declarada | `error` | keel | §4.5 |
-| `array-index-out-of-bounds` | Índice de `array` fora da dimensão declarada | `debug` | Backend, em execução | §4.5 |
+| `array-index-out-of-bounds` | Índice de `array` fora da dimensão declarada ou, em parâmetro com binder, da recebida | `debug` | Backend, em execução | §4.5 |
 | `foreach-two-binders-on-literal` | `foreach` de dois binders sobre literal de intervalo — a mensagem indica nomear o intervalo | `error` | keel | §4.7 |
 | `pointer-binder-on-range` | Binder por ponteiro na forma de intervalo | `error` | keel | §4.7 |
 | `open-range-outside-index` | Índice por intervalo com ponta aberta fora de índice | `error` | keel | §4.7 |

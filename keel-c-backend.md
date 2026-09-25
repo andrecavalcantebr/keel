@@ -684,7 +684,9 @@ typedef struct keel_outcome_i32 { i32 code; i32 value; } keel_outcome_i32;
 
 ### 5.1 Declarações: substituição local de nome
 
-`<modifier> <argument>` é um especificador de tipo, e o lowering é troca de nome, **local**. O backend nunca precisa da gramática de declaradores do C:
+**Forma:** `<modificador> <argumento>` em declaração, e os marcadores `array` e `ref` (linguagem §4.2).
+
+**Emissão**
 
 ```keel
 buffer i32 x;
@@ -704,8 +706,6 @@ void (*g)(keel_slice_char s);
 typedef keel_slice_u8 (*Reader)(i32);
 ```
 
-`array` e `ref` **somem**:
-
 ```keel
 array i32  v[100];
 array i32  m[2,3,4];
@@ -718,8 +718,6 @@ i32 m[2][3][4];
 i32 *p = keel_buffer_i32_ptr(&xs, 3);
 ```
 
-Parâmetro `array` multidimensional recebe `[static d0]`, que documenta o contrato e faz GCC/Clang avisarem sobre `NULL` e sobre vetor menor na dimensão 0:
-
 ```keel
 void f(array i32 v[2,3,4]);
 ```
@@ -728,11 +726,15 @@ void f(array i32 v[2,3,4]);
 void f(i32 v[static 2][3][4]);
 ```
 
-#### 5.1.1 Prefixo do C
+**Regras**
 
-`spec-c` (linguagem §2.2) é **copiado verbatim, na posição em que foi
-escrito**, e não participa de nada mais: não entra no mangling (§2.2), não muda a
-instância, não é reordenado.
+1. `<modificador> <argumento>` é um especificador de tipo, e o lowering troca o nome, localmente: o backend nunca precisa da gramática de declaradores do C.
+2. `array` e `ref` somem: `array i32 m[2,3,4]` sai `i32 m[2][3][4]`, e `i32 *ref p` sai `i32 *p`.
+3. Parâmetro `array` multidimensional sai com `[static d0]` na dimensão 0, que documenta o contrato e faz GCC e Clang avisarem sobre `NULL` e sobre vetor menor. Com binder, a dimensão 0 sai vazia, e o tamanho vem no parâmetro seguinte (§5.18).
+
+**Verificações:** nenhuma. **Perfis:** iguais.
+
+#### 5.1.1 Prefixo do C
 
 ```keel
 alignas(64) array f32 canal[1024];
@@ -750,16 +752,17 @@ keel_buffer_atomic_u32 counters;
 [[maybe_unused]] keel_slice_char s;
 ```
 
-As duas últimas linhas são o par que justifica a regra existir. `_Atomic` antes do
-modificador qualifica o **descritor** e sai onde estava; dentro do argumento ele
-qualifica o **elemento**, e aí é a instância que muda de nome. O backend não
-decide qual é qual — a linguagem já separou por posição, e aqui só se emite.
+**Regras**
 
-**O prefixo não altera o posicionamento do §4.1.** `static` é ligação e `pub`/`priv`
-é arquivo (linguagem §4.1): uma variável `pub static` já é error 15 na
-linguagem, e o backend nunca vê o caso.
+1. `spec-c` (linguagem §2.2) é copiado verbatim, na posição em que foi escrito: não entra no mangling, não muda a instância e não é reordenado.
+2. `_Atomic` antes do modificador qualifica o descritor e sai onde estava; dentro do argumento, qualifica o elemento, e aí é a instância que muda de nome (§2.2, regra 7). A linguagem separa os dois pela posição, e o backend só emite.
+3. O prefixo não muda o arquivo de destino (§4.1): `static` é ligação, e `pub`/`priv` é arquivo. `pub static` é recusado pela linguagem antes de chegar ao backend.
 
 ### 5.2 Containers: struct e funções `static inline`
+
+**Forma:** chamada de verbo, `m.verbo(x, …)` (linguagem §4.4), e os construtores `of` e `from` (linguagem §5.3).
+
+**Emissão**
 
 ```c
 typedef struct keel_buffer_i32 {
@@ -794,10 +797,6 @@ static inline i32 *keel_buffer_i32_pop(keel_buffer_i32 *b) {
 }
 ```
 
-`push(x)` e `push(x,v)` geram funções distintas — `_push` e `_push1`, pela regra de aridade do §2.1 — em vez de uma variádica: são duas assinaturas C normais, e o compilador C confere cada uma.
-
-A chamada de builtin é reescrita para a função mangled correspondente. **A forma do parâmetro é o bit `byref`** (linguagem §4.3, com a adaptação da §4.4): instância `byref` recebe o **endereço** do contêiner; instância que não é — `slice`, `view`, `range` — recebe **cópia**. É por isso que `as_slice` devolve `keel_slice_i32` e `keel_slice_i32_length` o consome direto, sem `&`:
-
 ```keel
 length(w->ps)
 push(pts, (geom.Point){3.0f, 4.0f})
@@ -810,45 +809,12 @@ keel_buffer_geom_Point_push1(&pts, (geom_Point){3.0f, 4.0f})
 keel_buffer_i32_as_slice2(&xs, 2, 7)
 ```
 
-**O sufixo de aridade vale para `as_slice` como para qualquer outro**, e é o que
-impede a colisão: `slice.of(xs)` dá `_as_slice`, `slice.of(xs,r)` dá `_as_slice1` e
-`slice.of(xs,2,7)` dá `_as_slice2` — dois argumentos além do contêiner. Sem o sufixo, as duas
-assinaturas chegariam ao mesmo símbolo, e C não tem sobrecarga:
-`error: conflicting types for 'as_slice'`.
-
-**`slice.of` sobre `array` baixa para `_from`.** A linguagem §5.3 admite os três
-receptores — `buffer`, `slice` e `array` —, e o símbolo emitido sai do módulo
-que declara o verbo. Sobre `buffer` é o `as_slice` dele; sobre `slice`, o `of`
-dele. Sobre `array` não há módulo: a conversão é do núcleo, e o que ela produz é
-a construção de `slice` a partir de ponteiro e comprimento, que é `from`. O
-comprimento vem da tabela, e é por isso que o marcador `array` é exigido.
-
 ```plain
 slice.of(v)            →  keel_slice_i32_from(v, <dim 0>)
 slice.of(v, r)         →  keel_slice_i32_of1(keel_slice_i32_from(v, <dim 0>), r)
 slice.of(v, a, b)      →  keel_slice_i32_of2(keel_slice_i32_from(v, <dim 0>), a, b)
 buffer.of(v)           →  keel_buffer_i32_of(v, <dim 0>)
 ```
-
-Não há função `_of` de dois argumentos em instância de `slice`: a forma de um
-argumento chega ao mesmo símbolo que `slice.from(i32, p, n)` já emitia, e as de
-`range` e de dois limites passam pelo `of` da instância, de aridades dois e três
-sobre `slice`. `buffer.of(v)` é o `of(p, n)` do buffer com `n` da tabela. Cada argumento
-é avaliado uma vez, e a verificação e a saturação são as do `slice` (§5.17).
-
-Todo builtin que pode falhar é gerado com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
-
-Verificação de limites em `get`, `set` e `ptr(x,i)` é escrita no corpo do verbo e ligada por `KEEL_CHECKS` (§5.17).
-
-**`array` no despacho.** Sobre símbolo `array` unidimensional, `length` e `capacity` saem como `sizeof(v)/sizeof(<elem>)` — o tipo do elemento vem da tabela, não de `*(v)`. Sobre multidimensional, o idioma `sizeof(v)/sizeof(*(v))` daria a primeira dimensão, então o backend emite `sizeof(v)/sizeof(i32)`. `dim(v,k)` sai como literal. Em parâmetro multidimensional, `length` **não** pode usar `sizeof` e emite o produto literal das dimensões; com binder, o produto usa o binder no lugar da dimensão 0 (§5.18).
-
-**`keel.array`** é genérico sem modificador (linguagem §5.3). A instância é a
-família de verbos de um tipo de elemento, `keel_array_<T>_<verbo>`, emitida em
-`keel/keel_array_<T>.h`. O `.type.h` da instância não define tipo nenhum: existe
-porque toda instância gera os dois headers (§4.3.2), e só inclui `keel.type.h`. O
-binder de cada verbo recebe a dimensão do argumento (§5.18), e `ptr(v)` e
-`ptr(v, i)` saem `_ptr` e `_ptr1`. O índice do corpo passa por `keel_index`
-contra o binder (§5.3), e `at` testa em toda build.
 
 ```keel
 array i32 v[8];
@@ -860,11 +826,36 @@ i32 v[8];
 i32 x = keel_array_i32_get(v, 8, 3);
 ```
 
-**`a..b` é `range.of(a, b)`** fora da travessia: `range r = 2..5;` sai `keel_range r = keel_range_of(2, 5);`. Em `foreach`, o literal não constrói `range`: os limites entram direto no laço (§5.7).
+**Regras**
+
+1. Cada instância é uma struct e funções `static inline`, uma por verbo e aridade (§2.1.1). `push(x)` e `push(x,v)` são `_push` e `_push1`, e não uma variádica. [D36](#10-decisões-de-emissão)
+2. A chamada é reescrita para a função manglada. A forma do parâmetro é o bit `byref` (linguagem §4.3): instância `byref` recebe o endereço do contêiner, e a que não é — `slice`, `range` — recebe cópia, pela adaptação da linguagem §4.4.
+3. `slice.of` sobre `buffer` é o `as_slice` do buffer, e sobre `slice`, o `of` da própria slice, escolhidos pela aridade: `_as_slice`, `_as_slice1` e `_as_slice2`.
+4. `slice.of` sobre `array` baixa para `from`, com a dimensão 0 da tabela, e as formas de `range` e de dois limites passam pelo `of` da instância sobre esse `from`. `buffer.of(v)` é o `of(p, n)` do buffer, com `n` da tabela. Cada argumento é avaliado uma vez.
+5. Todo verbo que pode falhar sai com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
+6. A verificação de limites de `get`, `set` e `ptr(x, i)` está no corpo do verbo, ligada por `KEEL_CHECKS` (§5.17).
+7. Sobre `array`, `keel.length` e `keel.capacity` saem `sizeof(v)/sizeof(<elem>)`, com o tipo do elemento vindo da tabela, e não de `*(v)`; `keel.dim(v, k)` sai literal. Em parâmetro multidimensional, onde `sizeof` não serve, `length` sai o produto literal das dimensões, com o binder no lugar da dimensão 0 quando há (§5.18).
+8. `keel.array` é genérico sem modificador (linguagem §5.3): a instância é a família de verbos de um tipo de elemento, `keel_array_<T>_<verbo>`, em `keel/keel_array_<T>.h`. O `.type.h` da instância não define tipo nenhum e só inclui `keel.type.h`: existe porque toda instância gera os dois headers (§4.3.2). O binder de cada verbo recebe a dimensão do argumento (§5.18), e o índice do corpo passa por `keel_index` contra ele (§5.3).
+9. `a..b` fora de travessia é `range.of(a, b)`: `range r = 2..5;` sai `keel_range r = keel_range_of(2, 5);`. Em `foreach`, o literal não constrói `range`, e os limites entram direto no laço (§5.7).
+10. `clone` aloca no destino pelo comprimento da origem, copia, e devolve `outcome`, porque devolve descritor, e descritor não tem sentinela (linguagem §4.4). Não refaz a checagem de transbordamento: o comprimento da origem já coube na memória uma vez.
+
+```keel
+outcome slice geom.Point out = slice.clone(a, slice.of(tmp)) else return -1;
+```
+
+```c
+keel_outcome_keel_slice_geom_Point out = keel_slice_geom_Point_clone(&a, keel_buffer_geom_Point_as_slice(&tmp)); if (keel_outcome_keel_slice_geom_Point_failed(out)) return -1;
+```
+
+**Verificações:** `index-out-of-length`, `set-out-of-length` e `range-index-out-of-bounds`, no corpo dos verbos (§5.17).
+
+**Perfis:** C11 escreve `_Alignof` onde C23 escreve `alignof` (§9.1); o resto é igual.
 
 ### 5.3 Açúcar de indexação
 
-`x[i]` é `*ptr(x,i)`. O lowering é sempre por **função `static inline`, nunca por macro** — é o que garante que cada argumento seja avaliado exatamente uma vez, pelas regras normais de chamada de função, e é por isso que `x[i++]` incrementa `i` uma vez só.
+**Forma:** `x[i]`, `x[i,j]` e `x[a..b]` com suas formas abertas (linguagem §4.5).
+
+**Emissão**
 
 ```keel
 length(lines[3])
@@ -878,8 +869,6 @@ keel_buffer_i32_push1(keel_buffer_buffer_i32_ptr(&grid, 3), 42)
 *keel_buffer_i32_ptr(keel_buffer_buffer_i32_ptr(&grid, 3), 7) = 5
 ```
 
-O par `&*` colapsa na geração; não sai `&*` no `.c`.
-
 ```keel
 array i32 v[2,3,4];
 v[1,2,3] = 0;
@@ -890,33 +879,25 @@ i32 v[2][3][4];
 v[1][2][3] = 0;
 ```
 
-Cada índice escrito sobre `array` passa por `keel_index(i, d)`, contra a dimensão
-declarada correspondente — é o `array-index-out-of-bounds` (§5.17): `v[i][j]` sai
-`v[keel_index(i, 2)][keel_index(j, 3)]`, e o índice é avaliado uma vez.
-O número vem da tabela, e não de `sizeof`: em parâmetro multidimensional o
-`sizeof` não está disponível (§5.2), e nas dimensões de índice 1 em diante o
-número declarado **é** o tipo C emitido. A dimensão 0 de um parâmetro é a
-exceção, e é o ponto a entender: `[static d0]` não é verificado pelo C, então
-a verificação ali afirma o contrato declarado, não a extensão recebida. Ele nunca
-acusa falso — ultrapassar o `d0` escrito é defeito qualquer que seja o vetor
-que chegou —, mas também não alcança o chamador que entregou menos do que
-prometeu. Esse é pego do lado da chamada, na tradução, pelo
-`array-argument-wrong-dimension` (linguagem §4.2). Com binder, a dimensão 0 é
-o `size_t` que chegou (§5.18), e a verificação alcança a extensão recebida.
+**Regras**
 
-Quando índice e dimensão são ambos decimais conhecidos, sai o colchete simples: a
-tradução já conferiu, e é o `array-index-above-dimension` (linguagem §4.5).
+1. `x[i]` é `*ptr(x, i)`, sempre por função `static inline` e nunca por macro: cada argumento é avaliado uma vez, e `x[i++]` incrementa `i` uma vez. [D37](#10-decisões-de-emissão)
+2. O par `&*` colapsa na geração: não sai `&*` no `.c`.
+3. Sobre `array`, `v[i,j,k]` sai `v[i][j][k]`, sem função.
+4. Cada índice sobre `array` passa por `keel_index(i, d)`, contra a dimensão declarada correspondente, e é avaliado uma vez: `v[i][j]` sai `v[keel_index(i, 2)][keel_index(j, 3)]`. O número vem da tabela, e não de `sizeof`, que não serve em parâmetro multidimensional.
+5. Na dimensão 0 de parâmetro sem binder, a verificação afirma o contrato declarado, e não a extensão recebida: nunca acusa falso, mas não alcança o chamador que entregou menos, que a tradução pega com `array-argument-wrong-dimension` (linguagem §4.2). Com binder, a verificação alcança a extensão recebida (§5.18). [D3](#10-decisões-de-emissão)
+6. Com índice e dimensão decimais conhecidos, sai o colchete simples: a tradução já conferiu (`array-index-above-dimension`, linguagem §4.5).
+7. `range-index` sai pelo verbo que o módulo declara (§5.2). A verificação em debug e a saturação em release estão no corpo do verbo, e não no emissor (§5.17).
 
-Um `range-index` fora de `a <= b <= length(x)` é o `range-index-out-of-bounds`,
-verificado no corpo do verbo (§5.17). Em release, o resultado saturado da linguagem §4.5 é escrito no corpo
-do próprio verbo da base — `slice.of` e `buffer.as_slice` recortam o fim no
-comprimento e o início no fim —, e não pelo emissor.
+**Verificações:** `array-index-out-of-bounds`, `index-out-of-length` e `range-index-out-of-bounds` (§5.17).
+
+**Perfis:** iguais.
 
 #### 5.3.1 Açúcar sobre modificador com `dim`
 
-Quando o modificador declara `dim N` (linguagem §4.3), a emissão do açúcar
-conta os índices escritos e ramifica. É **a única ramificação** que `dim`
-acrescenta ao emissor:
+**Forma:** `x[i, j, …]` sobre modificador que declara `dim N` (linguagem §4.3).
+
+**Emissão**
 
 ```keel
 tensor(3) f32 t;
@@ -931,44 +912,27 @@ f32 x = *tens_tensor_3_f32_ptr3(&t, (size_t[3]){i, j, k});
 f32 y = *tens_tensor_2_f32_ptr2(&m, (size_t[2]){i, j});
 ```
 
-Quatro obrigações:
+**Regras**
 
-1. **O literal composto é emitido no ponto da indexação**, com tipo `size_t[N]` e
-   os índices na ordem escrita. Cada índice é copiado verbatim, e continua
-   avaliado exatamente uma vez — a garantia da §5.3 não muda, porque inicializador
-   de literal composto tem a mesma regra de avaliação única que argumento de
-   função. `t[i++, j]` incrementa `i` uma vez.
-2. **A extensão do literal é o bloco que o contém**, que é o que o C garante e o
-   que basta: ele vive até o fim da expressão de chamada, e o acessor não guarda
-   o ponteiro.
-3. **`k ≠ N` não chega aqui** — é o error 104 da linguagem, decidido antes de
-   qualquer emissão. O emissor tem um caso só, e não ramifica por aridade.
-4. **Modificador sem `dim` não passa por aqui.** O rank fixo declara um acessor
-   por aridade (linguagem §4.3), e o açúcar da §5.3 o alcança pela regra
-   geral: nenhum literal composto é emitido, e a ramificação desta subseção nem é
-   consultada.
-
-**O `for` do acessor tem limite constante depois da substituição**, então o
-compilador C o desenrola e o literal desaparece por SROA. Vale conferir uma vez,
-porque é a premissa do desenho:
+1. A emissão conta os índices escritos e emite o acessor de rank cheio. É a única ramificação que `dim` acrescenta ao emissor.
+2. O literal composto `(size_t[N]){…}` é emitido no ponto da indexação, com os índices na ordem escrita, copiados como escritos e avaliados uma vez: `t[i++, j]` incrementa `i` uma vez.
+3. O literal vive até o fim do bloco que o contém, e o acessor não guarda o ponteiro.
+4. Um número de índices diferente de `N` é recusado pela linguagem antes da emissão.
+5. Modificador sem `dim` não passa por aqui: o rank fixo declara um acessor por aridade (linguagem §4.3), e nenhum literal composto é emitido.
+6. Em `-O2` o laço do acessor desenrola e o literal some; em `-O0` não, e é o custo declarado na linguagem §4.3. O backend não o mitiga. [D38](#10-decisões-de-emissão)
 
 ```c
 /* -O2, x86-64: the body of _ptr3 collapses into */
 t->ptr + idx0 * t->steps[0] + idx1 * t->steps[1] + idx2 * t->steps[2]
 ```
 
-Em `-O0` não colapsa: o vetor é escrito na pilha e o laço roda. É o custo
-declarado na linguagem §4.3, e não há mitigação de backend para ele — nem
-deveria haver, porque a alternativa seria o backend gerar o que a linguagem
-decidiu não gerar.
+**Verificações:** as do acessor declarado pelo módulo. **Perfis:** iguais.
 
 ### 5.4 `arena`
 
-A arena é o `.h` do módulo `keel.arena` — C comum, utilizável inclusive a partir de código que não passa pelo keel. Ela chega ao módulo pelo `import`, como qualquer outro (§4.2).
+**Forma:** `arena a;`, os quatro construtores e `arena.alloc` (linguagem §5.2).
 
-A forma abaixo é a emissão de `keel/arena.k`, e é dele que ela sai — nomes,
-campos e corpo (§7.2). O que este documento fixa são as quatro propriedades
-listadas a seguir, não a grafia.
+**Emissão**
 
 ```c
 /* keel/keel_arena — the typedef in the .type.h, the bodies in the .h */
@@ -997,22 +961,6 @@ typedef struct keel_arena {
 }
 ```
 
-`alloc` é verbo `pub` como qualquer outro, em duas aridades. O programa escreve
-`arena.alloc(a, T, n)`, cujo `type T` é apagado (§5.16): a função recebe os
-números, nunca o tipo. A forma crua, `arena.alloc(a, n, sz, al)`, é a que faz
-o trabalho.
-
-Quatro coisas na forma crua são normativas, e as quatro vêm da linguagem §4.4:
-
-1. **Contagem e tamanho do elemento entram separados**, e o produto é feito aqui. É a forma do `calloc`, e existe para que `n * sizeof(T)` que transborda devolva `NULL` em vez de uma região pequena que o programa acredita ser grande. **É o único ponto do backend que emite essa multiplicação.**
-2. **A soma final não transborda**, porque é escrita como `need > avail - pad` e nunca como `pad + need > avail`.
-3. **O alinhamento é do endereço, não do deslocamento**, e é o que dispensou o campo `base_align` que esta struct já teve. Alinhar `top` só serviria se `ptr` já estivesse alinhado — e keel não tem como saber se está, porque `alignas(64)` é copiado verbatim e nunca avaliado (linguagem §1.3). Alinhando o endereço que se vai entregar, a base pode estar em qualquer lugar e **toda alocação sai alinhada**, inclusive de tipo sobre-alinhado sobre um `array u8` nu.
-4. **`[[nodiscard]]`**, porque o `NULL` é o único canal de falha.
-
-**`uintptr_t` aparece uma vez e não fabrica ponteiro.** Ele calcula o **número** de bytes de padding; o endereço devolvido sai de `a->ptr + a->top`, aritmética de ponteiro dentro do próprio vetor. É a diferença entre uma conversão de valor definida-pela-implementação e uma travessia de ponteiro por inteiro, e só a primeira acontece aqui.
-
-**O `T` nunca chega ao C.** O parâmetro `type T` é apagado (§5.16): a função recebe tamanho e alinhamento, e o ponto de chamada escreve o `sizeof`, o `alignof` e o cast que um humano escreveria à mão.
-
 ```keel
 arena a;
 arena.alloc(a, Particle, 100)
@@ -1022,10 +970,6 @@ arena.alloc(a, Particle, 100)
 keel_arena a = {0};
 (sim_Particle *)keel_arena_alloc2(&a, sizeof(sim_Particle), alignof(sim_Particle), 100)
 ```
-
-O `= {0}` vem da linguagem §5.2: toda definição de `arena` sem inicializador escrito o recebe, em arquivo ou em bloco. É ele que faz a arena declarada sem construtor ter `capacity == 0` e todo `alloc` nela falhar limpo — com `cap` zerado, `avail` é zero e a primeira comparação já recusa. Vetor de `arena` recebe o mesmo `= {0}`, que zera todos os elementos; vários declaradores recebem um cada, `keel_arena a = {0}, b = {0};`. Declaração `extern` e campo de struct não o recebem.
-
-**Os quatro construtores.** Todos devolvem `bool`, verdadeiro quando a capacidade resultante é maior que zero:
 
 ```keel
 alignas(64) array u8 memo[65536];
@@ -1044,9 +988,24 @@ keel_arena t = {0};  alignas(alignof(max_align_t)) unsigned char keel__st0[4096]
 keel_arena h = {0};  keel_arena_from_memory(&h, mem, cap);
 ```
 
-- **Nenhum construtor recebe alinhamento**, e é a consequência de a alocação alinhar o endereço. A tentativa anterior era `alignof(<símbolo>)` para levar o `alignas` do usuário ao descritor, e ela **não é C**: `alignof` exige nome de tipo, e o GCC recusa com `ISO C does not allow 'alignof (expression)'`. Não havia substituto — keel copia `alignas(64)` verbatim e não avalia o argumento —, e a saída foi tirar a necessidade em vez de procurar a grafia.
-- **`from_stack` é o único construtor sem função C própria**: ele gera o vetor no frame e chama `keel_arena_from_array`. A origem "pilha" está no vetor emitido, não numa inicialização diferente. O `alignas(alignof(max_align_t))` continua saindo, mas agora é **economia e não correção**: sem ele a arena funciona igual, e apenas gasta até `alignof(max_align_t) - 1` bytes de padding na primeira alocação.
-- **`from_parent` recorta com `keel_arena_alloc2(parent, sizeof(u8), alignof(u8), n)`** — alinhamento 1, porque a filha alinha as próprias alocações. Ela não herda nem precisa herdar alinhamento nenhum.
+**Regras**
+
+1. A arena é o `.h` do módulo `keel.arena`, C comum, que chega pelo `import` como qualquer outro (§4.2) e pode ser usado por C que não passa pelo keel. A forma sai de `keel/arena.k` (§7.2); o que este documento fixa são as regras abaixo, e não a grafia.
+2. `alloc` tem duas aridades. `arena.alloc(a, T, n)` tem o `type T` apagado (§5.16): a função recebe tamanho e alinhamento, e o ponto de chamada escreve o `sizeof`, o `alignof` e o cast. A forma crua, `arena.alloc(a, n, sz, al)`, faz o trabalho.
+3. Contagem e tamanho entram separados, e o produto é feito na forma crua, com teste: `n * sz` que transborda devolve `NULL`. É o único ponto do backend que emite essa multiplicação. [D39](#10-decisões-de-emissão)
+4. A soma final é escrita `need > avail - pad`, e nunca `pad + need > avail`, que poderia transbordar.
+5. O alinhamento é do endereço entregue, e não do deslocamento: toda alocação sai alinhada, qualquer que seja a base, inclusive de tipo sobre-alinhado sobre um `array u8` nu. [D40](#10-decisões-de-emissão)
+6. `uintptr_t` só calcula o número de bytes de padding; o endereço devolvido sai de `a->ptr + a->top`, aritmética de ponteiro dentro do vetor. Nenhum ponteiro é fabricado de inteiro.
+7. `alloc` sai com `[[nodiscard]]`: o `NULL` é o único canal de falha.
+8. Toda definição de `arena` sem inicializador recebe `= {0}`, em arquivo e em bloco (linguagem §5.2): vetor de `arena` recebe um, que zera todos os elementos, e vários declaradores recebem um cada, `keel_arena a = {0}, b = {0};`. Declaração `extern` e campo de struct não recebem. Com `cap` zero, todo `alloc` falha limpo.
+9. Os quatro construtores devolvem `bool`, verdadeiro quando a capacidade resultante é maior que zero, e nenhum recebe alinhamento (regra 5).
+10. `from_stack` não tem função própria: gera no frame o vetor `alignas(alignof(max_align_t)) unsigned char keel__st<N>[n]`, de tamanho constante, e chama `keel_arena_from_array`. O `alignas` economiza padding na primeira alocação, e não é correção. Não há VLA.
+11. `from_parent` recorta a filha com `keel_arena_alloc2(parent, sizeof(u8), alignof(u8), n)`: alinhamento 1, porque a filha alinha as próprias alocações.
+12. `from_memory` toma ponteiro e tamanho crus e assume `max_align_t`, porque a origem é `malloc` ou `mmap`. Região com alinhamento menor é do programa (linguagem §4.4).
+
+**Verificações:** `alloc-overflow` (§5.17).
+
+**Perfis:** C11 escreve `_Alignof` onde C23 escreve `alignof` (§9.1).
 
 #### 5.4.1 O respaldo de tipo-caractere
 
@@ -1055,54 +1014,13 @@ A linguagem nomeia uma suposição e passa o conserto para cá (linguagem §4.4,
 > **Armazenamento de tipo-caractere, suficientemente alinhado, serve de respaldo
 > para os objetos que a arena entrega.**
 
-Ela é necessária porque o C não oferece alternativa. Objeto com tipo declarado
-tem esse tipo como **tipo efetivo**, e só armazenamento **alocado** recebe tipo
-pela escrita — então `from_array` e `from_stack`, que respaldam em objeto
-declarado, estão fora do que o padrão promete, e `from_memory` sobre `malloc` ou
-`mmap` está dentro. **Não há terceira rota**, e as candidatas foram descartadas
-por razão e não por gosto: união faz da união o tipo efetivo; `max_align_t[]`
-troca um tipo declarado por outro; e emitir a união dos tipos alocados exigiria
-saber quais são, que é o princípio 7 da linguagem.
+**Regras**
 
-**O que este backend faz, então, são três coisas, e nenhuma esconde a quarta:**
-
-1. **Emite armazenamento de tipo-caractere e nada mais** — `unsigned char` em
-   `from_stack`, `array u8` do usuário em `from_array`. É o tipo de acesso que
-   todo compilador real põe no topo da árvore de aliasing, e por isso o que
-   estreita a suposição ao mínimo: nenhuma reordenação é habilitada por ele.
-2. **Resolve o alinhamento na base**, e não na alocação — `alignas` do usuário
-   chega pelo `alignof` do símbolo, e `from_stack` sobre-alinha sempre. Uma das
-   duas armadilhas do respaldo é de alinhamento, e essa é fechada de verdade.
-3. **Nomeia o remédio de build** para o alvo em que a suposição não se sustente:
-   `-fno-strict-aliasing` na compilação do C gerado (ferramenta §4.1). Não é
-   padrão, e não deve ser: nenhuma reprodução foi obtida em GCC 13 a `-O3` em
-   nenhuma direção, e ligá-lo por omissão custaria otimização a todo programa
-   para pagar um risco que não se mediu.
-
-**Um backend com rota conforme não deve nada.** Se o alvo oferece armazenamento
-sem tipo declarado, é ele que sai, e a guarda da linguagem §6.3 fica sem uso —
-sem que uma linha da §4.4 da linguagem mude. É a mesma separação do §3
-entre `f32` **ser** binary32 e `typedef float f32;` ser como este backend
-entrega binary32.
-- **`from_memory`** toma ponteiro e tamanho crus e assume `max_align_t`, porque a origem é `malloc` ou `mmap`. Região de linker script com alinhamento menor é responsabilidade de quem a declarou, e é o que a regra 3 da linguagem §4.4 já diz.
-
-Com tamanho constante não é preciso VLA. Some o `#ifdef __STDC_NO_VLA__`, some o lowering duplo, some a flag de compilador que o forçaria, e some o modo de falha não testável.
-
-`clone` combina os verbos que já existem: aloca no destino pelo comprimento da origem e copia, e devolve `outcome` pela regra do modo de falha (linguagem §4.4): o que ele devolve é descritor, não ponteiro, e descritor não tem sentinela. Vale igual para `at` (linguagem §5.3), e nenhum dos dois precisa de tratamento próprio no backend: a instância de `outcome` sai pelo §5.14 como qualquer outra.
-
-```keel
-outcome slice geom.Point out = slice.clone(a, slice.of(tmp)) else return -1;
-```
-
-```c
-keel_outcome_keel_slice_geom_Point out = keel_slice_geom_Point_clone(&a, keel_buffer_geom_Point_as_slice(&tmp)); if (keel_outcome_keel_slice_geom_Point_failed(out)) return -1;
-```
-
-A função da instância faz `keel_arena_alloc2` mais a cópia dos elementos, e devolve `code != OK` quando a alocação falha. **Ela não refaz a checagem de transbordamento**: o comprimento da origem já coube na memória uma vez.
-
-**`at` é a única função de acesso com teste em release.** Ela é total (linguagem §5.3), então o `if` é semântica e não verificação — não depende de `--checks` e não some. Ela devolve **`outcome T`**, e não ponteiro, pela regra de modo de falha da linguagem §4.4; a emissão está no §5.13, que é onde ela mora.
-
-`get`, `set` e `ptr(x,i)` continuam sem teste em release, pela regra do §5.2: elas têm pré-condição, e a verificação de debug existe para revelar quem a violou.
+1. Objeto com tipo declarado tem esse tipo como tipo efetivo, e só armazenamento alocado recebe tipo pela escrita. Por isso `from_array` e `from_stack`, que respaldam em objeto declarado, estão fora do que o padrão promete, e `from_memory` sobre `malloc` ou `mmap` está dentro. Não há terceira rota. [D41](#10-decisões-de-emissão)
+2. O backend emite armazenamento de tipo-caractere e nada mais: `unsigned char` em `from_stack`, o `array u8` do usuário em `from_array`. É o tipo de acesso que todo compilador real põe no topo da árvore de aliasing.
+3. O alinhamento está resolvido na alocação (§5.4, regra 5), e `from_stack` ainda sobre-alinha o vetor.
+4. Para o alvo em que a suposição não se sustente, o remédio de build é `-fno-strict-aliasing` na compilação do C gerado (ferramenta §4.1). Não é padrão. [D42](#10-decisões-de-emissão)
+5. Um backend cujo alvo ofereça armazenamento sem tipo declarado o usa, e a guarda da linguagem §6.3 fica sem uso, sem que a linguagem mude. É a mesma separação do §3. [D23](#10-decisões-de-emissão)
 
 ### 5.5 `defer`
 
@@ -2241,7 +2159,7 @@ alternativa em aberto.
 | --- | --- | --- |
 | 1 | O arquivo de instância mora em `keel/`, diretório fixo | os dois headers e o `.c` de uma instância são função do símbolo dela e de mais nada (§7.2); um diretório por módulo multiplicaria cópias byte a byte idênticas só para deduplicá-las depois no build |
 | 2 | Os campos das structs geradas **não** levam prefixo | o prefixo é do nome do tipo — `keel_buffer_i32`, `keel_slice_geom_Point` —, e é ele que carrega a identidade. `xs.keel_len` não compraria nada que a linguagem §5.3 e o warning `instance-field-access` já não digam: layout não é interface |
-| 3 | O índice de `array` é verificado por dimensão, e a dimensão 0 de parâmetro é contrato | §5.3. Decimal conhecido contra decimal conhecido recusa na tradução (`array-index-above-dimension`); o resto passa por `keel_index` (`array-index-out-of-bounds`, §5.17); e o chamador que entrega menos do que promete é pego na chamada (`array-argument-wrong-dimension`) |
+| 3 | O índice de `array` é verificado por dimensão, e a dimensão 0 de parâmetro sem binder é contrato | §5.3. Decimal conhecido contra decimal conhecido recusa na tradução (`array-index-above-dimension`); o resto passa por `keel_index` (`array-index-out-of-bounds`, §5.17); e o chamador que entrega menos do que promete é pego na chamada (`array-argument-wrong-dimension`) |
 | 4 | Composição cooperativa é biblioteca, não emissão | `seq`, `par` e `mask` são funções de `keel.routine`, emitidas como qualquer instância (§5.10), e o estado por slot é um `corot` no próprio registro. Não há gestor injetado, região de finalização nem reafirmação de código |
 | 5 | `mask` devolve `u64`, e o limite é 64 slots | o mapeamento é de 64 bits, daí 64 entradas; o excedente é o `debug` `mask-above-64-slots`. Largura arbitrária volta junto com `bitslice bool`, e aí será tipo, não conveniência |
 | 6 | As cláusulas do `#pragma` saem em ordem fixada: os temporários do gestor na ordem de emissão, o símbolo de controle, depois as capturas na ordem escrita, repartidas entre `shared` e `firstprivate` pela espécie | `default(none)` obriga a listar todo símbolo tocado, e o §7.1 exige saída byte a byte idêntica. Os temporários de `foreach` no corpo não entram na lista: são declarados dentro do laço do worker e já são privados por construção (§5.9) |
@@ -2274,6 +2192,13 @@ alternativa em aberto.
 | 33 | O modo fora de linha é do genérico, e não do uso | §4.4. O header da instância é função do genérico e do argumento, byte a byte igual para todos; se `instance` o alterasse, ele dependeria de existir um `instances.k` em algum lugar da árvore. É a definição única do C explicitada: o header da instância é o `extern int g;`, e `instance` é o `int g;`. A instância faltando ser erro de link é a taxa que justifica o default inline |
 | 34 | Nome e layout de tipo gerado não são interface | §4.5. Se os campos fossem contrato, nada garantiria as invariantes que os verbos existem para manter — `push` respeitando `cap`, `len` nunca acima da capacidade. Um `xs.len++` bastaria para voltar a vetor cru com struct em volta |
 | 35 | Um `#line` antes de cada braço de `match` | §5.6. O `switch` de despacho não existe no `.k`, e cada braço termina com duas linhas que também não existem — o `}` e o `goto` para o fim. Um `#line` só, depois do despacho, deixaria o mapeamento escorregar duas linhas por braço. Juntar essas linhas à do rótulo seguinte pouparia os `#line`, mas o primeiro braço precisaria de um de qualquer modo, e o C ficaria ilegível |
+| 36 | Um verbo por aridade, e não uma função variádica | §5.2. São assinaturas C normais, e o compilador C confere cada uma |
+| 37 | O açúcar de índice baixa por função, e nunca por macro | §5.3. A chamada de função garante que cada argumento seja avaliado uma vez, pelas regras normais do C: `x[i++]` incrementa `i` uma vez |
+| 38 | O backend não mitiga o custo do literal de `dim` em `-O0` | §5.3.1. A mitigação seria gerar o que a linguagem decidiu não gerar: uma função por rank |
+| 39 | `alloc` recebe contagem e tamanho separados, e multiplica com teste | §5.4. É a forma do `calloc`: `n * sizeof(T)` que transborda devolve `NULL`, em vez de uma região pequena que o programa acredita ser grande |
+| 40 | A arena alinha o endereço entregue, e nenhum construtor recebe alinhamento | §5.4. Alinhar `top` só serviria se `ptr` já estivesse alinhado, e keel não tem como saber, porque copia `alignas(64)` sem avaliar (linguagem §1.3). A tentativa de levar o `alignas` do usuário ao descritor por `alignof(<símbolo>)` não é C — o GCC recusa `alignof (expression)` —, e a saída foi tirar a necessidade. Foi o que dispensou o campo `base_align` |
+| 41 | O respaldo da arena é de tipo-caractere, e não há terceira rota | §5.4.1. União faz da união o tipo efetivo; `max_align_t[]` troca um tipo declarado por outro; emitir a união dos tipos alocados exigiria saber quais são, o que o princípio 7 da linguagem proíbe |
+| 42 | `-fno-strict-aliasing` é remédio nomeado, e não padrão | §5.4.1. Nenhuma reprodução foi obtida em GCC 13 a `-O3`, em nenhuma direção; ligá-lo por omissão custaria otimização a todo programa por um risco que não se mediu |
 
 ---
 

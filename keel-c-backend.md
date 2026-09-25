@@ -1373,7 +1373,9 @@ atomic_load_explicit(&step.flag, memory_order_relaxed)
 
 ### 5.10 `keel.routine`
 
-A composição deixou de ser construção: `seq` e `par` são funções de um módulo da base (linguagem §5.6), e saem pelas regras do §5.2, como qualquer função de instância. Esta seção registra só o que é próprio delas.
+**Forma:** `routine.slot`, `routine.seq` e `routine.par` (linguagem §5.6). A composição é biblioteca, e sai pelas regras do §5.2; esta seção registra só o que é próprio dela.
+
+**Emissão**
 
 ```keel
 //keel
@@ -1399,21 +1401,23 @@ keel_routine_slot_Ctx app_steps[2] = {
     { app_measure,    &app_ctx, {0} },
 };
 keel_outcome_u32 r =
-    keel_routine_par_Ctx(keel_slice_keel_routine_slot_Ctx_of(app_steps, 2), 1);
+    keel_routine_par_Ctx(keel_slice_keel_routine_slot_Ctx_from(app_steps, 2), 1);
 ```
 
-Quatro regras de emissão:
+**Regras**
 
-1. **O `typedef` da participante é da instância**, e sai no header de instância (§4.3) com o nome canônico do módulo mais o argumento — `keel_routine_Ctx`. A regra de encurtamento do §2.1 se aplica: o nome do tipo coincide com o último componente do módulo e não se repete.
-2. **O campo de estado é um `corot`**, não um inteiro nu. É a struct de um campo do §5.14, e o inicializador agregado sem terceiro membro a deixa zerada — que é `ONGOING`, e é o estado inicial correto sem escrita.
-3. **A chamada da participante é indireta e sai como está**: `s.ptr[i].f(s.ptr[i].ctx)`. O backend não a inspeciona, não a insere em linha e não a envolve em nada. É o custo declarado de a composição ser biblioteca (linguagem §5.6).
-4. **Nenhuma região é injetada.** Não há gestor, não há laço gerado em volta da chamada, não há rótulo de saída e não há reafirmação de código: o corpo de `par` e de `seq` é keel comum, e foi emitido quando o módulo foi instanciado. Por isso esta seção não tem regra de mapeamento de linhas — o que existe é o `#line` normal das funções do módulo (§6).
+1. O `typedef` da participante é da instância e sai no header de instância (§4.3), com o nome do módulo mais o argumento: `keel_routine_Ctx`. O encurtamento do §2.1 (regra 2) se aplica.
+2. O campo de estado é um `corot`, e não um inteiro nu (§5.14). Zerado, ele é `ONGOING`, o estado inicial correto sem escrita.
+3. A chamada da participante é indireta e sai como está: `s.ptr[i].f(s.ptr[i].ctx)`. O backend não a inspeciona nem a põe em linha.
+4. Nenhuma região é injetada: não há gestor, laço, rótulo de saída nem reafirmação de código em volta da chamada. O corpo de `seq` e de `par` é keel comum do módulo, com o `#line` normal (§6). [D53](#10-decisões-de-emissão)
 
-**O que sumiu, e por que vale registrar.** As duas seções anteriores deste documento — a emissão de `coseq` e a de `copar` — descreviam gestores injetados, com laço, rótulo de finalização e reafirmação do código de resultado depois do corpo do usuário. Nada disso sobrevive: o que era emissão virou fonte, e o fonte é keel que o próprio backend já sabe traduzir. É o teste do §1 funcionando no sentido bom — construção que a biblioteca alcança sai do backend junto com a linguagem.
+**Verificações:** `par-target-above-total` e `mask-above-64-slots`, no corpo dos verbos (§5.17). **Perfis:** iguais.
 
 ### 5.11 Cursor e partição
 
-Os dois protocolos que a linguagem §5.1 exige de `walk` e de `parallel` saem como funções de instância comuns (§5.2). O que é próprio deles é onde o tipo do cursor mora e o que a partição devolve.
+**Forma:** os verbos `begin`, `has_next`, `next` e `partition`, que `walk` e `parallel` chamam (linguagem §5.1).
+
+**Emissão**
 
 ```c
 /* keel/keel_buffer.type.h — from the module, not the instance */
@@ -1427,11 +1431,14 @@ static inline keel_slice_i32 keel_buffer_i32_partition(keel_buffer_i32 *b,
                                                        size_t k, size_t w);
 ```
 
-Três regras:
+**Regras**
 
-1. **O cursor é do módulo, não da instância.** Ele guarda uma posição e não menciona o parâmetro de tipo, então cai na regra da linguagem §4.3 — declaração que não menciona parâmetro nem modificador é emitida uma vez — e sai no `.type.h` do módulo, ao lado do `typedef` do modificador. É o que faz `buffer.cursor` ser escrito sem argumento no fonte, e o que evita um tipo de cursor por instância com layout idêntico.
-2. **`next` devolve o endereço do elemento**, e por isso `walk` sobre a base usa binder por ponteiro. Quem quiser cópia escreve a indireção no corpo; o contrário — devolver cópia e pedir endereço — não teria como ser escrito.
-3. **`partition` devolve o produto declarado**, e para `buffer T` e `slice T` isso é `keel_slice_T` construído sem chamada: `{ hi - lo, base + lo }`. O passo é o teto de `n/k`, calculado sem transbordamento intermediário, e a parte de índice alto pode sair vazia. A instância de `slice T` é arrastada pela instanciação de `buffer T`, pela regra recursiva do §4.3.
+1. O cursor é do módulo, e não da instância: guarda uma posição e não menciona o parâmetro de tipo, então sai uma vez, no `.type.h` do módulo (§4.4.1). É o que faz `buffer.cursor` ser escrito sem argumento, e evita um tipo de cursor por instância com o mesmo layout.
+2. `next` devolve o endereço do elemento, e por isso `walk` sobre a base usa binder por ponteiro. Quem quer cópia escreve a indireção no corpo.
+3. `partition` devolve o produto declarado. Para `buffer T` e `slice T` é `keel_slice_T`, construído sem chamada: `{ hi - lo, base + lo }`. O passo é o teto de `n/k`, sem transbordamento intermediário, e a parte de índice alto pode sair vazia.
+4. A instância de `slice T` é arrastada pela de `buffer T`, pela regra recursiva do §4.3.
+
+**Verificações:** nenhuma de `debug`. **Perfis:** iguais.
 
 ### 5.12 Cláusula `else`
 
@@ -1511,11 +1518,9 @@ keel_outcome_i32 v = keel_buffer_i32_at(&xs, idx); if (keel_outcome_i32_failed(v
 
 ### 5.14 `outcome` e `corot`
 
-`keel.outcome` é o módulo; `outcome` é o modificador que ele declara.
-Aplicar esse modificador a `T` emite uma struct com o valor desse tipo e seu
-código de resultado, acompanhada das funções que interpretam e ajustam o
-código e o valor. A emissão usa a substituição do §4.3 e a partição do §4.4.1:
-representação e operações para cada aplicação, constantes uma vez no módulo.
+**Forma:** o modificador `outcome T`, o tipo `corot` e seus verbos (linguagem §5.5).
+
+**Emissão**
 
 ```keel
 //keel
@@ -1550,27 +1555,6 @@ static inline keel_outcome_u32 keel_outcome_u32_none(keel_outcome_u32 *r) {
 keel_outcome_u32 cfg_port(const char *path);
 ```
 
-Quatro regras:
-
-1. **`code` vem primeiro no layout**, e `OK` é zero. É o que faz `{0}` e `memset` deixarem um `outcome T` válido com valor presente, sem código — a mesma propriedade que o `ONGOING` zero dá ao `corot` (linguagem §5.5).
-2. **`failed` é comparação com zero, não com uma lista.** Qualquer código diferente de `OK` é falha, então acrescentar código de erro novo não toca a função — e é o que permite ao programa usar o `code` como `errno`, como enum próprio, ou como o que quiser.
-3. **`NONE` é uma constante como `OK`, e não um estado a mais.** As duas saem uma vez pela partição do §4.4.1; `failed` não as distingue, e nenhum código do backend as compara entre si. O que separa ausência de erro é o `code` que o programa lê, não a emissão (linguagem §4.10).
-4. **Os verbos de escrita recebem o objeto por endereço.** `win(r)` ajusta o
-   código; `win(r,v)` ajusta código e valor; `fail(r,c)` e `none(r)` ajustam
-   somente o código. Todos devolvem `*r` depois da escrita. A forma sem valor
-   preserva o campo associado: não há inicialização implícita desse campo.
-   A instância vem do primeiro argumento, sem consulta ao destino da chamada.
-
-`outcome.win(r, v)` traduz para `keel_outcome_T_win1(&r, v)` quando `r` é
-objeto, ou para `keel_outcome_T_win1(r, v)` quando já é ponteiro. A aridade
-adicional usa o sufixo da §2.1. O retorno é da função inline; uma chamada
-isolada continua na função chamadora. Para encerrá-la, o fonte escreve
-`return outcome.win(r, v);`. A avaliação dos argumentos ocorre uma vez, como
-em uma chamada C comum. Predicados e getters recebem o valor para consulta;
-o setter recebe endereço, conforme sua assinatura escrita.
-
-**`corot` tem o mesmo layout de um `outcome void` e outra leitura do zero.** Ele é tipo, e não modificador (linguagem §5.5): sai **uma vez** no `.type.h` do módulo, sem header de instância e sem sufixo de argumento.
-
 ```c
 /* keel/keel_corot — the typedefs in the .type.h, the bodies in the .h */
 typedef struct keel_corot { i32 code; } keel_corot;
@@ -1597,18 +1581,7 @@ static inline keel_corot keel_corot_again(keel_corot *r) { r->code =  0; return 
 static inline keel_corot keel_corot_fault(keel_corot *r, i32 c) { r->code = c; return *r; }
 ```
 
-Seis consequências para a emissão:
-
-1. **`{0}` é ONGOING**, e é o que faz um slot da tabela de `keel.routine` (§5.10) e um agente inteiro nascerem prontos sem código de inicialização.
-2. **Os produtores são verbos, e não saltos.** `corot.win(r)`, `corot.again(r)` e `corot.fault(r,c)` recebem o objeto por endereço, escrevem o código — `-1`, `0` e `c` — e devolvem `*r`, exatamente como os de `outcome`. Não emitem `return`: sair da função é `return corot.win(r);` escrito no fonte, e esse `return` recebe o cleanup do §5.5 como qualquer outro.
-3. **Não há campo de valor, e não há aridade com valor.** O que uma passagem produz pertence ao contexto que o programa passou (linguagem §5.5), e por isso o tipo tem um campo só.
-4. **Não há `keel_costatus`.** Um enum de três valores não descreveria FAILURE, que é uma região; expor a constante seria mentira. O `enum` acima é outra coisa: são três **nomes** para as três regiões, e a ponte entre eles é `tag`.
-5. **`tag` normaliza o código para a tag, e é o que põe `corot` no `match`** (§5.6). Ele não é o código: dois códigos de falha diferentes dão a mesma tag.
-6. **`corot.fault` exige código positivo.** Código conhecido zero ou negativo é recusado na tradução pelo diagnóstico `invalid-fault-code`; expressões C não avaliadas por keel têm essa positividade como pré-condição. A emissão avalia o operando uma vez, sem normalizar o sinal — normalizar transformaria um erro do programa em um estado que ele não pediu.
-
-**A struct de um campo não custa nada, e é o que o argumento da linguagem §5.5 pressupõe.** Struct de um `i32` é classificada como INTEGER no SysV x86-64 e volta em `EAX`; em AArch64 volta em `X0`; em ARM32 e RISC-V, no primeiro registrador de retorno. O que ela compra é o compilador C recusando `if (r)`, `r == 0` e a mistura com um código de `outcome` — barreira que um `typedef` de inteiro não daria.
-
-**Instância `void` de `outcome`.** O campo associado é omitido; código e predicados permanecem:
+Com argumento `void`, e o setter de valor:
 
 ```c
 typedef struct keel_outcome_void { i32 code; } keel_outcome_void;
@@ -1618,10 +1591,6 @@ static inline bool keel_outcome_void_failed(keel_outcome_void r) {
 }
 ```
 
-Para `outcome void`, `win(r)`, `fail(r,c)` e `none(r)` recebem o objeto por
-endereço, ajustam seu código e o devolvem por valor. Não existe `win(r,v)`.
-A forma C de `win` é:
-
 ```c
 static inline keel_outcome_void keel_outcome_void_win(keel_outcome_void *r) {
     r->code = 0;
@@ -1629,24 +1598,39 @@ static inline keel_outcome_void keel_outcome_void_win(keel_outcome_void *r) {
 }
 ```
 
-**Setter de valor.** A aridade adicional usa o sufixo da §2.1 e recebe o
-resultado por endereço. A escrita não altera o código:
-
 ```c
 static inline void keel_outcome_i32_value1(keel_outcome_i32 *r, i32 v) {
     r->value = v;
 }
 ```
 
-A forma de default de `else` chama `win` com o objeto e o valor de default,
-conforme a §5.12. Não pode ser substituída somente pelo setter, pois também
-precisa estabelecer o código de sucesso. As grafias antigas de produção e
-consulta cooperativas não são emitidas como aliases.
+**Regras de `outcome`**
 
+1. `outcome T` é `{ i32 code; T value; }`, com `code` primeiro, e `OK` é zero: `{0}` e `memset` deixam um resultado válido, com valor presente, sem código.
+2. `failed` compara com `OK`, e não com uma lista: qualquer outro código é falha, e o programa usa `code` como `errno`, como enum próprio, ou como quiser.
+3. `OK` e `NONE` são constantes do módulo, emitidas uma vez (§4.4.1). `failed` não as distingue, e o backend nunca as compara entre si (linguagem §4.10).
+4. Os verbos de escrita — `win(r)`, `win(r, v)`, `fail(r, c)` e `none(r)` — recebem o objeto por endereço, escrevem e devolvem `*r`. A forma sem valor preserva o campo associado. A instância vem do primeiro argumento, sem consulta ao destino (linguagem §4.4).
+5. `outcome.win(r, v)` sai `keel_outcome_T_win1(&r, v)` com objeto, e `keel_outcome_T_win1(r, v)` com ponteiro (§2.1.1, e a adaptação da linguagem §4.4). O verbo não emite `return`: encerrar a função é `return outcome.win(r, v);`, escrito no fonte.
+6. Predicados e leitores recebem o valor. O setter `value(r, v)` recebe o endereço, sai `_value1`, e não altera o código.
+7. Com argumento `void`, o campo associado é omitido, e com ele `win(r, v)` e o setter (linguagem §4.3).
+8. A forma de default de `else` chama `win`, e não o setter, porque também estabelece o código de sucesso (§5.12). As grafias antigas de produção e consulta cooperativas não saem como aliases.
+
+**Regras de `corot`**
+
+9. `corot` é tipo, e não modificador (linguagem §5.5): `{ i32 code; }`, emitido uma vez no `.type.h` do módulo, sem header de instância nem sufixo de argumento. [D54](#10-decisões-de-emissão)
+10. `{0}` é `ONGOING`: um slot de `keel.routine` (§5.10) e um agente nascem prontos, sem código de inicialização.
+11. Os produtores `win`, `again` e `fault` recebem o objeto por endereço, escrevem `-1`, `0` e `c`, e devolvem `*r`, como os de `outcome`. Não emitem `return`, e o `return` escrito no fonte recebe o cleanup do §5.5.
+12. Não há campo de valor: o que uma passagem produz pertence ao contexto do programa (linguagem §5.5).
+13. `tag` normaliza o código para os três nomes de `Status`, e é o que põe `corot` no `match` (§5.6): dois códigos de falha diferentes dão a mesma tag. Não há tipo `keel_costatus`: `FAILED` é uma região, e não um valor.
+14. `corot.fault` com código conhecido zero ou negativo é `invalid-fault-code` na tradução; com expressão C, a positividade é pré-condição. A emissão avalia o operando uma vez e não normaliza o sinal. [D55](#10-decisões-de-emissão)
+
+**Verificações:** nenhuma de `debug`. **Perfis:** sob C11, as constantes de módulo saem como macro (§9.2); o resto é igual.
 
 ### 5.15 `extent`
 
-A declaração sai como o struct escrito. O acesso de coluna sai por uma função `static inline` por coluna, que é a função de acesso da linguagem §4.11.
+**Forma:** `extent struct NOME [contagem, capacidade] … { … }` e o acesso de coluna `P.col[i, …]` (linguagem §4.11).
+
+**Emissão**
 
 ```keel
 //keel
@@ -1678,19 +1662,25 @@ static inline i32 *app_grid_grid_v_ptr(struct app_grid_grid *p, size_t i0, size_
 *app_grid_grid_v_ptr(&g, i, j) = 0;
 ```
 
-1. **O struct é o escrito.** A tag é o nome manglado `M_NOME` (§2.1), e não se emite `typedef`: o programa escreve `struct NOME`. A coluna embutida sai com colchetes sucessivos, como qualquer `array` (§5.3); `array T *col` sai `T *col`. Nenhum campo é inserido.
-2. **Uma função de acesso por coluna**, com o nome `M_NOME_col_ptr`. Ela recebe o struct por ponteiro e um `size_t` por grupo, `i0` a `iₙ₋₁`, e devolve o endereço do elemento. Um nome do programa que coincida com ela é `canonical-name-collision` (linguagem §4.2).
-3. **Onde mora.** Com o `extent` `pub`, o struct vai ao `.type.h` e as funções ao `.h`, pelas camadas do §4.3.2; com `priv`, os dois vão ao `.c`. Cada função leva o `#line` da coluna.
-4. **O endereço.** Na coluna embutida, `&p->col[i0][i1]…`. Na coluna por ponteiro, Horner sobre as capacidades internas: `&p->col[(i0 * c1 + i1) * c2 + i2]`. Uma capacidade que é campo sai `p->campo`; uma `constexpr`, com o nome C da constante; um literal, como escrito. A capacidade externa não aparece no endereço.
-5. **O ponto de acesso.** `P.col[…]` sai `*f(&P, …)`, e `P->col[…]` sai `*f(P, …)`. O `&*` colapsa: `&P.col[i]` sai `f(&P, i)`. O caminho `P` é copiado como escrito, entre parênteses quando não é expressão pós-fixa.
-6. **Um `KEEL_CHECK` por índice** precede o retorno, com o invariante inteiro do grupo. É o `extent-index-out-of-bounds` (§5.17). Quando o índice e a capacidade são decimais conhecidos, não há verificação para esse índice: a tradução já conferiu, e é o `extent-index-above-capacity`.
-7. **O acesso é sempre pela função**, em qualquer modo. É um caminho de emissão só, e é ele que garante que o caminho e cada índice sejam avaliados uma vez: `p->x[i++]` incrementa `i` uma vez. Em `-O0` a chamada permanece, que é o mesmo custo do §5.3.1.
+**Regras**
 
-**`P.col` sem índice é o campo**, e sai como escrito: é o que entra em `slice.from(f32, p->x, p->len)`.
+1. O struct sai como escrito. A tag é o nome manglado `M_NOME` (§2.1), e não se emite `typedef`: o programa escreve `struct NOME`. A coluna embutida sai com colchetes sucessivos, como qualquer `array` (§5.3); `array T *col` sai `T *col`. Nenhum campo é inserido.
+2. Há uma função de acesso por coluna, `static inline`, com o nome `M_NOME_col_ptr`. Ela recebe o struct por ponteiro e um `size_t` por grupo, `i0` a `iₙ₋₁`, e devolve o endereço do elemento. Um nome do programa que coincida com ela é `canonical-name-collision` (linguagem §4.2).
+3. Com o `extent` `pub`, o struct vai ao `.type.h` e as funções ao `.h`, pelas camadas do §4.3.2; com `priv`, os dois vão ao `.c`. Cada função leva o `#line` da coluna.
+4. Na coluna embutida, o endereço é `&p->col[i0][i1]…`. Na coluna por ponteiro, Horner sobre as capacidades internas: `&p->col[(i0 * c1 + i1) * c2 + i2]`. Uma capacidade que é campo sai `p->campo`; uma `constexpr`, com o nome C da constante; um literal, como escrito. A capacidade externa não aparece no endereço.
+5. `P.col[…]` sai `*f(&P, …)`, e `P->col[…]` sai `*f(P, …)`. O `&*` colapsa: `&P.col[i]` sai `f(&P, i)`. O caminho `P` é copiado como escrito, entre parênteses quando não é expressão pós-fixa.
+6. Um `KEEL_CHECK` por índice precede o retorno, com o invariante inteiro do grupo. É o `extent-index-out-of-bounds` (§5.17). Quando o índice e a capacidade são decimais conhecidos, não há verificação para esse índice: a tradução já conferiu, e é o `extent-index-above-capacity`.
+7. O acesso é sempre pela função, em qualquer modo: o caminho e cada índice são avaliados uma vez, e `p->x[i++]` incrementa `i` uma vez. Em `-O0` a chamada permanece. [D8](#10-decisões-de-emissão)
+
+8. `P.col` sem índice é o campo C, e sai como escrito: é o que entra em `slice.from(f32, p->x, p->len)`. Não é `array` para a §4.2 da linguagem (linguagem §4.11).
+
+**Verificações:** `extent-index-out-of-bounds`, na função de acesso (§5.17). **Perfis:** iguais.
 
 ### 5.16 Parâmetro `type`
 
-Um parâmetro `type` apagado vira tamanho e alinhamento; um de seleção desaparece do C (linguagem §4.4).
+**Forma:** `type X` em parâmetro de função (linguagem §4.4). O apagado vira tamanho e alinhamento; o de seleção desaparece do C.
+
+**Emissão**
 
 ```keel
 //keel
@@ -1712,14 +1702,20 @@ pub inline T *alloc(arena *a, type T, size_t n) {
 (sim_Particle *)keel_arena_alloc2(&a, sizeof(sim_Particle), alignof(sim_Particle), 100)
 ```
 
-1. **Apagado, na declaração.** `type X` sai como `size_t keel__X_size, size_t keel__X_align`, na posição escrita. No corpo, `sizeof(X)` e `alignof(X)` saem com esses nomes. `X *` na assinatura sai `void *`.
-2. **Apagado, na chamada.** O tipo escrito sai como `sizeof(T), alignof(T)` — `_Alignof` no perfil C11 —, com a forma C do tipo (§2.1). Um retorno `X *` recebe no ponto de chamada o cast para o tipo escrito.
-3. **Seleção.** O argumento de tipo sai da chamada e o parâmetro sai da assinatura; o que resta é a função da instância: `slice.from(f32, p, n)` sai `keel_slice_f32_from(p, n)`.
-4. **Sufixo de aridade.** O parâmetro `type` conta como um argumento (§2.1), embora o apagamento o emita como dois.
+**Regras**
+
+1. Apagado, na declaração, `type X` sai como `size_t keel__X_size, size_t keel__X_align`, na posição escrita. No corpo, `sizeof(X)` e `alignof(X)` saem com esses nomes. `X *` na assinatura sai `void *`.
+2. Apagado, na chamada, o tipo escrito sai como `sizeof(T), alignof(T)` — `_Alignof` no perfil C11 —, com a forma C do tipo (§2.1). Um retorno `X *` recebe no ponto de chamada o cast para o tipo escrito.
+3. Na seleção, o argumento de tipo sai da chamada e o parâmetro sai da assinatura; o que resta é a função da instância: `slice.from(f32, p, n)` sai `keel_slice_f32_from(p, n)`.
+4. O parâmetro `type` conta como um argumento no sufixo de aridade (§2.1.1), embora o apagamento o emita como dois.
+
+**Verificações:** nenhuma. **Perfis:** C11 escreve `_Alignof` onde C23 escreve `alignof` (§9.1).
 
 ### 5.17 Verificações de debug
 
-Toda verificação `debug` do catálogo da linguagem é escrita no C gerado como `KEEL_CHECK(cond, "id")`, e a chave que a liga é uma macro do compilador C, `KEEL_CHECKS`, e não uma diferença de geração.
+**Forma:** as verificações `debug` do catálogo (linguagem §6.2), ligadas por `--checks` (ferramenta §4).
+
+**Emissão**
 
 ```c
 /* keel.type.h — from the prelude keel.k, a pub extern_c [type_h] */
@@ -1740,12 +1736,15 @@ static inline size_t keel_index(size_t i, size_t d) {
 }
 ```
 
-1. **O C gerado é o mesmo nos dois modos.** `--checks=off` faz a ferramenta passar `-DKEEL_CHECKS=0` ao compilador C (ferramenta §4). Um header de instância continua função só do próprio nome (§7.2), e trocar de modo não exige regerar. Quem compila o C gerado sem a ferramenta fica com as verificações ligadas.
-2. **Desligada, a condição não é avaliada.** O `sizeof` só mantém os operandos usados, para não haver aviso de parâmetro sem uso. Toda condição escrita aqui é livre de efeito: compara parâmetros e campos.
-3. **A falha escreve `arquivo.k:linha: keel: <id>` e chama `abort()`.** A posição vem do `#line` (§6) e é a da verificação: num verbo da base, a do verbo; o chamador aparece no backtrace.
-4. **Cada verificação fica onde os argumentos já foram avaliados uma vez** — no corpo de uma função, e nunca num `assert` antes da expressão, que avaliaria índice e contêiner duas vezes.
+**Regras**
 
-**Nos verbos da base**, a verificação é escrita no próprio `.k`, antes do comportamento de release:
+1. Toda verificação `debug` é escrita como `KEEL_CHECK(cond, "id")`, e a chave que a liga é a macro `KEEL_CHECKS` do compilador C, e não uma diferença de geração. {D(9)}
+2. O C gerado é o mesmo nos dois modos. `--checks=off` faz a ferramenta passar `-DKEEL_CHECKS=0` ao compilador C (ferramenta §4). Um header de instância continua função só do próprio nome (§7.2), e trocar de modo não exige regerar. Quem compila o C gerado sem a ferramenta fica com as verificações ligadas.
+3. Desligada, a condição não é avaliada: o `sizeof` só mantém os operandos usados, para não haver aviso de parâmetro sem uso. Toda condição escrita aqui é livre de efeito: compara parâmetros e campos.
+4. A falha escreve `arquivo.k:linha: keel: <id>` e chama `abort()`. A posição vem do `#line` (§6) e é a da verificação: num verbo da base, a do verbo; o chamador aparece no backtrace.
+5. Cada verificação fica onde os argumentos já foram avaliados uma vez: no corpo de uma função, e nunca num `assert` antes da expressão, que avaliaria índice e contêiner duas vezes.
+
+6. Nos verbos da base, a verificação é escrita no próprio `.k`, antes do comportamento de release:
 
 | Verbo | Condição | Identificador |
 | --- | --- | --- |
@@ -1756,24 +1755,24 @@ static inline size_t keel_index(size_t i, size_t d) {
 | `routine.par(s, alvo)` | `alvo <= length(s)` | `par-target-above-total` |
 | `routine.mask(s)` | `length(s) <= 64` | `mask-above-64-slots` |
 
-O açúcar `x[i]` sobre `buffer` e `slice` é `*ptr(x, i)` (§5.3), e é verificado por essa via.
-
-**No C que o núcleo emite**, a mesma macro:
+7. O açúcar `x[i]` sobre `buffer` e `slice` é `*ptr(x, i)` (§5.3), e é verificado por essa via.
+8. No C que o núcleo emite, a mesma macro:
 
 | Onde | Emissão | Identificador |
 | --- | --- | --- |
-| índice de `array` (§5.3) | `v[keel_index(i, d)]`, uma chamada por índice escrito | `array-index-out-of-bounds` |
+| índice de `array` (§5.3), inclusive nos verbos de `keel.array` | `v[keel_index(i, d)]`, uma chamada por índice escrito, contra a dimensão ou o binder | `array-index-out-of-bounds` |
 | `default:` do `match` (§5.6) | `KEEL_CHECK(0, "tag-out-of-range")` antes do salto | `tag-out-of-range` |
 | função de acesso de `extent` (§5.15) | um `KEEL_CHECK` por índice, com o invariante do grupo | `extent-index-out-of-bounds` |
 
-Um módulo do programa pode escrever `KEEL_CHECK` nos próprios verbos: é C comum, e o identificador é texto livre, fora do catálogo.
+9. Um módulo do programa pode escrever `KEEL_CHECK` nos próprios verbos: é C comum, e o identificador é texto livre, fora do catálogo.
+
+**Perfis:** iguais.
 
 ### 5.18 Binder de dimensão
 
-`array T v[size_t N]` sai como o vetor sem a dimensão 0, seguido de um `size_t`
-(linguagem §4.2). O nome C do binder é `keel__N`, como o do parâmetro `type`
-apagado, para que um `#define N` do programa não o alcance; cada `N` do corpo é
-reescrito.
+**Forma:** `array T v[size_t N]` em parâmetro (linguagem §4.2).
+
+**Emissão**
 
 ```keel
 //keel
@@ -1795,7 +1794,10 @@ size_t app_sum(i32 v[], size_t keel__n) {
 f32 app_first_col(f32 m[][4], size_t keel__r) { … }
 ```
 
-Na chamada, o argumento extra vem logo depois do vetor:
+**Regras**
+
+1. O vetor sai sem a dimensão 0, seguido de um parâmetro `size_t`. O nome C do binder é `keel__N` (§2.3), e cada `N` do corpo é reescrito.
+2. Na chamada, a dimensão 0 do argumento vem logo depois do vetor:
 
 | Argumento | Dimensão entregue |
 | --- | --- |
@@ -1804,15 +1806,12 @@ Na chamada, o argumento extra vem logo depois do vetor:
 | parâmetro com binder `n` | `keel__n` |
 | parâmetro `array i32 m[8, 4]`, sem binder | `8` |
 
-1. **A dimensão entregue não avalia o argumento.** Literal, `sizeof` sobre
-   vetor de tamanho fixo e nome de parâmetro não têm efeito, e por isso o
-   caminho do argumento é copiado uma vez só, como escrito.
-2. **O índice verifica a extensão recebida.** Sobre o parâmetro, `v[i]` sai
-   `v[keel_index(i, keel__n)]` (§5.3, §5.17): ao contrário da dimensão 0
-   declarada, que é contrato, o binder é o tamanho do vetor que chegou.
-3. **`length` e `dim`.** `keel.length(v)` sai `keel__n`, multiplicado pelas
-   demais dimensões; `keel.dim(v, 0)`, `keel__n`.
-4. **Sufixo de aridade.** O binder não é argumento escrito e não conta (§2.1).
+3. A dimensão entregue não avalia o argumento: literal, `sizeof` sobre vetor de tamanho fixo e nome de parâmetro não têm efeito, e o caminho do argumento é copiado uma vez só.
+4. Sobre o parâmetro, `v[i]` sai `v[keel_index(i, keel__n)]` (§5.3, §5.17): o binder é o tamanho do vetor que chegou, e a verificação alcança a extensão recebida.
+5. `keel.length(v)` sai `keel__n`, multiplicado pelas demais dimensões; `keel.dim(v, 0)`, `keel__n`.
+6. O binder não é argumento escrito, e não conta no sufixo de aridade (§2.1.1).
+
+**Verificações:** `array-index-out-of-bounds` (§5.17). **Perfis:** iguais.
 
 ## 6. Mapeamento de linhas
 
@@ -2139,6 +2138,9 @@ alternativa em aberto.
 | 50 | As operações atômicas de `parallel` são `relaxed` | §5.9. A bandeira é dica: vê-la tarde custa iterações, não corretude. O que o pai precisa ver é sincronizado pela barreira implícita no fim do `omp parallel for`, ou, em série, pela ordem do programa |
 | 51 | OpenMP é do compilador, e keel só emite a diretiva | §5.9.1. Resolver a plataforma no keel — vendorizando threads, ou trazendo um shim — seria distribuir o primeiro artefato do keel que não é C portável, com superfície de porte crescendo a cada alvo novo |
 | 52 | Não há lowering por threads da libc nem por pool | §5.9.1. Precisaria montar um struct com o tipo de cada captura, e o backend não conhece esses tipos — a invariante da linguagem §1.3 proíbe que conheça. `firstprivate(dt)` não precisa de tipo nenhum, e um pool escrito depois custaria o mesmo |
+| 53 | A composição cooperativa não injeta região | §5.10. As versões anteriores emitiam gestores para `coseq` e `copar`, com laço, rótulo de finalização e reafirmação do código de resultado. O que era emissão virou fonte keel da base, que o backend já sabe traduzir: construção que a biblioteca alcança sai do backend |
+| 54 | `corot` é uma struct de um campo, e não um `typedef` de inteiro | §5.14. Não custa nada: struct de um `i32` volta em registrador no SysV x86-64 (`EAX`), em AArch64 (`X0`) e em ARM32 e RISC-V. E compra o compilador C recusando `if (r)`, `r == 0` e a mistura com um código de `outcome` |
+| 55 | `corot.fault` não normaliza o sinal do código | §5.14. Normalizar transformaria um erro do programa num estado que ele não pediu |
 
 ---
 

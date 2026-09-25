@@ -14,6 +14,7 @@ i32  app_ap_sum_acc(void) { return app_ap_acc; }
 
 
 
+
 void app_ap_traverse(keel_buffer_i32 *xs) {
     { keel_buffer_i32 *keel__c0 = xs; size_t keel__n0 = keel_buffer_i32_length(keel__c0); for (size_t keel__i0 = 0; keel__i0 < keel__n0; keel__i0++) { i32 keel__v0 = keel_buffer_i32_get(keel__c0, keel__i0); app_ap_doubler(keel__v0, keel__i0); } }
     { keel_buffer_i32 *keel__c1 = xs; size_t keel__n1 = keel_buffer_i32_length(keel__c1); for (size_t keel__i1 = 0; keel__i1 < keel__n1; keel__i1++) { i32 keel__v1 = keel_buffer_i32_get(keel__c1, keel__i1); app_ap_scale(keel__v1, keel__i1, 3); } }

@@ -3,6 +3,6 @@
 #define KEEL_KEEL_SLICE_SIZE_T_TYPE_H
 #include "keel.type.h"
 
-#line 18 "keel/slice.k"
+#line 19 "keel/slice.k"
 typedef struct keel_slice_size_t { size_t len; size_t *ptr; } keel_slice_size_t;
 #endif /* KEEL_KEEL_SLICE_SIZE_T_TYPE_H */

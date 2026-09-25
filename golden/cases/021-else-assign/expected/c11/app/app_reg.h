@@ -5,6 +5,6 @@
 
 #line 14 "app/reg.k"
 extern app_reg_Person app_reg_people[4];
-#line 45 "app/reg.k"
+#line 46 "app/reg.k"
 size_t app_reg_load(size_t n);
 #endif /* APP_APP_REG_H */

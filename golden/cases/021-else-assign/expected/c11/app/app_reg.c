@@ -48,6 +48,7 @@ static keel_outcome_f64 app_reg_read_birth(size_t i) {
 
 
 
+
 size_t app_reg_load(size_t n) {
     keel_outcome_keel_slice_const_char name = {0};
     keel_outcome_keel_slice_const_char address = {0};

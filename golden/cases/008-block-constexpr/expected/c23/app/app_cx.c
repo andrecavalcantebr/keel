@@ -10,6 +10,7 @@
 
 
 
+
 int app_cx_sum(app_cx_Cfg *c) {
     constexpr size_t N = 8;
     i32 v[N];

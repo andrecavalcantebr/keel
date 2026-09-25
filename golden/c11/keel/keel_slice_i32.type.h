@@ -3,6 +3,6 @@
 #define KEEL_KEEL_SLICE_I32_TYPE_H
 #include "keel.type.h"
 
-#line 18 "keel/slice.k"
+#line 19 "keel/slice.k"
 typedef struct keel_slice_i32 { size_t len; i32 *ptr; } keel_slice_i32;
 #endif /* KEEL_KEEL_SLICE_I32_TYPE_H */

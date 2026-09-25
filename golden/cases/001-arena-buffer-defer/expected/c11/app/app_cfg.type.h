@@ -7,5 +7,6 @@
 #include <stdio.h>
 #line 8 "app/cfg.k"
 #define app_cfg_MAX ((size_t)256)
+#line 8 "app/cfg.k"
 static const size_t app_cfg_MAX__chk = 256;
 #endif /* APP_APP_CFG_TYPE_H */

@@ -10,6 +10,7 @@
 
 
 
+
 f32 app_g_first(grids_grid_3_f32 *a, grids_grid_3_f32 *b) {
     return *grids_grid_3_f32_ptr3(a, (size_t[3]){0,0,0}) + *grids_grid_3_f32_ptr3(b, (size_t[3]){0,0,0});
 }

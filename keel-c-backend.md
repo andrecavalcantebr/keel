@@ -1951,7 +1951,9 @@ priv constexpr int K = 1 << 4;
 
 ```c
 //C gerado
+#line 1 "app.k"
 #define app_K ((int)(1 << 4))
+#line 1 "app.k"
 static const int app_K__chk = (1 << 4);      /* checks the restriction and the constancy */
 ```
 
@@ -1968,10 +1970,12 @@ void f(struct S *s) {
 //C gerado
 static void app_f(struct S *s) {
 #define keel__N_0 ((size_t)8)
+#line 3 "app.k"
     static const size_t keel__N_0__chk = 8;
     char buf[keel__N_0];
     s->N = 1;
 #undef keel__N_0
+#line 6 "app.k"
 }
 ```
 
@@ -1982,7 +1986,8 @@ static void app_f(struct S *s) {
 3. Resta uma diferença: o C23 exige valor exatamente representável no tipo, e a inicialização do C11 só converte. `constexpr u8 B = 300;` é erro sob C23, e no máximo `-Woverflow` sob C11 (linguagem §6.3).
 4. Em escopo de bloco, a macro recebe nome gerado, `keel__<símbolo>_<N>` (§2.3), e o backend reescreve os usos dentro do bloco. `IDENT` precedido de `.` ou `->`, e o designador `.x =`, não são reescritos: são nome de membro. [D59](#10-decisões-de-emissão)
 5. O `#undef` sai no fim do bloco léxico, e limita a vida da macro ao que o fonte dizia.
-6. Sob C23 a declaração sai verbatim, sem macro, nome gerado, reescrita nem objeto de conferência. É a recusa do endereço (linguagem §4.2) que permite ao C23 não pagar nada disso e aceitar o mesmo conjunto de programas. [D60](#10-decisões-de-emissão)
+6. A macro e o `#undef` ocupam linhas que o `.k` não tem: o objeto de conferência é precedido de um `#line` com a linha do `constexpr`, para que o erro do inicializador caia nela, e o que vem depois do `#undef`, de outro que ressincroniza (§6).
+7. Sob C23 a declaração sai verbatim, sem macro, nome gerado, reescrita nem objeto de conferência. É a recusa do endereço (linguagem §4.2) que permite ao C23 não pagar nada disso e aceitar o mesmo conjunto de programas. [D60](#10-decisões-de-emissão)
 
 Sem o cast da regra 1, quatro classes de programa válido mudariam de resultado em silêncio:
 

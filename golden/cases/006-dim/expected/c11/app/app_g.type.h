@@ -7,5 +7,6 @@
 #include <stdio.h>
 #line 5 "app/g.k"
 #define app_g_DIM ((i8)3)
+#line 5 "app/g.k"
 static const i8 app_g_DIM__chk = 3;
 #endif /* APP_APP_G_TYPE_H */

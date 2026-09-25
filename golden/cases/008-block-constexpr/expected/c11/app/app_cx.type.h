@@ -7,7 +7,9 @@
 #include <stdio.h>
 #line 6 "app/cx.k"
 #define app_cx_MAX ((size_t)4)
+#line 6 "app/cx.k"
 static const size_t app_cx_MAX__chk = 4;
+#line 7 "app/cx.k"
 
 #line 4 "app/cx.k"
 typedef struct app_cx_Cfg { int N; int MAX; } app_cx_Cfg;

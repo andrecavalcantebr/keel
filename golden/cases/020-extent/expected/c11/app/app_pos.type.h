@@ -5,9 +5,11 @@
 
 #line 6 "app/pos.k"
 #define app_pos_H ((size_t)2)
+#line 6 "app/pos.k"
 static const size_t app_pos_H__chk = 2;
 #line 7 "app/pos.k"
 #define app_pos_W ((size_t)3)
+#line 7 "app/pos.k"
 static const size_t app_pos_W__chk = 3;
 #line 11 "app/pos.k"
 struct app_pos_position {

@@ -106,7 +106,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `--line=on\|off` | emissão de `#line` para o fonte keel; ver backend §6 | `on` |
 | `--main <módulo>` | gera a unidade com o ponto de entrada do C, chamando o do módulo indicado; ver §4.7 | não gera |
 | `--cc=<programa>` | compilador C a invocar | `cc` |
-| `--pedantic-names` | baixa o teto de comprimento de nome gerado de 255 para 63; ver backend §2.4 | desligado |
+| `--pedantic-names` | baixa o teto de comprimento de nome gerado de 255 para o mínimo do padrão: 31 para nome com ligação externa, 63 para os demais; ver backend §2.4 | desligado |
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de execução emitido para `parallel`; ver §4.8 | `auto` |
 | `--profile=<c11\|c23\|auto>` | padrão C a que o gerado se conforma; ver §4.9 | `auto` |
 | `-f` | força regeração, ignorando timestamp | desligado |

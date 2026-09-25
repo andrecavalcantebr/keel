@@ -69,7 +69,7 @@ Conjunto fechado, o da spec da ferramenta §4.1. Toda opção desta tabela é
 | `--line` | `--line=V`, `--line V` | `on` \| `off` | `on` |
 | `--main` | `--main M`, `--main=M` | nome de módulo (`app.cfg`, não caminho) | não gera |
 | `--cc` | `--cc=P`, `--cc P` | programa do compilador C | `cc` |
-| `--pedantic-names` | — | teto de nome 63 | desligado |
+| `--pedantic-names` | — | teto de nome 31 externo, 63 interno | desligado |
 | `--parallel-lowering` | `=V` ou ` V` | `auto` \| `serie` \| `openmp` | `auto` |
 | `--profile` | `=V` ou ` V` | `auto` \| `c11` \| `c23` | `auto` |
 | `-f` | — | força regeração | desligado |

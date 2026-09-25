@@ -10,14 +10,14 @@
 
 **Documento normativo.** Especifica como as construções da linguagem ([`keel-spec.md`](keel-spec.md)) são materializadas em C.
 
-Este documento existe porque **a linguagem não é o lowering**. `defer` é definido como cleanup léxico na saída do escopo, em ordem inversa de registro — isso é a linguagem, e não muda. Que a v0 já tenha estado presa a extensão do GCC, e que hoje se resolva varrendo os pontos de saída e injetando o corpo em cada um conforme o escopo, é assunto **deste** arquivo, e nada disso altera a definição do `defer`. Um segundo backend deve as mesmas obrigações; pode pagá-las de outro jeito — **onde a linguagem não tiver nomeado a forma**. O `parallel` é o caso em que isso mais aparece: a linguagem §4.8 deixa o mecanismo em aberto, e este documento especifica dois — série e OpenMP —, escolhidos pela invocação. O terceiro que a linguagem permitiria, um pool de threads da libc, não está aqui porque precisaria do tipo de cada captura, e a invariante da linguagem §1.3 proíbe conhecê-lo (§5.9.1).
+**A linguagem não é o lowering.** A spec define o que cada construção faz; este documento, como ela sai em C. Um segundo backend deve as mesmas obrigações e pode cumpri-las de outro jeito onde a linguagem não nomeou a forma: `parallel`, por exemplo, tem aqui dois mecanismos, série e OpenMP, escolhidos pela invocação (§5.9.1).
 
 A divisão vale nos três documentos, e é um critério só:
 
 > **A linguagem é dona do que depende apenas do fonte. O backend é dono do que depende do alvo. A ferramenta é dona do que depende da invocação** (`cgen-tool-spec.md`).
 
-**Alvo:** C23 normativo, sem extensões de compilador.
-**Prefixos reservados:** `keel_` e `KEEL_`.
+**Alvo:** C23 normativo, sem extensões de compilador; C11 como perfil (§9).
+**Prefixos reservados:** `keel_` e `KEEL_` (§2.3).
 
 ---
 
@@ -45,57 +45,11 @@ A linguagem fixa o **nome canônico** de cada tipo no ponto de declaração (lin
 | --- | --- |
 | tipo da camada zero (`i32`, `char`, `const char`) | mesma grafia; qualificador prefixa com `_` — `const_char` |
 | `M.nome` | `M_nome` |
-| Tipo `arena` do módulo `keel.arena` | `keel_arena`, pelo encurtamento abaixo (§5.4) |
+| Tipo `arena` do módulo `keel.arena` | `keel_arena`, pelo encurtamento da regra 2 |
 | `M.mod` aplicado a `A` | `M_mod_<A canônico>` |
 | `M.mod` aplicado a `A₁ … A_n` — módulo de vários parâmetros | `M_mod_<A₁>_…_<A_n>`, na ordem da linha `module` |
 | `M.mod(D)` aplicado a `A` — modificador com `dim` parametrizado | `M_mod_<D>_<A canônico>` |
 | `M.Tipo.CONST` — constante de enum nomeado | `M_Tipo_CONST` |
-
-**A grafia gerada nunca contém `__` nem começa por `_` seguido de maiúscula.**
-O começo por `_` e maiúscula é reservado pelo C; o `__` fica livre para os nomes
-que o backend cria (§2.3). A regra de qualificador acima chegaria nas duas
-formas sozinha: `_Atomic u32` daria `_Atomic_u32`, e `keel_buffer__Atomic_u32`
-tem `__` no meio. **Qualificador que começa por `_` perde o underscore inicial e
-baixa a caixa** — é a única normalização de grafia do mangling, e existe para
-essa colisão:
-
-```plain
-buffer const char    →  keel_buffer_const_char
-buffer _Atomic u32   →  keel_buffer_atomic_u32
-```
-
-A perda de fidelidade é nominal e não cria ambiguidade: `atomic` não é grafia
-válida de tipo no fonte (§4.2 da linguagem), então nada mais pode produzir esse
-componente.
-
-Módulo hierárquico achata o `.`: `net.http` dá `net_http_`. O argumento carrega a própria qualificação, e é isso que faz o nome ser o mesmo em toda parte — a condição para que dois módulos atribuam entre si a mesma instância.
-
-```keel
-//keel
-module geom;
-typedef struct { float x, y; } Point;
-```
-
-```c
-//C gerado
-typedef struct geom_Point { float x, y; } geom_Point;
-```
-
-A tag repete o nome manglado mesmo quando o fonte escreveu a struct sem tag. É o §4.3.1 que a exige, para que a declaração adiantada seja sempre escrevível; ela é invisível no C, porque o espaço de tags é separado e o tipo é o mesmo tipo.
-
-`buffer` é o modificador declarado no módulo `keel.buffer`; com o alias
-`buffer`, sua escrita qualificada é `buffer.buffer`. O mesmo vale para
-`outcome.outcome`, no alias do módulo `keel.outcome`. A escrita abreviada vem
-do import com `types` e não confunde a identidade do módulo com a do modificador.
-
-Na formação do nome de emissão, o nome do modificador ou do tipo igual ao
-último componente do módulo não se repete, conforme a regra de encurtamento herdada
-da spec original §1.7, hoje sem contrapartida na linguagem: ela é de emissão, e
-mora aqui. Por isso `keel.buffer.buffer` aplicado a `i32` produz
-`keel_buffer_i32`; `keel.outcome.outcome` aplicado a `i32` produz
-`keel_outcome_i32`; e o tipo `arena` de `keel.arena` produz `keel_arena`, e não
-`keel_arena_arena`. Essa regra de nomes não modifica a representação nem o
-contrato do tipo ao qual o modificador foi aplicado.
 
 ```plain
 buffer i32              →  keel_buffer_i32
@@ -103,56 +57,21 @@ buffer geom.Point       →  keel_buffer_geom_Point
 buffer slice char       →  keel_buffer_slice_char
 coll.stack i32          →  coll_stack_i32
 kv.map i32 geom.Point   →  kv_map_i32_geom_Point
+buffer const char       →  keel_buffer_const_char
+buffer _Atomic u32      →  keel_buffer_atomic_u32
 ```
 
-A representação interna de tipo é uma árvore, e o mangling cai dela — o prefixo aparece só na raiz:
+**Regras**
 
-```plain
-buffer slice i32  →  buffer( slice( c_type("i32") ) )  →  keel_buffer_slice_i32
-```
-
-**Sufixo de aridade.** Uma função que pertence a um modificador pode existir em mais de uma aridade — `ptr(x)` e `ptr(x,i)`, `push(x)` e `push(x,v)`. Como o nome mangled é o mesmo, ele ganha um sufixo:
-
-> O sufixo existe **apenas quando o verbo é declarado em mais de uma aridade**. Entre elas, a forma que recebe **apenas o contêiner** não leva sufixo; as demais levam **o número de argumentos além dele**. Verbo de aridade única não leva sufixo, quantos argumentos tenha.
-
-O sufixo é a **última** parte do símbolo: primeiro o módulo e o modificador,
-depois os argumentos de tipo, e o sufixo por último.
-
-```plain
-ptr(b)          →  keel_buffer_i32_ptr
-ptr(b,i)        →  keel_buffer_i32_ptr1
-of(s)           →  keel_slice_i32_of
-of(s,r)         →  keel_slice_i32_of1
-of(s,a,b)       →  keel_slice_i32_of2
-push(b)         →  keel_buffer_i32_push
-push(b,v)       →  keel_buffer_i32_push1
-ptr(m,i,j)      →  mat_matrix_f32_ptr2
-
-get(b,i)        →  keel_buffer_i32_get      /* aridade única: sem sufixo */
-set(b,i,v)      →  keel_buffer_i32_set      /* idem, com dois além do contêiner */
-alloc(a,T,n)    →  keel_arena_alloc2        /* função de módulo; `type` conta um */
-alloc(a,n,sz,al) → keel_arena_alloc3
-```
-
-A regra vale também para função de módulo não genérico, com o primeiro
-argumento no papel de contêiner. O número é o de argumentos escritos em keel:
-um parâmetro `type` apagado conta um, embora saia como dois no C (§5.16), e um
-binder de dimensão não conta, embora saia como um `size_t` (§5.18).
-
-**Com `dim`, o sufixo conta índices do call site, não argumentos do C** (linguagem §4.3). É a única exceção à frase acima:
-
-```plain
-ptr(t)                →  tens_tensor_2_f32_ptr    /* a base                 */
-ptr(t,(size_t[2]){…}) →  tens_tensor_2_f32_ptr2   /* rank cheio: dois índices */
-```
-
-O acessor de rank cheio recebe **um** argumento além do contêiner — o vetor —, e ainda assim leva o sufixo `2`, porque o ponto de chamada escreveu dois índices. É o que faz o nome dizer o rank, e o que alinha o caso `dim` com o rank fixo, em que `mat_matrix_f32_ptr2` sai de dois índices escritos por extenso. **Não há acessor parcial** (linguagem §4.3), então não há par a desempatar — o que a exceção compra é legibilidade do símbolo, não unicidade.
-
-**Fora de `dim`, o sufixo é o da regra geral, e é o que serve o rank fixo** (linguagem §4.3): `mat_matrix_f32_ptr1` e `mat_matrix_f32_ptr2` saem de `ptr(m,i)` e `ptr(m,i,j)`, dois acessores escritos por extenso, sem literal composto e sem exceção nenhuma no emissor.
-
-Nada disso é resolução de sobrecarga: a aridade está escrita no call site e contar argumentos é sintático — nenhum tipo de argumento é examinado. É por isso que a regra não reabre o que a regra de fechamento da linguagem §4.3 fecha, e por isso ela vale igual para modificador embutido e do usuário (linguagem §4.9).
-
-Os três espaços de identificador do C são prefixados, porque os três aparecem no `.h` e os três colidem entre módulos:
+1. Módulo hierárquico achata o `.`: `net.http` dá `net_http_`. O argumento carrega a própria qualificação, e por isso o nome é o mesmo em todo módulo que usa a instância.
+2. O nome do modificador ou do tipo igual ao último componente do módulo não se repete: `keel.buffer.buffer` aplicado a `i32` dá `keel_buffer_i32`, e o tipo `arena` de `keel.arena` dá `keel_arena`. A regra é só de nome; não muda representação nem contrato.
+3. O nome cai da árvore do tipo, e o prefixo aparece só na raiz: `buffer slice i32` é `buffer( slice( i32 ) )`, e sai `keel_buffer_slice_i32`.
+4. A grafia gerada nunca contém `__` nem começa por `_` seguido de maiúscula. Um qualificador que começa por `_` perde o underscore inicial e baixa a caixa: `_Atomic u32` dá `atomic_u32`. É a única normalização de grafia do mangling. [D17](#10-decisões-de-emissão)
+5. Os três espaços de identificador do C — nome de tipo, tag e constante de enum — levam o prefixo do módulo, em escopo de arquivo. [D16](#10-decisões-de-emissão)
+6. A tag de struct repete o nome manglado, mesmo quando o fonte escreveu a struct sem tag (§4.3.1).
+7. A constante de enum nomeado leva dois níveis, `M_Tipo_CONST`, porque seu escopo é o enum (linguagem §4.2). A de enum sem nome leva só o do módulo, `M_CONST`.
+8. Os nomes são reescritos também dentro do corpo do `enum`: `WALKING = STOPPED + 1` sai com os dois escopados.
+9. `enum` de bloco e o conteúdo de `extern_c` não são tocados.
 
 ```keel
 //keel
@@ -172,24 +91,38 @@ enum sim_State { sim_State_STOPPED, sim_State_WALKING };
 enum { sim_MAX = 64 };
 ```
 
-A **constante de enum** é a que mais importa: ela vive no espaço de identificadores comuns e é definida no header. Sem prefixo, dois módulos que declarem `STOPPED` não podem ser importados pelo mesmo terceiro.
+#### 2.1.1 Sufixo de aridade
 
-E ela leva **dois** níveis, não um: o escopo da constante é o enum, não o módulo (linguagem §4.2), de modo que `State.STOPPED` e `Task.STOPPED` do mesmo módulo não se encontram no `.h`. Enum sem nome não tem escopo próprio e fica com o prefixo do módulo, como qualquer outro símbolo.
+Um verbo pode existir em mais de uma aridade — `ptr(x)` e `ptr(x,i)`, `push(x)` e `push(x,v)` —, e o nome mangled dos dois seria o mesmo.
 
-- Vale só em escopo de arquivo. `enum` em escopo de bloco não aparece em header nenhum e não é tocado.
-- Nada de novo é exigido do parser além de **ler o corpo do `enum`** para colher os nomes. A reescrita já existe — é a mesma que troca `Point` por `geom_Point` —, e por isso `WALKING = STOPPED + 1` sai certo sem tratamento especial: dentro do corpo os dois nomes são nus e os dois são reescritos para o símbolo escopado.
-- Dentro de `extern_c` nada disso vale: ali os nomes são do C.
+```plain
+ptr(b)          →  keel_buffer_i32_ptr
+ptr(b,i)        →  keel_buffer_i32_ptr1
+of(s)           →  keel_slice_i32_of
+of(s,r)         →  keel_slice_i32_of1
+of(s,a,b)       →  keel_slice_i32_of2
+push(b,v)       →  keel_buffer_i32_push1
+ptr(m,i,j)      →  mat_matrix_f32_ptr2
+get(b,i)        →  keel_buffer_i32_get      /* aridade única: sem sufixo */
+alloc(a,T,n)    →  keel_arena_alloc2        /* função de módulo; `type` conta um */
+alloc(a,n,sz,al) → keel_arena_alloc3
+ptr(t)                →  tens_tensor_2_f32_ptr
+ptr(t,(size_t[2]){…}) →  tens_tensor_2_f32_ptr2   /* `dim`: dois índices escritos */
+```
+
+**Regras**
+
+1. O sufixo existe só quando o verbo é declarado em mais de uma aridade. Verbo de aridade única não leva sufixo, quantos argumentos tenha.
+2. A forma que recebe só o contêiner não leva sufixo; as demais levam o número de argumentos além dele.
+3. O sufixo é a última parte do símbolo: módulo, modificador, argumentos de tipo, sufixo.
+4. Vale também para função de módulo não genérico, com o primeiro argumento no papel de contêiner.
+5. Conta os argumentos escritos em keel: um parâmetro `type` apagado conta um, embora saia como dois no C (§5.16); um binder de dimensão não conta, embora saia como um `size_t` (§5.18).
+6. Com `dim`, conta os índices escritos no ponto de chamada: o acessor de rank cheio recebe um vetor e leva o sufixo do rank. É a única exceção à regra 5, e não há acessor parcial (linguagem §4.3). [D18](#10-decisões-de-emissão)
+7. A contagem é sintática: nenhum tipo de argumento é examinado, e a regra vale igual para modificador da base e do programa. [R: substituição e aridade fixa](keel-rationale.md#substituição-e-aridade-fixa)
 
 ### 2.2 Normalização do argumento
 
 Antes de manglar, a sequência de tokens do argumento é normalizada:
-
-1. Espaçamento colapsado.
-2. Nome de `<stdint.h>` reduzido à grafia keel (`int32_t` → `i32`).
-3. Qualificadores movidos para antes do tipo, em ordem fixa: `const`, `volatile`, `_Atomic` — e `_Atomic` grafado `atomic` no símbolo, pela regra do §2.1.
-4. `M.Nome` → `M_Nome`. **Exceto `keel.X`, que reduz a `X`** — a camada zero não tem prefixo no C gerado, e é isso que faz `buffer keel.i32` e `buffer i32` serem a mesma instância.
-5. Argumento que é instância de modificador é normalizado recursivamente.
-6. Argumento de `dim` reduzido à forma decimal mínima: zeros à esquerda caem, de modo que `tensor(03)` e `tensor(3)` sejam a **mesma** instância.
 
 ```plain
 buffer int32_t     →  keel_buffer_i32     /* mesma instância de buffer i32 */
@@ -198,19 +131,17 @@ buffer keel.i32    →  keel_buffer_i32
 buffer _Atomic u32 →  keel_buffer_atomic_u32
 ```
 
-**O prefixo do objeto não entra na normalização.** `const buffer i32` e
-`_Atomic buffer i32` são a instância `keel_buffer_i32` num objeto qualificado: o
-qualificador sai no declarador do C, como o usuário o escreveu, e nenhuma
-instância nova é gerada (linguagem §2.2). Só o qualificador do **argumento**
-manga, porque só ele muda o tipo do elemento.
+**Regras**
 
-`ref` não entra na mangling: `buffer i32 *ref` e `buffer i32 *` são a mesma instância.
-
-`restrict` não aparece em mangling nenhum: ele não é qualificador de contêiner em keel (linguagem §4.2), e em declarador C comum atravessa verbatim, sem instância a nomear. Já o argumento de `dim` **entra**, e tem que entrar: `tensor(2) f32` e `tensor(3) f32` são tipos diferentes, com structs de tamanhos diferentes. Módulo sem `dim` não tem numeral a carregar — `mat_matrix_f32` (linguagem §4.9).
-
-**O que entra é o valor, e nunca a grafia.** `tensor(3) f16` e `tensor(DIM) f16`, com `DIM` valendo 3, dão o mesmo `tens_tensor_3_f16` — mesmo nome, mesma struct, mesmo header, byte a byte. É o que a linguagem §4.3 exige, e é o que mantém o §7.1 de pé: com a grafia no nome, dois módulos que declarassem `DIM` com valores diferentes pediriam o mesmo arquivo com conteúdos diferentes, e o header de instância deixaria de ser função das entradas. **O backend não resolve o símbolo** — recebe o valor já resolvido pela linguagem e o escreve.
-
-**No C gerado sai a grafia keel, não a de `<stdint.h>`.** A decisão está forçada: o corpo de função é copiado verbatim, então um `i32 x = 5;` escrito pelo usuário chega ao `.c` como `i32` de qualquer forma — o `typedef` do prelúdio é necessário em qualquer cenário. Emitir `int32_t` nas structs geradas criaria duas grafias para o mesmo tipo dentro do mesmo programa. E pelo princípio 3, a mensagem do compilador C deve referir o nome que o usuário escreveu: `expected i32 * but argument is of type f32 *` lê direto contra o fonte.
+1. O espaçamento é colapsado.
+2. Nome de `<stdint.h>` reduz à grafia keel: `int32_t` → `i32`.
+3. Qualificadores vão para antes do tipo, em ordem fixa — `const`, `volatile`, `_Atomic` —, e `_Atomic` sai `atomic` (§2.1, regra 4).
+4. `M.Nome` vira `M_Nome`, exceto `keel.X`, que reduz a `X`: `buffer keel.i32` e `buffer i32` são a mesma instância.
+5. Argumento que é instância de modificador é normalizado recursivamente.
+6. Argumento de `dim` entra pelo valor decimal mínimo, e nunca pela grafia: `tensor(03)`, `tensor(3)` e `tensor(DIM)`, com `DIM` valendo 3, dão o mesmo `tens_tensor_3_f16`. O backend recebe o valor já resolvido pela linguagem (§4.3). [D19](#10-decisões-de-emissão)
+7. O qualificador do objeto não entra: `const buffer i32` é a instância `keel_buffer_i32` num objeto qualificado, e o qualificador sai no declarador C, como escrito (linguagem §2.2). Só o qualificador do argumento muda a instância.
+8. `ref` e `restrict` não entram: `buffer i32 *ref` e `buffer i32 *` são a mesma instância, e `restrict` não qualifica contêiner (linguagem §4.2).
+9. No C gerado sai a grafia keel dos primitivos, e não a de `<stdint.h>`: as structs geradas usam `i32`, como o corpo copiado do usuário. [D20](#10-decisões-de-emissão)
 
 ### 2.3 Namespaces e nomes reservados
 
@@ -240,53 +171,14 @@ manga, porque só ele muda o tipo do elemento.
 
 ### 2.4 Limite de comprimento
 
-**Nome gerado acima de 255 caracteres é erro.**
+**Regras**
 
-**Por que existe um teto.** Não é conformidade: é colisão. Onde o linker só
-considera os primeiros *N* caracteres, duas instâncias distintas cujos nomes só
-diferem depois do corte **colidem em silêncio no link** — sem erro, sem aviso, e
-com um dos dois símbolos vencendo. É a pior classe de falha que a identidade
-nominal pode produzir, e é ela que o teto existe para transformar em diagnóstico.
-Truncar com hash não serve: mataria a legibilidade que a identidade nominal existe
-para preservar.
+1. Nome gerado acima de 255 caracteres é erro: `name-too-long`. [D21](#10-decisões-de-emissão)
+2. Sob `--pedantic-names` (ferramenta §4.1), o teto é o mínimo do padrão: 31 para nome com ligação externa — função `pub` fora de linha e variável `pub` — e 63 para os demais: funções `static inline`, nomes de tipo, tags, constantes de enum e nomes `keel__`. Não há opção para subir. [D22](#10-decisões-de-emissão)
+3. Não há truncamento nem hash: o nome gerado é sempre o nome inteiro.
+4. É esse teto, e nenhuma regra própria, que limita o aninhamento de modificadores. A 255 ele não é sentido: `mat_matrix_keel_buffer_geom_Point` tem 33 caracteres.
 
-**Por que 255, e não o número do padrão.** O mínimo que o C garante é bem menor —
-e menor do que a edição anterior deste documento afirmava:
-
-| | Interno / macro | **Externo** |
-| --- | --- | --- |
-| C89/C90 | 31 | **6** |
-| C99 em diante, incluindo C23 | 63 | **31** |
-
-Praticamente todo nome que este backend gera é **externo** — símbolo `pub` com
-prefixo de módulo —, então o número aplicável seria **31**, não 63. Com 31,
-`keel_buffer_geom_Point` (22 caracteres) já estaria a uma composição de estourar,
-e a álgebra de modificadores do §4.3 da linguagem seria inutilizável na prática.
-
-E o mínimo do padrão não descreve nenhum compilador real. O levantamento está no
-Anexo deste documento; o resumo é que **o pior caso prático é 255**, do IAR
-Embedded Workbench, e que todo o resto ou garante 255 ou não impõe limite algum.
-Adotar o mínimo do padrão seria pagar por um alvo que não existe.
-
-> **Nota de projeto — de onde veio o 63.** Ele estava aqui por um erro de leitura
-> do padrão: 63 é a significância de identificador **interno**, e o texto o
-> atribuía ao externo. O erro era conservador, então nunca produziu programa
-> errado — só proibia nomes que todo compilador aceita. Fica registrado porque a
-> correção move um número que outras seções orçavam (linguagem §4.3, e a regra de encurtamento do §2.1).
-
-**`--pedantic-names` baixa o teto para 63** (ferramenta §4.1), para quem mira alvo
-fora do levantamento. Não existe flag para *subir*: 255 já é o topo do que se pode
-prometer sem saber qual é o linker.
-
-**O 63 não é o mínimo do padrão, e a flag não promete ser.** O mínimo para nome
-externo é 31, e a 31 a álgebra de modificadores do §4.3 da linguagem seria
-inutilizável — `keel_buffer_geom_Point` já tem 22. A flag existe para o alvo
-cujo linker se conhece mal, não para reproduzir a garantia do padrão, e 63 é o
-teto abaixo do qual nenhum toolchain do Anexo foi encontrado.
-
-É esse teto, e nenhuma regra própria, que limita a profundidade de aninhamento de
-modificadores — e a 255 ele deixa de ser restrição sentida: `mat_matrix_keel_buffer_geom_Point`
-tem 33 caracteres.
+O levantamento dos limites do padrão e dos compiladores está no [Anexo](#anexo--levantamento-de-significância-de-identificador).
 
 ---
 
@@ -2545,6 +2437,13 @@ alternativa em aberto.
 | 13 | A cláusula `else` sai numa linha só, declaração e `if` | §5.12. O corpo continua mapeando 1:1 e dispensa ressincronizar, ao contrário de `match` e `parallel`, que não cabem numa linha |
 | 14 | `at` fora de faixa devolve `none`, e não um código | §5.13. O backend não tem catálogo de erro e não deve ganhar um: o produtor é o de `outcome` (§5.14) |
 | 15 | Todo nome criado pelo backend começa por `keel__` | §2.3. O mangling nunca produz `__`, e o programa não declara nada em `keel_`: o espaço é só do backend, e um nome novo não pede consulta à tabela de símbolos nem pode colidir com um símbolo que a base venha a ter — a função `m0` de um módulo sairia `keel_m0`, o rótulo, `keel__m0_LIT` |
+| 16 | Nome de tipo, tag e constante de enum de arquivo levam o prefixo do módulo | §2.1. Os três aparecem no `.h` e colidem entre módulos. A constante de enum é a que mais importa: vive no espaço dos identificadores comuns, e sem prefixo dois módulos que declarem `STOPPED` não podem ser importados pelo mesmo terceiro |
+| 17 | Qualificador com `_` inicial perde o underscore e baixa a caixa | §2.1. Evita `_Atomic_u32`, reservado ao C, e o `__` de `keel_buffer__Atomic_u32`, que é do backend (§2.3). A perda é só de grafia: `atomic` não é tipo válido no fonte, então nada mais produz esse componente |
+| 18 | Com `dim`, o sufixo de aridade conta índices escritos | §2.1.1. O nome passa a dizer o rank, e o caso `dim` se alinha com o rank fixo, em que `mat_matrix_f32_ptr2` sai de dois índices escritos por extenso. Não há acessor parcial, então não há par a desempatar: a exceção compra legibilidade, não unicidade |
+| 19 | O argumento de `dim` entra no nome pelo valor, e não pela grafia | §2.2. Com a grafia, dois módulos que declarassem `DIM` com valores diferentes pediriam o mesmo arquivo com conteúdos diferentes, e o header de instância deixaria de ser função das entradas (§7.1) |
+| 20 | O C gerado usa `i32`, e não `int32_t` | §2.2. O corpo do usuário é copiado como escrito, então `i32` chega ao `.c` de qualquer forma e o `typedef` do prelúdio é necessário. Emitir `int32_t` nas structs criaria duas grafias para o mesmo tipo, e a mensagem do compilador C deve citar o nome que o usuário escreveu: `expected i32 *` lê direto contra o fonte |
+| 21 | Nome gerado acima de 255 caracteres é erro | §2.4. Onde o linker só considera os primeiros *N* caracteres, duas instâncias que só diferem depois do corte colidem em silêncio no link, com um símbolo vencendo o outro; o teto transforma isso em diagnóstico. Truncar com hash mataria a legibilidade. O mínimo do padrão para nome externo é 31, que tornaria a composição de modificadores inutilizável (`keel_buffer_geom_Point` já tem 22), e não descreve compilador real: o pior caso prático é 255, do IAR (Anexo). Uma edição anterior deste documento dava 63, que é o mínimo do padrão para nome **interno** |
+| 22 | `--pedantic-names` aplica o mínimo do padrão, separado pela ligação: 31 para nome externo, 63 para os demais | §2.4. A opção é para o linker que só promete o mínimo do padrão, e o padrão (C11 e C23, §5.2.4.1) o separa pela ligação, não pela visibilidade no header. A separação é o que mantém a base usável no modo pedante: ela é toda `static inline` e tipos, e `keel_outcome_keel_buffer_size_t`, com 32 caracteres, é nome interno. Não há opção para subir, porque 255 já é o topo do que se pode prometer sem saber qual é o linker |
 
 ---
 

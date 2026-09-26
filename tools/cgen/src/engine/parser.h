@@ -221,4 +221,77 @@ typedef struct {
 bool k_scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
                         KSpecifier *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* The common case of keel-spec §2.2's `declarator`:
+ *   declarator ::= { '*' { qual-c } } direct-declarator
+ *   direct-declarator ::= IDENT { suffix }
+ * — just `{ '*' } IDENT`, no `qual-c` between stars (`const`, `ref`, ...)
+ * and no trailing `suffix` (array brackets, function parameter groups)
+ * yet; both are later tasks. `first` is already read — it is either the
+ * declarator's leading `'*'`, or, if there is none, the `IDENT` itself.
+ * Counts every leading `'*'` into `out->pointer_depth`, then the next
+ * token is the name. Consumes one token past the name and hands it back
+ * via next_out/next_pp_kind_out, same convention as every recognizer in
+ * this file. */
+typedef struct {
+    int pointer_depth;
+    keel_slice_char name;
+} KDeclaratorHead;
+
+bool k_scan_declarator_head(KLexer *lexer, KToken first, KDeclaratorHead *out,
+                             KToken *next_out, TKPpKind *next_pp_kind_out);
+
+/* A reusable utility, not tied to one grammar production: skips tokens,
+ * counting `'(' '[' '{'` as +1 and `')' ']' '}'` as -1 against a single
+ * shared depth (keel-spec's own delimiters, §2.1 — C guarantees they
+ * nest consistently regardless of which kind opened, so one counter is
+ * enough), until it reads a token that both (a) one of `terminators`
+ * matches (compared with k_token_is_punct) and (b) depth is 0 at that
+ * point. `first` is already read, and may itself already be a match
+ * (an empty region). Sets `*terminator_index_out` to which entry of
+ * `terminators` matched, and `*next_out` to that terminator token itself
+ * — like every other recognizer, the terminator has already been read
+ * from `lexer`, so the caller uses it instead of reading it again.
+ *
+ * EOF safety (tools/harness/README.md, "um oráculo tem que sobreviver a
+ * um travamento"): if `first`, or any token read afterward, is empty
+ * (`.len == 0`, meaning end of file), stop immediately as if it matched
+ * `terminators[0]` — well-formed input never actually reaches this, but
+ * looping on EOF forever is exactly the kind of hang a wrong recognizer
+ * has produced before. */
+void k_scan_opaque_until(KLexer *lexer, KToken first, const char *const *terminators,
+                          size_t terminator_count, size_t *terminator_index_out,
+                          KToken *next_out, TKPpKind *next_pp_kind_out);
+
+/* A first decl-keel (keel-spec §2.2):
+ *   specifier init-decl { ',' init-decl } ';'
+ *   init-decl ::= declarator [ '=' <opaque> ]
+ * — the common case: no `spec-c` prefix (`inline`/`static`/...), no
+ * `array`/`constexpr` alternative forms, no `else`-tail — all later
+ * tasks. `first` is already read (the specifier's own first token).
+ *
+ * Calls `k_scan_known_type` first: if it comes back `K_SPEC_NONE`, this
+ * function is not applicable either — return `false` immediately,
+ * without reading anything beyond `first` and without touching
+ * `*next_out`, exactly like `k_scan_known_type` itself does in that case.
+ * Otherwise, for each `init-decl` (there is always at least one):
+ * `k_scan_declarator_head` gets the name; register it into `symtab` as
+ * `K_SYM_VARIABLE` (arity 0); if an `'='` follows, skip the initializer
+ * with `k_scan_opaque_until(lexer, ..., (const char *[]){ ",", ";" }, 2,
+ * ...)`; a `','` means another `init-decl` follows, a `';'` ends the
+ * declaration. Consumes through that `';'` and hands back the token
+ * after it. Returns `false`, without registering anything further, if
+ * there are more than 8 comma-separated names — never happens in
+ * well-formed keel source seen so far, but must not write out of
+ * bounds. */
+typedef struct { keel_slice_char name; } KKeelDeclName;
+
+typedef struct {
+    KSpecifier spec;
+    KKeelDeclName names[8];
+    size_t name_count;
+} KKeelDecl;
+
+bool k_scan_decl_keel(KLexer *lexer, KToken first, KSymbolTable *symtab,
+                       KKeelDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
+
 #endif /* CGEN_ENGINE_PARSER_H */

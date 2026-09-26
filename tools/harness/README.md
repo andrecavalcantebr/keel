@@ -455,3 +455,22 @@ Isso não fecha decl-typedef/decl-function/decl-keel — só prova que o passo
 mais delicado do despacho (a consulta à symtab) é delegável quando isolado
 do resto (achar o declarador em geral, que continua de fora).
 
+**`decl-keel` fechado: três tarefas, três de primeira, todas rodadas pelo
+André sozinho** (`k_scan_declarator_head`, `k_scan_opaque_until`,
+`k_scan_decl_keel`) — décima, décima primeira e décima segunda seguidas
+desde a regra zero. `k_scan_opaque_until` era a mais arriscada das três
+(laço com contador de profundidade compartilhado entre `()[]{}`, mais o
+guard de EOF explícito na tarefa) e saiu correto de primeira, código
+idêntico ao raciocínio derivado à mão — inclusive parando exatamente na
+`;` de topo e ignorando a `,` aninhada em `f(1,2)` no exemplo trabalhado.
+`k_scan_decl_keel` compõe as três (`k_scan_known_type` +
+`k_scan_declarator_head` + `k_scan_opaque_until`) no primeiro `decl-keel`
+de verdade: `specifier init-decl {',' init-decl} ';'`, registrando cada
+nome como `K_SYM_VARIABLE` — inclusive o truque de passar `*next_out` como
+entrada e saída da mesma chamada a `k_scan_declarator_head` (seguro, `first`
+é por valor).
+
+Falta, do `top-decl`: `spec-c` (inline/static/...), `array`/`constexpr`,
+a cauda `else`, `decl-typedef` e `decl-function` — este último ainda com a
+ambiguidade genuína (não resolvida por tabela) entre função e variável.
+

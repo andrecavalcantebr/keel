@@ -438,3 +438,20 @@ errar. Fica para quando o André decidir se quer entrar nesse desenho junto,
 ou se prefiro escrever essa parte direto em vez de montar tarefa (mesmo
 critério do "balanço de custo" registrado acima).
 
+**André decidiu: primeira tentativa nessa parte mais difícil, delegada
+mesmo assim.** `k_scan_known_type` — o núcleo dos passos 2-3 do despacho de
+`parser-design.md` §4 ("IDENT registrado como modificador? IDENT
+registrado como tipo?"), com argumento de um token só, sem aninhamento.
+André apontou que a "ambiguidade" aqui se resolve com uma consulta à
+`symtab` já feita, não com lookahead de verdade — e a tarefa foi escrita
+assim, sem esconder isso. **Oitavo PASS de primeira tentativa seguido**, e
+o primeiro que o próprio André rodou sozinho (`loop.py` direto, sem Claude
+acompanhando) — tarefa e oráculo entregues numa sessão, executados do outro
+lado do limite de uso, na sessão seguinte. Único achado: um warning de
+sinal (`size_t` vs `int` no laço de aridade), cosmético, mesma tolerância
+já aplicada ao resto do projeto (sem `-Werror`).
+
+Isso não fecha decl-typedef/decl-function/decl-keel — só prova que o passo
+mais delicado do despacho (a consulta à symtab) é delegável quando isolado
+do resto (achar o declarador em geral, que continua de fora).
+

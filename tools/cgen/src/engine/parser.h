@@ -180,4 +180,45 @@ typedef struct {
 bool k_scan_struct_decl(KLexer *lexer, KToken struct_or_union_kw, KSymbolTable *symtab,
                          KStructDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* The first piece of keel-spec §2.2's `specifier` / parser-design §4's
+ * dispatch — steps 2-3 only ("IDENT registrado como modificador? ... IDENT
+ * registrado como tipo?"), single-token arguments only (no nested
+ * known-type, no qualifiers — `buffer i32`, not `buffer const T`, and not
+ * a modifier applied to another modifier's result). `first` is already
+ * read (an IDENT) — this function does not read anything beyond it unless
+ * it recognizes a specifier.
+ *
+ * `k_symtab_lookup(symtab, first)`'s result alone decides which of the
+ * three outcomes applies — no more than one token of lookahead is ever
+ * needed beyond `first` itself:
+ *
+ *  - Not found in `symtab` at all: `out->kind = K_SPEC_NONE`. This
+ *    function has not consumed anything beyond `first` — do not read
+ *    `*next_out`, it is left untouched; the caller treats `first` itself
+ *    as the start of opaque C, exactly where the lexer already is.
+ *  - Found as `K_SYM_MODIFIER`: `out->kind = K_SPEC_MODIFIER`,
+ *    `out->modifier_name = first`. Reads exactly `sym->arity` further
+ *    tokens, one per argument (no recursion — each argument is kept as
+ *    its own single token, into `out->args[0..arity)`), then one more
+ *    read into `*next_out` (the declarator's own start). Returns false,
+ *    without reading past the 4th argument, if `arity` is more than 4 —
+ *    real keel modules registered so far never need that many.
+ *  - Found as `K_SYM_TYPE`: `out->kind = K_SPEC_NAMED_TYPE`,
+ *    `out->type_name = first`. Reads exactly one more token into
+ *    `*next_out`.
+ *
+ * A symbol of any other `KSymKind` (found, but neither of those two) is
+ * treated the same as not found: `K_SPEC_NONE`. */
+typedef enum { K_SPEC_NONE, K_SPEC_MODIFIER, K_SPEC_NAMED_TYPE } KSpecifierKind;
+
+typedef struct {
+    KSpecifierKind kind;
+    keel_slice_char modifier_name;   /* meaningful when kind == K_SPEC_MODIFIER */
+    KToken args[4];  size_t arg_count;
+    keel_slice_char type_name;       /* meaningful when kind == K_SPEC_NAMED_TYPE */
+} KSpecifier;
+
+bool k_scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
+                        KSpecifier *out, KToken *next_out, TKPpKind *next_pp_kind_out);
+
 #endif /* CGEN_ENGINE_PARSER_H */

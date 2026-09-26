@@ -294,4 +294,45 @@ typedef struct {
 bool k_scan_decl_keel(KLexer *lexer, KToken first, KSymbolTable *symtab,
                        KKeelDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* decl-constexpr (keel-spec §2.2, revised 2026-09-26):
+ *   'constexpr' <opaque> [ IDENT '=' <opaque> ] ';'
+ * `constexpr_kw` is the already-consumed 'constexpr' token. The optional
+ * `IDENT '='` only applies when a top-level '=' exists before the ';'
+ * that closes the declaration — and there is at most one, so `IDENT` is
+ * exactly the token immediately before it, never a choice among
+ * candidates (the note right after this production in keel-spec.md
+ * §2.2). Without a top-level '=', the whole declaration is opaque and
+ * nothing is registered — not a failure (keel-spec §4.2: it "segue para
+ * o compilador C e não registra constante utilizável pela tradução").
+ *
+ * No pushback needed: track the current token and the one right before
+ * it as you scan (each is a cheap `keel_slice_char` copy) — when the
+ * current token is, at depth 0, '=' or ';', the one you were already
+ * holding is either the required name (stopped at '=') or ordinary
+ * opaque content (stopped at ';' with no '=' found at all).
+ *
+ * Success, with a name: `out->has_name = true`, `out->name` is that
+ * identifier, registered into `symtab` as `K_SYM_CONSTANT`; the
+ * initializer after '=' is skipped with `k_scan_opaque_until` (already
+ * accepted), terminator `";"` only.
+ * Success, without a name: `out->has_name = false`, `out->name` is
+ * `(keel_slice_char){0}`; nothing registered.
+ * Failure (`constexpr-name-missing`, keel-spec §4.2 — this function only
+ * detects the condition; a diagnostic sink isn't wired in yet): a
+ * top-level '=' was found but there was no token before it, or the token
+ * right before it is not an `IDENT` (checked with `k_token_is_ident`).
+ * Returns `false` immediately, without registering anything and without
+ * touching `*next_out` — same convention as `k_scan_known_type`'s
+ * `K_SPEC_NONE` case.
+ *
+ * Either success path consumes through the closing ';' and hands back
+ * the token after it. */
+typedef struct {
+    bool has_name;
+    keel_slice_char name;
+} KConstexprDecl;
+
+bool k_scan_decl_constexpr(KLexer *lexer, KToken constexpr_kw, KSymbolTable *symtab,
+                            KConstexprDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
+
 #endif /* CGEN_ENGINE_PARSER_H */

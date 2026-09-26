@@ -364,7 +364,7 @@ direct-declarator ::= IDENT { suffix }
 suffix       ::= '[' [ <opaque> ] ']' | '(' [ <opaque> ] ')'
 qual-c       ::= 'const' | 'volatile' | 'restrict' | '_Atomic' | 'ref'
 
-decl-constexpr ::= 'constexpr' <opaque> ';'
+decl-constexpr ::= 'constexpr' <opaque> [ IDENT '=' <opaque> ] ';'
 
 decl-array   ::= { spec-c } 'array' argument decl-array-1 { ',' decl-array-1 } ';'
 decl-array-1 ::= { '*' } IDENT dimensions [ '=' <opaque> ]
@@ -379,6 +379,8 @@ dimensions    ::= '[' [ <opaque> { ',' <opaque> } ] ']'
 `named-type` só casa um nome registrado como tipo: um `typedef` keel, como `arena`, ou um conjunto de tags, como `Cycle` em `tagged Cycle void`. Um nome registrado como modificador, como `buffer`, exige o tipo ao qual será aplicado: `buffer T` é o tipo resultante. O número de argumentos de um modificador é determinado pelo módulo declarado, não pela repetição livre da EBNF. Qualificadores de argumento são aceitos dos dois lados do tipo; a identidade canônica segue o contrato de tipos e genéricos.
 
 `dim-value`, a capacidade de `extent-dim` e `tag-value` admitem um literal ou uma constante nomeada conhecida nas condições da §4.2, inclusive de outro módulo, qualificada. A validade do valor não decorre só da sua classificação como `NUM` ou nome. [Justificativa: constantes nomeadas](keel-rationale.md#constantes-nomeadas).
+
+Em `decl-constexpr`, o grupo `[ IDENT '=' <opaque> ]` só se aplica quando há `'='` no nível externo antes do `';'` que fecha a declaração — e nesse caso há **exatamente um**, então `IDENT` é o token imediatamente anterior a ele, sem candidato concorrente: não é uma busca entre identificadores, é a única posição que a gramática admite. Sem `'='` de topo, o grupo inteiro fica de fora, a declaração é opaca por completo, e nenhuma constante é registrada — o que a §4.2 já dizia em prosa; a produção agora diz o mesmo em gramática. Se houver `'='` de topo e o token anterior não for `IDENT`, é `constexpr-name-missing` (§4.2, §6.2).
 
 #### Statements e blocos
 
@@ -712,7 +714,7 @@ i32 *p = origin;
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `c-type-as-argument`, `array-1d-as-parameter`, `array-parameter-without-dimension`, `array-argument-wrong-dimension`, `binder-argument-not-array`, `binder-as-dimension`, `partial-array-index`, `flat-view-of-n-dim-array`, `nonconstant-dim-index`, `ref-without-initializer`, `ref-arithmetic`, `enum-constant-without-type`, `restrict-on-container`, `hidden-declarator`, `nonscalar-constexpr`, `constexpr-as-lvalue`, `canonical-name-collision`, `reserved-name`, `name-too-long`. `specific-format-unavailable` é do backend ou do compilador C.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `c-type-as-argument`, `array-1d-as-parameter`, `array-parameter-without-dimension`, `array-argument-wrong-dimension`, `binder-argument-not-array`, `binder-as-dimension`, `partial-array-index`, `flat-view-of-n-dim-array`, `nonconstant-dim-index`, `ref-without-initializer`, `ref-arithmetic`, `enum-constant-without-type`, `restrict-on-container`, `hidden-declarator`, `nonscalar-constexpr`, `constexpr-as-lvalue`, `constexpr-name-missing`, `canonical-name-collision`, `reserved-name`, `name-too-long`. `specific-format-unavailable` é do backend ou do compilador C.
 
 Conflitos de nomes seguem a §2.5.
 
@@ -2307,6 +2309,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `return-in-parallel` | `return` no corpo de um `parallel`: o corpo do worker não sai da função que o contém | `error` | keel | §4.8 |
 | `defer-later-shadowed` | `defer` sem `[now]` cujo corpo nomeia símbolo redeclarado em escopo mais interno com ponto de saída — a `note` dá as duas saídas, `[now]` ou `goto` | `error` | keel | §4.6 |
 | `constexpr-as-lvalue` | `&` sobre símbolo `constexpr`, ou uso que exija lvalue — a `note` dá a saída, `static const T k = K;` | `error` | keel | §4.2 |
+| `constexpr-name-missing` | Há `'='` no nível externo de `decl-constexpr`, mas o token imediatamente anterior não é `IDENT` | `error` | keel | §4.2 |
 | `dim-below-one` | Argumento de `dim` que resolve para valor menor que 1 — a mensagem dá a cadeia de instanciação | `error` | keel | §4.3 |
 | `extent-count-not-field` | Contagem de grupo de `extent` que não nomeia campo do struct | `error` | keel | §4.11 |
 | `extent-unknown-capacity` | Capacidade de grupo de `extent` que não é campo, `constexpr` conhecido nem literal decimal | `error` | keel | §4.11 |

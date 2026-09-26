@@ -24,6 +24,17 @@ instead of building a task. Good targets are one function, whose contract is
 already fixed in a normative document or design doc — a recognizer, a table
 lookup, a single grammar production.
 
+**If you have already derived the complete algorithm as pseudocode while
+discussing the contract with André, write the code — do not delegate.**
+`m2-parser-decl-constexpr` (2026-09-26) is the case that surfaced this: the
+task body's numbered steps were already a step-by-step transcription of an
+algorithm worked out in conversation before the card was written. Delegating
+at that point only re-encodes a finished solution into prose for the model
+to re-derive, and pays the round-trip (here, a wasted first attempt) for
+nothing. This is different from the tasks that *did* pay off — those were
+written by reasoning about the grammar while writing the card, not by
+transcribing an already-solved algorithm.
+
 ## Where things are
 
 | Path | What |

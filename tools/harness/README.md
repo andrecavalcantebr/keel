@@ -470,7 +470,37 @@ nome como `K_SYM_VARIABLE` — inclusive o truque de passar `*next_out` como
 entrada e saída da mesma chamada a `k_scan_declarator_head` (seguro, `first`
 é por valor).
 
-Falta, do `top-decl`: `spec-c` (inline/static/...), `array`/`constexpr`,
+Falta, do `top-decl`: `spec-c` (inline/static/...), `array`,
 a cauda `else`, `decl-typedef` e `decl-function` — este último ainda com a
 ambiguidade genuína (não resolvida por tabela) entre função e variável.
+
+**`decl-constexpr` corrigido na spec antes do código** (2026-09-26): a
+produção antiga, `'constexpr' <opaque> ';'`, não dizia onde estava o nome
+— só a prosa da §4.2 dizia ("o identificador imediatamente anterior ao
+`=`"), desacoplada da gramática formal. André recusou resolver isso com
+heurística no parser (o mesmo raciocínio de `symbol-redeclaration`: recusar
+é melhor que adivinhar) e pediu a correção na própria gramática:
+`'constexpr' <opaque> [ IDENT '=' <opaque> ] ';'` — com o `[...]`, a
+posição de `IDENT` é única (o único `'='` de topo antes do `;`), não uma
+escolha entre candidatos. Diagnóstico novo, `constexpr-name-missing`
+(catálogo agora com 149, era 148 — `design/diag-design.md` atualizado).
+
+`k_scan_decl_constexpr`: **PASS na tentativa 2** (autocorrigiu um `.spelling`
+inventado a partir do erro do compilador). André apontou, com razão, que
+esta não devia ter sido delegada — eu tinha derivado o algoritmo inteiro,
+passo a passo, na conversa antes de escrever a tarefa, e delegar só
+reempacotou esse pseudocódigo em prosa, pagando o custo do laço (e ainda
+uma tentativa perdida) por nada. **Lição nova: se ao explicar o contrato
+já cheguei ao pseudocódigo completo, é hora de escrever, não de montar
+tarefa** — diferente das rodadas anteriores, em que a tarefa vinha de
+raciocinar sobre a gramática na hora de escrevê-la, não de uma solução já
+pronta na cabeça.
+
+Achado à parte, sem ação ainda: nenhuma das funções com laço manual de
+profundidade (`k_scan_ident_list`, `k_scan_declarator_head`,
+`k_scan_decl_constexpr`) tem guarda de EOF explícita — só
+`k_scan_opaque_until` tem, porque foi ali que a lição nasceu. Um `.k`
+malformado sem terminador giraria em EOF para sempre nessas três. Não é
+regressão desta tarefa (o padrão já valia antes); fica registrado para
+quando diagnóstico de erro léxico/sintático malformado entrar em jogo.
 

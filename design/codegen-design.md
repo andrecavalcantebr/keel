@@ -101,7 +101,7 @@ outras criaram (backend §5.5.1, "`defer` é a última passagem de fluxo").
 
 ```c
 typedef struct {
-    KModuleDecl   *decl;        /* o que o .k declara, na ordem do fonte */
+    KModuleDecl   *decl;        /* o que o .k declara, na ordem do fonte — forma em parser-design.md §2.3 */
     KSymbolTable  *syms;        /* símbolos locais e o fecho de imports   */
     KInstanceSet  *instances;   /* as instâncias que os usos pediram      */
     bool           compiled;    /* é o módulo da invocação?               */

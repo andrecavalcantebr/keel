@@ -137,10 +137,20 @@ def call_ollama(model: str, prompt: str, temperature: float = 0) -> dict:
 def run_acceptance(commands: list[str], output_real_path: Path) -> tuple[bool, str]:
     for cmd_tpl in commands:
         cmd = cmd_tpl.format(output=output_real_path)
-        r = subprocess.run(
-            cmd, shell=True, cwd=REPO_ROOT,
-            capture_output=True, text=True, timeout=300,
-        )
+        try:
+            r = subprocess.run(
+                cmd, shell=True, cwd=REPO_ROOT,
+                capture_output=True, text=True, timeout=300,
+            )
+        except subprocess.TimeoutExpired as e:
+            # A generated file that hangs (an infinite loop the oracle's own
+            # `timeout` forgot to guard against, or didn't exist for) must
+            # not crash the whole batch — it is exactly as ordinary a
+            # failure as a wrong answer, and the next attempt needs the same
+            # chance to fix it.
+            out = (e.stdout or b"").decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+            err = (e.stderr or b"").decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
+            return False, f"$ {cmd}\nTIMEOUT after {e.timeout}s\n{out}\n{err}"
         if r.returncode != 0:
             return False, f"$ {cmd}\n{r.stdout}\n{r.stderr}"
     return True, "ok"

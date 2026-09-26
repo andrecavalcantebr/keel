@@ -263,7 +263,7 @@ Três propriedades disso:
 - **O teste não repete o esperado.** O fonte é a única fonte de verdade, como no
   016. Mover uma linha não quebra o teste.
 - **Agrupa sem confundir.** Os diagnósticos têm que ser independentes — um que
-  faça o parser ressincronizar (parser §3.1) pode engolir o seguinte, e aí os
+  faça o parser ressincronizar (parser §3.3) pode engolir o seguinte, e aí os
   dois não cabem no mesmo caso.
 - **Cobertura é verificável.** Um script sobre todos os `.k` de falha lista os
   identificadores cobertos e os compara com o catálogo. É o que diz quantos dos

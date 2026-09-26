@@ -79,6 +79,57 @@ resumo final avisa. Cada tentativa também registra o próprio tok/s
 (`decode`/`prefill`, tirados de `eval_count`/`eval_duration` da resposta do
 `ollama`) em `runs/<tarefa>/log.json`.
 
+## Um oráculo tem que sobreviver a um travamento, não só a uma resposta errada
+
+Achado validando `m2-parser-modifier-decl` (2026-09-26): a versão errada que
+eu montei de propósito para testar o oráculo (esquecer de consumir `byref`)
+não deu erro — deu **loop infinito**, porque o token sobrando foi lido como
+se fosse o `'{'` de abertura, e o balanceador nunca via o `'}'` que fecharia
+de verdade. `run_acceptance` do `loop.py` chamava `subprocess.run(...,
+timeout=300)` sem capturar `subprocess.TimeoutExpired` — um travamento assim
+numa tentativa de verdade derrubaria o laço inteiro, não só reprovaria a
+tentativa. Duas correções, as duas aplicadas: **(1)** todo `test/unit/*.sh`
+de oráculo do parser embrulha o binário em `timeout 10 "$BIN"`; **(2)**
+`loop.py` agora captura `TimeoutExpired` e trata como reprovação comum. A
+lição para quem valida um oráculo novo: testar não só uma versão *errada*
+contra ele, mas também uma versão plausível que poderia travar — a mesma
+classe de omissão (não consumir um token esperado) costuma causar as duas.
+
+## O oráculo não pode ser resolvido escrevendo a resposta (2026-09-26)
+
+Correção do André, mais fundamental que a de cima: até
+`m2-parser-modifier-decl`, cada oráculo era validado escrevendo uma
+implementação de referência correta no caminho real, rodando o oráculo
+contra ela, e só então apagando-a. **Isso não faz sentido** — se já existe
+uma implementação correta, escrevê-la para "validar" é resolver o problema;
+delegar ao modelo local a partir daí não economiza nada, e o ciclo de
+tarefa + laço só *soma* custo por cima do que já foi gasto escrevendo a
+referência.
+
+O padrão certo já estava no próprio projeto, só não foi seguido: o
+comentário de `test/parse_dump.sh` já diz que os `.parse` "are NOT
+regenerated from cgen" — são derivados à mão do `.k` e da spec. A mesma
+regra vale para um oráculo de unidade: a entrada e a saída esperada são
+**derivadas por raciocínio sobre a gramática/contrato**, escritas direto
+nas asserções do `main.c`, nunca obtidas rodando uma implementação que
+resolve a função. O "worked example" que já vai em toda tarefa (para o
+modelo) é exatamente essa derivação — é só copiar os números dali para o
+oráculo, não refazer o trabalho em código.
+
+**O que ainda se pode compilar, sem violar a regra:** o `TESTMAIN` sozinho
+contra um stub deliberadamente errado (zera a saída e retorna) — não para
+validar a resposta, só para pegar erro de sintaxe/`#include`/dependência
+faltando no próprio `.sh`. Ele tem que falhar em toda asserção; se não
+falhar, o oráculo é que está quebrado. Isso não é "escrever a resposta": é
+testar o cabo, não o problema.
+
+As cinco funções já aceitas (`k_scan_qualified_name` até
+`k_scan_modifier_decl`) não precisam ser refeitas — o código gerado está
+correto e a suíte prova isso independente de como o oráculo foi validado.
+A correção vale só daqui para frente: registrada em
+`.claude/skills/cgen-harness-task/SKILL.md`, seção "Preparing the oracle (a
+single recognizer)".
+
 ## Por que o laço é sequencial, uma tarefa por vez
 
 Testado (`concurrency_test.py`, descartável, não faz parte do laço): duas
@@ -95,7 +146,7 @@ retestar antes de reabrir a ideia.
 ## Lições de como escrever uma tarefa, tiradas de bloqueio real
 
 Toda vez que uma tarefa travou 5 tentativas seguidas neste projeto, a
-causa coube numa destas quatro — vale conferir as quatro **antes** de
+causa coube numa destas cinco — vale conferir todas **antes** de
 escrever uma tarefa nova, porque cada uma já custou uma rodada inteira de
 retrabalho pelo menos uma vez:
 
@@ -125,6 +176,23 @@ retrabalho pelo menos uma vez:
    "Worked example" numérico (`pos=0` → `width_out=3`, passo a passo),
    passou de primeira. Prosa descreve a regra; exemplo mostra a conta
    feita — e é a conta que este modelo erra.
+5. **Citar a assinatura de uma função reutilizada colando código real do
+   repositório, nunca reescrevendo-a em prosa ou pseudocódigo próprio.**
+   `m2-parser-header` travou 5x (2026-09-26), as cinco pela mesma causa:
+   a tarefa descrevia `k_lexer_next(lexer, &pp_kind)` em prosa ("returns
+   the next token, advancing lexer"), e o modelo inventou uma convenção
+   diferente da real — tratou o segundo parâmetro como um "out" que
+   recebe o próprio token, e um campo `.slice` em `KToken` que não
+   existe. A tarefa anterior (`m2-parser-scan-qualified-name`, mesmo
+   dia) tinha passado de primeira citando a mesma função como
+   pseudocódigo — `tok = k_lexer_next(lexer, next_pp_kind_out)` — o que
+   já bastava. A lição, mais forte que "reexplicar o contrato" (item 2):
+   **não reescrever, colar.** `grep` por uma chamada real já aceita no
+   repositório (`engine/parser_keel.c`, ou qualquer `.c` que já passou
+   pelo laço) e copiar esse trecho, com atribuição de arquivo:linha, é
+   mais barato de escrever e impossível de errar a sintaxe — ao
+   contrário de uma paráfrase nova, que carrega o mesmo risco de erro do
+   lado de quem escreve a tarefa que o modelo tem do lado de quem a lê.
 
 ## O balanço de custo não fechou como esperado (2026-09-22)
 
@@ -268,4 +336,105 @@ mora em `tools/cgen/test/` e roda com `make -C tools/cgen check`
 e `m1-read-source` ficam como histórico: os comandos de aceitação delas apontam
 para os caminhos antigos. Tarefa nova para o modelo local usa os testes de lá
 como aceitação.
+
+**M2 começou (2026-09-26), primeira tarefa via modelo local: `k_scan_qualified_name`.**
+`engine/parser.h` (novo, escrito à mão — a primeira peça do parser, no mesmo
+papel que `lexer.h` teve para M1) declara `qualified-name ::= IDENT { '.'
+IDENT }` (spec §2.2), a produção de `module-name` e de todo nome pontuado.
+Oráculo próprio (`tools/cgen/test/unit/parser_scan_qualified_name.{sh,c}`,
+molde M0/M1: `SRC` + `TESTMAIN` sob sanitizer), validado antes da tarefa contra
+uma implementação de referência escrita à mão — e contra uma versão
+deliberadamente errada (ignora os pontos), para confirmar que o oráculo pega o
+bug. Tarefa (`tasks/m2-parser-scan-qualified-name.md`) **passou de primeira
+tentativa** (26,1s, 17,6 tok/s decode, igual à sonda — sem sinal de contenção).
+`make -C tools/cgen check` continua verde com o arquivo gerado.
+
+**Tentativa de agrupar produções (`m2-parser-header`), duas rodadas no mesmo
+dia.** André pediu uma tarefa mais ampla — três reconhecedores
+(`k_scan_module_decl`, `k_scan_import`, `k_scan_import_c`) num arquivo só —
+para testar se agrupar amortiza o custo de escrever a tarefa. Primeira
+versão, descrevendo `k_lexer_next` em prosa: **bloqueou nas 5 tentativas**,
+as cinco pela mesma causa (lição 5, acima). Segunda versão, reescrita citando
+código real (a implementação inteira, já aceita, de
+`k_scan_qualified_name`, colada verbatim) em vez de prosa: **passou de
+primeira tentativa** (53,7s). A própria reescrita revelou um bug na
+referência que eu tinha validado à mão (`k_scan_import_c` devolvia `;` em
+vez do token depois dele) — só apareceu porque o oráculo da segunda rodada
+passou a afirmar `next_out` contra um marcador, o que o oráculo da primeira
+rodada não fazia. Conclusão registrada para a avaliação com o André: o
+agrupamento por si só não travou nada; o que travou foi a mesma omissão da
+lição 2/4 (contrato reescrito em prosa em vez de citado), e o agrupamento só
+multiplicou o efeito por três.
+
+**Terceira rodada, mais ambiciosa (`m2-parser-extern-c`), já com a lição 5
+aplicada desde o início.** `k_scan_braced_opaque` (balanceamento genérico de
+`{ }`, com aninhamento) e `k_scan_extern_c` (que **chama** a primeira) — duas
+funções novas, uma delas dependente da outra, geradas juntas. **Passou de
+primeira tentativa** (45,5s), com aninhamento correto e `next_out` certo em
+todos os cinco casos do oráculo (corpo vazio, plano, aninhado,
+`extern_c` com e sem `[type_h]`). Terceira confirmação seguida da hipótese
+do André: agrupar produções relacionadas funciona bem quando a tarefa cita
+código real em vez de reescrevê-lo em prosa.
+
+**`k_scan_ident_list` fecha a etapa 1 (header) por inteiro.** Tarefa mínima
+de propósito (uma função só, `IDENT { ',' IDENT }` — o binder `dim`/`tags`/
+`type` de `module`), pedido do André depois de notar que as ~107 linhas
+finais do modelo local custaram um preparo (tarefa + oráculo + validação)
+bem maior do lado do Claude — quarto PASS de primeira tentativa seguido, e o
+mais rápido (19,3s). A fiação em `k_scan_module_decl` (três chamadas
+sequenciais à função nova, uma por binder) foi feita direto por Claude, sem
+tarefa — é código de baixo risco, três linhas repetidas, o mesmo padrão já
+comprovado três vezes; delegar aqui só teria custo, sem reduzir risco.
+`module`, `import`, `import_c`, `extern_c` — os quatro `top-item` de
+`unit` (spec §2.2) — e os binders de `module` estão todos reconhecidos.
+
+**Etapa 2 (coleta) começou: `engine/symtab.h`/`symtab.c` escritos direto por
+Claude** (parser-design §2.1 — mapa ordenado por grafia, iteração por
+inserção, `KSymKind`), e `k_scan_modifier_decl`, o primeiro reconhecedor que
+**registra** símbolo em vez de só reconhecer sintaxe, delegado com sucesso:
+**quinto PASS de primeira tentativa seguido** (26,0s). Achado de spec ao
+projetar a tarefa (§4.3: "a assinatura do módulo fixa a quantidade... de
+todos os seus modificadores") — a aridade de um `modifier` é a do próprio
+`module` que o declara (`KModuleHeader.dim_count + tag_count + type_count`),
+não algo que se descubra olhando dentro do corpo do modificador; isso
+manteve a tarefa pequena, sem precisar interpretar `{ }` além de
+delimitá-lo com `k_scan_braced_opaque`, já pronto. Este é também o marco em
+que André corrigiu o método de validar oráculo (seção acima) — as cinco
+funções desta etapa e da etapa 1 continuam válidas, só o processo mudou daqui
+para frente.
+
+**`k_scan_tags_decl`, primeira tarefa sob o processo corrigido: sexto PASS
+de primeira tentativa seguido** (27,3s). Sem implementação de referência —
+a entrada e a saída esperada do oráculo (`test/unit/parser_tags_decl_main.c`)
+foram derivadas por raciocínio sobre a gramática, e a única compilação de
+checagem foi contra um stub deliberadamente errado (zera a saída, retorna
+`false`), só para confirmar que o `.sh`/`.c` do teste em si não tinham erro
+de sintaxe ou dependência esquecida — o stub falhou nas cinco asserções,
+como devia. `tags-list` sem valor de tag por agora (mesmo padrão dos
+binders de `module`: registra sem valor primeiro).
+
+**`k_scan_struct_decl`: sétimo PASS de primeira tentativa seguido** (29,1s).
+Terceiro reaproveitamento de `k_scan_braced_opaque` (depois de `extern_c` e
+`modifier`). Achado de bordas ao projetar: o corpo `{ }` de `struct-spec`
+**é seguido de `';'`** — diferente de `extern_c` e `modifier`, cujas
+gramáticas não têm `';'` depois do `'}'` — então o `next_out` que
+`k_scan_braced_opaque` devolve já está sentado nesse `';'` (lido, mas não
+passado), e sobra uma leitura extra depois da chamada. Anônimo (`struct {
+...};`) não registra nada e não é falha — o oráculo cobre os dois casos.
+Campos são opacos por agora (mesmo padrão de sempre: primeiro a casca,
+depois o conteúdo).
+
+**Balanço da etapa 2 até aqui:** `modifier`, `tags` (sem valor) e `struct`
+(campos opacos) registram símbolo. **O que falta é de outra categoria de
+dificuldade** — `decl-typedef`, `decl-function` e `decl-keel` (variável/
+`constexpr` de arquivo) todos passam pelo que `parser-design.md` §4 chama
+"o ponto mais delicado do parser": decidir se uma sequência de tokens é
+mesmo uma declaração keel, o que exige achar o *declarador* em geral
+(inclusive ponteiro a função) e, para `decl-keel`, resolver se o
+especificador é um tipo nomeado, uma aplicação de modificador (o que exige
+consultar a aridade já registrada) ou C opaco. Isso não é mais "uma função
+pequena e mecânica" — é a peça que os designs já avisam ser a mais fácil de
+errar. Fica para quando o André decidir se quer entrar nesse desenho junto,
+ou se prefiro escrever essa parte direto em vez de montar tarefa (mesmo
+critério do "balanço de custo" registrado acima).
 

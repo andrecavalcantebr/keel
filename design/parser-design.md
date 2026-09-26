@@ -98,6 +98,127 @@ O nível de arquivo é a raiz, e abaixo dela ficam os símbolos importados —
 separados, porque `shadowed-injected-name` precisa distinguir "declarou por
 cima de um nome injetado" de "redeclarou o próprio".
 
+### 2.3 A árvore
+
+**[P6] Não há árvore de sintaxe de C** (§1) — o que existe é uma lista
+ordenada de declarações reconhecidas, cada uma com as fatias de C opaco que a
+acompanham, mais uma lista ordenada de ilhas por corpo de função. É essa
+estrutura que dá tipo ao `KModuleDecl *decl` que o codegen já assume
+([`codegen-design.md`](codegen-design.md) §3), e aos campos que o despejo de
+`--stop-after=parse` imprime ([`cgen-tool.md`](cgen-tool.md) §5.2) — o despejo
+é uma projeção desta árvore, não um mecanismo à parte.
+
+```c
+/* Uma declaração de topo, na ordem do fonte — decl-module + top-item da
+ * spec §2.2. Índice em KModuleDecl.decls. */
+typedef enum {
+    K_TOP_IMPORT, K_TOP_IMPORT_C, K_TOP_EXTERN_C,
+    K_TOP_MODIFIER, K_TOP_INSTANCE, K_TOP_TAGS, K_TOP_EXTENT,
+    K_TOP_TYPEDEF, K_TOP_STRUCT, K_TOP_FUNCTION, K_TOP_KEEL_DECL,
+    K_TOP_OPAQUE               /* C que o passo 6 da §4 não classificou */
+} KTopKind;
+
+typedef enum { K_VIS_DEFAULT, K_VIS_PUB, K_VIS_PRIV } KVisibility;
+
+typedef struct KTopDecl KTopDecl;
+struct KTopDecl {
+    KTopKind     kind;
+    KVisibility  vis;
+    bool         is_inline;          /* só K_TOP_FUNCTION */
+    keel_slice_char name;            /* nome keel; vazio em K_TOP_OPAQUE */
+    keel_slice_char pos;             /* token que ancora o diagnóstico (§5.2) */
+    union {
+        struct { keel_slice_char alias, module_path; bool types; } import_;
+        struct { keel_slice_char header; } import_c;
+        struct { bool type_h; keel_slice_char body; } extern_c;
+        struct { bool byref; keel_buffer_KToken body; } modifier;   /* retém tokens (§5) */
+        KKnownType instance;                          /* known-type já resolvido */
+        struct { KTagItem *items; size_t count; } tags;
+        struct { KExtentDim *dims; size_t dim_count;
+                 KExtentField *fields; size_t field_count; } extent;
+        struct { keel_slice_char underlying; } typedef_;          /* spelling C, opaco */
+        struct { KField *fields; size_t count; } struct_;
+        KFunctionDecl function;
+        struct { keel_slice_char declarator, init; keel_slice_char else_tail; } keel_decl;
+        struct { keel_slice_char span; } opaque;
+    } as;
+};
+
+/* decl-function da spec §2.2. body_opaque é a fatia entre '{' e '}' (passo 2,
+ * "coleta"); islands só existe depois da passagem 3, "resolução" (§3). */
+typedef struct {
+    keel_slice_char return_type;    /* spelling, opaco: o backend não interpreta */
+    KParam         *params;
+    size_t          param_count;
+    bool            has_body;
+    keel_slice_char body_opaque;
+    KIsland        *islands;
+    size_t          island_count;
+} KFunctionDecl;
+
+/* Uma ilha dentro de um corpo — a unidade que --stop-after=parse imprime
+ * (cgen-tool.md §5.2). O detalhe de cada espécie é o que a tabela do §5.2 já
+ * fixa; a struct só nomeia os campos em vez de compor a string na hora. */
+typedef enum {
+    K_ISLAND_TYPE, K_ISLAND_NAME, K_ISLAND_CALL, K_ISLAND_FROM_STACK,
+    K_ISLAND_REF, K_ISLAND_DEFER, K_ISLAND_IMPLICIT_INIT,
+    K_ISLAND_FOREACH, K_ISLAND_MATCH, K_ISLAND_INDEX,
+    K_ISLAND_RANGE_INDEX, K_ISLAND_ARRAY, K_ISLAND_ARRAY_INDEX
+} KIslandKind;
+
+typedef struct {
+    KIslandKind kind;
+    keel_slice_char pos;             /* âncora da espécie, ver tabela §5.2 */
+    union { /* um membro por espécie, campos = colunas do §5.2 */
+        struct { KKnownType written; keel_slice_char c_symbol; } type_;
+        struct { keel_slice_char name, symbol; } name_;
+        struct { keel_slice_char callee, symbol; int arity;
+                 KAdaptMark *marks; size_t mark_count; } call_;
+        /* … from_stack (mesma forma de call_), ref, defer, implicit_init,
+             foreach, match, index_, range_index_, array_, array_index_ */
+    } as;
+} KIsland;
+
+/* Uma instância pedida — modificador + argumentos, fechada pelo parser
+ * (§5). Uma por identidade canônica; ordem = primeiro uso. */
+typedef struct {
+    KKnownType      shape;           /* modificador + argumentos, canônico */
+    keel_slice_char symbol;          /* produzido por mangle.c — ver §10 */
+    keel_slice_char first_use;       /* posição, para a nota de instanciação (backend §6.1) */
+} KInstanceUse;
+
+/* A raiz: o que um .k inteiro produz para o emissor. */
+typedef struct {
+    keel_slice_char module_name, pos;
+    KTopDecl       *decls;           /* ordem do fonte — codegen §3 exige isso */
+    size_t          decl_count;
+    KInstanceUse   *instances;       /* fecho completo, ordem de primeiro uso */
+    size_t          instance_count;
+} KModuleDecl;
+```
+
+`KKnownType`, `KParam`, `KField`, `KTagItem`, `KExtentDim`/`KExtentField` e
+`KAdaptMark` são os tipos auxiliares menores — a forma de `known-type` da
+gramática, um parâmetro, um campo de struct, um item de `tags`, uma
+dimensão/coluna de `extent`, uma marca `&k`/`type:k` do §5.2. Ficam à parte,
+não embutidos no corpo de `KTopDecl`, porque cada um é reusado em mais de um
+lugar: `KParam` em função e em `modifier`; `KKnownType` em `specifier`, em
+`K_TOP_INSTANCE` e em `KInstanceUse.shape`.
+
+**`body_opaque` e `islands` coexistem de propósito.** A passagem 2 preenche só
+`body_opaque`; a passagem 3 preenche `islands` a partir dele. É o que permite
+que a etapa `decl` do despejo (§3.2) funcione antes de a etapa `ilha` existir
+— o campo já está lá, só vazio.
+
+**`modifier.body` é `buffer KToken`, não `keel_slice_char`**, pela mesma razão
+da §5: um módulo genérico retém o fluxo de tokens depois de processado, porque
+o corpo é revisitado por cada instância que o fecho descobre — sobreviver como
+fatia de texto não bastaria.
+
+**Nenhum campo novo em `KSymbolTable`.** A árvore referencia símbolos por
+grafia (`keel_slice_char name`) e a tabela resolve; não duplica o que a §2.1
+já guarda.
+
 ---
 
 ## 3. As passagens
@@ -124,7 +245,43 @@ Ela atravessa `{ … }` como região balanceada e guarda a fatia.
 
 A passagem 3 é a única que pode criar instância, e é onde o fecho (§5) cresce.
 
-### 3.1 Recuperação de erro
+### 3.2 Etapas de construção, com saída
+
+As três passagens acima não precisam nascer completas para dar sinal de vida.
+O despejo `--stop-after=parse` já distingue quatro níveis cumulativos
+([`cgen-tool.md`](cgen-tool.md) §5.2), e o oráculo
+(`tools/cgen/test/parse_dump.sh`) já compara por `diff -u` em cada um —
+**cada etapa abaixo é aditiva**: uma vez acesa, faz aparecer linhas novas sem
+quebrar as anteriores.
+
+| Etapa | Nível do despejo | Cobre (spec §2.2) | Passa a existir | Oráculo |
+| --- | --- | --- | --- | --- |
+| 1 | `header` | `unit`, `decl-module`, `import`, `import-c`, `extern-c` (casca, corpo `<opaque>`) | `KModuleDecl` com nome e imports; `paths.c`/`tool.c`/`KLoader` mínimos | `parse_dump.sh header` |
+| 2 | `decl` | `top-decl` completo, corpo de função e de `struct`/`modifier` ainda `<opaque>` (passagem 2) | `KTopDecl` por declaração; `KSymbolTable` populada | `parse_dump.sh decl` |
+| 3 | `inst` | aplicação direta de modificador em `specifier`, sem entrar em corpo | `KInstanceUse` das instâncias escritas literalmente | `parse_dump.sh inst` |
+| 4a | `ilha` (parcial) | `decl-keel`, `container`, `call` | primeiras `KIsland` de espécie `type`, `name`, `call`, `ref` | golden 001 |
+| 4b | `ilha` | `decl-array`, `index`/`range-index` | espécies `array`, `array-index`, `index`, `range-index` | golden 002, 003, 006, 015, 025 |
+| 4c | `ilha` | `defer` | espécie `defer` | golden 001, 005, 014, 017 |
+| 4d | `ilha` | `foreach`, `walk`, `apply` | espécie `foreach` (e o que `walk`/`apply` precisarem) | golden 001, 019 |
+| 4e | `ilha` | `parallel`, `worker-exit` | manager e `win`/`fail` | golden 004, 012 |
+| 4f | `ilha` | `match`, `tags-block` | espécie `match` | golden 009 |
+| 4g | `ilha` | `assign-else`, `else-tail` | tratamento de resultado (via `call` com marca) | golden 011, 018, 021 |
+| 4h | `ilha` | `decl-extent`, `extent-column` | espécie(s) de coluna de `extent` | golden 020 |
+| 4i | `ilha` (fecho) | resolução completa de instância por fecho de genérico (§5) | `KInstanceUse` fechado, não só direto | golden 007, base inteira |
+
+4a–4i seguem a ordem dos casos golden, no espírito do M6 do
+[`cgen-tool.md`](cgen-tool.md) §9 ("uma construção por vez, na ordem dos casos
+golden") — esta tabela só nomeia essa ordem por espécie de ilha.
+
+**Dependência a decidir com André:** a etapa 3 (`inst`) já precisa do
+**símbolo C** de cada instância (`inst <modificador> <argumentos> <símbolo>
+<pos>`), que é produzido pela função de nomeação canônica que
+[`codegen-design.md`](codegen-design.md) §2 atribui a `mangle.c`. Isso empurra
+`mangle.c` — só a função de nomeação, não `writer.c` — para antes do fim do
+M2, e não a partir do M3 como a tabela de marcos sugere hoje (§10, pendência
+nova).
+
+### 3.3 Recuperação de erro
 
 **[P4] O parser não tenta reparar; ele ressincroniza e continua.** Diante de um
 diagnóstico de `error`, abandona a construção corrente e avança até o próximo
@@ -181,7 +338,8 @@ primeiro é um tipo.
 ## 5. As instâncias
 
 O parser é quem descobre instância, e quem **fecha** o conjunto antes de
-entregar ao emissor (codegen §3).
+entregar ao emissor (codegen §3). A estrutura é `KInstanceUse` (§2.3); esta
+seção descreve como o conjunto se fecha, não a forma do dado.
 
 ```plain
 uso reconhecido  →  identidade canônica  →  já na tabela?  →  não: registra,
@@ -300,6 +458,7 @@ Três famílias, na ordem em que valem a pena:
 | P3 | Três passagens, não uma com adiamento | o adiamento dá o mesmo resultado com mais estado, e o estado é onde o determinismo escapa |
 | P4 | Recuperação por ressincronização, sem reparo | nada é escrito quando há `error`, então a árvore não precisa ficar correta — só não travar nem inventar símbolo |
 | P5 | A superfície degenerada é calculada antes do fecho | fechar primeiro geraria instância para verbo que não existe; foi o erro cometido à mão ao derivar o golden |
+| P6 | A saída do parser é `KModuleDecl` + lista de `KTopDecl`/`KIsland` (§2.3), não uma árvore de C | é a estrutura que dá tipo ao `KModuleDecl *decl` que o codegen já assume, e ao que o despejo do §3.2 imprime — sem inventar um segundo mecanismo só para depurar |
 
 ---
 
@@ -308,6 +467,7 @@ Três famílias, na ordem em que valem a pena:
 | | Onde | Divergência |
 | --- | --- | --- |
 | Q2 | spec §4.4 × este documento | a ordem de resolução tem três passos e o `verb-not-in-instance` entrou como caso do passo 3; se um dia houver um quarto receptor de verbo, a ordem precisa ser reenunciada em vez de emendada |
+| Q3 | §3.2 × `cgen-tool.md` §9 | a etapa `inst` do despejo já precisa do símbolo produzido por `mangle.c` (codegen §2), o que antecipa essa função — só a nomeação, não `writer.c` — para dentro do M2; a tabela de marcos do §9 ainda lista `mangle.c` a partir do M3 |
 
 Resolvida em 2026-09-22: Q1. A spec §2.3 agora diz o que fazer no EOF sem
 delimitador aberto: `unexpected-eof`, distinto de `unmatched-delimiter`

@@ -148,3 +148,12 @@ bool k_scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
                         KSpecifier *out, KToken *next_out, TKPpKind *next_pp_kind_out) {
     return scan_known_type(lexer, first, symtab, out, 0, next_out, next_pp_kind_out);
 }
+
+bool k_scan_argument(KLexer *lexer, KToken first, const KSymbolTable *symtab,
+                      keel_slice_char *out, KToken *next_out,
+                      TKPpKind *next_pp_kind_out) {
+    KToken tok = first;
+    if (!scan_argument(lexer, symtab, 0, &tok, out, next_pp_kind_out)) return false;
+    *next_out = tok;
+    return true;
+}

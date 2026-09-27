@@ -298,6 +298,17 @@ typedef struct {
 bool k_scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
                         KSpecifier *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* One `argument` of keel-spec §2.2, on its own — the same production
+ * k_scan_known_type reads after a modifier, exported because
+ * `decl-array` needs exactly one of them after the `array` marker:
+ *   decl-array ::= { spec-c } 'array' argument decl-array-1 { ',' ... } ';'
+ * `first` is the argument's first token, already read. `*out` is the
+ * argument exactly as written, leading and trailing `qual-arg`
+ * included. Returns false when what follows is not an argument. */
+bool k_scan_argument(KLexer *lexer, KToken first, const KSymbolTable *symtab,
+                      keel_slice_char *out, KToken *next_out,
+                      TKPpKind *next_pp_kind_out);
+
 /* The common case of keel-spec §2.2's `declarator`:
  *   declarator ::= { '*' { qual-c } } direct-declarator
  *   direct-declarator ::= IDENT { suffix }
@@ -470,6 +481,40 @@ typedef struct {
 
 bool k_scan_decl_keel(KLexer *lexer, KToken first, KSymbolTable *symtab,
                        KKeelDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
+
+/* decl-array (keel-spec §2.2, §4.2):
+ *   decl-array   ::= { spec-c } 'array' argument decl-array-1
+ *                    { ',' decl-array-1 } ';'
+ *   decl-array-1 ::= { '*' } IDENT dimensions [ '=' <opaque> ]
+ *   dimensions   ::= '[' [ <opaque> { ',' <opaque> } ] ']'
+ *                  | '[' [ <opaque> ] ']' { '[' <opaque> ']' }
+ * `array_kw` is the already-consumed 'array' token; any `spec-c` before
+ * it (`static`, `alignas(64)`, ...) was consumed by the caller too.
+ *
+ * `element` is the one `argument` after the marker, as written.
+ * `dims[k]` is that name's whole dimension part exactly as written,
+ * brackets included — `[2,3,4]` and `[2][3]` come back as those seven
+ * and six bytes. Both spellings are the same rank; keeping the text is
+ * what lets a later pass tell them apart without re-reading tokens.
+ *
+ * Each name is registered as K_SYM_VARIABLE with arity 0. Returns false
+ * on more than K_ARRAY_MAX_NAMES names, on a name with no dimensions
+ * (the production requires them), on an element that is not an
+ * argument, or on anything but ',' or ';' after a name. Consumes
+ * through the ';' and hands back the token after it. */
+#define K_ARRAY_MAX_NAMES 8
+
+typedef struct {
+    keel_slice_char element;
+    keel_slice_char names[K_ARRAY_MAX_NAMES];
+    int pointer_depth[K_ARRAY_MAX_NAMES];
+    keel_slice_char dims[K_ARRAY_MAX_NAMES];
+    size_t name_count;
+} KArrayDecl;
+
+bool k_scan_decl_array(KLexer *lexer, KToken array_kw, KSymbolTable *symtab,
+                        KArrayDecl *out, KToken *next_out,
+                        TKPpKind *next_pp_kind_out);
 
 /* decl-constexpr (keel-spec §2.2, revised 2026-09-26):
  *   'constexpr' <opaque> [ IDENT '=' <opaque> ] ';'

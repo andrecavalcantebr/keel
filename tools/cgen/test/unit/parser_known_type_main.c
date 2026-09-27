@@ -185,6 +185,41 @@ int main(void) {
     reject_case("truncated dims", "buffer(16");
     reject_case("truncated arg", "slice const");
 
+    /* k_scan_argument on its own — the same production, exported for
+       decl-array, which takes exactly one argument after `array`. */
+    {
+        struct { const char *src, *want, *next; } cases[] = {
+            { "i32 v[4];",            "i32",           "v" },
+            { "const char *p;",       "const char",    "*" },
+            { "struct Person p;",     "struct Person", "p" },
+            { "slice i32 s;",         "slice i32",     "s" },
+            { "bool b;",              "bool",          "b" },
+        };
+        for (size_t i = 0; i < sizeof cases / sizeof *cases; i++) {
+            keel_slice_char source = { strlen(cases[i].src), (char *)cases[i].src };
+            KLexer lexer; TKPpKind pp;
+            k_lexer_init(&lexer, source, NULL);
+            KToken first = k_lexer_next(&lexer, &pp);
+            KSymbol storage[8]; KSymbolTable symtab; fill(&symtab, storage, 8);
+            keel_slice_char arg; KToken next = { 0, NULL };
+            if (!k_scan_argument(&lexer, first, &symtab, &arg, &next, &pp)) {
+                fprintf(stderr, "FAIL: argument \"%s\" — returned false\n", cases[i].src);
+                failures++;
+                continue;
+            }
+            if (!EQ(arg, cases[i].want)) {
+                fprintf(stderr, "FAIL: argument \"%s\" — got \"%.*s\", want \"%s\"\n",
+                        cases[i].src, (int)arg.len, arg.ptr, cases[i].want);
+                failures++;
+            }
+            if (!EQ(next, cases[i].next)) {
+                fprintf(stderr, "FAIL: argument \"%s\" — next \"%.*s\", want \"%s\"\n",
+                        cases[i].src, (int)next.len, next.ptr, cases[i].next);
+                failures++;
+            }
+        }
+    }
+
     if (failures == 0) { puts("ok"); return 0; }
     fprintf(stderr, "%d failure(s)\n", failures);
     return 1;

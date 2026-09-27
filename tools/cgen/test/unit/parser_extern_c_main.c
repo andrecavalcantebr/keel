@@ -7,7 +7,12 @@
 #include "engine/parser.h"
 
 static int failures = 0;
-#define EQ(s, want) (strlen(want) == (s).len && memcmp((s).ptr, want, (s).len) == 0)
+/* len 0 short-circuits: a wrong implementation may leave .ptr NULL,
+   and memcmp(NULL, ..., 0) is undefined — it must report FAIL, not
+   abort, because the FAIL text is what a reader (or the harness
+   loop) sees. */
+#define EQ(s, want) (strlen(want) == (s).len && \
+                     ((s).len == 0 || memcmp((s).ptr, want, (s).len) == 0))
 
 static KToken first_token(const char *src, KLexer *lexer) {
     keel_slice_char source = { strlen(src), (char *)src };

@@ -206,30 +206,38 @@ bool k_scan_extent_decl(KLexer *lexer, KToken extent_kw, KSymbolTable *symtab,
                          KExtentDecl *out, KToken *next_out,
                          TKPpKind *next_pp_kind_out);
 
-/* decl-struct (keel-spec §2.2), with its fields left opaque for now (a
- * later task interprets keel fields inside — spec §4.2: "struct-spec
- * registra os campos keel... os demais campos são opacos"):
- *   struct-spec ';'
+/* decl-struct (keel-spec §2.2, declaradores desde 2026-09-27), with its
+ * fields left opaque for now (a later task interprets keel fields inside
+ * — spec §4.2: "struct-spec registra os campos keel... os demais campos
+ * são opacos"):
+ *   decl-struct ::= struct-spec [ declarator { ',' declarator } ] ';'
  *   struct-spec ::= ( 'struct' | 'union' ) [ IDENT ] '{' { field } '}'
- * `struct_or_union_kw` is the already-consumed 'struct'/'union' token (any
- * 'pub'/'priv' before it too — given to you, unused otherwise). `is_union`
- * is not computed by this function's caller: derive it from
- * `struct_or_union_kw`'s own spelling with
- * `k_token_is_c_word_named(struct_or_union_kw, "union")`.
+ * `struct_or_union_kw` is the already-consumed 'struct'/'union' token
+ * (any 'pub'/'priv' before it too). `is_union` comes from that token's
+ * own spelling.
  *
- * `out->tag_name.len == 0` when the struct/union is anonymous (no IDENT
- * before '{') — only register into `symtab` (as K_SYM_TYPE) when a tag
- * name exists; an anonymous struct has nothing to register, and that is
- * not a failure (return true). Unlike every recognizer above,
- * struct-spec's own grammar has no ';' right after its '}' — but
- * decl-struct's does, so k_scan_braced_opaque's next_out (the token right
- * after '}') is already sitting on that ';', not past it: one more
- * k_lexer_next call, after the braced_opaque call, is what lands
- * next_out past it. */
+ * `out->tag_name.len == 0` when the aggregate is anonymous — only a tag
+ * name is registered (as K_SYM_TYPE), and its absence is not a failure.
+ *
+ * The declarators, when written, declare **objects** of that type, one
+ * each, and are registered as K_SYM_VARIABLE:
+ * `struct Foo { i32 x; } a, *b;` registers the type `Foo` and the two
+ * objects `a` and `b`. Until 2026-09-27 the production had no
+ * declarators at all, and this function silently swallowed them — it
+ * read one token past the '}' assuming it was the ';'.
+ *
+ * Consumes through the ';' and hands back the token after it. Returns
+ * false on a missing '{' or ';', on more than K_STRUCT_MAX_NAMES
+ * declarators, or on a declarator that does not parse. */
+#define K_STRUCT_MAX_NAMES 8
+
 typedef struct {
     keel_slice_char tag_name;
     bool is_union;
     keel_slice_char body;
+    keel_slice_char names[K_STRUCT_MAX_NAMES];   /* declared objects */
+    int pointer_depth[K_STRUCT_MAX_NAMES];
+    size_t name_count;
 } KStructDecl;
 
 bool k_scan_struct_decl(KLexer *lexer, KToken struct_or_union_kw, KSymbolTable *symtab,

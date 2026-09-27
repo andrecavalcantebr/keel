@@ -22,7 +22,12 @@
 #include "engine/parser.h"
 
 static int failures = 0;
-#define EQ(s, want) (strlen(want) == (s).len && memcmp((s).ptr, want, (s).len) == 0)
+/* len 0 short-circuits: a wrong implementation may leave .ptr NULL,
+   and memcmp(NULL, ..., 0) is undefined — it must report FAIL, not
+   abort, because the FAIL text is what a reader (or the harness
+   loop) sees. */
+#define EQ(s, want) (strlen(want) == (s).len && \
+                     ((s).len == 0 || memcmp((s).ptr, want, (s).len) == 0))
 
 static KToken first_token(const char *src, KLexer *lexer) {
     keel_slice_char source = { strlen(src), (char *)src };
@@ -64,6 +69,60 @@ int main(void) {
     if (!EQ(sd2.body, "i32 x;")) { fprintf(stderr, "FAIL: anonymous — body = \"%.*s\"\n", (int)sd2.body.len, sd2.body.ptr); failures++; }
     if (!EQ(next, "ok2")) { fprintf(stderr, "FAIL: anonymous — next_out = \"%.*s\", want \"ok2\"\n", (int)next.len, next.ptr); failures++; }
     if (symtab.count != 1) { fprintf(stderr, "FAIL: anonymous must not register anything — symtab.count = %zu, want 1\n", symtab.count); failures++; }
+
+    /* keel-spec §2.2 (2026-09-27): the declarators after the '}' declare
+       objects of the type. They used to be swallowed — this function read
+       one token past the '}' assuming it was the ';'. */
+    {
+        struct { const char *label, *src, *tag, *names, *next; size_t syms; } cases[] = {
+            { "one object",  "struct Foo { i32 x; } inst; ok3",  "Foo", "inst",  "ok3", 2 },
+            { "two objects", "struct Foo { i32 x; } a, *b; ok4", "Foo", "a,*b",  "ok4", 3 },
+            { "array object","struct Foo { i32 x; } v[4]; ok5",  "Foo", "v",     "ok5", 2 },
+            { "no object",   "struct Foo { i32 x; }; ok6",       "Foo", "",      "ok6", 1 },
+            { "anon object", "struct { i32 x; } only; ok7",      "",    "only",  "ok7", 1 },
+        };
+        for (size_t c = 0; c < sizeof cases / sizeof *cases; c++) {
+            const char *src = cases[c].src;
+            keel_slice_char source = { strlen(src), (char *)src };
+            KLexer lx; TKPpKind p2;
+            k_lexer_init(&lx, source, NULL);
+            KToken kw = k_lexer_next(&lx, &p2);
+            KSymbol st[8]; KSymbolTable t; k_symtab_init(&t, st, 8);
+            KStructDecl sd; KToken nx;
+            if (!k_scan_struct_decl(&lx, kw, &t, &sd, &nx, &p2)) {
+                fprintf(stderr, "FAIL: %s — returned false\n", cases[c].label);
+                failures++;
+                continue;
+            }
+            if (!EQ(sd.tag_name, cases[c].tag)) {
+                fprintf(stderr, "FAIL: %s — tag \"%.*s\", want \"%s\"\n",
+                        cases[c].label, (int)sd.tag_name.len, sd.tag_name.ptr, cases[c].tag);
+                failures++;
+            }
+            char got[80]; size_t at = 0;
+            for (size_t i = 0; i < sd.name_count; i++) {
+                if (i) got[at++] = ',';
+                for (int k = 0; k < sd.pointer_depth[i]; k++) got[at++] = '*';
+                memcpy(got + at, sd.names[i].ptr, sd.names[i].len); at += sd.names[i].len;
+            }
+            got[at] = '\0';
+            if (strcmp(got, cases[c].names) != 0) {
+                fprintf(stderr, "FAIL: %s — objects \"%s\", want \"%s\"\n",
+                        cases[c].label, got, cases[c].names);
+                failures++;
+            }
+            if (!EQ(nx, cases[c].next)) {
+                fprintf(stderr, "FAIL: %s — next \"%.*s\", want \"%s\"\n",
+                        cases[c].label, (int)nx.len, nx.ptr, cases[c].next);
+                failures++;
+            }
+            if (t.count != cases[c].syms) {
+                fprintf(stderr, "FAIL: %s — symtab.count = %zu, want %zu\n",
+                        cases[c].label, t.count, cases[c].syms);
+                failures++;
+            }
+        }
+    }
 
     if (failures == 0) { puts("ok"); return 0; }
     fprintf(stderr, "%d failure(s)\n", failures);

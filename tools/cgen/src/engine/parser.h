@@ -132,20 +132,36 @@ bool k_scan_modifier_decl(KLexer *lexer, KToken modifier_kw, int module_arity,
                            KSymbolTable *symtab, KModifierDecl *out,
                            KToken *next_out, TKPpKind *next_pp_kind_out);
 
-/* decl-tags (keel-spec §2.2), without tag values for now:
- *   'tags' IDENT '[' IDENT { ',' IDENT } ']' ';'
- * (the full production also allows `IDENT '=' tag-value` per item —
- * deferred to a later task, same way k_scan_module_decl's binders were
- * added after its first version). `tags_kw` is the already-consumed
- * 'tags' token (any 'pub'/'priv' before it too — same convention as every
- * `..._kw` above). Registers `out->name` into `symtab` as K_SYM_TAGS with
- * arity 0 (unused for this kind), and returns what k_symtab_insert
- * returns. Consumes through the closing ';' and hands back the token
- * after it. */
+/* decl-tags (keel-spec §2.2), the whole production:
+ *   decl-tags ::= 'tags' IDENT tags-list ';'
+ *   tags-list ::= '[' tag-item { ',' tag-item } ']'
+ *   tag-item  ::= IDENT [ '=' tag-value ]
+ *   tag-value ::= [ '-' ] ( NUM | qualified-name )
+ * `tags_kw` is the already-consumed 'tags' token (any 'pub'/'priv'
+ * before it too — same convention as every `..._kw` above).
+ *
+ * `values[k]` is `items[k]`'s value exactly as written, sign included,
+ * and is empty when the item has none. The spec (§4.9) forbids a set
+ * that mixes the two, so `has_values && !all_values` is exactly the
+ * `partial-tag-values` condition — recorded here, diagnosed by a later
+ * pass. Values are kept unnormalized, as spec §4.9 requires ("valores
+ * escritos são conservados sem normalização").
+ *
+ * Registers `out->name` into `symtab` as K_SYM_TAGS with arity 0
+ * (unused for this kind) and returns what k_symtab_insert returns; the
+ * tag constants themselves are not registered yet. Returns false,
+ * without touching `*next_out`, on anything that does not fit the
+ * production, or on more than K_TAGS_MAX_ITEMS items. Consumes through
+ * the closing ';' and hands back the token after it. */
+#define K_TAGS_MAX_ITEMS 16
+
 typedef struct {
     keel_slice_char name;
-    KToken items[16];
+    KToken items[K_TAGS_MAX_ITEMS];
+    keel_slice_char values[K_TAGS_MAX_ITEMS];  /* empty when not written */
     size_t item_count;
+    bool has_values;   /* at least one item wrote '=' */
+    bool all_values;   /* every item did */
 } KTagsDecl;
 
 bool k_scan_tags_decl(KLexer *lexer, KToken tags_kw, KSymbolTable *symtab,

@@ -2,7 +2,7 @@
 
 /* qual-c (keel-spec §2.2). All but `ref` are C words, so they are not
    idents for k_token_is_ident's purposes and need k_token_is_c_word_named. */
-static bool is_qual_c(KToken t) {
+bool k_token_is_qual_c(KToken t) {
     return k_token_is_c_word_named(t, "const") ||
            k_token_is_c_word_named(t, "volatile") ||
            k_token_is_c_word_named(t, "restrict") ||
@@ -40,7 +40,7 @@ static bool scan(KLexer *lexer, KToken first, KDeclarator *out, int depth,
     while (k_token_is_punct(tok, "*")) {
         stars++;
         tok = k_lexer_next(lexer, pp);
-        while (is_qual_c(tok)) tok = k_lexer_next(lexer, pp);
+        while (k_token_is_qual_c(tok)) tok = k_lexer_next(lexer, pp);
     }
     if (depth == 0) out->pointer_depth = stars;
 

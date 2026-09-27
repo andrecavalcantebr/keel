@@ -35,11 +35,12 @@ static size_t balanced(const KAst *a, size_t i, const char *open, const char *cl
 }
 
 /* Stop at a file-level semicolon or after a braced definition. Only reached
-   for typedef, function and variable declarations (below): every other kind
-   has a complete recognizer in engine/parser.h now, and consumes its own
-   terminator (k_scan_decl_keel does not yet handle a function's parameter
-   group — parser.h's own note on it: "no trailing suffix ... yet" — so a
-   declarator followed by '(' still has to be found this way). */
+   for function and variable declarations (below), and for a typedef that
+   k_scan_decl_typedef turned down — every other kind has a complete
+   recognizer in engine/parser.h now, and consumes its own terminator
+   (k_scan_decl_keel does not yet handle a function's parameter group —
+   parser.h's own note on it: "no trailing suffix ... yet" — so a declarator
+   followed by '(' still has to be found this way). */
 static size_t declaration_end(const KAst *a, size_t i, size_t *body_first,
                               size_t *body_end) {
     size_t paren = 0, bracket = 0;
@@ -238,18 +239,40 @@ bool k_parse_ast(KAst *a, KAstNode *nodes, size_t cap) {
                 node.name_end = index_at(a, node.name_first, cdef.name.ptr + cdef.name.len);
             }
             node.end = index_at(a, i, next.ptr);
+        } else if (named(a, i, "typedef")) {
+            KToken kw = reenter(a, i, &lexer, &pp);
+            KTypedefDecl tdef;
+            if (k_scan_decl_typedef(&lexer, kw, &symtab, &tdef, &next, &next_pp) &&
+                tdef.name_count > 0) {
+                node.kind = K_AST_TYPE;
+                node.end = index_at(a, i, next.ptr);
+                /* One declaration, several declared types (keel-spec §2.2's
+                   comma list): a node each, in declaration order, sharing
+                   the span and the anchor — they are one declaration. The
+                   last name is the node the loop appends below. */
+                for (size_t k = 0; k + 1 < tdef.name_count; k++) {
+                    KAstNode extra = node;
+                    extra.name_first = index_at(a, i, tdef.names[k].ptr);
+                    extra.name_end = index_at(a, extra.name_first,
+                                              tdef.names[k].ptr + tdef.names[k].len);
+                    if (!append(a, cap, extra)) return false;
+                }
+                keel_slice_char last = tdef.names[tdef.name_count - 1];
+                node.name_first = index_at(a, i, last.ptr);
+                node.name_end = index_at(a, node.name_first, last.ptr + last.len);
+            } else {
+                /* top-decl's own `<opaque>` alternative: a typedef that does
+                   not fit the production is preserved, not rejected. */
+                node.end = declaration_end(a, i, &node.body_first, &node.body_end);
+                if (node.end <= start || node.end > n) return false;
+                node.kind = K_AST_OPAQUE;
+            }
         } else {
             node.end = declaration_end(a, i, &node.body_first, &node.body_end);
             if (node.end <= start || node.end > n) return false;
             node.kind = K_AST_OPAQUE;
             size_t j;
-            if (named(a, i, "typedef")) {
-                node.kind = K_AST_TYPE;
-                for (j = node.end; j > i + 1; j--)
-                    if (k_token_is_ident(a->tokens[j - 1].token)) {
-                        node.name_first = j - 1; node.name_end = j; break;
-                    }
-            } else {
+            {
                 /* A final top-level parameter group preceded by IDENT is a
                    function declarator, provided no top-level '=' precedes it. */
                 size_t paren = 0, bracket = 0;

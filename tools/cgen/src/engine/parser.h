@@ -282,6 +282,38 @@ typedef struct {
 bool k_scan_declarator(KLexer *lexer, KToken first, KDeclarator *out,
                         KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* qual-c (keel-spec §2.2), shared with decl-typedef's lookahead. */
+bool k_token_is_qual_c(KToken t);
+
+/* decl-typedef (keel-spec §2.2, lista por vírgula desde 2026-09-27):
+ *   'typedef' ( specifier | struct-spec | <opaque-no-parens> )
+ *   declarator { ',' declarator } ';'
+ * `typedef_kw` is the already-consumed 'typedef' token. The specifier is
+ * shared by every declarator and is not analysed here — only walked
+ * past; each declarator's own name is what this production registers, as
+ * K_SYM_TYPE with arity 0. So `typedef int a[4], *b;` registers both `a`
+ * and `b`.
+ *
+ * Returns false, having consumed an unspecified number of tokens, when
+ * the declaration does not fit the production: no name to be found, more
+ * than K_TYPEDEF_MAX_NAMES of them, a full symtab, or anything but ','
+ * or ';' after a declarator. The caller then treats the declaration as
+ * `<opaque>`, which is what `top-decl` already allows for everything it
+ * does not recognize.
+ *
+ * Consumes through the ';' and hands back the token after it, same
+ * convention as every recognizer in this file. */
+#define K_TYPEDEF_MAX_NAMES 8
+
+typedef struct {
+    keel_slice_char names[K_TYPEDEF_MAX_NAMES];
+    size_t name_count;
+} KTypedefDecl;
+
+bool k_scan_decl_typedef(KLexer *lexer, KToken typedef_kw, KSymbolTable *symtab,
+                          KTypedefDecl *out, KToken *next_out,
+                          TKPpKind *next_pp_kind_out);
+
 /* A reusable utility, not tied to one grammar production: skips tokens,
  * counting `'(' '[' '{'` as +1 and `')' ']' '}'` as -1 against a single
  * shared depth (keel-spec's own delimiters, §2.1 — C guarantees they

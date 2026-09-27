@@ -13,6 +13,7 @@ typedef enum { K_INFO, K_WARNING, K_ERROR, K_SEVERITY_COUNT } KSeverity;
 /* Index into k_diags, sorted by name [G1]. The table grows with each phase;
    its generator from keel-spec §6.2 comes with the parser (M2). */
 typedef enum {
+    K_DIAG_CIRCULAR_IMPORT,
     K_DIAG_DEFINE_OVER_KEEL_NAME,
     K_DIAG_LITERAL_WITH_NEWLINE,
     K_DIAG_COUNT

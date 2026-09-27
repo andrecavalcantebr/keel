@@ -4,6 +4,7 @@
 #define CGEN_ENGINE_AST_H
 
 #include "engine/lexer.h"
+#include "engine/loader.h"
 
 typedef struct {
     KToken token;
@@ -46,6 +47,14 @@ size_t k_lexemes(keel_slice_char source, KLexeme *out, size_t cap,
                  KDiagnosticSink *diagnostics);
 /* Returns false on malformed/truncated input or insufficient node storage. */
 bool k_parse_ast(KAst *ast, KAstNode *nodes, size_t cap);
+/* Passage 1 (parser-design §3): resolves the file's imports — the
+   implicit `import keel types;` first — into `symtab`, by calling back
+   through `loader`. Emits `circular-import` at the offending `import`;
+   a module the loader could not find is left for the tool to report,
+   which is the half that knows the roots. Returns false if any import
+   did not resolve. */
+bool k_resolve_imports(const KAst *ast, KLoader *loader,
+                       KSymbolTable *symtab, KDiagnosticSink *diag);
 /* Writes at most output.len bytes, returns the required length. */
 size_t k_dump_ast(const KAst *ast, const char *path, keel_slice_char output);
 

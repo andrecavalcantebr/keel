@@ -5,6 +5,8 @@
 /* The messages say what was found and, when there is one, the correct form
    [G2]. Sorted by name. */
 const KDiagEntry k_diags[K_DIAG_COUNT] = {
+    [K_DIAG_CIRCULAR_IMPORT] = { "circular-import", K_ERROR,
+        "module `%s` is already being loaded: importing it here closes a cycle" },
     [K_DIAG_DEFINE_OVER_KEEL_NAME] = { "define-over-keel-name", K_ERROR,
         "cannot `#%s` `%s`: %s" },
     [K_DIAG_LITERAL_WITH_NEWLINE] = { "literal-with-newline", K_ERROR,

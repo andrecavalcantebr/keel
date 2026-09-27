@@ -3,12 +3,17 @@
 set -u
 SRC=tools/cgen/src/engine/parser_struct_decl.c
 TESTMAIN=tools/cgen/test/unit/parser_struct_decl_main.c
-DEPS="tools/cgen/src/engine/lexer.c tools/cgen/src/engine/lexer_peek.c \
-tools/cgen/src/engine/lexer_scan_directive.c tools/cgen/src/engine/lexer_scan_identifier.c \
-tools/cgen/src/engine/lexer_scan_number.c tools/cgen/src/engine/lexer_scan_punct.c \
-tools/cgen/src/engine/lexer_scan_quoted.c tools/cgen/src/engine/lexer_skip_trivia.c \
-tools/cgen/src/engine/token_predicates_shape.c tools/cgen/src/engine/token_predicates_words.c tools/cgen/src/engine/diag.c \
-tools/cgen/src/engine/parser_extern_c.c"
+# Every engine source except the one(s) under test. A hand-written list
+# is not what this oracle checks — it only mirrors the call graph, and it
+# rots silently: on 2026-09-27 adding one call to an existing recognizer
+# broke four of these scripts in an afternoon, each as a link error that
+# reads like a test failure. `$SRC` may name more than one file, and an
+# empty one (a task not yet accepted) is fine: it compiles to nothing.
+DEPS=""
+for f in $(find tools/cgen/src/engine -name '*.c' | sort); do
+    case " $SRC " in *" $f "*) continue ;; esac
+    DEPS="$DEPS $f"
+done
 BIN=$(mktemp); trap 'rm -f "$BIN"' EXIT
 gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra \
     -fsanitize=address,undefined -fno-sanitize-recover=all -g -O0 \

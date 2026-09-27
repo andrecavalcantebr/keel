@@ -146,7 +146,7 @@ retestar antes de reabrir a ideia.
 ## Lições de como escrever uma tarefa, tiradas de bloqueio real
 
 Toda vez que uma tarefa travou 5 tentativas seguidas neste projeto, a
-causa coube numa destas cinco — vale conferir todas **antes** de
+causa coube numa destas seis — vale conferir todas **antes** de
 escrever uma tarefa nova, porque cada uma já custou uma rodada inteira de
 retrabalho pelo menos uma vez:
 
@@ -193,6 +193,25 @@ retrabalho pelo menos uma vez:
    mais barato de escrever e impossível de errar a sintaxe — ao
    contrário de uma paráfrase nova, que carrega o mesmo risco de erro do
    lado de quem escreve a tarefa que o modelo tem do lado de quem a lê.
+
+6. **O valor esperado do oráculo tem que sair de *medir* a função
+   reusada, não de ler o comentário dela.** `m2-parser-extent-decl`
+   (2026-09-27) travou as 5 tentativas com o modelo **certo** e o
+   oráculo errado: três asserções exigiam que o corpo de
+   `{ bool active; }` viesse com os espaços das bordas, porque o
+   comentário de `k_scan_braced_opaque` no `parser.h` dizia "trivia
+   included, not stripped". A função devolve `bool active;`, doze
+   bytes — a fatia vai do primeiro byte da primeira token ao último da
+   última, e a trivia contra as chaves fica de fora. O comentário
+   estava errado desde sempre e ninguém tinha medido.
+
+   Isto é diferente das cinco acima: as outras são erros de *como se
+   escreve* a tarefa; esta é um erro no *oráculo*, que é pior, porque
+   nenhuma tentativa do modelo pode passar e o relatório de bloqueio
+   parece culpa dele. **Antes de escrever um valor esperado que dependa
+   do que outra função devolve, compile um programinha de três linhas
+   que chame essa função e imprima o resultado.** Custa um minuto e é a
+   única prova; o comentário não é.
 
 ## O balanço de custo não fechou como esperado (2026-09-22)
 
@@ -504,3 +523,13 @@ malformado sem terminador giraria em EOF para sempre nessas três. Não é
 regressão desta tarefa (o padrão já valia antes); fica registrado para
 quando diagnóstico de erro léxico/sintático malformado entrar em jogo.
 
+**2026-09-27, `m2-parser-extent-decl` — bloqueado em 5, e a culpa era do
+oráculo.** O modelo entregou a estrutura certa (`struct`, nome, laço de
+dimensões, `k_scan_braced_opaque` para o corpo, `k_symtab_insert`) já na
+primeira tentativa, e repetiu a mesma coisa nas cinco. Das dez asserções
+que falhavam, **três eram erro meu** (corpo com trivia das bordas — ver
+lição 6) e duas eram dele: não lia além do `;`, e tomava só o primeiro
+IDENT de uma capacidade qualificada como `m.MAX`. André mandou aproveitar
+o código em vez de rodar de novo; foi o que se fez — as duas correções
+reais, mais o comentário do `parser.h` e as três asserções do oráculo.
+O arquivo traz no topo de quem é o quê.

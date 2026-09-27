@@ -80,8 +80,14 @@ void k_scan_import_c(KLexer *lexer, KToken import_c_kw, KImportCDecl *out,
  * comments and directives from producing spurious brace tokens. Depth
  * starts at 1 for `open`; the function stops the instant it reads the '}'
  * that brings depth back to 0 — that closing '}' is consumed but is NOT
- * part of the returned slice. Returns the slice of everything strictly
- * between '{' and '}', trivia included, not stripped; an empty body
+ * part of the returned slice. The slice runs from the first byte of the
+ * body's first token to the last byte of its last token: trivia BETWEEN
+ * tokens is inside it, trivia against the braces is not. `{ bool a; }`
+ * returns `bool a;`, twelve bytes, not the fourteen between the braces.
+ * (Until 2026-09-27 this comment claimed the opposite — "trivia
+ * included, not stripped" — and a task oracle written from the comment
+ * instead of from the behaviour blocked m2-parser-extent-decl for all
+ * five attempts.) An empty body
  * (`{}`) returns `{ .ptr = open.ptr + open.len, .len = 0 }` — lexer-design
  * §7: "região vazia guarda seu ponteiro de fronteira." Hands back the
  * token right after the closing '}' via next_out/next_pp_kind_out, same

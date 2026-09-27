@@ -105,17 +105,17 @@ static void reject_case(const char *label, const char *src) {
 int main(void) {
     /* The worked example of the task card, asserted field by field. */
     ok_case("one dim", "extent struct pos [len, cap] { bool active; } ; REST",
-            "pos", "len=cap", " bool active; ", "REST");
+            "pos", "len=cap", "bool active;", "REST");
 
     /* golden/cases/020-extent/app/pos.k, the three real shapes */
     ok_case("num caps", "extent struct img [h, 2] [w, 3] { u8 r; } ; REST",
-            "img", "h=2|w=3", " u8 r; ", "REST");
+            "img", "h=2|w=3", "u8 r;", "REST");
     ok_case("two dims", "extent struct grid [rows, rcap] [cols, ccap] { i32 *v; } ; REST",
-            "grid", "rows=rcap|cols=ccap", " i32 *v; ", "REST");
+            "grid", "rows=rcap|cols=ccap", "i32 *v;", "REST");
 
     /* a capacity that is a qualified name, not a bare IDENT */
     ok_case("qualified", "extent struct g [r, m.MAX] { i32 v; } ; REST",
-            "g", "r=m.MAX", " i32 v; ", "REST");
+            "g", "r=m.MAX", "i32 v;", "REST");
 
     /* an empty body keeps its boundary pointer (lexer-design §7) */
     ok_case("empty body", "extent struct e [n, c] {} ; REST",
@@ -123,7 +123,7 @@ int main(void) {
 
     /* the body is opaque: an inner '{' must not end it early */
     ok_case("nested body", "extent struct n [a, b] { struct { int q; } s; } ; REST",
-            "n", "a=b", " struct { int q; } s; ", "REST");
+            "n", "a=b", "struct { int q; } s;", "REST");
 
     reject_case("no struct",    "extent pos [a, b] { } ; REST");
     reject_case("no dimension", "extent struct pos { } ; REST");

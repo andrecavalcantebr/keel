@@ -239,6 +239,26 @@ bool k_parse_ast(KAst *a, KAstNode *nodes, size_t cap) {
                 node.name_end = index_at(a, node.name_first, cdef.name.ptr + cdef.name.len);
             }
             node.end = index_at(a, i, next.ptr);
+        } else if (named(a, i, "extent")) {
+            KToken kw = reenter(a, i, &lexer, &pp);
+            KExtentDecl edef;
+            if (k_scan_extent_decl(&lexer, kw, &symtab, &edef, &next, &next_pp)) {
+                /* `extent struct X [...] {...};` declares the type X
+                   (keel-spec §4.11); without this branch it fell to the
+                   generic path and came out as a variable. */
+                node.kind = K_AST_TYPE;
+                node.name_first = index_at(a, i, edef.name.ptr);
+                node.name_end = index_at(a, node.name_first,
+                                         edef.name.ptr + edef.name.len);
+                node.body_first = index_at(a, node.name_end, edef.body.ptr);
+                node.body_end = index_at(a, node.body_first,
+                                         edef.body.ptr + edef.body.len);
+                node.end = index_at(a, node.body_end, next.ptr);
+            } else {
+                node.end = declaration_end(a, i, &node.body_first, &node.body_end);
+                if (node.end <= start || node.end > n) return false;
+                node.kind = K_AST_OPAQUE;
+            }
         } else if (named(a, i, "typedef")) {
             KToken kw = reenter(a, i, &lexer, &pp);
             KTypedefDecl tdef;

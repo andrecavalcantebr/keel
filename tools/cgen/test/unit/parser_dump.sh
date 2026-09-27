@@ -17,7 +17,7 @@ tools/cgen/src/engine/parser_tags_decl.c tools/cgen/src/engine/parser_struct_dec
 tools/cgen/src/engine/parser_known_type.c tools/cgen/src/engine/parser_declarator_head.c \
 tools/cgen/src/engine/parser_opaque_until.c tools/cgen/src/engine/parser_decl_keel.c \
 tools/cgen/src/engine/parser_decl_constexpr.c \
-tools/cgen/src/engine/parser_declarator.c tools/cgen/src/engine/parser_decl_typedef.c"
+tools/cgen/src/engine/parser_declarator.c tools/cgen/src/engine/parser_decl_typedef.c tools/cgen/src/engine/parser_extent_decl.c"
 BIN=$(mktemp); trap 'rm -f "$BIN"' EXIT
 gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra \
     -fsanitize=address,undefined -fno-sanitize-recover=all -g -O0 \

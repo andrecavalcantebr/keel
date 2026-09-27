@@ -182,12 +182,14 @@ Every field of the result, with exact offsets:
 | `out->dim_count` | 1 | — | — |
 | `out->dim_names[0]` | `len` | 19 | 3 |
 | `out->dim_caps[0]` | `cap` | 24 | 3 |
-| `out->body` | `" bool active; "` | 30 | 14 |
+| `out->body` | `"bool active;"` | 31 | 12 |
 | `*next_out` | `REST` | 48 | 4 |
 
-The body starts at 30 because the `'{'` is at 29 and is one byte long,
-and its length is 14 because the closing `'}'` is at 44: `44 - 30 = 14`.
-The body slice keeps the surrounding spaces — nothing is stripped.
+The body runs from the first byte of its first token to the last byte
+of its last token: `bool` starts at 31 and the `;` ends at 42, so
+`43 - 31 = 12`. The spaces against the braces (30, and 43) are **not**
+in it; the space between `bool` and `active` is. This is exactly what
+`k_scan_braced_opaque` returns, so use it and do not adjust its result.
 
 Note that `*next_out` is `REST`, at 48: **past** the `';'` at 46, not on
 it. Getting this one field wrong is the most common way this kind of

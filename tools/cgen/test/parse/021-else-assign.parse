@@ -1,6 +1,12 @@
-# Hand-written from app/reg.k. Covers the levels up to `decl`; the `inst`
-# and `ilha` lines are not written yet, which is what the `decl` in
-# cases.txt records. See tools/cgen/test/parse_dump.sh.
+# Hand-written from app/reg.k and its expected/ C. Covers the levels up
+# to `inst`; the `ilha` lines are NOT written, which is what the `inst`
+# in cases.txt records.
+#
+# They cannot be written yet, and not for lack of work: design/cgen-tool.md
+# §5.2's island table has no kind for the `else` tail (spec §2.2's
+# `else-tail`/`assign-else`, §4.10) — and the `else` tail on an assignment
+# is the whole point of this case. Adding that row is a normative change,
+# proposed to André on 2026-09-27 and not yet decided.
 module	app.reg	app/reg.k:1:1
 import	keel.slice as slice types	app/reg.k:3:1
 import	keel.outcome as outcome types	app/reg.k:4:1
@@ -15,3 +21,8 @@ decl	priv func	read_name	app_reg_read_name	app/reg.k:23:1
 decl	priv func	read_address	app_reg_read_address	app/reg.k:29:1
 decl	priv func	read_birth	app_reg_read_birth	app/reg.k:35:1
 decl	pub func	load	app_reg_load	app/reg.k:46:1
+# The three instances, ordered by first use (cgen-tool.md §5.2), each
+# proved by a file under expected/c23/keel/.
+inst	slice const char	keel_slice_const_char	app/reg.k:9:5
+inst	outcome slice const char	keel_outcome_keel_slice_const_char	app/reg.k:23:6
+inst	outcome f64	keel_outcome_f64	app/reg.k:35:6

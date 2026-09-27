@@ -1,4 +1,4 @@
 001-arena-buffer-defer app/cfg.k
 009-match-tags ag.k
 013-sugar app/ac.k
-021-else-assign app/reg.k decl
+021-else-assign app/reg.k inst

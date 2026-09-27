@@ -80,6 +80,27 @@ int main(void) {
     if (ok3) { fprintf(stderr, "FAIL: case3 — returned true, want false\n"); failures++; }
     if (symtab.count != 5) { fprintf(stderr, "FAIL: case3 — must not register anything, symtab.count = %zu, want 5\n", symtab.count); failures++; }
 
+    /* case 4: a declarator with an array suffix. Reading only the
+       declarator's head left next_out on the '4' INSIDE the brackets and
+       still returned true — the same failure mode decl-tags had, and the
+       reason this case exists. */
+    KToken first4 = first_token("arena a[4]; ok4\n", &lexer);
+    KKeelDecl kd4;
+    bool ok4 = k_scan_decl_keel(&lexer, first4, &symtab, &kd4, &next, &pp);
+    if (!ok4) { fprintf(stderr, "FAIL: case4 — returned false\n"); failures++; }
+    if (kd4.name_count != 1 || !EQ(kd4.names[0].name, "a")) { fprintf(stderr, "FAIL: case4 — names wrong\n"); failures++; }
+    if (!EQ(next, "ok4")) { fprintf(stderr, "FAIL: case4 — next_out = \"%.*s\", want \"ok4\"\n", (int)next.len, next.ptr); failures++; }
+
+    /* case 5: pointer and suffix in the same comma list */
+    KToken first5 = first_token("arena *p, q[2]; ok5\n", &lexer);
+    KKeelDecl kd5;
+    bool ok5 = k_scan_decl_keel(&lexer, first5, &symtab, &kd5, &next, &pp);
+    if (!ok5) { fprintf(stderr, "FAIL: case5 — returned false\n"); failures++; }
+    if (kd5.name_count != 2 || !EQ(kd5.names[0].name, "p") || !EQ(kd5.names[1].name, "q")) {
+        fprintf(stderr, "FAIL: case5 — names wrong\n"); failures++;
+    }
+    if (!EQ(next, "ok5")) { fprintf(stderr, "FAIL: case5 — next_out = \"%.*s\", want \"ok5\"\n", (int)next.len, next.ptr); failures++; }
+
     if (failures == 0) { puts("ok"); return 0; }
     fprintf(stderr, "%d failure(s)\n", failures);
     return 1;

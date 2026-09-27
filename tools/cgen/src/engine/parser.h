@@ -387,7 +387,10 @@ void k_scan_opaque_until(KLexer *lexer, KToken first, const char *const *termina
  * without reading anything beyond `first` and without touching
  * `*next_out`, exactly like `k_scan_known_type` itself does in that case.
  * Otherwise, for each `init-decl` (there is always at least one):
- * `k_scan_declarator_head` gets the name; register it into `symtab` as
+ * `k_scan_declarator` gets the name — the whole production, not just
+ * its head: `arena a[4];` ends its declarator at the ']', and reading
+ * only `{ '*' } IDENT` used to leave `*next_out` on the '4' inside the
+ * brackets while still returning true. Register the name into `symtab` as
  * `K_SYM_VARIABLE` (arity 0); if an `'='` follows, skip the initializer
  * with `k_scan_opaque_until(lexer, ..., (const char *[]){ ",", ";" }, 2,
  * ...)`; a `','` means another `init-decl` follows, a `';'` ends the

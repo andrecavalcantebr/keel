@@ -14,7 +14,7 @@ bool k_scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
         out->modifier_name = first;
         out->arg_count = 0;
         
-        for (size_t i = 0; i < sym->arity; ++i) {
+        for (int i = 0; i < sym->arity; ++i) {
             if (i >= 4) {
                 return false;
             }

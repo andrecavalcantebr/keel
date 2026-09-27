@@ -7,7 +7,7 @@
 set -u
 SRC=tools/cgen/src/engine/parser_decl_keel.c
 TESTMAIN=tools/cgen/test/unit/parser_decl_keel_main.c
-DEPS="tools/cgen/src/engine/lexer.c tools/cgen/src/engine/lexer_peek.c \
+DEPS="tools/cgen/src/engine/parser_declarator.c tools/cgen/src/engine/lexer.c tools/cgen/src/engine/lexer_peek.c \
 tools/cgen/src/engine/lexer_scan_directive.c tools/cgen/src/engine/lexer_scan_identifier.c \
 tools/cgen/src/engine/lexer_scan_number.c tools/cgen/src/engine/lexer_scan_punct.c \
 tools/cgen/src/engine/lexer_scan_quoted.c tools/cgen/src/engine/lexer_skip_trivia.c \

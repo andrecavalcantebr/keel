@@ -46,6 +46,11 @@ bad=0
 while read -r c src; do
     [ -n "$c" ] || continue
     exp=$(only < "$D/$c.parse")
+    if [ -z "$exp" ]; then
+        echo "FAIL: parse/$c.parse has no expected lines at level $LEVEL"
+        bad=1
+        continue
+    fi
     out=$(cd "$ROOT/golden/cases/$c" &&
           timeout 20 "$BIN" --base-dir "$ROOT/base" --stop-after=parse "$src" 2>/tmp/parsediff.$$)
     rc=$?

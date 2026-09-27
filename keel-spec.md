@@ -301,7 +301,7 @@ tag-value     ::= [ '-' ] ( NUM | qualified-name )
 
 decl-typedef  ::= 'typedef' ( specifier | struct-spec | <opaque-no-parens> )
                   declarator { ',' declarator } ';'
-decl-struct   ::= struct-spec ';'
+decl-struct   ::= struct-spec [ declarator { ',' declarator } ] ';'
 struct-spec   ::= ( 'struct' | 'union' ) [ IDENT ] '{' { field } '}'
 field         ::= decl-keel | decl-array | <opaque> ';'
 
@@ -333,7 +333,7 @@ dim-binder    ::= 'size_t' IDENT
 param-type    ::= 'type' IDENT
 ```
 
-`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome de cada um de seus declaradores, inclusive quando o declarador é ponteiro a função. O especificador é comum, e cada declarador deriva dele o seu próprio tipo: em `typedef int a[4], *b;`, `a` é vetor de `int` e `b` é ponteiro para `int`. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `dim-binder` liga um nome à dimensão 0 do vetor recebido (§4.2); só a dimensão 0 o admite. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
+`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome de cada um de seus declaradores, inclusive quando o declarador é ponteiro a função. O especificador é comum, e cada declarador deriva dele o seu próprio tipo: em `typedef int a[4], *b;`, `a` é vetor de `int` e `b` é ponteiro para `int`. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). Os declaradores de `decl-struct`, quando escritos, declaram objetos do tipo do `struct-spec`, um por declarador: em `struct Foo { i32 x; } a, *b;`, o tag `Foo` é registrado como tipo e `a` e `b` são objetos declarados. Sem declarador, a forma só declara o tipo. `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `dim-binder` liga um nome à dimensão 0 do vetor recebido (§4.2); só a dimensão 0 o admite. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
 
 #### Tipos e declarações
 

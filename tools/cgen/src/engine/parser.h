@@ -229,42 +229,64 @@ typedef struct {
 bool k_scan_struct_decl(KLexer *lexer, KToken struct_or_union_kw, KSymbolTable *symtab,
                          KStructDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
-/* The first piece of keel-spec §2.2's `specifier` / parser-design §4's
- * dispatch — steps 2-3 only ("IDENT registrado como modificador? ... IDENT
- * registrado como tipo?"), single-token arguments only (no nested
- * known-type, no qualifiers — `buffer i32`, not `buffer const T`, and not
- * a modifier applied to another modifier's result). `first` is already
- * read (an IDENT) — this function does not read anything beyond it unless
- * it recognizes a specifier.
+/* specifier (keel-spec §2.2), the whole of it:
+ *   specifier   ::= known-type | tagged-type
+ *   known-type  ::= modifier argument { argument } | named-type
+ *   named-type  ::= qualified-name
+ *   modifier    ::= qualified-name [ '(' dim-value { ',' dim-value } ')' ]
+ *   dim-value   ::= NUM | qualified-name
+ *   argument    ::= { qual-arg } ( known-type | tagged-type | base-type
+ *                                | 'void' ) { qual-arg }
+ *   tagged-type ::= ( 'struct' | 'union' | 'enum' ) qualified-name
+ *   base-type   ::= 'char' | 'bool'
+ *   qual-arg    ::= 'const' | 'volatile' | '_Atomic'
+ * `first` is already read (an IDENT); nothing beyond it is read unless a
+ * specifier is recognized.
  *
- * `k_symtab_lookup(symtab, first)`'s result alone decides which of the
- * three outcomes applies — no more than one token of lookahead is ever
- * needed beyond `first` itself:
+ * **An argument is a span, not a token.** `slice const char` has one
+ * argument, `const char`, and `buffer slice i32` has one argument that
+ * is itself a whole known-type. Reading one token per argument — what
+ * this function did until 2026-09-27 — took `const` for the argument of
+ * `slice const char` and left `*next_out` on `char`, reported as a
+ * success. Each `args[k]` is now the argument exactly as written,
+ * leading and trailing `qual-arg` included (keel-spec §2.2 accepts them
+ * "dos dois lados do tipo"; canonical identity is the type contract's
+ * job, not this function's). `text` is the whole specifier the same way.
  *
- *  - Not found in `symtab` at all: `out->kind = K_SPEC_NONE`. This
- *    function has not consumed anything beyond `first` — do not read
- *    `*next_out`, it is left untouched; the caller treats `first` itself
- *    as the start of opaque C, exactly where the lexer already is.
- *  - Found as `K_SYM_MODIFIER`: `out->kind = K_SPEC_MODIFIER`,
- *    `out->modifier_name = first`. Reads exactly `sym->arity` further
- *    tokens, one per argument (no recursion — each argument is kept as
- *    its own single token, into `out->args[0..arity)`), then one more
- *    read into `*next_out` (the declarator's own start). Returns false,
- *    without reading past the 4th argument, if `arity` is more than 4 —
- *    real keel modules registered so far never need that many.
- *  - Found as `K_SYM_TYPE`: `out->kind = K_SPEC_NAMED_TYPE`,
- *    `out->type_name = first`. Reads exactly one more token into
- *    `*next_out`.
+ * `k_symtab_lookup(symtab, first)` decides which outcome applies:
  *
- * A symbol of any other `KSymKind` (found, but neither of those two) is
- * treated the same as not found: `K_SPEC_NONE`. */
+ *  - Not found, or found as a kind that is neither type nor modifier:
+ *    `out->kind = K_SPEC_NONE`, nothing consumed beyond `first`, and
+ *    `*next_out` is left untouched — the caller treats `first` as the
+ *    start of opaque C, exactly where the lexer already is.
+ *  - `K_SYM_TYPE` or `K_SYM_TAGS`: `K_SPEC_NAMED_TYPE`, `type_name`
+ *    is `first`, one more token read into `*next_out`.
+ *  - `K_SYM_MODIFIER`: `K_SPEC_MODIFIER`. Reads the optional
+ *    parenthesized `dim-value` list into `dims[0..dim_count)`, then
+ *    exactly `sym->arity` arguments — the count comes from the declaring
+ *    module, not from free repetition — then leaves `*next_out` on the
+ *    declarator's own first token.
+ *
+ * Returns false, with `*next_out` unspecified, on an argument that fits
+ * none of the alternatives (including an identifier that is in no symbol
+ * table — keel-spec §2.2: `named-type` "só casa um nome registrado como
+ * tipo"), on more than K_SPEC_MAX_ARGS arguments or K_SPEC_MAX_DIMS
+ * dimensions, or on nesting past K_SPEC_MAX_DEPTH. */
+#define K_SPEC_MAX_ARGS 4
+#define K_SPEC_MAX_DIMS 4
+#define K_SPEC_MAX_DEPTH 8
+
 typedef enum { K_SPEC_NONE, K_SPEC_MODIFIER, K_SPEC_NAMED_TYPE } KSpecifierKind;
 
 typedef struct {
     KSpecifierKind kind;
     keel_slice_char modifier_name;   /* meaningful when kind == K_SPEC_MODIFIER */
-    KToken args[4];  size_t arg_count;
+    keel_slice_char dims[K_SPEC_MAX_DIMS];
+    size_t dim_count;
+    keel_slice_char args[K_SPEC_MAX_ARGS];   /* each one as written */
+    size_t arg_count;
     keel_slice_char type_name;       /* meaningful when kind == K_SPEC_NAMED_TYPE */
+    keel_slice_char text;            /* the whole specifier, as written */
 } KSpecifier;
 
 bool k_scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,

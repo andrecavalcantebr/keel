@@ -40,11 +40,17 @@ int main(void) {
     KLexer lexer;
     TKPpKind pp;
     KToken next;
-    KSymbol storage[8];
+    KSymbol storage[16];
     KSymbolTable symtab;
-    k_symtab_init(&symtab, storage, 8);
+    k_symtab_init(&symtab, storage, 16);
     k_symtab_insert(&symtab, (keel_slice_char){ 6, (char *)"buffer" }, K_SYM_MODIFIER, 1);
     k_symtab_insert(&symtab, (keel_slice_char){ 5, (char *)"arena" }, K_SYM_TYPE, 0);
+    /* `i32` has to be here: keel-spec §2.2 says `named-type` "só casa um
+       nome registrado como tipo", so `buffer i32` is a known-type only
+       when i32 is one. Registering just `buffer` and `arena` made this
+       oracle assert that an unregistered argument is accepted, which the
+       grammar never said. */
+    k_symtab_insert(&symtab, (keel_slice_char){ 3, (char *)"i32" }, K_SYM_TYPE, 0);
 
     /* case 1: modifier specifier, single name, no initializer */
     KToken first1 = first_token("buffer i32 xs; ok\n", &lexer);
@@ -55,7 +61,7 @@ int main(void) {
     if (kd1.name_count != 1) { fprintf(stderr, "FAIL: case1 — name_count = %zu, want 1\n", kd1.name_count); failures++; }
     else if (!EQ(kd1.names[0].name, "xs")) { fprintf(stderr, "FAIL: case1 — names[0] = \"%.*s\"\n", (int)kd1.names[0].name.len, kd1.names[0].name.ptr); failures++; }
     if (!EQ(next, "ok")) { fprintf(stderr, "FAIL: case1 — next_out = \"%.*s\", want \"ok\"\n", (int)next.len, next.ptr); failures++; }
-    if (symtab.count != 3) { fprintf(stderr, "FAIL: case1 — symtab.count = %zu, want 3\n", symtab.count); failures++; }
+    if (symtab.count != 4) { fprintf(stderr, "FAIL: case1 — symtab.count = %zu, want 4\n", symtab.count); failures++; }
 
     /* case 2: named-type specifier, two names, one with an initializer
        containing a nested comma that must not be mistaken for the
@@ -71,14 +77,14 @@ int main(void) {
         if (!EQ(kd2.names[1].name, "b")) { fprintf(stderr, "FAIL: case2 — names[1] = \"%.*s\"\n", (int)kd2.names[1].name.len, kd2.names[1].name.ptr); failures++; }
     }
     if (!EQ(next, "ok2")) { fprintf(stderr, "FAIL: case2 — next_out = \"%.*s\", want \"ok2\"\n", (int)next.len, next.ptr); failures++; }
-    if (symtab.count != 5) { fprintf(stderr, "FAIL: case2 — symtab.count = %zu, want 5\n", symtab.count); failures++; }
+    if (symtab.count != 6) { fprintf(stderr, "FAIL: case2 — symtab.count = %zu, want 6\n", symtab.count); failures++; }
 
     /* case 3: not a keel specifier at all */
     KToken first3 = first_token("unregistered rest\n", &lexer);
     KKeelDecl kd3;
     bool ok3 = k_scan_decl_keel(&lexer, first3, &symtab, &kd3, &next, &pp);
     if (ok3) { fprintf(stderr, "FAIL: case3 — returned true, want false\n"); failures++; }
-    if (symtab.count != 5) { fprintf(stderr, "FAIL: case3 — must not register anything, symtab.count = %zu, want 5\n", symtab.count); failures++; }
+    if (symtab.count != 6) { fprintf(stderr, "FAIL: case3 — must not register anything, symtab.count = %zu, want 6\n", symtab.count); failures++; }
 
     /* case 4: a declarator with an array suffix. Reading only the
        declarator's head left next_out on the '4' INSIDE the brackets and

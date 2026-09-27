@@ -398,7 +398,7 @@ ilha	<espécie>	<detalhe>	<pos>
 | `module` | — | a palavra `module` | o nome, com pontos |
 | `import` | do fonte | a palavra `import` | o módulo, e `as` e `types` quando escritos |
 | `import_c` | do fonte | a palavra `import_c` | as tokens entre `import_c` e `;`, concatenadas: `<stdio.h>` |
-| `decl` | do fonte | a primeira token da declaração | espécie `func`, `var`, `const`, `constexpr`, `type`, `modifier` ou `tags`; o símbolo de backend §2 |
+| `decl` | do fonte | a primeira token da declaração | espécie `func`, `var`, `constexpr`, `type`, `modifier` ou `tags`; o símbolo de backend §2 |
 | `inst` | do primeiro uso | a palavra do modificador, no primeiro uso | o modificador e os argumentos como escritos, separados por um espaço. Só as instâncias que o módulo usa: o fecho sobre os verbos do genérico (parser §5) é dos módulos carregados, que não são impressos |
 | `ilha` | do fonte, pela posição | ver abaixo | ver abaixo |
 

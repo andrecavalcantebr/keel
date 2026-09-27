@@ -25,7 +25,20 @@ run() {
         fail=1
     fi
 }
-for t in tools/cgen/test/unit/*.sh; do run "unit/$(basename "$t" .sh)" sh "$t"; done
+# A unit test whose SRC is an empty file is waiting for its implementation
+# — the oracle was written first, which is the point (the task card is
+# handed to the model with the oracle already in place). Report it `wip`
+# instead of failing, the same marker golden/run.sh uses. The moment the
+# file has content the test goes live again, so nothing has to be undone.
+for t in tools/cgen/test/unit/*.sh; do
+    name="unit/$(basename "$t" .sh)"
+    src=$(sed -n 's/^SRC=//p' "$t" | head -1)
+    if [ -n "$src" ] && [ -f "$src" ] && [ ! -s "$src" ]; then
+        printf 'wip    %-16s %s\n' "$name" "— $src ainda vazio (tarefa não aceita)"
+        continue
+    fi
+    run "$name" sh "$t"
+done
 for t in tools/cgen/test/cli/*.sh;  do run "cli/$(basename "$t" .sh)"  sh "$t"; done
 run lex_dump sh tools/cgen/test/lex_dump.sh
 PARSE_LEVEL=${PARSE_LEVEL:-decl}

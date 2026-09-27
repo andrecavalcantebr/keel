@@ -167,6 +167,39 @@ typedef struct {
 bool k_scan_tags_decl(KLexer *lexer, KToken tags_kw, KSymbolTable *symtab,
                        KTagsDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* decl-extent (keel-spec §2.2, §4.11):
+ *   decl-extent ::= 'extent' 'struct' IDENT extent-dim { extent-dim }
+ *                   '{' { extent-field } '}' ';'
+ *   extent-dim  ::= '[' IDENT ',' ( qualified-name | NUM ) ']'
+ * `extent_kw` is the already-consumed 'extent' token (any 'pub'/'priv'
+ * before it too — same convention as every `..._kw` in this file).
+ *
+ * Only the declaration's own shape: the body is kept opaque, exactly as
+ * k_scan_braced_opaque returns it, and `extent-field`/`extent-column`
+ * are a later etapa (parser-design §3.2, 4h). Registers `out->name`
+ * into `symtab` as K_SYM_TYPE with arity 0 and returns what
+ * k_symtab_insert returns.
+ *
+ * Returns false, without touching `*next_out`, on anything that does
+ * not fit the production — no 'struct' after 'extent', no dimension at
+ * all (the production requires at least one), more than
+ * K_EXTENT_MAX_DIMS of them, or no ';' after the body.
+ *
+ * Consumes through the ';' and hands back the token after it. */
+#define K_EXTENT_MAX_DIMS 4
+
+typedef struct {
+    keel_slice_char name;                         /* the IDENT after 'struct' */
+    KToken dim_names[K_EXTENT_MAX_DIMS];          /* each dimension's binder */
+    keel_slice_char dim_caps[K_EXTENT_MAX_DIMS];  /* its capacity, as written */
+    size_t dim_count;
+    keel_slice_char body;                         /* between '{' and '}' */
+} KExtentDecl;
+
+bool k_scan_extent_decl(KLexer *lexer, KToken extent_kw, KSymbolTable *symtab,
+                         KExtentDecl *out, KToken *next_out,
+                         TKPpKind *next_pp_kind_out);
+
 /* decl-struct (keel-spec §2.2), with its fields left opaque for now (a
  * later task interprets keel fields inside — spec §4.2: "struct-spec
  * registra os campos keel... os demais campos são opacos"):

@@ -89,3 +89,56 @@ bool k_scan_declarator(KLexer *lexer, KToken first, KDeclarator *out,
     out->has_function_suffix = false;
     return scan(lexer, first, out, 0, next_out, next_pp_kind_out);
 }
+
+/* Whether a `declarator` starting at `from` parses, names something, and
+   stops on a token that can follow one in a declaration. */
+static bool parses_as_declarator(const KLexer *lexer, KToken from) {
+    keel_slice_char rest = {
+        (size_t)((lexer->source.ptr + lexer->source.len) - from.ptr), from.ptr
+    };
+    KLexer scout;
+    TKPpKind pp;
+    k_lexer_init(&scout, rest, NULL);
+
+    KDeclarator declarator;
+    KToken next;
+    if (!k_scan_declarator(&scout, k_lexer_next(&scout, &pp), &declarator, &next, &pp))
+        return false;
+    if (declarator.name.len == 0) return false;
+    return k_token_is_punct(next, ";") || k_token_is_punct(next, ",") ||
+           k_token_is_punct(next, "=") || k_token_is_punct(next, "{");
+}
+
+KToken k_find_declarator_start(const KLexer *lexer, KToken first, const char *limit) {
+    keel_slice_char rest = {
+        (size_t)((lexer->source.ptr + lexer->source.len) - first.ptr), first.ptr
+    };
+    KLexer scout;
+    TKPpKind pp;
+    k_lexer_init(&scout, rest, NULL);
+
+    KToken tok = k_lexer_next(&scout, &pp);
+    KToken best = { 0, NULL };
+    int depth = 0;
+
+    while (tok.len != 0 && (limit == NULL || tok.ptr < limit)) {
+        if (depth == 0) {
+            /* Nothing after these can still be the declarator: the ';'
+               ends the declaration, the ',' hands the rest to the next
+               declarator, and the '=' opens an initializer — whose own
+               identifiers would otherwise look like later candidates
+               (`int x = y;` must name x, not y). */
+            if (k_token_is_punct(tok, ";") || k_token_is_punct(tok, ",") ||
+                k_token_is_punct(tok, "=")) break;
+            /* Latest wins: the specifier is maximal, so of two starts
+               that both parse, the declarator is the later one. */
+            if (parses_as_declarator(lexer, tok)) best = tok;
+        }
+        if (k_token_is_punct(tok, "(") || k_token_is_punct(tok, "[") ||
+            k_token_is_punct(tok, "{")) depth++;
+        else if (k_token_is_punct(tok, ")") || k_token_is_punct(tok, "]") ||
+                 k_token_is_punct(tok, "}")) depth--;
+        tok = k_lexer_next(&scout, &pp);
+    }
+    return best;
+}

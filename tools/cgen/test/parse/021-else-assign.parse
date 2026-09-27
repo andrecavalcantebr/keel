@@ -1,0 +1,17 @@
+# Hand-written from app/reg.k. Covers the levels up to `decl`; the `inst`
+# and `ilha` lines are not written yet, which is what the `decl` in
+# cases.txt records. See tools/cgen/test/parse_dump.sh.
+module	app.reg	app/reg.k:1:1
+import	keel.slice as slice types	app/reg.k:3:1
+import	keel.outcome as outcome types	app/reg.k:4:1
+decl	pub type	Person	app_reg_Person	app/reg.k:8:1
+decl	pub var	people	app_reg_people	app/reg.k:14:1
+decl	priv var	NAMES	app_reg_NAMES	app/reg.k:16:1
+decl	priv var	LENS	app_reg_LENS	app/reg.k:17:1
+decl	priv var	ADDRS	app_reg_ADDRS	app/reg.k:18:1
+decl	priv var	ADDRLENS	app_reg_ADDRLENS	app/reg.k:19:1
+decl	priv var	BIRTHS	app_reg_BIRTHS	app/reg.k:20:1
+decl	priv func	read_name	app_reg_read_name	app/reg.k:23:1
+decl	priv func	read_address	app_reg_read_address	app/reg.k:29:1
+decl	priv func	read_birth	app_reg_read_birth	app/reg.k:35:1
+decl	pub func	load	app_reg_load	app/reg.k:46:1

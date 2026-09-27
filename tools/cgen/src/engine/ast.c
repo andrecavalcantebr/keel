@@ -271,38 +271,37 @@ bool k_parse_ast(KAst *a, KAstNode *nodes, size_t cap) {
             node.end = declaration_end(a, i, &node.body_first, &node.body_end);
             if (node.end <= start || node.end > n) return false;
             node.kind = K_AST_OPAQUE;
-            size_t j;
-            {
-                /* A final top-level parameter group preceded by IDENT is a
-                   function declarator, provided no top-level '=' precedes it. */
-                size_t paren = 0, bracket = 0;
-                bool assigned = false;
-                for (j = i; j < node.end; j++) {
-                    if (!paren && !bracket && punct(a, j, "=")) assigned = true;
-                    if (!paren && !bracket && punct(a, j, "(") && j > i &&
-                        !assigned && k_token_is_ident(a->tokens[j - 1].token)) {
-                        size_t after = balanced(a, j, "(", ")");
-                        if (after < node.end &&
-                            (punct(a, after, "{") || punct(a, after, ";"))) {
-                            node.kind = K_AST_FUNCTION;
-                            node.name_first = j - 1; node.name_end = j;
-                            break;
-                        }
+
+            /* decl-function and decl-keel (keel-spec §2.2) share a shape:
+               a specifier, then a declarator. Only the declarator's own
+               suffixes say which — a parameter group straight on the name
+               is a function, anything else declares an object. Reading
+               the last IDENT before the ';' instead dropped every name
+               ending in a suffix: `const char *NAMES[3]` and
+               `array Person people[4]` named nothing at all, and a node
+               with no name is skipped by the dump. */
+            KToken kw = reenter(a, i, &lexer, &pp);
+            const char *limit = node.end < n ? a->tokens[node.end].token.ptr
+                                             : a->source.ptr + a->source.len;
+            KToken begin = k_find_declarator_start(&lexer, kw, limit);
+            if (begin.len != 0) {
+                KToken tok = kw;
+                while (tok.len != 0 && tok.ptr < begin.ptr)
+                    tok = k_lexer_next(&lexer, &pp);
+                KDeclarator declarator;
+                if (tok.len != 0 &&
+                    k_scan_declarator(&lexer, tok, &declarator, &next, &next_pp) &&
+                    declarator.name.len != 0) {
+                    size_t name_first = index_at(a, i, declarator.name.ptr);
+                    size_t name_end = index_at(a, name_first,
+                                               declarator.name.ptr + declarator.name.len);
+                    if (name_end <= node.end) {
+                        node.kind = declarator.has_function_suffix &&
+                                    !declarator.parenthesized
+                                    ? K_AST_FUNCTION : K_AST_VARIABLE;
+                        node.name_first = name_first;
+                        node.name_end = name_end;
                     }
-                    if (punct(a, j, "(")) paren++;
-                    else if (punct(a, j, ")") && paren) paren--;
-                    else if (punct(a, j, "[")) bracket++;
-                    else if (punct(a, j, "]") && bracket) bracket--;
-                }
-                if (node.kind == K_AST_OPAQUE && node.end > i + 1) {
-                    /* File-level variables are resolved more precisely by the
-                       symbol pass; this captures the simple declarator form. */
-                    for (j = i + 1; j + 1 < node.end; j++)
-                        if (k_token_is_ident(a->tokens[j].token) &&
-                            (punct(a, j + 1, ";") || punct(a, j + 1, "="))) {
-                            node.kind = K_AST_VARIABLE;
-                            node.name_first = j; node.name_end = j + 1; break;
-                        }
                 }
             }
         }

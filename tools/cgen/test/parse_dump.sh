@@ -12,6 +12,12 @@
 #   inst     + inst                                (pass 3: instances)
 #   ilha     + ilha — everything                   (pass 3: islands)
 #
+# A case may name, as a third field in cases.txt, the last level its .parse
+# file covers. Asked for a level beyond it, the case reports `wip` and is
+# skipped — the same marker golden/run.sh uses for a case under construction
+# (golden/README.md), and for the same reason: a .parse written only up to
+# `decl` is an incomplete oracle, not a failing one.
+#
 # For each case in parse/cases.txt, cgen runs from the case directory, with
 # the repository's base, and its stdout — only the lines of the kinds of the
 # level — must equal parse/<case>.parse filtered the same way, byte for byte.
@@ -21,6 +27,12 @@
 # expected C of the golden case: they are NOT regenerated from cgen.
 set -u
 LEVEL=${1:-ilha}
+rank() {
+    case $1 in
+        header) echo 1 ;; decl) echo 2 ;; inst) echo 3 ;; ilha) echo 4 ;;
+        *) echo 0 ;;
+    esac
+}
 case $LEVEL in
     header) KINDS='module|import|import_c' ;;
     decl)   KINDS='module|import|import_c|decl' ;;
@@ -28,6 +40,7 @@ case $LEVEL in
     ilha)   KINDS='module|import|import_c|decl|inst|ilha' ;;
     *) echo "usage: $0 [header|decl|inst|ilha]"; exit 2 ;;
 esac
+WANT=$(rank "$LEVEL")
 
 ROOT=$(pwd)
 D=$ROOT/tools/cgen/test/parse
@@ -43,8 +56,14 @@ gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra \
 only() { grep -E "^($KINDS)	" || true; }
 
 bad=0
-while read -r c src; do
+wip=0
+while read -r c src covers; do
     [ -n "$c" ] || continue
+    if [ -n "${covers:-}" ] && [ "$(rank "$covers")" -lt "$WANT" ]; then
+        echo "wip    $c — .parse cobre até '$covers', pedido '$LEVEL'"
+        wip=$((wip + 1))
+        continue
+    fi
     exp=$(only < "$D/$c.parse")
     if [ -z "$exp" ]; then
         echo "FAIL: parse/$c.parse has no expected lines at level $LEVEL"
@@ -70,5 +89,5 @@ while read -r c src; do
     rm -f /tmp/parsediff.$$.got
 done < "$D/cases.txt"
 
-[ $bad -eq 0 ] && echo "ok     cgen --stop-after=parse      (cgen design §5.2, level $LEVEL)"
+[ $bad -eq 0 ] && echo "ok     cgen --stop-after=parse      (cgen design §5.2, level $LEVEL, $wip wip)"
 exit $bad

@@ -285,6 +285,29 @@ bool k_scan_declarator(KLexer *lexer, KToken first, KDeclarator *out,
 /* qual-c (keel-spec §2.2), shared with decl-typedef's lookahead. */
 bool k_token_is_qual_c(KToken t);
 
+/* Where the `declarator` of a declaration begins — the one thing no
+ * token marks. Every declaration of keel-spec §2.2 that has a declarator
+ * (`decl-typedef`, `decl-function`, `decl-keel`) puts a specifier in
+ * front of it, and the specifier's own end is what this finds. `first`
+ * is the declaration's first token after any `pub`/`priv`/`inline`, and
+ * `limit` bounds the search (NULL: to the end of the source); the search
+ * also stops at the first top-level ';', ',' or '='.
+ *
+ * The rule is the grammar's: the specifier is maximal, so of two starts
+ * that both parse as a declarator reaching a ';', ',', '=' or '{', the
+ * declarator is the later one. That single rule separates the two shapes
+ * a first '(' can have, which is what nothing simpler manages:
+ *
+ *   T foo(void);      `foo(void)` parses, `(void)` does not — foo wins,
+ *                     and the '(' is foo's own parameter-group suffix
+ *   T (*fp)(void);    `(*fp)(void)` parses and is later than `T` (which
+ *                     also parses, reading the two groups as suffixes)
+ *                     — fp wins, and the '(' opens a nested declarator
+ *
+ * Returns the empty token when nothing in range parses; the caller then
+ * has a declaration this production does not describe. */
+KToken k_find_declarator_start(const KLexer *lexer, KToken first, const char *limit);
+
 /* decl-typedef (keel-spec §2.2, lista por vírgula desde 2026-09-27):
  *   'typedef' ( specifier | struct-spec | <opaque-no-parens> )
  *   declarator { ',' declarator } ';'

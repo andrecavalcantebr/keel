@@ -300,7 +300,7 @@ tag-item      ::= IDENT [ '=' tag-value ]
 tag-value     ::= [ '-' ] ( NUM | qualified-name )
 
 decl-typedef  ::= 'typedef' ( specifier | struct-spec | <opaque-no-parens> )
-                  declarator ';'
+                  declarator { ',' declarator } ';'
 decl-struct   ::= struct-spec ';'
 struct-spec   ::= ( 'struct' | 'union' ) [ IDENT ] '{' { field } '}'
 field         ::= decl-keel | decl-array | <opaque> ';'
@@ -333,7 +333,7 @@ dim-binder    ::= 'size_t' IDENT
 param-type    ::= 'type' IDENT
 ```
 
-`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome do seu declarador, inclusive quando o declarador é ponteiro a função. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `dim-binder` liga um nome à dimensão 0 do vetor recebido (§4.2); só a dimensão 0 o admite. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
+`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome de cada um de seus declaradores, inclusive quando o declarador é ponteiro a função. O especificador é comum, e cada declarador deriva dele o seu próprio tipo: em `typedef int a[4], *b;`, `a` é vetor de `int` e `b` é ponteiro para `int`. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `dim-binder` liga um nome à dimensão 0 do vetor recebido (§4.2); só a dimensão 0 o admite. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
 
 #### Tipos e declarações
 

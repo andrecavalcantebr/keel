@@ -240,6 +240,48 @@ typedef struct {
 bool k_scan_declarator_head(KLexer *lexer, KToken first, KDeclaratorHead *out,
                              KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* The whole of keel-spec §2.2's `declarator`, suffixes and nesting
+ * included — what `k_scan_declarator_head` above covers only the common
+ * case of:
+ *   declarator        ::= { '*' { qual-c } } direct-declarator
+ *   direct-declarator ::= IDENT { suffix } | '(' declarator ')' { suffix }
+ *   suffix            ::= '[' [ <opaque> ] ']' | '(' [ <opaque> ] ')'
+ *   qual-c            ::= 'const' | 'volatile' | 'restrict' | '_Atomic' | 'ref'
+ * `first` is already read: the leading '*', the '(' or the IDENT itself.
+ *
+ * `out->name` is the IDENT of the *innermost* direct-declarator — the
+ * declared name, which is why `typedef int (*fp)(void);` names `fp` and
+ * `typedef int Vec[TAM];` names `Vec`. Reading the last IDENT before the
+ * ';' instead gets `void` and `TAM`; the grammar never meant that.
+ *
+ * The other fields describe the outermost level only, so a caller can
+ * tell the shapes apart without re-reading tokens: `f(void)` has
+ * has_function_suffix and not parenthesized (a function), while
+ * `(*fp)(void)` has both (a pointer to function).
+ *
+ * Returns false, having consumed an unspecified number of tokens, when
+ * there is no IDENT to find — an abstract-declarator (keel-spec §2.2, in
+ * `param`) or malformed input — and likewise when the nesting exceeds
+ * K_DECLARATOR_MAX_DEPTH. `out->name.len` is 0 in that case.
+ *
+ * Consumes one token past the declarator and hands it back via
+ * next_out/next_pp_kind_out, same convention as every recognizer in this
+ * file. That token is the ',' or ';' of the enclosing declaration, or the
+ * ')' closing an enclosing declarator. If the source ends inside a
+ * suffix, it is the empty token. */
+#define K_DECLARATOR_MAX_DEPTH 16
+
+typedef struct {
+    int pointer_depth;           /* leading '*' of the outermost level */
+    keel_slice_char name;        /* the innermost direct-declarator's IDENT */
+    bool parenthesized;          /* the direct-declarator is '(' declarator ')' */
+    bool has_array_suffix;       /* some outermost suffix is '[' ... ']' */
+    bool has_function_suffix;    /* some outermost suffix is '(' ... ')' */
+} KDeclarator;
+
+bool k_scan_declarator(KLexer *lexer, KToken first, KDeclarator *out,
+                        KToken *next_out, TKPpKind *next_pp_kind_out);
+
 /* A reusable utility, not tied to one grammar production: skips tokens,
  * counting `'(' '[' '{'` as +1 and `')' ']' '}'` as -1 against a single
  * shared depth (keel-spec's own delimiters, §2.1 — C guarantees they

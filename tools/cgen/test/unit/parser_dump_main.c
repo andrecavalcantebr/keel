@@ -1,4 +1,4 @@
-/* Unit test of engine/, for k_dump_module — a self-contained synthetic
+/* Unit test of engine/: AST and dump from a self-contained synthetic
  * module (no import actually resolved; "wrap" is declared and used in
  * the same file, sidestepping the missing KLoader). Expected output
  * hand-derived from the grammar and cgen-tool.md §5.2's dump format, not
@@ -6,10 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "engine/parser.h"
+#include "engine/ast.h"
 
 static const char *SRC =
-    "module demo.mod;\n"
+    "module demo.mod type T;\n"
     "\n"
     "import keel.buffer as buffer types;\n"
     "import_c <stdio.h>;\n"
@@ -22,26 +22,46 @@ static const char *SRC =
     "\n"
     "pub constexpr size_t MAX = 100;\n"
     "\n"
-    "pub wrap counter;\n";
+    "pub wrap counter;\n"
+    "pub i32 f(void) { return 1; }\n";
 
 static const char *WANT =
     "module\tdemo.mod\t1:1\n"
     "import\tkeel.buffer as buffer types\t3:1\n"
     "import_c\t<stdio.h>\t4:1\n"
-    "decl\tpub modifier\twrap\tdemo_mod_wrap\t6:5\n"
-    "decl\tpub tags\tColor\tdemo_mod_Color\t8:5\n"
-    "decl\tpub type\tPoint\tdemo_mod_Point\t10:5\n"
-    "decl\tpub constexpr\tMAX\tdemo_mod_MAX\t12:5\n"
-    "decl\tpub var\tcounter\tdemo_mod_counter\t14:5\n";
+    "decl\tpub modifier\twrap\tdemo_mod_wrap\t6:1\n"
+    "decl\tpub tags\tColor\tdemo_mod_Color\t8:1\n"
+    "decl\tpub type\tPoint\tdemo_mod_Point\t10:1\n"
+    "decl\tpub constexpr\tMAX\tdemo_mod_MAX\t12:1\n"
+    "decl\tpub var\tcounter\tdemo_mod_counter\t14:1\n"
+    "decl\tpub func\tf\tdemo_mod_f\t15:1\n";
 
 int main(void) {
     keel_slice_char source = { strlen(SRC), (char *)SRC };
-    KSymbol storage[16];
-
-    size_t needed = k_dump_module(source, storage, 16, (keel_slice_char){0});
+    size_t count = k_lexemes(source, NULL, 0, NULL);
+    KLexeme *tokens = calloc(count + 1, sizeof *tokens);
+    KAstNode *nodes = calloc(count + 1, sizeof *nodes);
+    if (!tokens || !nodes) return 1;
+    k_lexemes(source, tokens, count, NULL);
+    KAst ast = { .source = source, .tokens = tokens, .token_count = count };
+    if (!k_parse_ast(&ast, nodes, count + 1)) return 1;
+    if (ast.node_count != 9 || nodes[0].kind != K_AST_MODULE ||
+        nodes[0].type_end != nodes[0].type_first + 1 ||
+        !k_token_is_ident_named(ast.tokens[nodes[0].type_first].token, "T") ||
+        nodes[1].kind != K_AST_IMPORT || nodes[5].kind != K_AST_TYPE ||
+        nodes[5].body_first == (size_t)-1 ||
+        nodes[5].first >= nodes[5].end ||
+        nodes[5].end > ast.token_count ||
+        nodes[8].kind != K_AST_FUNCTION ||
+        nodes[8].body_first >= nodes[8].body_end ||
+        !k_token_is_c_word_named(ast.tokens[nodes[8].body_first].token, "return")) {
+        fprintf(stderr, "FAIL: AST kinds or token spans\n");
+        return 1;
+    }
+    size_t needed = k_dump_ast(&ast, NULL, (keel_slice_char){0});
     char *buf = malloc(needed + 1);
     if (!buf) { fprintf(stderr, "FAIL: malloc\n"); return 1; }
-    size_t written = k_dump_module(source, storage, 16, (keel_slice_char){ needed, buf });
+    size_t written = k_dump_ast(&ast, NULL, (keel_slice_char){ needed, buf });
 
     int failures = 0;
     if (written != needed) {
@@ -56,6 +76,8 @@ int main(void) {
     }
 
     free(buf);
+    free(tokens);
+    free(nodes);
     if (failures == 0) { puts("ok"); return 0; }
     fprintf(stderr, "%d failure(s)\n", failures);
     return 1;

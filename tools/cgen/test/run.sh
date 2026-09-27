@@ -9,8 +9,7 @@
 #   lex_dump.sh  --stop-after=lex: fixed dumps, the reference lexer over every
 #                .k of golden/ and base/, and the lexical diagnostics
 #   parse_dump.sh --stop-after=parse at level $PARSE_LEVEL (header, decl, inst,
-#                ilha). Skipped while PARSE_LEVEL is unset: the parser (M2)
-#                has not started.
+#                ilha). The default is decl, the implemented M2 level.
 #
 # Each test prints its last line; the suite fails if any test fails.
 cd "$(dirname "$0")/../../.." || exit 2
@@ -29,9 +28,6 @@ run() {
 for t in tools/cgen/test/unit/*.sh; do run "unit/$(basename "$t" .sh)" sh "$t"; done
 for t in tools/cgen/test/cli/*.sh;  do run "cli/$(basename "$t" .sh)"  sh "$t"; done
 run lex_dump sh tools/cgen/test/lex_dump.sh
-if [ -n "${PARSE_LEVEL:-}" ]; then
-    run "parse_dump/$PARSE_LEVEL" sh tools/cgen/test/parse_dump.sh "$PARSE_LEVEL"
-else
-    printf 'skip   %-16s PARSE_LEVEL unset (M2 not started)\n' parse_dump
-fi
+PARSE_LEVEL=${PARSE_LEVEL:-decl}
+run "parse_dump/$PARSE_LEVEL" sh tools/cgen/test/parse_dump.sh "$PARSE_LEVEL"
 exit $fail

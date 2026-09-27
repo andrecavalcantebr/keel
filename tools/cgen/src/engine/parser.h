@@ -335,16 +335,4 @@ typedef struct {
 bool k_scan_decl_constexpr(KLexer *lexer, KToken constexpr_kw, KSymbolTable *symtab,
                             KConstexprDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
-/* Parses a module's header and top-level declarations and writes the
- * `module`/`import`/`import_c`/`decl` lines of --stop-after=parse's dump
- * (cgen-tool.md §5.2), at header+decl level (no `inst`/`ilha` yet — see
- * engine/parser_dump.c's own header comment for what this does and does
- * not do). Two-pass sizing convention, like k_parser_keel: call with an
- * empty `output` to size the buffer, then again with real storage.
- * `symtab_storage`/`symtab_cap` back this module's own symbol table — the
- * same convention as k_symtab_init. Assumes well-formed input, same as
- * every recognizer this is built from. */
-size_t k_dump_module(keel_slice_char source, KSymbol *symtab_storage, size_t symtab_cap,
-                      keel_slice_char output);
-
 #endif /* CGEN_ENGINE_PARSER_H */

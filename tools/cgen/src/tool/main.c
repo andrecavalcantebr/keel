@@ -9,6 +9,7 @@ bool cgen_source_under_root(const char *source, const char *root);
 bool cgen_source_in_multiple_roots(const char *source, const char *const *roots, int root_count);
 extern char *cgen_resolve_base_dir(const char *explicit_base_dir);
 int cgen_stop_after_lex(const char *path);
+int cgen_stop_after_parse(const char *path);
 
 static void fatal(const char *diagnostic_id, const char *message) {
     fprintf(stderr, "cgen: error: %s [%s]\n", message, diagnostic_id);
@@ -216,9 +217,9 @@ int main(int argc, char *argv[]) {
         if (!base) {
             exit(2);
         }
-        /* `base` is deliberately unused past this point — nothing reads
-           the base directory yet, only validates that it resolves. Do not
-           free it, do not do anything else with it: that is later work. */
+        free(base);
+        if (stop_after && strcmp(stop_after, "parse") == 0)
+            return cgen_stop_after_parse(k_file);
     }
 
     fprintf(stderr, "cgen: not yet implemented\n");

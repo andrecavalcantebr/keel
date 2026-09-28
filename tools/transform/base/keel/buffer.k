@@ -68,11 +68,11 @@ static inline void keel_buffer_$T_set(keel_buffer_$T *b, size_t index, $T value)
     b->ptr[index] = value;
 }
 
-static inline $T *keel_buffer_$T_ptr(const keel_buffer_$T *b) {
+static inline $T *keel_buffer_$T_data(const keel_buffer_$T *b) {
     return b->ptr;
 }
 
-static inline $T *keel_buffer_$T_ptr_1(const keel_buffer_$T *b, size_t index) {
+static inline $T *keel_buffer_$T_ptr(const keel_buffer_$T *b, size_t index) {
     return &b->ptr[index];
 }
 

@@ -10,7 +10,7 @@ DEST  := ../gen
 # the types the base is instantiated for
 TYPES := i32 u32 char
 
-all:
+all: parser-buffers
 	$(CG) -m keel       -i $(SRC) -d $(DEST)
 	$(CG) -m keel.arena -i $(SRC) -d $(DEST)
 	@for T in $(TYPES); do \
@@ -21,7 +21,17 @@ all:
 	  $(CG) -m keel.outcome -i $(SRC) -d $(DEST) -t keel_buffer_$$T -a keel/keel_buffer_$$T.type.h; \
 	done
 
+# Parser-owned element types; declarations are shared without container dependencies.
+PARSER_TYPES := KSymbol KLexeme KAstNode KInstanceUse
+parser-buffers:
+	@set -e; for T in $(PARSER_TYPES); do \
+	  $(CG) -m keel.outcome -i $(SRC) -d $(DEST) -t $$T -a engine/storage_types.h; \
+	  $(CG) -m keel.slice -i $(SRC) -d $(DEST) -t $$T -a engine/storage_types.h; \
+	  $(CG) -m keel.buffer -i $(SRC) -d $(DEST) -t $$T -a engine/storage_types.h; \
+	  $(CG) -m keel.outcome -i $(SRC) -d $(DEST) -t keel_buffer_$$T -a keel/keel_buffer_$$T.type.h; \
+	done
+
 clean:
 	@rm -rf $(DEST)
 
-.PHONY: all clean
+.PHONY: all clean parser-buffers

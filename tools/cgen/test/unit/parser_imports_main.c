@@ -60,9 +60,10 @@ static void run(const char *label, const char *src, bool want_ok,
     size_t n = k_lexemes(source, tokens, 256, &sink);
     if (n > 256) { fprintf(stderr, "FAIL: %s — needs %zu tokens\n", label, n); failures++; return; }
 
-    KAst ast = { source, tokens, n, NULL, 0, 0 };
     KAstNode nodes[64];
-    if (!k_parse_ast(&ast, nodes, 64)) {
+    KAst ast = {.source=source, .tokens=keel_buffer_KLexeme_of(tokens,n),
+                .nodes=keel_buffer_KAstNode_from(nodes,64)};
+    if (!k_parse_ast(&ast)) {
         fprintf(stderr, "FAIL: %s — k_parse_ast returned false\n", label);
         failures++;
         return;
@@ -83,7 +84,7 @@ static void run(const char *label, const char *src, bool want_ok,
 
     char got[400];
     size_t at = 0;
-    for (size_t i = 0; i < symtab.count; i++) {
+    for (size_t i = 0; i < symtab.len; i++) {
         if (i) got[at++] = '|';
         memcpy(got + at, storage[i].name.ptr, storage[i].name.len);
         at += storage[i].name.len;

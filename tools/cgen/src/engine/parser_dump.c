@@ -17,12 +17,12 @@ static void put_uint(KOut *o, size_t n) {
     while (len) put_c(o, digits[--len]);
 }
 static void put_name(KOut *o, const KAst *a, size_t first, size_t end) {
-    for (size_t i = first; i < end; i++) put_token(o, a->tokens[i].token);
+    for (size_t i = first; i < end; i++) put_token(o, keel_buffer_KLexeme_ptr(&a->tokens, i)->token);
 }
 static void put_symbol(KOut *o, const KAst *a, const KAstNode *node) {
-    const KAstNode *module = &a->nodes[a->module];
+    const KAstNode *module = keel_buffer_KAstNode_ptr(&a->nodes, a->module);
     for (size_t i = module->name_first; i < module->name_end; i++) {
-        KToken t = a->tokens[i].token;
+        KToken t = keel_buffer_KLexeme_ptr(&a->tokens, i)->token;
         if (k_token_is_punct(t, ".")) put_c(o, '_');
         else put_token(o, t);
     }
@@ -30,7 +30,7 @@ static void put_symbol(KOut *o, const KAst *a, const KAstNode *node) {
     put_name(o, a, node->name_first, node->name_end);
 }
 static void put_pos(KOut *o, const KAst *a, const char *path, size_t at) {
-    KToken token = a->tokens[at].token;
+    KToken token = keel_buffer_KLexeme_ptr(&a->tokens, at)->token;
     size_t off = (size_t)(token.ptr - a->source.ptr);
     size_t line = 1, col = 1;
     for (size_t i = 0; i < off; i++) {
@@ -44,8 +44,8 @@ static void put_pos(KOut *o, const KAst *a, const char *path, size_t at) {
 }
 size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
     KOut o = {output, 0};
-    for (size_t i = 0; i < a->node_count; i++) {
-        const KAstNode *n = &a->nodes[i];
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&a->nodes, i);
         switch (n->kind) {
             case K_AST_MODULE:
                 put_s(&o, "module\t"); put_name(&o, a, n->name_first, n->name_end);
@@ -53,7 +53,7 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
             case K_AST_IMPORT:
                 put_s(&o, "import\t"); put_name(&o, a, n->name_first, n->name_end);
                 if (n->alias != (size_t)-1) {
-                    put_s(&o, " as "); put_token(&o, a->tokens[n->alias].token);
+                    put_s(&o, " as "); put_token(&o, keel_buffer_KLexeme_ptr(&a->tokens, n->alias)->token);
                 }
                 if (n->has_types) put_s(&o, " types");
                 break;
@@ -82,13 +82,13 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
         }
         put_c(&o, '\t'); put_pos(&o, a, path, n->anchor);
     }
-    for(size_t i=0;i<a->instance_count;i++) {
-        const KInstanceUse *use=&a->instances[i];
+    for(size_t i=0;i<a->instances.len;i++) {
+        const KInstanceUse *use=keel_buffer_KInstanceUse_ptr(&a->instances, i);
         put_s(&o,"inst\t");
         for(size_t j=use->first;j<use->end;j++) {
-            KToken token=a->tokens[j].token;
+            KToken token=keel_buffer_KLexeme_ptr(&a->tokens, j)->token;
             if(j>use->first) {
-                KToken previous=a->tokens[j-1].token;
+                KToken previous=keel_buffer_KLexeme_ptr(&a->tokens, j-1)->token;
                 bool dot=k_token_is_punct(token,".")||k_token_is_punct(previous,".");
                 bool bracket=k_token_is_punct(token,"(")||k_token_is_punct(token,")")||k_token_is_punct(token,",")||k_token_is_punct(previous,"(");
                 if(!dot&&!bracket)put_c(&o,' ');

@@ -53,7 +53,7 @@ int main(void) {
     if (!EQ(sd.tag_name, "Person")) { fprintf(stderr, "FAIL: named — tag_name = \"%.*s\"\n", (int)sd.tag_name.len, sd.tag_name.ptr); failures++; }
     if (!EQ(sd.body, "i32 age;")) { fprintf(stderr, "FAIL: named — body = \"%.*s\"\n", (int)sd.body.len, sd.body.ptr); failures++; }
     if (!EQ(next, "ok")) { fprintf(stderr, "FAIL: named — next_out = \"%.*s\", want \"ok\"\n", (int)next.len, next.ptr); failures++; }
-    if (symtab.count != 1) { fprintf(stderr, "FAIL: symtab.count = %zu, want 1\n", symtab.count); failures++; }
+    if (symtab.len != 1) { fprintf(stderr, "FAIL: symtab.len = %zu, want 1\n", symtab.len); failures++; }
     else {
         const KSymbol *sym = k_symtab_lookup(&symtab, (keel_slice_char){ 6, (char *)"Person" });
         if (!sym) { fprintf(stderr, "FAIL: 'Person' not found in symtab\n"); failures++; }
@@ -68,7 +68,7 @@ int main(void) {
     if (sd2.tag_name.len != 0) { fprintf(stderr, "FAIL: anonymous — tag_name.len = %zu, want 0\n", sd2.tag_name.len); failures++; }
     if (!EQ(sd2.body, "i32 x;")) { fprintf(stderr, "FAIL: anonymous — body = \"%.*s\"\n", (int)sd2.body.len, sd2.body.ptr); failures++; }
     if (!EQ(next, "ok2")) { fprintf(stderr, "FAIL: anonymous — next_out = \"%.*s\", want \"ok2\"\n", (int)next.len, next.ptr); failures++; }
-    if (symtab.count != 1) { fprintf(stderr, "FAIL: anonymous must not register anything — symtab.count = %zu, want 1\n", symtab.count); failures++; }
+    if (symtab.len != 1) { fprintf(stderr, "FAIL: anonymous must not register anything — symtab.len = %zu, want 1\n", symtab.len); failures++; }
 
     /* keel-spec §2.2 (2026-09-27): the declarators after the '}' declare
        objects of the type. They used to be swallowed — this function read
@@ -116,9 +116,9 @@ int main(void) {
                         cases[c].label, (int)nx.len, nx.ptr, cases[c].next);
                 failures++;
             }
-            if (t.count != cases[c].syms) {
-                fprintf(stderr, "FAIL: %s — symtab.count = %zu, want %zu\n",
-                        cases[c].label, t.count, cases[c].syms);
+            if (t.len != cases[c].syms) {
+                fprintf(stderr, "FAIL: %s — symtab.len = %zu, want %zu\n",
+                        cases[c].label, t.len, cases[c].syms);
                 failures++;
             }
         }

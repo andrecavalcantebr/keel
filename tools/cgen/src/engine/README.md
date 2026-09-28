@@ -67,3 +67,20 @@ zero, inclusive para entrada vazia. Falha retorna descritor com `ptr == NULL`.
 Fontes e tokens continuam sendo regiões delimitadas por comprimento; não se
 exige terminador nelas. Nomes de instância reservam 256 bytes e recusam nomes
 gerados acima dos 255 caracteres permitidos pelo backend.
+
+## Buffers de armazenamento
+
+`KAst.tokens`, `KAst.nodes` e `KAst.instances` são instâncias geradas de
+`buffer KLexeme`, `buffer KAstNode` e `buffer KInstanceUse`. `KSymbolTable`
+é um alias de `buffer KSymbol`, preservando as operações de busca/inserção.
+Os elementos são declarados em `storage_types.h`, sem dependência dos buffers,
+e instanciados por `tools/transform/base/Makefile`.
+
+O acesso indexado usa `keel_buffer_T_ptr(&b, i)`; `data(&b)` fornece o endereço
+inicial. A base de bootstrap adotou esses nomes no lugar de `ptr_1` e do
+antigo `ptr` sem índice. Não há crescimento automático: a ferramenta continua
+alocando as mesmas capacidades na arena. Arrays embutidos permanecem arrays.
+As funções `k_parse_ast`, `k_parse_headers`, `k_collect_ast` e
+`k_collect_instances` usam o armazenamento do próprio `KAst`, sem repetir
+ponteiro e capacidade nos argumentos. A operação de contagem `k_lexemes`
+continua aceitando saída nula antes da alocação dos tokens.

@@ -54,7 +54,7 @@ int main(void) {
     if (!c1.has_name) { fprintf(stderr, "FAIL: case1 — has_name = false\n"); failures++; }
     if (!EQ(c1.name, "MAX")) { fprintf(stderr, "FAIL: case1 — name = \"%.*s\"\n", (int)c1.name.len, c1.name.ptr); failures++; }
     if (!EQ(next, "ok")) { fprintf(stderr, "FAIL: case1 — next_out = \"%.*s\", want \"ok\"\n", (int)next.len, next.ptr); failures++; }
-    if (symtab.count != 1) { fprintf(stderr, "FAIL: case1 — symtab.count = %zu, want 1\n", symtab.count); failures++; }
+    if (symtab.len != 1) { fprintf(stderr, "FAIL: case1 — symtab.len = %zu, want 1\n", symtab.len); failures++; }
     else {
         const KSymbol *sym = k_symtab_lookup(&symtab, (keel_slice_char){ 3, (char *)"MAX" });
         if (!sym) { fprintf(stderr, "FAIL: case1 — 'MAX' not found in symtab\n"); failures++; }
@@ -68,14 +68,14 @@ int main(void) {
     if (!ok2) { fprintf(stderr, "FAIL: case2 — returned false\n"); failures++; }
     if (c2.has_name) { fprintf(stderr, "FAIL: case2 — has_name = true, want false\n"); failures++; }
     if (!EQ(next, "ok2")) { fprintf(stderr, "FAIL: case2 — next_out = \"%.*s\", want \"ok2\"\n", (int)next.len, next.ptr); failures++; }
-    if (symtab.count != 1) { fprintf(stderr, "FAIL: case2 — must not register anything, symtab.count = %zu, want 1\n", symtab.count); failures++; }
+    if (symtab.len != 1) { fprintf(stderr, "FAIL: case2 — must not register anything, symtab.len = %zu, want 1\n", symtab.len); failures++; }
 
     /* case 3: '=' with no token at all before it — constexpr-name-missing */
     KToken kw3 = first_token("constexpr = 5; oops\n", &lexer);
     KConstexprDecl c3;
     bool ok3 = k_scan_decl_constexpr(&lexer, kw3, &symtab, &c3, &next, &pp);
     if (ok3) { fprintf(stderr, "FAIL: case3 — returned true, want false\n"); failures++; }
-    if (symtab.count != 1) { fprintf(stderr, "FAIL: case3 — must not register anything, symtab.count = %zu, want 1\n", symtab.count); failures++; }
+    if (symtab.len != 1) { fprintf(stderr, "FAIL: case3 — must not register anything, symtab.len = %zu, want 1\n", symtab.len); failures++; }
 
     if (failures == 0) { puts("ok"); return 0; }
     fprintf(stderr, "%d failure(s)\n", failures);

@@ -3,11 +3,11 @@
 #include "engine/parser.h"
 
 static bool named(const KAst *a, size_t i, const char *s) {
-    return i < a->token_count && k_token_spelled(a->tokens[i].token, s);
+    return i < a->tokens.len && k_token_spelled(keel_buffer_KLexeme_ptr(&a->tokens, i)->token, s);
 }
 
 static bool punct(const KAst *a, size_t i, const char *s) {
-    return i < a->token_count && k_token_is_punct(a->tokens[i].token, s);
+    return i < a->tokens.len && k_token_is_punct(keel_buffer_KLexeme_ptr(&a->tokens, i)->token, s);
 }
 
 size_t k_lexemes(keel_slice_char source, KLexeme *out, size_t cap,
@@ -27,7 +27,7 @@ size_t k_lexemes(keel_slice_char source, KLexeme *out, size_t cap,
 
 static size_t balanced(const KAst *a, size_t i, const char *open, const char *close) {
     size_t depth = 0;
-    for (size_t j = i; j < a->token_count; j++) {
+    for (size_t j = i; j < a->tokens.len; j++) {
         if (punct(a, j, open)) depth++;
         if (punct(a, j, close) && --depth == 0) return j + 1;
     }
@@ -46,7 +46,7 @@ static size_t declaration_end(const KAst *a, size_t i, size_t *body_first,
     size_t paren = 0, bracket = 0;
     bool initializer = false;
     *body_first = *body_end = SIZE_MAX;
-    for (size_t j = i; j < a->token_count; j++) {
+    for (size_t j = i; j < a->tokens.len; j++) {
         if (punct(a, j, "(")) paren++;
         else if (punct(a, j, ")") && paren) paren--;
         else if (punct(a, j, "[")) bracket++;
@@ -67,23 +67,21 @@ static size_t declaration_end(const KAst *a, size_t i, size_t *body_first,
     return SIZE_MAX;
 }
 
-static bool append(KAst *a, size_t cap, KAstNode n) {
-    if (a->node_count >= cap) return false;
-    a->nodes[a->node_count++] = n;
-    return true;
+static bool append(KAst *a, KAstNode n) {
+    return keel_buffer_KAstNode_push_1(&a->nodes, n) != NULL;
 }
 
-/* Re-enters the token stream at a->tokens[i], through a throwaway lexer, so
+/* Re-enters the token stream at (*keel_buffer_KLexeme_ptr(&a->tokens, i)), through a throwaway lexer, so
    the recognizers of engine/parser.h — each written against a live KLexer,
    one k_lexer_next call at a time — can be called from here without
    re-lexing the file from its start. Diagnostics are NOT re-emitted through
    it (NULL sink): the whole file was already lexed once, with the real
    sink, before k_parse_ast ever runs (tool/stop_parse.c) — this second,
    local lex, over the tail of the same source buffer, would just repeat
-   them. Returns a->tokens[i].token itself, read as the recognizers expect
+   them. Returns keel_buffer_KLexeme_ptr(&a->tokens, i)->token itself, read as the recognizers expect
    ("first" already consumed), with `lexer` positioned right after it. */
 static KToken reenter(const KAst *a, size_t i, KLexer *lexer, TKPpKind *pp) {
-    KToken t = a->tokens[i].token;
+    KToken t = keel_buffer_KLexeme_ptr(&a->tokens, i)->token;
     keel_slice_char rest = { (size_t)((a->source.ptr + a->source.len) - t.ptr), t.ptr };
     k_lexer_init(lexer, rest, NULL);
     return k_lexer_next(lexer, pp);
@@ -98,18 +96,17 @@ static KToken reenter(const KAst *a, size_t i, KLexer *lexer, TKPpKind *pp) {
    exactly the empty-range convention this file already used. */
 static size_t index_at(const KAst *a, size_t from, const char *ptr) {
     size_t k = from;
-    while (k < a->token_count && a->tokens[k].token.ptr < ptr) k++;
+    while (k < a->tokens.len && keel_buffer_KLexeme_ptr(&a->tokens, k)->token.ptr < ptr) k++;
     return k;
 }
 
-static bool parse(KAst *a, KAstNode *nodes, size_t cap,
+static bool parse(KAst *a,
                   KSymbolTable *symbols, bool headers_only) {
-    a->nodes = nodes;
-    a->node_count = 0;
+    a->nodes.len = 0;
     a->module = 0;
     a->error_token = 0;
-    size_t i = 0, n = a->token_count;
-    while (i < n && a->tokens[i].directive) i++;
+    size_t i = 0, n = a->tokens.len;
+    while (i < n && keel_buffer_KLexeme_ptr(&a->tokens, i)->directive) i++;
     if (i >= n || !named(a, i, "module")) return false;
 
     KLexer lexer;
@@ -144,7 +141,7 @@ static bool parse(KAst *a, KAstNode *nodes, size_t cap,
     }
     mod.end = index_at(a, mod.name_end, next.ptr);
     if (mod.end <= i) return false;
-    if (!append(a, cap, mod)) return false;
+    if (!append(a, mod)) return false;
     i = mod.end;
 
     /* The declaring module's own symbols (locally-declared types, modifiers,
@@ -157,7 +154,7 @@ static bool parse(KAst *a, KAstNode *nodes, size_t cap,
     KSymbolTable *symtab = symbols ? symbols : &local;
 
     while (i < n) {
-        if (a->tokens[i].directive) { i++; continue; }
+        if (keel_buffer_KLexeme_ptr(&a->tokens, i)->directive) { i++; continue; }
         size_t start = i;
         a->error_token = i;
         KAstNode node = { .first = start, .anchor = start, .alias = SIZE_MAX,
@@ -207,7 +204,7 @@ static bool parse(KAst *a, KAstNode *nodes, size_t cap,
             KModifierDecl mdef;
             if (!k_scan_modifier_decl(&lexer, kw, module_arity, symtab, &mdef, &next, &next_pp))
                 return false;
-            symtab->items[symtab->count-1].dim_arity=(int)header.dim_count;
+            keel_buffer_KSymbol_ptr(symtab, symtab->len-1)->dim_arity=(int)header.dim_count;
             node.kind = K_AST_MODIFIER;
             node.name_first = index_at(a, i, mdef.name.ptr);
             node.name_end = index_at(a, node.name_first, mdef.name.ptr + mdef.name.len);
@@ -240,7 +237,7 @@ static bool parse(KAst *a, KAstNode *nodes, size_t cap,
             node.body_end = index_at(a, node.body_first, sdef.body.ptr + sdef.body.len);
             node.end = index_at(a, node.body_end, next.ptr);
             for(size_t k=0;k<sdef.name_count;k++) {
-                if(!append(a,cap,node))return false;
+                if(!append(a,node))return false;
                 node.kind=K_AST_VARIABLE;
                 node.name_first=index_at(a,i,sdef.names[k].ptr);
                 node.name_end=index_at(a,node.name_first,sdef.names[k].ptr+sdef.names[k].len);
@@ -256,7 +253,7 @@ static bool parse(KAst *a, KAstNode *nodes, size_t cap,
                 node.name_end=index_at(a,node.name_first,decl.names[k].ptr+decl.names[k].len);
                 node.dim_first=index_at(a,node.name_end,decl.dims[k].ptr);
                 node.dim_end=index_at(a,node.dim_first,decl.dims[k].ptr+decl.dims[k].len);
-                if(k+1<decl.name_count&&!append(a,cap,node))return false;
+                if(k+1<decl.name_count&&!append(a,node))return false;
             }
         } else if (named(a, i, "constexpr")) {
             KToken kw = reenter(a, i, &lexer, &pp);
@@ -307,7 +304,7 @@ static bool parse(KAst *a, KAstNode *nodes, size_t cap,
                     extra.name_first = index_at(a, i, tdef.names[k].ptr);
                     extra.name_end = index_at(a, extra.name_first,
                                               tdef.names[k].ptr + tdef.names[k].len);
-                    if (!append(a, cap, extra)) return false;
+                    if (!append(a, extra)) return false;
                 }
                 keel_slice_char last = tdef.names[tdef.name_count - 1];
                 node.name_first = index_at(a, i, last.ptr);
@@ -333,7 +330,7 @@ static bool parse(KAst *a, KAstNode *nodes, size_t cap,
                `array Person people[4]` named nothing at all, and a node
                with no name is skipped by the dump. */
             KToken kw = reenter(a, i, &lexer, &pp);
-            const char *limit = node.end < n ? a->tokens[node.end].token.ptr
+            const char *limit = node.end < n ? keel_buffer_KLexeme_ptr(&a->tokens, node.end)->token.ptr
                                              : a->source.ptr + a->source.len;
             KToken begin = k_find_declarator_start(&lexer, kw, limit);
             /* Prefer the imported/local signature over the C fallback:
@@ -372,25 +369,25 @@ static bool parse(KAst *a, KAstNode *nodes, size_t cap,
                         k_scan_opaque_until(&lexer,value,terms,2,&which,&next,&next_pp);
                     }
                     if(!k_token_is_punct(next,","))break;
-                    if(!append(a,cap,node))return false;
+                    if(!append(a,node))return false;
                     tok=k_lexer_next(&lexer,&next_pp);
                 }
             }
         }
         if (node.end <= start) return false;
-        if (!append(a, cap, node)) return false;
+        if (!append(a, node)) return false;
         i = node.end;
     }
     return true;
 }
 
-bool k_parse_headers(KAst *a, KAstNode *nodes, size_t cap) {
-    return parse(a, nodes, cap, NULL, true);
+bool k_parse_headers(KAst *a) {
+    return parse(a, NULL, true);
 }
-bool k_collect_ast(KAst *a, KAstNode *nodes, size_t cap, KSymbolTable *symbols) {
+bool k_collect_ast(KAst *a, KSymbolTable *symbols) {
     a->symbols = symbols;
-    return parse(a, nodes, cap, symbols, false);
+    return parse(a, symbols, false);
 }
-bool k_parse_ast(KAst *a, KAstNode *nodes, size_t cap) {
-    return parse(a, nodes, cap, NULL, false);
+bool k_parse_ast(KAst *a) {
+    return parse(a, NULL, false);
 }

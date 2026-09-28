@@ -77,9 +77,9 @@ static void ok_case(const char *label, const char *src, const char *want_element
         failures++;
     }
     /* every name registered, and nothing else added beyond the 4 seeded */
-    if (symtab.count != 4 + ad.name_count) {
-        fprintf(stderr, "FAIL: %s — symtab.count = %zu, want %zu\n",
-                label, symtab.count, 4 + ad.name_count);
+    if (symtab.len != 4 + ad.name_count) {
+        fprintf(stderr, "FAIL: %s — symtab.len = %zu, want %zu\n",
+                label, symtab.len, 4 + ad.name_count);
         failures++;
     } else {
         for (size_t i = 0; i < ad.name_count; i++) {

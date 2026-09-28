@@ -78,7 +78,7 @@ static void ok_case(const char *label, const char *src, const char *want_name,
                 label, (int)next.len, next.ptr, want_next);
         failures++;
     }
-    if (symtab.count != 1 || storage[0].kind != K_SYM_TYPE ||
+    if (symtab.len != 1 || storage[0].kind != K_SYM_TYPE ||
         !k_symtab_same_name(storage[0].name, ed.name)) {
         fprintf(stderr, "FAIL: %s — the name is not in the symtab as K_SYM_TYPE\n", label);
         failures++;

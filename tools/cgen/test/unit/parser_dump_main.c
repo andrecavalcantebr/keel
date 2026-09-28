@@ -43,18 +43,18 @@ int main(void) {
     KAstNode *nodes = calloc(count + 1, sizeof *nodes);
     if (!tokens || !nodes) return 1;
     k_lexemes(source, tokens, count, NULL);
-    KAst ast = { .source = source, .tokens = tokens, .token_count = count };
-    if (!k_parse_ast(&ast, nodes, count + 1)) return 1;
-    if (ast.node_count != 9 || nodes[0].kind != K_AST_MODULE ||
+    KAst ast = { .source = source, .tokens = keel_buffer_KLexeme_of(tokens,count), .nodes = keel_buffer_KAstNode_from(nodes,count+1) };
+    if (!k_parse_ast(&ast)) return 1;
+    if (ast.nodes.len != 9 || nodes[0].kind != K_AST_MODULE ||
         nodes[0].type_end != nodes[0].type_first + 1 ||
-        !k_token_is_ident_named(ast.tokens[nodes[0].type_first].token, "T") ||
+        !k_token_is_ident_named(keel_buffer_KLexeme_ptr(&ast.tokens, nodes[0].type_first)->token, "T") ||
         nodes[1].kind != K_AST_IMPORT || nodes[5].kind != K_AST_TYPE ||
         nodes[5].body_first == (size_t)-1 ||
         nodes[5].first >= nodes[5].end ||
-        nodes[5].end > ast.token_count ||
+        nodes[5].end > ast.tokens.len ||
         nodes[8].kind != K_AST_FUNCTION ||
         nodes[8].body_first >= nodes[8].body_end ||
-        !k_token_is_c_word_named(ast.tokens[nodes[8].body_first].token, "return")) {
+        !k_token_is_c_word_named(keel_buffer_KLexeme_ptr(&ast.tokens, nodes[8].body_first)->token, "return")) {
         fprintf(stderr, "FAIL: AST kinds or token spans\n");
         return 1;
     }

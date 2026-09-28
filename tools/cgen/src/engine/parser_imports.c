@@ -12,8 +12,8 @@
    allocation is needed for it. */
 static keel_slice_char spelled(const KAst *a, size_t first, size_t end) {
     if (first >= end) return (keel_slice_char){ 0, NULL };
-    KToken lead = a->tokens[first].token;
-    KToken last = a->tokens[end - 1].token;
+    KToken lead = keel_buffer_KLexeme_ptr(&a->tokens, first)->token;
+    KToken last = keel_buffer_KLexeme_ptr(&a->tokens, end - 1)->token;
     return (keel_slice_char){ (size_t)((last.ptr + last.len) - lead.ptr), lead.ptr };
 }
 
@@ -27,7 +27,7 @@ static bool inject_types(KSymbolTable *symtab, const KModule *module) {
         const KSymbol *sym = &module->symbols[i];
         if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER) continue;
         if (!k_symtab_insert(symtab, sym->name, sym->kind, sym->arity)) return false;
-        symtab->items[symtab->count - 1] = *sym;
+        (*keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)) = *sym;
     }
     return true;
 }
@@ -56,10 +56,10 @@ static bool resolve_one(KLoader *loader, KSymbolTable *symtab, KDiagnosticSink *
     if (has_types && !inject_types(symtab, module)) return false;
     /* Keep the real qualifier as well as any alias; neither changes origin. */
     if (!k_symtab_insert(symtab, module_name, K_SYM_MODULE, 0)) return false;
-    symtab->items[symtab->count - 1].origin = module;
+    keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)->origin = module;
     if (alias.len != 0) {
         if (!k_symtab_insert(symtab, alias, K_SYM_MODULE, 0)) return false;
-        symtab->items[symtab->count - 1].origin = module;
+        keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)->origin = module;
     }
     return true;
 }
@@ -71,7 +71,7 @@ bool k_resolve_imports(const KAst *ast, KLoader *loader, KSymbolTable *symtab,
     /* keel-spec §4.1: every file has the implicit `import keel types;`,
        which is where `i32` and the other primitive names come from. The
        prelude itself is the one file that does not get it. */
-    const KAstNode *mod = &ast->nodes[ast->module];
+    const KAstNode *mod = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
     keel_slice_char self = spelled(ast, mod->name_first, mod->name_end);
     static const char keel_name[] = "keel";
     keel_slice_char prelude = { 4, (char *)keel_name };
@@ -81,15 +81,15 @@ bool k_resolve_imports(const KAst *ast, KLoader *loader, KSymbolTable *symtab,
             ok = false;
     }
 
-    for (size_t i = 0; i < ast->node_count; i++) {
-        const KAstNode *n = &ast->nodes[i];
+    for (size_t i = 0; i < ast->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
         if (n->kind != K_AST_IMPORT) continue;
         keel_slice_char name = spelled(ast, n->name_first, n->name_end);
         keel_slice_char alias = n->alias != (size_t)-1
-            ? ast->tokens[n->alias].token
+            ? keel_buffer_KLexeme_ptr(&ast->tokens, n->alias)->token
             : (keel_slice_char){ 0, NULL };
         if (!resolve_one(loader, symtab, diag, name, n->has_types, alias,
-                         ast->tokens[n->anchor].token))
+                         keel_buffer_KLexeme_ptr(&ast->tokens, n->anchor)->token))
             ok = false;
     }
     return ok;

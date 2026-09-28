@@ -82,7 +82,7 @@ static void ok_case(const char *label, const char *src, const char *want_name,
                 label, (int)next.len, next.ptr, want_next);
         failures++;
     }
-    if (symtab.count != 1 || storage[0].kind != K_SYM_TAGS ||
+    if (symtab.len != 1 || storage[0].kind != K_SYM_TAGS ||
         !k_symtab_same_name(storage[0].name, td.name)) {
         fprintf(stderr, "FAIL: %s — the set name is not in the symtab as K_SYM_TAGS\n", label);
         failures++;

@@ -39,12 +39,12 @@ static CgenModuleEntry *find(CgenTool *t, keel_slice_char name) {
 }
 static keel_slice_char span(const KAst *a, size_t first, size_t end) {
     if (first >= end) return (keel_slice_char){0};
-    KToken x = a->tokens[first].token, y = a->tokens[end-1].token;
+    KToken x = keel_buffer_KLexeme_ptr(&a->tokens, first)->token, y = keel_buffer_KLexeme_ptr(&a->tokens, end-1)->token;
     return (keel_slice_char){(size_t)(y.ptr+y.len-x.ptr), x.ptr};
 }
 static int identifiers(const KAst *a, size_t first, size_t end) {
     int n = 0;
-    for (size_t i=first; i<end; i++) if (k_token_is_ident(a->tokens[i].token)) n++;
+    for (size_t i=first; i<end; i++) if (k_token_is_ident(keel_buffer_KLexeme_ptr(&a->tokens, i)->token)) n++;
     return n;
 }
 static KLoadResult failure(CgenTool *t, CgenModuleEntry *e, KDiagId id,
@@ -52,21 +52,21 @@ static KLoadResult failure(CgenTool *t, CgenModuleEntry *e, KDiagId id,
     e->state = CGEN_FAILED;
     if (k_diag_count(t->diag, K_ERROR) == before) {
         keel_slice_char at = e->ast.source.ptr ? e->ast.source : e->module.name;
-        if (e->ast.error_token < e->ast.token_count)
-            at = e->ast.tokens[e->ast.error_token].token;
+        if (e->ast.error_token < e->ast.tokens.len)
+            at = keel_buffer_KLexeme_ptr(&e->ast.tokens, e->ast.error_token)->token;
         k_diag_emit(t->diag,id,at,(KDiagArgs){{e->module.name}});
     }
     return K_LOAD_ERROR;
 }
 static bool exports(CgenTool *t, CgenModuleEntry *e) {
     KAst *a=&e->ast;
-    KAstNode *mod=&a->nodes[a->module];
+    KAstNode *mod=keel_buffer_KAstNode_ptr(&a->nodes, a->module);
     int dims=identifiers(a,mod->dim_first,mod->dim_end);
     int arity=dims+identifiers(a,mod->tags_first,mod->tags_end)+identifiers(a,mod->type_first,mod->type_end);
-    e->exports=CGEN_NEW(t->arena,KSymbol,a->node_count+1);
+    e->exports=CGEN_NEW(t->arena,KSymbol,a->nodes.len+1);
     if (!e->exports) return false;
-    for (size_t i=0;i<a->node_count;i++) {
-        KAstNode *n=&a->nodes[i];
+    for (size_t i=0;i<a->nodes.len;i++) {
+        KAstNode *n=keel_buffer_KAstNode_ptr(&a->nodes, i);
         if (n->name_first==n->name_end) continue;
         KSymKind kind;
         switch(n->kind) {
@@ -83,20 +83,20 @@ static bool exports(CgenTool *t, CgenModuleEntry *e) {
                      .dim_arity=kind==K_SYM_MODIFIER?dims:0};
         if (kind==K_SYM_CONSTANT) {
             for(size_t j=n->name_end;j+1<n->end;j++)
-                if(k_token_is_punct(a->tokens[j].token,"=")) {
+                if(k_token_is_punct(keel_buffer_KLexeme_ptr(&a->tokens, j)->token,"=")) {
                     sym.value=span(a,j+1,n->end-1); break;
                 }
         }
         /* Complete the retained local entry (or insert functions/objects
            found by the general declarator path). Imported identities stay. */
         bool found=false;
-        for(size_t j=0;j<e->symbols.count;j++) {
-            KSymbol *s=&e->symbols.items[j];
+        for(size_t j=0;j<e->symbols.len;j++) {
+            KSymbol *s=keel_buffer_KSymbol_ptr(&e->symbols, j);
             if(!s->origin && k_symtab_same_name(s->name,sym.name)) {*s=sym;found=true;break;}
         }
         if(!found) {
-            if(e->symbols.count==e->symbols.cap)return false;
-            e->symbols.items[e->symbols.count++]=sym;
+            if(e->symbols.len==e->symbols.cap)return false;
+            (*keel_buffer_KSymbol_ptr(&e->symbols, e->symbols.len++))=sym;
         }
         if(n->is_public)e->exports[e->module.symbol_count++]=sym;
     }
@@ -124,14 +124,14 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     size_t count=k_lexemes(e->ast.source,NULL,0,NULL);
     if(count>SIZE_MAX/sizeof(KLexeme)-1 || count>SIZE_MAX/sizeof(KAstNode)-1)
         return failure(t,e,K_DIAG_CAPACITY,before);
-    e->ast.tokens=CGEN_NEW(t->arena,KLexeme,count+1);
-    e->ast.nodes=CGEN_NEW(t->arena,KAstNode,count+1);
-    if(!e->ast.tokens||!e->ast.nodes)return failure(t,e,K_DIAG_CAPACITY,before);
-    e->ast.token_count=count;
-    k_lexemes(e->ast.source,e->ast.tokens,count,t->diag);
+    e->ast.tokens=keel_buffer_KLexeme_from(CGEN_NEW(t->arena,KLexeme,count+1),count+1);
+    e->ast.nodes=keel_buffer_KAstNode_from(CGEN_NEW(t->arena,KAstNode,count+1),count+1);
+    if(!e->ast.tokens.ptr||!e->ast.nodes.ptr)return failure(t,e,K_DIAG_CAPACITY,before);
+    e->ast.tokens.len=count;
+    k_lexemes(e->ast.source,e->ast.tokens.ptr,count,t->diag);
     if(k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
-    if(!k_parse_headers(&e->ast,e->ast.nodes,count+1))return failure(t,e,K_DIAG_PARSE_FAILED,before);
-    KAstNode *mod=&e->ast.nodes[e->ast.module];
+    if(!k_parse_headers(&e->ast))return failure(t,e,K_DIAG_PARSE_FAILED,before);
+    KAstNode *mod=keel_buffer_KAstNode_ptr(&e->ast.nodes, e->ast.module);
     keel_slice_char declared=span(&e->ast,mod->name_first,mod->name_end);
     char declared_name[4096];
     size_t declared_size=k_name_normalize(declared,(keel_slice_char){sizeof declared_name,declared_name});
@@ -148,8 +148,8 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     /* Source roots are finite; reserve symbols after loading interfaces.
        The header resolver is run once, using a growable tool-side bound:
        each imported interface is loaded here, then the engine registers it. */
-    for(size_t i=0;i<e->ast.node_count;i++) {
-        KAstNode *n=&e->ast.nodes[i];
+    for(size_t i=0;i<e->ast.nodes.len;i++) {
+        KAstNode *n=keel_buffer_KAstNode_ptr(&e->ast.nodes, i);
         if(n->kind!=K_AST_IMPORT)continue;
         KModule *m=NULL;
         KLoadResult x=cgen_load(t,span(&e->ast,n->name_first,n->name_end),&m);
@@ -168,12 +168,12 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     if(!ok||k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
     /* Bind generic parameters before collecting declarations. */
     for(size_t i=mod->type_first;i<mod->type_end;i++)
-        if(k_token_is_ident(e->ast.tokens[i].token))
-            if(!k_symtab_insert(&e->symbols,e->ast.tokens[i].token,K_SYM_TYPE,0))return failure(t,e,K_DIAG_CAPACITY,before);
-    if(!k_collect_ast(&e->ast,e->ast.nodes,count+1,&e->symbols))return failure(t,e,K_DIAG_PARSE_FAILED,before);
+        if(k_token_is_ident(keel_buffer_KLexeme_ptr(&e->ast.tokens, i)->token))
+            if(!k_symtab_insert(&e->symbols,keel_buffer_KLexeme_ptr(&e->ast.tokens, i)->token,K_SYM_TYPE,0))return failure(t,e,K_DIAG_CAPACITY,before);
+    if(!k_collect_ast(&e->ast,&e->symbols))return failure(t,e,K_DIAG_PARSE_FAILED,before);
     if(!exports(t,e))return failure(t,e,K_DIAG_CAPACITY,before);
-    e->ast.instances=CGEN_NEW(t->arena,KInstanceUse,count+1);
-    if(!e->ast.instances||!k_collect_instances(&e->ast,e->ast.instances,count+1,t->diag))
+    e->ast.instances=keel_buffer_KInstanceUse_from(CGEN_NEW(t->arena,KInstanceUse,count+1),count+1);
+    if(!e->ast.instances.ptr||!k_collect_instances(&e->ast,t->diag))
         return failure(t,e,K_DIAG_CAPACITY,before);
     e->module.ast=&e->ast;e->state=CGEN_DONE;*out=&e->module;
     return K_LOAD_OK;

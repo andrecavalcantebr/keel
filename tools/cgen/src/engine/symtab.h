@@ -12,58 +12,23 @@
 #define CGEN_ENGINE_SYMTAB_H
 
 #include <string.h>
-#include "engine/lexer.h"
-
-typedef enum {
-    K_SYM_TYPE,        /* typedef, struct/union/enum nomeado, tipo de módulo */
-    K_SYM_MODIFIER,    /* aridade e espécie de cada parâmetro                */
-    K_SYM_FUNCTION,    /* retorno declarado e aridades                       */
-    K_SYM_VARIABLE,
-    K_SYM_CONSTANT,    /* constexpr, constante de enum                       */
-    K_SYM_TAGS,        /* conjunto fechado e seus valores                    */
-    K_SYM_MODULE,      /* alias ativo de import                              */
-    K_SYM_EXTERN_C     /* nome de extern_c: só a distinção variável/função   */
-} KSymKind;
-
-struct KModule;
-
-typedef struct {
-    keel_slice_char name;   /* the keel name, as spelled */
-    KSymKind kind;
-    int arity;   /* K_SYM_MODIFIER: the declaring module's own dim+tags+type
-                    binder count (parser-design §4.3: "a assinatura do
-                    módulo fixa a quantidade... de todos os seus
-                    modificadores" — every modifier of a module shares its
-                    arity). K_SYM_FUNCTION: parameter count. Unused (0) for
-                    the other kinds so far — this grows with later etapas,
-                    same way KModuleHeader grew its binders. */
-    const struct KModule *origin; /* declaration identity, also alias target */
-    int dim_arity;
-    keel_slice_char value; /* explicit constexpr initializer, if present */
-} KSymbol;
+#include "keel/keel_buffer_KSymbol.h"
 
 /* [P2] Ordered by insertion, not by hash — the emission order is the
  * declaration order (codegen §6), and iteration here is that order. */
-typedef struct {
-    KSymbol *items;   /* caller's storage */
-    size_t cap;
-    size_t count;
-} KSymbolTable;
+typedef keel_buffer_KSymbol KSymbolTable;
 
 static inline void k_symtab_init(KSymbolTable *t, KSymbol *storage, size_t cap) {
-    t->items = storage;
-    t->cap = storage != NULL ? cap : 0;
-    t->count = 0;
+    *t = keel_buffer_KSymbol_from(storage, cap);
 }
 
 /* Appends unconditionally — this layer does not check whether `name` is
  * already present; that is symbol-collision/redeclaration diagnosis, a
  * later concern (parser-design §7), not this data structure's job.
- * Returns false, without writing past items[cap-1], if the table is full. */
+ * Returns false, without writing past the buffer capacity, if the table is full. */
 static inline bool k_symtab_insert(KSymbolTable *t, keel_slice_char name, KSymKind kind, int arity) {
-    if (t->count >= t->cap) return false;
-    t->items[t->count++] = (KSymbol){ .name = name, .kind = kind, .arity = arity };
-    return true;
+    return keel_buffer_KSymbol_push_1(t,
+        (KSymbol){ .name=name, .kind=kind, .arity=arity }) != NULL;
 }
 
 static inline bool k_symtab_same_name(keel_slice_char a, keel_slice_char b) {
@@ -75,8 +40,8 @@ static inline bool k_symtab_same_name(keel_slice_char a, keel_slice_char b) {
  * a keel module's own symbol count never approaches where it would
  * matter). Returns the first match in insertion order, or NULL. */
 static inline const KSymbol *k_symtab_lookup(const KSymbolTable *t, keel_slice_char name) {
-    for (size_t i = 0; i < t->count; i++) {
-        if (k_symtab_same_name(t->items[i].name, name)) return &t->items[i];
+    for (size_t i = 0; i < t->len; i++) {
+        if (k_symtab_same_name(keel_buffer_KSymbol_ptr(t, i)->name, name)) return keel_buffer_KSymbol_ptr(t, i);
     }
     return NULL;
 }

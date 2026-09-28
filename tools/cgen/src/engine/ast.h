@@ -5,54 +5,28 @@
 
 #include "engine/lexer.h"
 #include "engine/loader.h"
-
-typedef struct {
-    KToken token;
-    TKPpKind pp_kind;
-    bool directive;
-} KLexeme;
-
-typedef enum {
-    K_AST_MODULE, K_AST_IMPORT, K_AST_IMPORT_C, K_AST_EXTERN_C,
-    K_AST_MODIFIER, K_AST_TAGS, K_AST_TYPE, K_AST_CONSTEXPR,
-    K_AST_FUNCTION, K_AST_VARIABLE, K_AST_OPAQUE
-} KAstKind;
-
-typedef struct {
-    KAstKind kind;
-    size_t first, end;          /* token span [first, end) */
-    size_t anchor;              /* token used for diagnostics and the dump */
-    size_t name_first, name_end;/* name/path span [first, end); empty if absent */
-    size_t body_first, body_end;/* function/aggregate body, if any */
-    size_t dim_first, dim_end;  /* module binders; empty ranges if absent */
-    size_t tags_first, tags_end;
-    size_t type_first, type_end;
-    size_t alias;               /* import alias token; SIZE_MAX if absent */
-    bool has_types;             /* import ... types */
-    bool is_public;             /* default visibility is public */
-    bool is_inline;
-} KAstNode;
+#include "keel/keel_buffer_KLexeme.h"
+#include "keel/keel_buffer_KAstNode.h"
+#include "keel/keel_buffer_KInstanceUse.h"
 
 typedef struct KAst {
     keel_slice_char source;
-    KLexeme *tokens;
-    size_t token_count;
-    KAstNode *nodes;
-    size_t node_count;
+    keel_buffer_KLexeme tokens;
+    keel_buffer_KAstNode nodes;
     size_t module;              /* index of K_AST_MODULE */
     KSymbolTable *symbols; /* caller-owned, retained collection environment */
     size_t error_token;
-    struct KInstanceUse *instances;
-    size_t instance_count;
+    keel_buffer_KInstanceUse instances;
 } KAst;
 
 /* Both passes return the required count. A NULL/zero output only counts. */
 size_t k_lexemes(keel_slice_char source, KLexeme *out, size_t cap,
                  KDiagnosticSink *diagnostics);
-/* Returns false on malformed/truncated input or insufficient node storage. */
-bool k_parse_ast(KAst *ast, KAstNode *nodes, size_t cap);
-bool k_parse_headers(KAst *ast, KAstNode *nodes, size_t cap);
-bool k_collect_ast(KAst *ast, KAstNode *nodes, size_t cap, KSymbolTable *symbols);
+/* Caller supplies nodes via ast->nodes; each parse resets its length.
+ * Returns false on malformed/truncated input or insufficient capacity. */
+bool k_parse_ast(KAst *ast);
+bool k_parse_headers(KAst *ast);
+bool k_collect_ast(KAst *ast, KSymbolTable *symbols);
 /* Passage 1 (parser-design §3): resolves the file's imports — the
    implicit `import keel types;` first — into `symtab`, by calling back
    through `loader`. Emits `circular-import` at the offending `import`;

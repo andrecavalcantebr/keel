@@ -35,8 +35,8 @@ const KSymbol *k_symbol_resolve(const KSymbolTable *table,keel_slice_char name) 
     name=(keel_slice_char){n,compact};
     const KSymbol *plain=k_symtab_lookup(table,name);
     if(plain&&plain->kind!=K_SYM_MODULE)return plain;
-    for(size_t i=0;i<table->count;i++) {
-        const KSymbol *q=&table->items[i];
+    for(size_t i=0;i<table->len;i++) {
+        const KSymbol *q=keel_buffer_KSymbol_ptr(table, i);
         if(q->kind!=K_SYM_MODULE||!q->origin)continue;
         char prefix[4096];
         size_t plen=k_name_normalize(q->name,(keel_slice_char){sizeof prefix,prefix});

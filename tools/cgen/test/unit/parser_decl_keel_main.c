@@ -66,7 +66,7 @@ int main(void) {
     if (kd1.name_count != 1) { fprintf(stderr, "FAIL: case1 — name_count = %zu, want 1\n", kd1.name_count); failures++; }
     else if (!EQ(kd1.names[0].name, "xs")) { fprintf(stderr, "FAIL: case1 — names[0] = \"%.*s\"\n", (int)kd1.names[0].name.len, kd1.names[0].name.ptr); failures++; }
     if (!EQ(next, "ok")) { fprintf(stderr, "FAIL: case1 — next_out = \"%.*s\", want \"ok\"\n", (int)next.len, next.ptr); failures++; }
-    if (symtab.count != 4) { fprintf(stderr, "FAIL: case1 — symtab.count = %zu, want 4\n", symtab.count); failures++; }
+    if (symtab.len != 4) { fprintf(stderr, "FAIL: case1 — symtab.len = %zu, want 4\n", symtab.len); failures++; }
 
     /* case 2: named-type specifier, two names, one with an initializer
        containing a nested comma that must not be mistaken for the
@@ -82,14 +82,14 @@ int main(void) {
         if (!EQ(kd2.names[1].name, "b")) { fprintf(stderr, "FAIL: case2 — names[1] = \"%.*s\"\n", (int)kd2.names[1].name.len, kd2.names[1].name.ptr); failures++; }
     }
     if (!EQ(next, "ok2")) { fprintf(stderr, "FAIL: case2 — next_out = \"%.*s\", want \"ok2\"\n", (int)next.len, next.ptr); failures++; }
-    if (symtab.count != 6) { fprintf(stderr, "FAIL: case2 — symtab.count = %zu, want 6\n", symtab.count); failures++; }
+    if (symtab.len != 6) { fprintf(stderr, "FAIL: case2 — symtab.len = %zu, want 6\n", symtab.len); failures++; }
 
     /* case 3: not a keel specifier at all */
     KToken first3 = first_token("unregistered rest\n", &lexer);
     KKeelDecl kd3;
     bool ok3 = k_scan_decl_keel(&lexer, first3, &symtab, &kd3, &next, &pp);
     if (ok3) { fprintf(stderr, "FAIL: case3 — returned true, want false\n"); failures++; }
-    if (symtab.count != 6) { fprintf(stderr, "FAIL: case3 — must not register anything, symtab.count = %zu, want 6\n", symtab.count); failures++; }
+    if (symtab.len != 6) { fprintf(stderr, "FAIL: case3 — must not register anything, symtab.len = %zu, want 6\n", symtab.len); failures++; }
 
     /* case 4: a declarator with an array suffix. Reading only the
        declarator's head left next_out on the '4' INSIDE the brackets and

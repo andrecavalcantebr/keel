@@ -37,7 +37,7 @@ int main(void) {
     if (!EQ(md.body, "size_t cap, len; T *ptr;")) { fprintf(stderr, "FAIL: body = \"%.*s\"\n", (int)md.body.len, md.body.ptr); failures++; }
     if (!EQ(next, "ok")) { fprintf(stderr, "FAIL: next_out = \"%.*s\", want \"ok\"\n", (int)next.len, next.ptr); failures++; }
 
-    if (symtab.count != 1) { fprintf(stderr, "FAIL: symtab.count = %zu, want 1\n", symtab.count); failures++; }
+    if (symtab.len != 1) { fprintf(stderr, "FAIL: symtab.len = %zu, want 1\n", symtab.len); failures++; }
     else {
         const KSymbol *sym = k_symtab_lookup(&symtab, (keel_slice_char){ 6, (char *)"buffer" });
         if (!sym) { fprintf(stderr, "FAIL: 'buffer' not found in symtab\n"); failures++; }

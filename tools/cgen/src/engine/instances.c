@@ -64,23 +64,23 @@ static bool type_name(keel_slice_char source,const KSymbolTable *symbols,Name *n
     }
     return name->ok;
 }
-bool k_collect_instances(KAst *a,KInstanceUse *out,size_t cap,KDiagnosticSink *diag) {
-    a->instances=out;a->instance_count=0;
+bool k_collect_instances(KAst *a,KDiagnosticSink *diag) {
+    a->instances.len=0;
     if(!a->symbols)return true;
-    const KAstNode *module=&a->nodes[a->module];
+    const KAstNode *module=keel_buffer_KAstNode_ptr(&a->nodes, a->module);
     /* Generic definitions are templates; their concrete closure is not the
        direct-use pass, and cannot be named before substitution. */
     if(module->dim_first!=module->dim_end||module->tags_first!=module->tags_end||module->type_first!=module->type_end)return true;
-    for(size_t i=0;i<a->token_count;i++) {
-        if(a->tokens[i].directive||!k_token_is_ident(a->tokens[i].token))continue;
+    for(size_t i=0;i<a->tokens.len;i++) {
+        if(keel_buffer_KLexeme_ptr(&a->tokens, i)->directive||!k_token_is_ident(keel_buffer_KLexeme_ptr(&a->tokens, i)->token))continue;
         bool opaque=false;
-        for(size_t j=0;j<a->node_count;j++){
-            KAstNode *n=&a->nodes[j];
+        for(size_t j=0;j<a->nodes.len;j++){
+            KAstNode *n=keel_buffer_KAstNode_ptr(&a->nodes, j);
             if((n->kind==K_AST_EXTERN_C||n->kind==K_AST_IMPORT||n->kind==K_AST_MODULE)&&i>=n->first&&i<n->end){opaque=true;break;}
         }
         if(opaque)continue;
-        if(i&&k_token_is_punct(a->tokens[i-1].token,"."))continue;
-        KToken first=a->tokens[i].token;
+        if(i&&k_token_is_punct(keel_buffer_KLexeme_ptr(&a->tokens, i-1)->token,"."))continue;
+        KToken first=keel_buffer_KLexeme_ptr(&a->tokens, i)->token;
         keel_slice_char rest={(size_t)(a->source.ptr+a->source.len-first.ptr),first.ptr};
         KLexer lexer;k_lexer_init(&lexer,rest,NULL);TKPpKind pp;first=k_lexer_next(&lexer,&pp);
         KSpecifier spec;KToken next={0};
@@ -93,13 +93,13 @@ bool k_collect_instances(KAst *a,KInstanceUse *out,size_t cap,KDiagnosticSink *d
         }
         use.symbol_len=name.len;
         use.end=i+1;
-        while(use.end<a->token_count&&a->tokens[use.end].token.ptr<spec.text.ptr+spec.text.len)use.end++;
+        while(use.end<a->tokens.len&&keel_buffer_KLexeme_ptr(&a->tokens, use.end)->token.ptr<spec.text.ptr+spec.text.len)use.end++;
         bool exists=false;
-        for(size_t j=0;j<a->instance_count;j++)
-            if(out[j].symbol_len==use.symbol_len&&!memcmp(out[j].symbol,use.symbol,use.symbol_len)){exists=true;break;}
+        for(size_t j=0;j<a->instances.len;j++)
+            if(keel_buffer_KInstanceUse_ptr(&a->instances, j)->symbol_len==use.symbol_len&&!memcmp(keel_buffer_KInstanceUse_ptr(&a->instances, j)->symbol,use.symbol,use.symbol_len)){exists=true;break;}
         if(exists)continue;
-        if(a->instance_count==cap){k_diag_emit(diag,K_DIAG_CAPACITY,first,(KDiagArgs){{first}});return false;}
-        out[a->instance_count++]=use;
+        if(a->instances.len==a->instances.cap){k_diag_emit(diag,K_DIAG_CAPACITY,first,(KDiagArgs){{first}});return false;}
+        (*keel_buffer_KInstanceUse_ptr(&a->instances, a->instances.len++))=use;
     }
     return true;
 }

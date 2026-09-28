@@ -52,9 +52,9 @@ static void ok_case(const char *label, const char *src, const char *want,
     }
 
     /* every name registered as a type, in the same order */
-    if (symtab.count != d.name_count) {
+    if (symtab.len != d.name_count) {
         fprintf(stderr, "FAIL: %s — symtab has %zu symbols, want %zu\n",
-                label, symtab.count, d.name_count);
+                label, symtab.len, d.name_count);
         failures++;
     } else {
         for (size_t i = 0; i < d.name_count; i++) {

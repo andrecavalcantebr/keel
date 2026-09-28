@@ -774,9 +774,9 @@ Definir modificadores de tipos e expandir suas declarações para os argumentos 
 8. Uma instância de modificador que menciona `T`, como `outcome buffer T`, tem tipo conhecido e participa normalmente dos protocolos.
 9. O significado de `N` pertence ao modificador. Não há associação automática entre `dim`, rank e quantidade de índices de um verbo.
 10. A substituição não gera listas de parâmetros, campos ou funções; a aridade escrita de cada verbo é fixa. `T valores[static N]` é um parâmetro, cuja extensão exigida muda com a instância.
-11. Com argumento `void`, os campos escritos como `T campo` ou `T *campo` são omitidos, e com eles todo verbo que menciona o parâmetro em posição de valor.
-12. Com argumento qualificado `const`, são omitidos os verbos que escreveriam através do parâmetro.
-13. A omissão é transitiva: um verbo cuja emissão chamaria outro ausente na instância também é omitido. Ela decorre só do argumento escrito, e é a mesma em toda instância com o mesmo argumento.
+11. Com argumento `void`, um campo de valor `T campo` é omitido: não existe objeto C de tipo `void`. Um campo `T *campo` permanece como `void *campo`. Ficam indisponíveis na instância os verbos que leem ou escrevem explicitamente o valor omitido, ou cuja assinatura exige um objeto de tipo `void` por valor. A presença de um ponteiro `void *` não torna válidos acesso a elemento, aritmética sobre esse ponteiro ou `sizeof(void)` no C estrito.
+12. Com argumento qualificado `const`, ficam indisponíveis os verbos que têm escrita explícita reconhecida no valor tornado constante: atribuição simples, atribuição composta, incremento ou decremento. O reconhecimento segue o campo declarado e seus acessos explícitos por valor, índice ou desreferenciamento; ser uma expressão lvalue, por si só, não é escrita. Para um campo `const T *ptr`, atribuir a `ptr` é permitido, mas atribuir a `*ptr` ou `ptr[i]` não é. Inicializar um membro constante é permitido; atribuir posteriormente a esse membro, ou a um agregado conhecido que o contém por valor, não é.
+13. A indisponibilidade é calculada por instância e propagada pelas chamadas keel conhecidas: se um verbo chama outro indisponível, também fica indisponível. A propagação termina quando nenhuma nova função é marcada. O parser guarda a causa direta e a cadeia de chamadas, suprime a emissão dos corpos indisponíveis e emite `verb-not-in-instance` na posição de uma chamada reconhecida que permaneceria no programa emitido. Importar o módulo ou instanciar o tipo, sem esse uso, não produz erro apenas pela existência de verbos indisponíveis. O resultado depende do genérico e dos argumentos escritos, não das chamadas presentes em cada importador.
 14. Um verbo que devolve ou recebe `T` por valor é emitido sobre o tipo sem o qualificador de topo.
 15. Um `typedef` que menciona um parâmetro pertence à instância e é emitido por instância. Ele não tem forma escrita com argumento: só modificador aceita argumento em posição de tipo.
 16. O uso de um modificador instancia suas declarações e, recursivamente, os modificadores usados por elas. A identidade inclui todos os argumentos canônicos. Um uso finito aninhado, como `stack stack i32`, é permitido.
@@ -786,6 +786,12 @@ Definir modificadores de tipos e expandir suas declarações para os argumentos 
 20. Uma declaração de módulo genérico que não menciona parâmetro nem modificador pertence ao módulo e é emitida uma vez. Ela é tipo, `constexpr` ou função `inline`.
 
 Referências: [Rationale: modificador e tipo modificado](keel-rationale.md#modificador-e-tipo-modificado); [Rationale: substituição e aridade fixa](keel-rationale.md#substituição-e-aridade-fixa); [Backend: headers de instância](keel-c-backend.md#43-headers-de-instância), [camadas de emissão](keel-c-backend.md#431-camadas-de-emissão), [os três artefatos](keel-c-backend.md#432-os-três-artefatos) e [definição fora de linha](keel-c-backend.md#44-definição-fora-de-linha-de-instância).
+
+**Fronteira do reconhecimento da indisponibilidade.** A análise usa campos e chamadas conhecidos; não acompanha cópias de ponteiros nem deduz efeitos de funções C opacas. Passar um campo a `memcpy`, por exemplo, não prova por si só uma escrita para keel. As regras C continuam valendo para o código que atravessa. A propagação não avalia condições C nem elimina chamadas por considerá-las inalcançáveis.
+
+Para um campo `const char *ptr`, `b->ptr = outro`, `b->ptr++` e a atribuição de um descritor composto que contém esse ponteiro permanecem permitidos; `b->ptr[i] = c` e `(*b->ptr)++` tornam o verbo indisponível. Para `outcome void`, o campo `value` desaparece e seus leitores e escritores ficam indisponíveis; para `buffer void`, o campo `ptr` continua existindo como `void *`.
+
+**Diagnóstico no uso.** A indisponibilidade é estado do parser, não um `static_assert(false)` colocado no corpo gerado. Uma asserção estática falsa no corpo de uma função C é diagnosticada ao traduzir sua definição, mesmo sem chamada. O mecanismo de emissão e a localização do diagnóstico estão no backend §5.2.1.
 
 #### 3. Exemplo
 
@@ -2296,7 +2302,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `modifier-named-instance` | Modificador declarado com o nome `instance` | `error` | keel | §4.3 |
 | `address-in-object-position` | Operador de endereço sobre o objeto no primeiro argumento de um verbo | `error` | keel | §4.4 |
 | `wrong-qualifier` | Qualificador incompatível com o receptor ou produto do verbo | `error` | keel | §4.4 |
-| `verb-not-in-instance` | Verbo que o genérico declara e a instância escrita não admite — a mensagem nomeia o argumento que o removeu | `error` | keel | §4.4 |
+| `verb-not-in-instance` | Chamada reconhecida a verbo indisponível na instância; aponta a chamada e informa o argumento, a operação proibida e, quando houver, a cadeia de chamadas que propagou a indisponibilidade | `error` | keel | §4.4 |
 | `from-without-target` | Verbo que depende do tipo do alvo fora de inicialização, atribuição a símbolo conhecido ou retorno | `error` | keel | §4.4 |
 | `captured-write` | Atribuição a escalar capturado, no corpo de um `parallel` | `error` | keel | §4.8 |
 | `else-without-initializer` | Cláusula `else` em declaração sem inicializador | `error` | keel | §4.10 |
@@ -2380,6 +2386,8 @@ São obrigações do programa, onde não houver checagem explicitamente prevista
 Violações podem resultar nos comportamentos do C emitido, inclusive
 comportamento indefinido. A lista de diagnósticos keel não é uma lista de todos
 os erros possíveis de um programa C.
+
+Limites de armazenamento da implementação não são limites semânticos da linguagem. A implementação documenta as capacidades configuráveis e emite um diagnóstico específico de limite atingido, com a capacidade configurada, a quantidade solicitada quando conhecida e a configuração a ajustar. Não deve apresentar esgotamento de capacidade como erro de sintaxe nem truncar silenciosamente a entrada. A organização dessas capacidades pertence ao desenho do parser.
 
 ### 6.5 Variações e extensões
 

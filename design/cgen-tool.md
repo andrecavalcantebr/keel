@@ -373,8 +373,7 @@ de que o cgen precisa, só em headers. Uma instância nova (por exemplo `buffer
 KToken`) entra acrescentando o tipo à lista de `tools/transform/base/Makefile`,
 com `-a` apontando o header do tipo.
 
-A memória do `cgen` inteiro vem de uma `keel_arena` por invocação; nada é
-liberado antes do fim do processo.
+A ferramenta mantém fontes, tokens e tabelas enquanto houver referências a eles, e libera o estado ao fim da invocação. Por ora, os vetores internos pequenos permanecem, com limites centralizados e configuráveis conforme parser-design §2. Uma arena grande por invocação, com armazenamento para buffers e reset conjunto, é evolução futura; não é requisito de migração nesta etapa.
 
 ### 3.3 Fluxo de uma invocação
 

@@ -183,9 +183,14 @@ E `verb-not-in-instance` tem informação que nenhum compilador C teria, e que a
 mensagem deve gastar:
 
 ```plain
-error: `set` is not available on `slice const char` [verb-not-in-instance]
-note: the `const` argument removes the verbs that write through it
+app/main.k:20:5: error: `fill` is not available on `slice const char` [verb-not-in-instance]
+note: `fill` calls `set`, which writes a const element
+note: cannot write a const value; the original write is in `set`
 ```
+
+A posição principal é a da chamada reconhecida, não a da inclusão do header. Para `void`, a causa pode ser `cannot read or write void value`, com nota sobre o campo omitido. O parser conserva a razão direta e a cadeia de chamadas; não gera `static_assert(false)` nos corpos. Essa asserção já falharia ao traduzir uma definição sem qualquer chamada.
+
+O diagnóstico `implementation-limit` informa qual capacidade interna foi atingida, seu valor configurado, a quantidade solicitada quando conhecida e a configuração a ajustar. Não deve ser substituído por `unexpected-token` quando o problema é armazenamento insuficiente.
 
 ---
 

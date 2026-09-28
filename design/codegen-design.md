@@ -281,35 +281,32 @@ diagnóstico quando não corta.
 
 ### 7.4 Instanciação degenerada
 
-Nem todo verbo do genérico sobrevive a todo argumento (spec §4.3):
+Nem todo verbo do genérico sobrevive a todo argumento (spec §4.3). A decisão é por instância, calculada no parser antes da emissão.
 
-| Argumento | O que some |
+| Argumento | Campos e verbos |
 | --- | --- |
-| `void` | os campos `T campo`/`T *campo`, e todo verbo que mencione o parâmetro em posição de valor — restam os de controle |
-| `const T` | os verbos que escreveriam através do parâmetro |
+| `void` | `T value` é omitido; `T *ptr` permanece como `void *ptr`. Leitores/escritores do valor omitido e assinaturas que exigem objeto `void` por valor ficam indisponíveis. |
+| `const T` | O campo conserva o qualificador. Escritas explícitas no valor constante tornam o verbo indisponível; alterar um ponteiro para esse valor não é escrever no valor. |
 
-**A omissão é transitiva**, e é aí que a implementação erra: um verbo cuja
-emissão chamaria outro que não existe naquela instância também não é emitido.
-O caso real, que o golden contém:
+O parser reconhece atribuição simples/composta e incremento/decremento sobre campos conhecidos e seus acessos explícitos. Não deduz efeitos de `memcpy` ou de outras funções C opacas, nem segue cópias de ponteiros. A existência de lvalue em posição de leitura não torna um verbo indisponível.
 
+**A propagação é transitiva:** uma chamada conhecida a verbo indisponível torna o chamador indisponível naquela instância. Por exemplo:
+
+```plain
+set          escreve ptr[i] constante: indisponível
+fill         chama set: indisponível
+reset_values chama fill: indisponível
 ```
-slice const char   perde set      (escreve s.ptr[i])
-                   perde clone    (memcpy com destino const)
-                   perde at       (chama outcome.win1, que outcome const char perdeu)
-outcome const char perde value1, win1
-```
 
-A regra de parada é natural: o fecho de omissão converge porque o grafo de
-chamada dentro de um genérico é finito e acíclico.
+Também `slice.at` fica indisponível quando sua chamada conhecida a `outcome.win1` escreve o campo constante de `outcome const char`. Uma chamada C opaca como `memcpy` não é uma causa reconhecida automaticamente; a lista histórica de omissões do golden deve ser confrontada com esse contrato, não usada para introduzir análise de efeitos C.
 
-**Qualificador de topo não sobrevive à cópia**: `get` sobre `slice const char`
-devolve `char`, não `const char`. O C ignora o qualificador em retorno por
-valor, e emiti-lo só produz `-Wignored-qualifiers`.
+A propagação é monotônica sobre o conjunto finito de verbos da instância: cada verbo passa de disponível a indisponível no máximo uma vez. **O grafo de chamadas pode ter ciclos.** Recursão sem causa proibida não invalida nada; recursão que alcança uma causa proibida recebe a marca. A exigência de aciclicidade do grafo de layout (§7.3) é outra propriedade.
 
-Chamar um verbo que a instância não tem é `verb-not-in-instance`, e quem o emite
-é o parser — mas ele precisa da superfície da instância, que é o emissor quem
-calcula. **[E3] O cálculo da superfície é uma função pura do par (genérico,
-argumentos), exposta ao parser**, não um efeito colateral da emissão.
+**[E3] A superfície é função pura de (genérico, argumentos), calculada pelo parser e entregue ao emissor.** O parser retém causa, posição da operação e cadeia de chamadas. Não se recalcula a superfície durante a escrita do C.
+
+O emissor suprime os corpos indisponíveis. Uma chamada reconhecida que permaneceria no programa emitido recebe `verb-not-in-instance` na posição da chamada. Importar o módulo sem usar esses verbos é permitido. Não se gera `static_assert(false)` no corpo: a asserção falharia ao traduzir a definição, mesmo sem chamada (backend §5.2.1).
+
+**Qualificador de topo não sobrevive à cópia:** `get` sobre `slice const char` devolve `char`, não `const char`. A regra não remove a qualificação do armazenamento apontado.
 
 ---
 
@@ -428,7 +425,7 @@ do corpo, e descobrir tarde que o escritor de linhas não a suporta custa caro.
 | --- | --- | --- |
 | E1 | `#endif` leva sempre o comentário da guarda | o golden tinha as duas formas; um gerador só não pode ter duas, e a comentada é a que ajuda em header longo |
 | E2 | A ordem de emissão é a ordem de declaração, em toda seção | qualquer outra ordem é estável e ainda assim quebra a correspondência com o fonte que o `#line` promete |
-| E3 | A superfície de uma instância é função pura de (genérico, argumentos), exposta ao parser | o `verb-not-in-instance` é do parser e precisa dela; calcular duas vezes, com dois códigos, é onde a divergência nasce |
+| E3 | A superfície de uma instância é função pura de (genérico, argumentos), calculada pelo parser e entregue ao emissor | o `verb-not-in-instance` é do parser e precisa dela; calcular duas vezes, com dois códigos, é onde a divergência nasce |
 | E4 | Todo `#line` sai por um único ponto do código, o `KWriter` | a invariante do §6 do backend é fácil de enunciar e fácil de furar; concentrá-la num lugar é o que a torna verificável |
 | E5 | Um `.c` por funcionalidade em `engine/emit/`, mais cinco de mecânica comum | um `emit.c` único seria o maior arquivo do projeto e o que mais muda; o corte por construção faz cada mudança do backend §5.x cair num arquivo só |
 
@@ -456,4 +453,4 @@ O que falta acrescentar quando o emissor existir:
 | | Onde | Divergência |
 | --- | --- | --- |
 | C1 | backend §5.9 × golden | a ordem das cláusulas do `#pragma` está fixada no §10.6 do backend, mas nenhum caso exercita captura de dois escalares ou de dois `byref` — a ordem dentro de cada cláusula não está sob teste |
-| C2 | este documento × golden | o fecho de instâncias da base foi calculado à mão nesta rodada; quando o emissor existir, o fecho que ele calcular tem que dar exatamente os mesmos 7 arquivos, e isso não está verificado por nada |
+| C2 | este documento × golden | o fecho histórico de 7 arquivos foi calculado à mão; revisar os esperados sob o contrato de escritas explícitas e preservação de `void *`, depois comparar com o fecho calculado pelo parser. Chamadas C opacas não justificam omissão automática. |

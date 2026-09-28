@@ -593,6 +593,7 @@ fonte. Restam os que dependem da invocação, e eles são da ferramenta:
 | `lowering-unavailable` | `--parallel-lowering=openmp` sem `-fopenmp` na linha (§4.8) |
 | `invalid-option` | opção do cgen com valor fora do enumerado |
 | `write-failure` | E/S falhou ao escrever sob o `--dest-dir` (§6) |
+| `implementation-limit` | Capacidade configurada da implementação atingida; a mensagem informa qual limite, seu valor, a demanda quando conhecida e a configuração a ajustar. Não implica erro de sintaxe do programa. |
 
 Quatro regras governam a tabela:
 
@@ -606,7 +607,9 @@ Quatro regras governam a tabela:
   aparece na da spec, e vice-versa; é o que permite ao filtro de `-W` da §7
   decidir olhando uma lista só.
 - **A posição é do fonte quando existe uma.** `module-not-found` e
-  `missing-entry-point` apontam a linha do `import` ou o módulo pedido; os demais
+  `missing-entry-point` apontam a linha do `import` ou o módulo pedido;
+  `implementation-limit` aponta a construção que excedeu a capacidade quando
+  essa posição for conhecida. Os demais
   não têm posição, e saem no formato do gcc para erro de invocação:
 
 ```plain

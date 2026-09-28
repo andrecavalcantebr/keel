@@ -48,7 +48,7 @@ vem antes da resolução (§3).
 ```c
 typedef struct {
     KParser          lex;        /* lexer + lookahead (lexer-design §7)  */
-    keel_arena      *arena;      /* tudo vive aqui; nada é liberado      */
+    /* armazenamento fornecido pela ferramenta; arena é evolução futura */
     KSymbolTable    *syms;
     KDiagnosticSink *diag;
     KLoader         *loader;     /* a volta para tool.c, em import       */
@@ -56,10 +56,13 @@ typedef struct {
 } KParserCtx;
 ```
 
-**[P1] Tudo é arena, nada é liberado.** Uma invocação do cgen tem vida curta e
-um pico de memória previsível; `free` por nó só acrescentaria caminhos de erro.
-`keel_arena` é o tipo da própria base, e é o que o desenho do cgen §3.2 já
-estabelece para os tipos de apoio.
+**[P1] Armazenamento com vida útil da invocação.** Fontes, tokens e tabelas permanecem válidos enquanto houver fatias que os referenciem. A ferramenta fornece e libera a memória; o motor não faz E/S nem alocação própria. A interface acima é conceitual, não uma afirmação de que a migração para arena já ocorreu.
+
+Por ora, os vetores internos pequenos permanecem. Seus limites devem ser centralizados em constantes de compilação configuráveis (`constexpr` quando o perfil do código de implementação o admitir), usadas tanto para dimensionar o armazenamento quanto para verificar capacidade. Não se aumenta apenas a checagem conservando um vetor menor. A configuração inicial pode manter os valores atuais, a ajustar com programas reais.
+
+Atingir um limite produz diagnóstico explícito, por exemplo: `profundidade de modificadores: solicitada 9, limite configurado 8; ajuste <constante>`. O identificador é `implementation-limit`; a mensagem nomeia a capacidade, o valor configurado, a demanda quando conhecida e a configuração a ajustar. Não é erro de sintaxe, nem autorização para truncamento silencioso. Esta seção documenta a política; a centralização de todos os limites existentes ainda precisa ser implementada.
+
+**Evolução futura, sem migração nesta etapa:** uma arena grande alocada pela ferramenta (por exemplo, 1 MiB, 2 MiB ou mais) pode fornecer armazenamento para buffers com ponteiro, comprimento e capacidade. Os descritores ficam pequenos; as capacidades continuam explícitas e configuráveis. O benefício é a gestão conjunta do armazenamento e sua reutilização, não uma contiguidade que os vetores já oferecem. Reset só ocorre quando nenhuma AST, tabela, diagnóstico ou fatia de fonte ainda referencia a região. Essa mudança permanece orientada por medições de uso real.
 
 **Toda posição é uma fatia do fonte**, não uma cópia. `keel_slice_char` sobre o
 buffer do arquivo, que vive enquanto o módulo estiver carregado. Linha e coluna
@@ -363,6 +366,18 @@ A ordem importa: **calcular a superfície antes de fechar**. Fechar primeiro
 geraria `outcome const char` para um `at` que não existe, que foi exatamente o
 erro cometido à mão ao derivar o golden.
 
+**Marcação e propagação de indisponibilidade**
+
+Esta é uma passagem de análise a implementar, não comportamento já entregue pelo dump de instâncias diretas. Para cada instância concreta:
+
+1. Identificar os campos afetados por `const` ou `void`, usando as declarações escritas. `T value` e `T *ptr` têm tratamentos diferentes (§4.3 da spec).
+2. Marcar os verbos com operação explícita proibida: escrita no valor constante, leitura/escrita do campo de valor omitido ou assinatura que exige objeto `void` por valor. Guardar a causa e sua posição. Atribuições a campos ordinários, ou ao ponteiro de um campo `const T *ptr`, não são causas proibidas.
+3. Registrar arestas apenas para chamadas keel conhecidas. Propagar a marca para os chamadores até não haver nova marca; uma fila de trabalho ou varreduras sucessivas produzem o mesmo ponto fixo. Ciclos não exigem caso especial de rejeição.
+4. Suprimir a emissão dos corpos marcados e conservar seus símbolos como indisponíveis, com a razão. Assim o uso recebe diagnóstico específico em vez de virar chamada C desconhecida.
+5. Emitir `verb-not-in-instance` em cada chamada reconhecida que permaneceria no programa emitido, apontando o span da chamada no `.k`. As chamadas internas dos corpos suprimidos explicam a propagação; não invalidam sozinhas um import que não use esses verbos.
+
+A causa acompanha a instância, não o nome genérico global: `set` pode existir em `buffer char` e estar indisponível em `buffer const char`. A análise não prova alcance de ramos C, não interpreta funções C opacas e não segue aliases de ponteiros. `static_assert(false)` não substitui a passagem: falha na definição da função C, não apenas no uso; `__LINE__` dentro do corpo não adquire automaticamente a linha do chamador.
+
 ### 5.1 A posição de criação
 
 Cada instância guarda a posição do **primeiro uso** que a criou. É o que
@@ -453,7 +468,7 @@ Três famílias, na ordem em que valem a pena:
 
 | | Decisão | Por quê |
 | --- | --- | --- |
-| P1 | Tudo em arena, nada é liberado | invocação de vida curta e pico previsível; `free` por nó só acrescentaria caminho de erro |
+| P1 | Memória fornecida pela ferramenta, válida enquanto houver referências; vetores pequenos por ora | limites configuráveis e diagnosticados; arena com buffers é evolução futura, não requisito desta etapa |
 | P2 | Tabela de símbolos ordenada, iteração por inserção | a ordem de emissão é a de declaração; guardar a ordem duas vezes é onde ela diverge |
 | P3 | Três passagens, não uma com adiamento | o adiamento dá o mesmo resultado com mais estado, e o estado é onde o determinismo escapa |
 | P4 | Recuperação por ressincronização, sem reparo | nada é escrito quando há `error`, então a árvore não precisa ficar correta — só não travar nem inventar símbolo |

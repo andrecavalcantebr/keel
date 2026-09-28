@@ -42,6 +42,7 @@ A divisão vale nos três documentos, e é um critério só:
 - [5. Lowering das construções](#5-lowering-das-construções)
   - [5.1 Declarações: substituição local de nome](#51-declarações-substituição-local-de-nome)
   - [5.2 Containers: struct e funções `static inline`](#52-containers-struct-e-funções-static-inline)
+    - [5.2.1 Verbos indisponíveis e diagnóstico no chamador](#521-verbos-indisponíveis-e-diagnóstico-no-chamador)
   - [5.3 Açúcar de indexação](#53-açúcar-de-indexação)
   - [5.4 `arena`](#54-arena)
   - [5.5 `defer`](#55-defer)
@@ -851,6 +852,27 @@ keel_outcome_keel_slice_geom_Point out = keel_slice_geom_Point_clone(&a, keel_bu
 
 **Perfis:** C11 escreve `_Alignof` onde C23 escreve `alignof` (§9.1); o resto é igual.
 
+### 5.2.1 Verbos indisponíveis e diagnóstico no chamador
+
+A linguagem §4.3 define a indisponibilidade por `const` e `void`. O parser calcula essa propriedade por instância, antes da emissão, e guarda a causa. O emissor recebe a superfície já resolvida: não emite o corpo de um verbo indisponível, nem um substituto contendo asserção estática falsa.
+
+```c
+/* Isto NÃO implementa um erro adiado até a chamada. */
+static inline void forbidden(void) {
+    _Static_assert(0, "cannot write a const value");
+}
+```
+
+O exemplo acima já exige diagnóstico ao traduzir a definição, mesmo que `forbidden` nunca seja chamada. `static_assert` no perfil C23 tem a mesma natureza de verificação na tradução. `inline` não muda isso, e `__LINE__` dentro do corpo não representa automaticamente a linha de cada chamador.
+
+Uma chamada keel reconhecida a verbo indisponível é recusada pelo parser no span da chamada no `.k`, com `verb-not-in-instance`. A mensagem explica a causa, por exemplo `cannot write a const value` ou `cannot read or write void value`; notas apontam a escrita/leitura original e as chamadas intermediárias conhecidas. O diagnóstico não depende de otimização, execução, extensões de atributos do compilador ou erro de link.
+
+Corpos suprimidos não produzem um erro separado por cada chamada interna: essas chamadas propagam a marca. O erro de uso aparece nas chamadas que permaneceriam no programa emitido. Apenas carregar o módulo ou usar outros verbos válidos não deve falhar.
+
+Com `void`, só o campo de valor `T value` desaparece; `T *ptr` torna-se `void *ptr` e permanece. Com `const T *ptr`, operações que alteram o ponteiro ou copiam o descritor continuam sujeitas às regras normais de C; escritas explícitas no elemento constante invalidam o verbo. A inicialização de um membro `const T value` é permitida, mas sua atribuição posterior não é.
+
+Os `static_assert` que provam propriedades obrigatórias do alvo, como os formatos de ponto flutuante (§3), continuam corretos: nesses casos a falha ao traduzir o prelúdio é intencional.
+
 ### 5.3 Açúcar de indexação
 
 **Forma:** `x[i]`, `x[i,j]` e `x[a..b]` com suas formas abertas (linguagem §4.5).
@@ -1612,7 +1634,7 @@ static inline void keel_outcome_i32_value1(keel_outcome_i32 *r, i32 v) {
 4. Os verbos de escrita — `win(r)`, `win(r, v)`, `fail(r, c)` e `none(r)` — recebem o objeto por endereço, escrevem e devolvem `*r`. A forma sem valor preserva o campo associado. A instância vem do primeiro argumento, sem consulta ao destino (linguagem §4.4).
 5. `outcome.win(r, v)` sai `keel_outcome_T_win1(&r, v)` com objeto, e `keel_outcome_T_win1(r, v)` com ponteiro (§2.1.1, e a adaptação da linguagem §4.4). O verbo não emite `return`: encerrar a função é `return outcome.win(r, v);`, escrito no fonte.
 6. Predicados e leitores recebem o valor. O setter `value(r, v)` recebe o endereço, sai `_value1`, e não altera o código.
-7. Com argumento `void`, o campo associado é omitido, e com ele `win(r, v)` e o setter (linguagem §4.3).
+7. Com argumento `void`, o campo associado é omitido, e seus leitores e escritores ficam indisponíveis, incluindo `value(r)`, `win(r, v)` e o setter (linguagem §4.3). O parser diagnostica suas chamadas conforme a §5.2.1; não se emite corpo com `static_assert(false)`.
 8. A forma de default de `else` chama `win`, e não o setter, porque também estabelece o código de sucesso (§5.12). As grafias antigas de produção e consulta cooperativas não saem como aliases.
 
 **Regras de `corot`**
@@ -1669,7 +1691,7 @@ static inline i32 *app_grid_grid_v_ptr(struct app_grid_grid *p, size_t i0, size_
 3. Com o `extent` `pub`, o struct vai ao `.type.h` e as funções ao `.h`, pelas camadas do §4.3.2; com `priv`, os dois vão ao `.c`. Cada função leva o `#line` da coluna.
 4. Na coluna embutida, o endereço é `&p->col[i0][i1]…`. Na coluna por ponteiro, Horner sobre as capacidades internas: `&p->col[(i0 * c1 + i1) * c2 + i2]`. Uma capacidade que é campo sai `p->campo`; uma `constexpr`, com o nome C da constante; um literal, como escrito. A capacidade externa não aparece no endereço.
 5. `P.col[…]` sai `*f(&P, …)`, e `P->col[…]` sai `*f(P, …)`. O `&*` colapsa: `&P.col[i]` sai `f(&P, i)`. O caminho `P` é copiado como escrito, entre parênteses quando não é expressão pós-fixa.
-6. Um `KEEL_CHECK` por índice precede o retorno, com o invariante inteiro do grupo. É o `extent-index-out-of-bounds` (§5.17). Quando o índice e a capacidade são decimais conhecidos, não há verificação para esse índice: a tradução já conferiu, e é o `extent-index-above-capacity`.
+6. Um `KEEL_CHECK` por índice precede o retorno, com o invariante inteiro do grupo. É o `extent-index-out-of-bounds` (§5.17). Quando o índice e a capacidade são decimais conhecidos, a tradução pode recusar o acesso por `extent-index-above-capacity`, mas isso não dispensa a verificação de debug: a contagem continua dinâmica. O backend conserva `i < contagem && contagem <= capacidade`, inclusive para índice literal; capacidade 100 e contagem 3 não autorizam o índice 10. O controle por `KEEL_CHECKS` segue a §5.17.
 7. O acesso é sempre pela função, em qualquer modo: o caminho e cada índice são avaliados uma vez, e `p->x[i++]` incrementa `i` uma vez. Em `-O0` a chamada permanece. [D8](#10-decisões-de-emissão)
 
 8. `P.col` sem índice é o campo C, e sai como escrito: é o que entra em `slice.from(f32, p->x, p->len)`. Não é `array` para a §4.2 da linguagem (linguagem §4.11).

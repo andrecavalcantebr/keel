@@ -612,6 +612,10 @@ bound. O genérico de keel sabe de `T` o que o header C genérico sabe do seu
 `outcome buffer T`, não é opaca: o modificador é conhecido, e é dele que vêm
 os verbos.
 
+**Por que o erro de verbo indisponível pertence ao parser.** Um `static_assert(false)` no corpo de uma função C falha ao traduzir a definição, mesmo quando ninguém chama a função. Isso impediria carregar uma instância apenas para usar seus verbos válidos. keel marca por instância as operações explícitas proibidas, propaga a indisponibilidade pelas chamadas conhecidas e diagnostica o uso na posição do chamador. O backend suprime os corpos marcados; não emite asserções falsas como substitutos.
+
+O campo `T *ptr` permanece `void *ptr` quando `T` é `void`; o campo `T value` desaparece. Para `const T *ptr`, alterar `ptr` não é alterar o elemento constante. São decisões sobre a declaração e os acessos reconhecidos, sem inferir efeitos de chamadas C opacas. A propagação converge por monotonicidade em um conjunto finito, mesmo com funções recursivas.
+
 **Instanciação degenerada.** `void` e argumento `const` são os dois casos em
 que a instância não admite toda a superfície do genérico. A omissão de campos e
 verbos não é análise de equivalência de tipos C nem eliminação geral de código

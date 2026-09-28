@@ -791,7 +791,7 @@ Referências: [Rationale: modificador e tipo modificado](keel-rationale.md#modif
 
 Para um campo `const char *ptr`, `b->ptr = outro`, `b->ptr++` e a atribuição de um descritor composto que contém esse ponteiro permanecem permitidos; `b->ptr[i] = c` e `(*b->ptr)++` tornam o verbo indisponível. Para `outcome void`, o campo `value` desaparece e seus leitores e escritores ficam indisponíveis; para `buffer void`, o campo `ptr` continua existindo como `void *`.
 
-**Diagnóstico no uso.** A indisponibilidade é estado do parser, não um `static_assert(false)` colocado no corpo gerado. Uma asserção estática falsa no corpo de uma função C é diagnosticada ao traduzir sua definição, mesmo sem chamada. O mecanismo de emissão e a localização do diagnóstico estão no backend §5.2.1.
+**Diagnóstico no uso.** A indisponibilidade é estado do parser, não um `static_assert(false)` colocado no corpo gerado. Uma asserção estática falsa no corpo de uma função C é diagnosticada ao traduzir sua definição, mesmo sem chamada. Assinaturas que exigem objeto `void` por valor e operações proibidas no corpo usam esse mesmo mecanismo, com propagação pelas chamadas conhecidas. Não se delega a indisponibilidade a protótipos sem definição e falhas de linkedição. A validação geral do C permanece com o compilador C. O mecanismo de emissão e a localização do diagnóstico estão no backend §5.2.1.
 
 #### 3. Exemplo
 

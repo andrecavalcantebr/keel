@@ -48,7 +48,7 @@ vem antes da resolução (§3).
 ```c
 typedef struct {
     KParser          lex;        /* lexer + lookahead (lexer-design §7)  */
-    /* armazenamento fornecido pela ferramenta; arena é evolução futura */
+    keel_arena      *arena;      /* tudo vive aqui; nada é liberado por nó */
     KSymbolTable    *syms;
     KDiagnosticSink *diag;
     KLoader         *loader;     /* a volta para tool.c, em import       */
@@ -56,13 +56,15 @@ typedef struct {
 } KParserCtx;
 ```
 
-**[P1] Armazenamento com vida útil da invocação.** Fontes, tokens e tabelas permanecem válidos enquanto houver fatias que os referenciem. A ferramenta fornece e libera a memória; o motor não faz E/S nem alocação própria. A interface acima é conceitual, não uma afirmação de que a migração para arena já ocorreu.
+**[P1] Tudo é arena, nada é liberado por nó.** A memória do parser vem da `keel_arena` fornecida pela ferramenta por invocação, conforme cgen §3.2. Fontes, tokens, AST e tabelas permanecem válidos enquanto houver referências; a memória é liberada conjuntamente ao fim da invocação. O motor não faz E/S nem adquire memória do sistema por conta própria.
+
+**Dívida de implementação:** o código atual ainda contém alocações fora desse modelo e precisa de refatoração. Essa divergência não altera a regra arquitetural: arenas já são requisito, não uma evolução opcional. A refatoração permanece pendente; esta atualização documental não a implementa.
 
 Por ora, os vetores internos pequenos permanecem. Seus limites devem ser centralizados em constantes de compilação configuráveis (`constexpr` quando o perfil do código de implementação o admitir), usadas tanto para dimensionar o armazenamento quanto para verificar capacidade. Não se aumenta apenas a checagem conservando um vetor menor. A configuração inicial pode manter os valores atuais, a ajustar com programas reais.
 
 Atingir um limite produz diagnóstico explícito, por exemplo: `profundidade de modificadores: solicitada 9, limite configurado 8; ajuste <constante>`. O identificador é `implementation-limit`; a mensagem nomeia a capacidade, o valor configurado, a demanda quando conhecida e a configuração a ajustar. Não é erro de sintaxe, nem autorização para truncamento silencioso. Esta seção documenta a política; a centralização de todos os limites existentes ainda precisa ser implementada.
 
-**Evolução futura, sem migração nesta etapa:** uma arena grande alocada pela ferramenta (por exemplo, 1 MiB, 2 MiB ou mais) pode fornecer armazenamento para buffers com ponteiro, comprimento e capacidade. Os descritores ficam pequenos; as capacidades continuam explícitas e configuráveis. O benefício é a gestão conjunta do armazenamento e sua reutilização, não uma contiguidade que os vetores já oferecem. Reset só ocorre quando nenhuma AST, tabela, diagnóstico ou fatia de fonte ainda referencia a região. Essa mudança permanece orientada por medições de uso real.
+**Evolução futura dos vetores:** os vetores internos pequenos podem posteriormente ser substituídos por buffers com ponteiro, comprimento e capacidade, com dados na arena já exigida pela arquitetura. Blocos maiores (por exemplo, 1 MiB, 2 MiB ou mais) e capacidades maiores serão avaliados com uso real. Essa mudança de representação não condiciona a adoção de arenas. Reset só ocorre quando nenhuma AST, tabela, diagnóstico ou fatia de fonte ainda referencia a região.
 
 **Toda posição é uma fatia do fonte**, não uma cópia. `keel_slice_char` sobre o
 buffer do arquivo, que vive enquanto o módulo estiver carregado. Linha e coluna
@@ -376,6 +378,8 @@ Esta é uma passagem de análise a implementar, não comportamento já entregue 
 4. Suprimir a emissão dos corpos marcados e conservar seus símbolos como indisponíveis, com a razão. Assim o uso recebe diagnóstico específico em vez de virar chamada C desconhecida.
 5. Emitir `verb-not-in-instance` em cada chamada reconhecida que permaneceria no programa emitido, apontando o span da chamada no `.k`. As chamadas internas dos corpos suprimidos explicam a propagação; não invalidam sozinhas um import que não use esses verbos.
 
+**Mecanismo único.** Assinaturas que exigem objeto `void` por valor (por exemplo, `T value` como parâmetro com `T = void`) e operações proibidas no corpo alimentam a mesma marca de indisponibilidade. Retorno `void`, lista de parâmetros `(void)` e ponteiro `void *` continuam válidos. Não se transforma um parâmetro inválido em outro tipo para contornar a regra, nem se emite seu protótipo C inválido. Símbolos indisponíveis são conservados nos metadados do parser para diagnóstico, não como referências indefinidas delegadas ao linker. A validação geral do C continua a cargo do compilador C.
+
 A causa acompanha a instância, não o nome genérico global: `set` pode existir em `buffer char` e estar indisponível em `buffer const char`. A análise não prova alcance de ramos C, não interpreta funções C opacas e não segue aliases de ponteiros. `static_assert(false)` não substitui a passagem: falha na definição da função C, não apenas no uso; `__LINE__` dentro do corpo não adquire automaticamente a linha do chamador.
 
 ### 5.1 A posição de criação
@@ -468,7 +472,7 @@ Três famílias, na ordem em que valem a pena:
 
 | | Decisão | Por quê |
 | --- | --- | --- |
-| P1 | Memória fornecida pela ferramenta, válida enquanto houver referências; vetores pequenos por ora | limites configuráveis e diagnosticados; arena com buffers é evolução futura, não requisito desta etapa |
+| P1 | Tudo em arena por invocação, sem liberação por nó | regra arquitetural mantida; refatoração do código divergente pendente; vetores pequenos e limites configuráveis permanecem |
 | P2 | Tabela de símbolos ordenada, iteração por inserção | a ordem de emissão é a de declaração; guardar a ordem duas vezes é onde ela diverge |
 | P3 | Três passagens, não uma com adiamento | o adiamento dá o mesmo resultado com mais estado, e o estado é onde o determinismo escapa |
 | P4 | Recuperação por ressincronização, sem reparo | nada é escrito quando há `error`, então a árvore não precisa ficar correta — só não travar nem inventar símbolo |

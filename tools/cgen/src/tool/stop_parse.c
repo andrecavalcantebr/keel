@@ -1,57 +1,44 @@
-/* --stop-after=parse: own storage and I/O stay on the tool side. */
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include "keel/keel_buffer_char.type.h"
-#include "engine/ast.h"
+#include <string.h>
+#include <unistd.h>
+#include "tool/tool.h"
 
-bool cgen_read_source(const char *path, keel_buffer_char *out);
-void cgen_report(const char *path, keel_slice_char source, const KDiagnosticSink *sink);
-
-int cgen_stop_after_parse(const char *path) {
-    keel_buffer_char source;
-    if (!cgen_read_source(path, &source)) return 2;
-    keel_slice_char input = { source.len, source.ptr };
-    KDiagnosticSink counter;
-    k_diag_init(&counter, NULL, 0);
-    size_t count = k_lexemes(input, NULL, 0, &counter);
-    size_t ndiag = counter.count[K_INFO] + counter.count[K_WARNING] + counter.count[K_ERROR];
-    if (count > SIZE_MAX / sizeof(KLexeme) - 1 ||
-        count > SIZE_MAX / sizeof(KAstNode) - 1) {
-        free(source.ptr);
-        return 2;
+static bool absolute(const char *path,char *out,size_t cap) {
+    if(path[0]=='/')return cgen_path_normalize(path,out,cap);
+    char cwd[4096],joined[8192];
+    if(!getcwd(cwd,sizeof cwd))return false;
+    int n=snprintf(joined,sizeof joined,"%s/%s",cwd,path);
+    return n>=0&&(size_t)n<sizeof joined&&cgen_path_normalize(joined,out,cap);
+}
+int cgen_stop_after_parse(const char *path,const char *const *roots,int n,const char *base) {
+    char source[8192],normalized[8192],name[8192];
+    if(!absolute(path,source,sizeof source))return 2;
+    bool found=false;
+    for(int i=0;i<n;i++)
+        if(absolute(roots[i],normalized,sizeof normalized)&&
+           cgen_module_name_of(source,normalized,name,sizeof name)){found=true;break;}
+    /* Still lex the input first, so a lexical error keeps its diagnostic. */
+    if(!found)name[0]='\0';
+    const char *search[130];
+    if(n>129)return 2;
+    for(int i=0;i<n;i++)search[i]=roots[i];
+    search[n++]=base;
+    KDiagnostic items[4096];KDiagnosticSink sink;k_diag_init(&sink,items,4096);
+    void *tool=calloc(1,cgen_loader_size());if(!tool)return 2;
+    KLoader loader;cgen_loader_init(tool,search,n,&sink,&loader);
+    KModule *module=NULL;
+    KLoadResult result=cgen_load_path(tool,path,name,&module);
+    cgen_loader_report(tool,&sink);
+    int rc=1;
+    if(result==K_LOAD_NOT_FOUND)fprintf(stderr,"%s: error: cannot read source [module-not-found]\n",path);
+    if(result==K_LOAD_OK&&module&&k_diag_count(&sink,K_ERROR)==0) {
+        size_t need=k_dump_ast(module->ast,path,(keel_slice_char){0});
+        char *dump=malloc(need?need:1);
+        if(dump){k_dump_ast(module->ast,path,(keel_slice_char){need,dump});
+            rc=fwrite(dump,1,need,stdout)==need?0:2;free(dump);}
+        else rc=2;
     }
-    KLexeme *tokens = calloc(count + 1, sizeof *tokens);
-    KAstNode *nodes = calloc(count + 1, sizeof *nodes);
-    KDiagnostic *items = calloc(ndiag ? ndiag : 1, sizeof *items);
-    if (!tokens || !nodes || !items) {
-        fprintf(stderr, "cgen: error: cannot allocate parse tree [out-of-memory]\n");
-        free(items); free(tokens); free(nodes); free(source.ptr);
-        return 2;
-    }
-    KDiagnosticSink sink;
-    k_diag_init(&sink, items, ndiag);
-    k_lexemes(input, tokens, count, &sink);
-    cgen_report(path, input, &sink);
-    if (k_diag_count(&sink, K_ERROR)) {
-        free(items); free(tokens); free(nodes); free(source.ptr);
-        return 1;
-    }
-    KAst ast = { .source = input, .tokens = tokens, .token_count = count };
-    if (!k_parse_ast(&ast, nodes, count + 1)) {
-        fprintf(stderr, "%s:1:1: error: cannot parse module [unexpected-token]\n", path);
-        free(items); free(tokens); free(nodes); free(source.ptr);
-        return 1;
-    }
-    size_t need = k_dump_ast(&ast, path, (keel_slice_char){0});
-    char *dump = malloc(need ? need : 1);
-    if (!dump) {
-        fprintf(stderr, "cgen: error: cannot allocate parse dump [out-of-memory]\n");
-        free(items); free(tokens); free(nodes); free(source.ptr);
-        return 2;
-    }
-    k_dump_ast(&ast, path, (keel_slice_char){ need, dump });
-    fwrite(dump, 1, need, stdout);
-    free(dump); free(items); free(tokens); free(nodes); free(source.ptr);
-    return 0;
+    cgen_loader_destroy(tool);free(tool);return rc;
 }

@@ -1,5 +1,6 @@
 /* The parse dump is a projection of the retained file-level AST. */
 #include "engine/ast.h"
+#include "engine/instances.h"
 
 typedef struct { keel_slice_char out; size_t n; } KOut;
 static void put_c(KOut *o, char c) {
@@ -80,6 +81,23 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
             default: continue;
         }
         put_c(&o, '\t'); put_pos(&o, a, path, n->anchor);
+    }
+    for(size_t i=0;i<a->instance_count;i++) {
+        const KInstanceUse *use=&a->instances[i];
+        put_s(&o,"inst\t");
+        for(size_t j=use->first;j<use->end;j++) {
+            KToken token=a->tokens[j].token;
+            if(j>use->first) {
+                KToken previous=a->tokens[j-1].token;
+                bool dot=k_token_is_punct(token,".")||k_token_is_punct(previous,".");
+                bool bracket=k_token_is_punct(token,"(")||k_token_is_punct(token,")")||k_token_is_punct(token,",")||k_token_is_punct(previous,"(");
+                if(!dot&&!bracket)put_c(&o,' ');
+            }
+            put_token(&o,token);
+        }
+        put_c(&o,'\t');
+        for(size_t j=0;j<use->symbol_len;j++)put_c(&o,use->symbol[j]);
+        put_c(&o,'\t');put_pos(&o,a,path,use->first);
     }
     return o.n;
 }

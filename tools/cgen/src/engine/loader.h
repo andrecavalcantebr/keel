@@ -25,7 +25,7 @@ typedef enum {
     K_LOAD_OK,         /* loaded now, and complete */
     K_LOAD_ALREADY,    /* was already loaded and complete: the memoized one */
     K_LOAD_CYCLE,      /* a request for a pending module: closes a cycle */
-    K_LOAD_NOT_FOUND,  /* no root has it; the tool reports, it knows the roots */
+    K_LOAD_NOT_FOUND,  /* resolver reports at the import; root caller reports at CLI */
     K_LOAD_ERROR       /* the tool already diagnosed it */
 } KLoadResult;
 
@@ -36,6 +36,7 @@ typedef struct KModule {
     const KSymbol  *symbols;      /* its exported symbols, in declaration order */
     size_t          symbol_count;
     long long       closure_mtime;
+    const struct KAst *ast; /* retained source-backed tree */
 } KModule;
 
 typedef struct {

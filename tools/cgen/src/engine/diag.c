@@ -5,6 +5,11 @@
 /* The messages say what was found and, when there is one, the correct form
    [G2]. Sorted by name. */
 const KDiagEntry k_diags[K_DIAG_COUNT] = {
+    [K_DIAG_MODULE_NOT_FOUND] = { "module-not-found", K_ERROR, "module `%s` was not found in the source roots" },
+    [K_DIAG_MODULE_PATH_MISMATCH] = { "module-path-mismatch", K_ERROR, "expected module `%s` for this path, found `%s`" },
+    [K_DIAG_PARSE_FAILED] = { "unexpected-token", K_ERROR, "malformed or truncated declaration" },
+    [K_DIAG_LOAD_FAILED] = { "module-load-failed", K_ERROR, "cannot load module `%s`" },
+    [K_DIAG_CAPACITY] = { "implementation-limit", K_ERROR, "insufficient storage while collecting module `%s`" },
     [K_DIAG_CIRCULAR_IMPORT] = { "circular-import", K_ERROR,
         "module `%s` is already being loaded: importing it here closes a cycle" },
     [K_DIAG_DEFINE_OVER_KEEL_NAME] = { "define-over-keel-name", K_ERROR,

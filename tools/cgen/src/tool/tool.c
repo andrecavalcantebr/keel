@@ -1,196 +1,232 @@
-/* tool/tool.c — `carrega`/`processa` (spec da ferramenta §3; cgen-tool
-   §3.1, §3.3). Esta é a metade do carregador que sabe o que é um
-   arquivo. O motor nunca aprende: ele pede um módulo pelo nome, através
-   do ponteiro de função do `KLoader`, e recebe símbolos.
-
-   **O estado da carga mora aqui** (cgen-tool §3.1): por módulo, nunca
-   visto, pendente, terminado ou falhou. Só pedir um módulo *pendente* é
-   ciclo — pedir um terminado é acerto de memoização, ainda que um
-   ancestral na pilha continue pendente. */
+/* File ownership and the recursive load state belong to the tool. The
+ * engine only sees the callback and retained module interfaces. */
 #define _POSIX_C_SOURCE 200809L
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "tool/tool.h"
+#include "engine/instances.h"
+#include "engine/names.h"
 #include "keel/keel_buffer_char.type.h"
-#include "engine/ast.h"
-#include "engine/loader.h"
 
-bool cgen_read_source(const char *path, keel_buffer_char *out);
-bool cgen_module_path(const char *module_name, size_t name_len,
-                      const char *root, char *out, size_t cap);
-
-#define CGEN_MAX_MODULES  128
-#define CGEN_MAX_ROOTS    130   /* main.c admite 128 `-I`, mais `.` e a base */
-#define CGEN_MAX_EXPORTS  256
-#define CGEN_MAX_NAME     512
+bool cgen_read_source(const char *, keel_buffer_char *);
+void cgen_report(const char *, keel_slice_char, const KDiagnosticSink *);
 
 typedef enum { CGEN_PENDING, CGEN_DONE, CGEN_FAILED } CgenModState;
-
-typedef struct {
-    char          name[CGEN_MAX_NAME];
-    size_t        name_len;
-    CgenModState  state;
-    KModule       module;
-    KSymbol       exports[CGEN_MAX_EXPORTS];
+typedef struct CgenModuleEntry {
+    struct CgenModuleEntry *next;
+    char *path;
+    CgenModState state;
+    KModule module;
+    KAst ast;
+    KSymbolTable symbols;
+    KSymbol *exports;
 } CgenModuleEntry;
-
 typedef struct {
-    const char       *roots[CGEN_MAX_ROOTS];   /* na ordem; a base por último */
-    int               root_count;
-    KDiagnosticSink  *diag;
-    CgenModuleEntry  *mods[CGEN_MAX_MODULES];
-    int               mod_count;
+    const char *roots[130];
+    int root_count;
+    KDiagnosticSink *diag;
+    CgenModuleEntry *mods;
+    CgenModuleEntry *active;
 } CgenTool;
 
-/* Quantos IDENT há num intervalo de tokens — os binders do cabeçalho vêm
-   separados por vírgula, e a aridade de todo modificador do módulo é a
-   soma dos três (parser-design §4.3). */
-static int ident_count(const KAst *ast, size_t first, size_t end) {
-    int n = 0;
-    for (size_t i = first; i < end && i < ast->token_count; i++)
-        if (k_token_is_ident(ast->tokens[i].token)) n++;
-    return n;
-}
-
-/* Os símbolos que um módulo exporta: os nós `pub` com nome. É o que o
-   `types` de um import injeta e o que a qualificação alcança. */
-static size_t collect_exports(const KAst *ast, KSymbol *out, size_t cap) {
-    const KAstNode *mod = &ast->nodes[ast->module];
-    int arity = ident_count(ast, mod->dim_first, mod->dim_end)
-              + ident_count(ast, mod->tags_first, mod->tags_end)
-              + ident_count(ast, mod->type_first, mod->type_end);
-
-    size_t n = 0;
-    for (size_t i = 0; i < ast->node_count && n < cap; i++) {
-        const KAstNode *node = &ast->nodes[i];
-        if (!node->is_public) continue;
-        if (node->name_first == node->name_end) continue;
-        KSymKind kind;
-        int sym_arity = 0;
-        switch (node->kind) {
-            case K_AST_TYPE:      kind = K_SYM_TYPE; break;
-            case K_AST_MODIFIER:  kind = K_SYM_MODIFIER; sym_arity = arity; break;
-            case K_AST_TAGS:      kind = K_SYM_TAGS; break;
-            case K_AST_CONSTEXPR: kind = K_SYM_CONSTANT; break;
-            case K_AST_FUNCTION:  kind = K_SYM_FUNCTION; break;
-            case K_AST_VARIABLE:  kind = K_SYM_VARIABLE; break;
-            default: continue;
-        }
-        KToken lead = ast->tokens[node->name_first].token;
-        KToken last = ast->tokens[node->name_end - 1].token;
-        out[n++] = (KSymbol){
-            .name = { (size_t)((last.ptr + last.len) - lead.ptr), lead.ptr },
-            .kind = kind, .arity = sym_arity
-        };
-    }
-    return n;
-}
-
 static CgenModuleEntry *find(CgenTool *t, keel_slice_char name) {
-    for (int i = 0; i < t->mod_count; i++)
-        if (t->mods[i]->name_len == name.len &&
-            memcmp(t->mods[i]->name, name.ptr, name.len) == 0)
-            return t->mods[i];
+    for (CgenModuleEntry *e = t->mods; e; e = e->next)
+        if (k_symtab_same_name(e->module.name, name)) return e;
     return NULL;
 }
-
-/* O primeiro achado vence, e a base é a última raiz (§3.3 item 6). */
-static bool locate(CgenTool *t, keel_slice_char name, char *out, size_t cap,
-                   long long *mtime_out) {
-    for (int i = 0; i < t->root_count; i++) {
-        if (!cgen_module_path(name.ptr, name.len, t->roots[i], out, cap)) continue;
-        struct stat st;
-        if (stat(out, &st) == 0 && S_ISREG(st.st_mode)) {
-            *mtime_out = (long long)st.st_mtime;
-            return true;
-        }
+static keel_slice_char span(const KAst *a, size_t first, size_t end) {
+    if (first >= end) return (keel_slice_char){0};
+    KToken x = a->tokens[first].token, y = a->tokens[end-1].token;
+    return (keel_slice_char){(size_t)(y.ptr+y.len-x.ptr), x.ptr};
+}
+static int identifiers(const KAst *a, size_t first, size_t end) {
+    int n = 0;
+    for (size_t i=first; i<end; i++) if (k_token_is_ident(a->tokens[i].token)) n++;
+    return n;
+}
+static KLoadResult failure(CgenTool *t, CgenModuleEntry *e, KDiagId id,
+                           size_t before) {
+    e->state = CGEN_FAILED;
+    if (k_diag_count(t->diag, K_ERROR) == before) {
+        keel_slice_char at = e->ast.source.ptr ? e->ast.source : e->module.name;
+        if (e->ast.error_token < e->ast.token_count)
+            at = e->ast.tokens[e->ast.error_token].token;
+        k_diag_emit(t->diag,id,at,(KDiagArgs){{e->module.name}});
     }
-    return false;
+    return K_LOAD_ERROR;
+}
+static bool exports(CgenModuleEntry *e) {
+    KAst *a=&e->ast;
+    KAstNode *mod=&a->nodes[a->module];
+    int dims=identifiers(a,mod->dim_first,mod->dim_end);
+    int arity=dims+identifiers(a,mod->tags_first,mod->tags_end)+identifiers(a,mod->type_first,mod->type_end);
+    e->exports=calloc(a->node_count+1,sizeof *e->exports);
+    if (!e->exports) return false;
+    for (size_t i=0;i<a->node_count;i++) {
+        KAstNode *n=&a->nodes[i];
+        if (n->name_first==n->name_end) continue;
+        KSymKind kind;
+        switch(n->kind) {
+        case K_AST_TYPE: kind=K_SYM_TYPE; break;
+        case K_AST_MODIFIER: kind=K_SYM_MODIFIER; break;
+        case K_AST_TAGS: kind=K_SYM_TAGS; break;
+        case K_AST_FUNCTION: kind=K_SYM_FUNCTION; break;
+        case K_AST_VARIABLE: kind=K_SYM_VARIABLE; break;
+        case K_AST_CONSTEXPR: kind=K_SYM_CONSTANT; break;
+        default: continue;
+        }
+        KSymbol sym={.name=span(a,n->name_first,n->name_end),.kind=kind,
+                     .arity=kind==K_SYM_MODIFIER?arity:0,.origin=&e->module,
+                     .dim_arity=kind==K_SYM_MODIFIER?dims:0};
+        if (kind==K_SYM_CONSTANT) {
+            for(size_t j=n->name_end;j+1<n->end;j++)
+                if(k_token_is_punct(a->tokens[j].token,"=")) {
+                    sym.value=span(a,j+1,n->end-1); break;
+                }
+        }
+        /* Complete the retained local entry (or insert functions/objects
+           found by the general declarator path). Imported identities stay. */
+        bool found=false;
+        for(size_t j=0;j<e->symbols.count;j++) {
+            KSymbol *s=&e->symbols.items[j];
+            if(!s->origin && k_symtab_same_name(s->name,sym.name)) {*s=sym;found=true;break;}
+        }
+        if(!found) {
+            if(e->symbols.count==e->symbols.cap)return false;
+            e->symbols.items[e->symbols.count++]=sym;
+        }
+        if(n->is_public)e->exports[e->module.symbol_count++]=sym;
+    }
+    e->module.symbols=e->exports;
+    return true;
 }
 
-KLoadResult cgen_load(void *tool_v, keel_slice_char module_name, KModule **out) {
-    CgenTool *t = (CgenTool *)tool_v;
-    *out = NULL;
-    if (module_name.len == 0 || module_name.len >= CGEN_MAX_NAME) return K_LOAD_ERROR;
-
-    CgenModuleEntry *entry = find(t, module_name);
-    if (entry != NULL) {
-        switch (entry->state) {
-            /* o único caso de ciclo: a carga dele está em andamento num
-               nível acima desta pilha */
-            case CGEN_PENDING: return K_LOAD_CYCLE;
-            case CGEN_DONE:    *out = &entry->module; return K_LOAD_ALREADY;
-            default:           return K_LOAD_ERROR;
-        }
-    }
-
-    char path[4096];
-    long long mtime = 0;
-    if (!locate(t, module_name, path, sizeof path, &mtime)) return K_LOAD_NOT_FOUND;
-    if (t->mod_count >= CGEN_MAX_MODULES) return K_LOAD_ERROR;
-
-    entry = calloc(1, sizeof *entry);
-    if (entry == NULL) return K_LOAD_ERROR;
-    memcpy(entry->name, module_name.ptr, module_name.len);
-    entry->name_len = module_name.len;
-    entry->state = CGEN_PENDING;          /* pendente a partir daqui */
-    t->mods[t->mod_count++] = entry;
-
+static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path,
+                             long long mtime, KModule **out) {
+    size_t before=k_diag_count(t->diag,K_ERROR);
+    CgenModuleEntry *e=calloc(1,sizeof *e);
+    if(!e) {k_diag_emit(t->diag,K_DIAG_LOAD_FAILED,name,(KDiagArgs){{name}});return K_LOAD_ERROR;}
+    e->path=strdup(path);
+    char *saved=strndup(name.ptr,name.len);
+    e->module.name=(keel_slice_char){name.len,saved};
+    e->state=CGEN_PENDING;e->next=t->mods;t->mods=e;
+    if(!saved||!e->path)return failure(t,e,K_DIAG_LOAD_FAILED,before);
     keel_buffer_char source;
-    if (!cgen_read_source(path, &source)) { entry->state = CGEN_FAILED; return K_LOAD_ERROR; }
-    keel_slice_char text = { source.len, source.ptr };
-
-    /* o fonte nunca é liberado: as fatias dos símbolos apontam para ele
-       (cgen-tool §3.2, "nada é liberado antes do fim do processo") */
-    size_t count = k_lexemes(text, NULL, 0, t->diag);
-    if (count > SIZE_MAX / sizeof(KLexeme) - 1) { entry->state = CGEN_FAILED; return K_LOAD_ERROR; }
-    KLexeme *tokens = calloc(count + 1, sizeof *tokens);
-    KAstNode *nodes = calloc(count + 1, sizeof *nodes);
-    if (tokens == NULL || nodes == NULL) { entry->state = CGEN_FAILED; return K_LOAD_ERROR; }
-    k_lexemes(text, tokens, count, t->diag);
-
-    KAst ast = { text, tokens, count, NULL, 0, 0 };
-    if (!k_parse_ast(&ast, nodes, count + 1)) { entry->state = CGEN_FAILED; return K_LOAD_ERROR; }
-
-    /* a recursão: os imports deste módulo, pela mesma porta, o que faz a
-       pilha de carga crescer e o ciclo aparecer */
-    KSymbol *scratch = calloc(CGEN_MAX_EXPORTS, sizeof *scratch);
-    if (scratch == NULL) { entry->state = CGEN_FAILED; return K_LOAD_ERROR; }
-    KSymbolTable symtab;
-    k_symtab_init(&symtab, scratch, CGEN_MAX_EXPORTS);
-    KLoader self = { cgen_load, t };
-    bool imports_ok = k_resolve_imports(&ast, &self, &symtab, t->diag);
-
-    /* o mtime do fecho é o maior entre o próprio e os dos importados
-       (§3.3 item 7) */
-    long long closure = mtime;
-    for (int i = 0; i < t->mod_count; i++)
-        if (t->mods[i]->state == CGEN_DONE && t->mods[i]->module.closure_mtime > closure)
-            closure = t->mods[i]->module.closure_mtime;
-
-    entry->module.name = (keel_slice_char){ entry->name_len, entry->name };
-    entry->module.symbol_count = collect_exports(&ast, entry->exports, CGEN_MAX_EXPORTS);
-    entry->module.symbols = entry->exports;
-    entry->module.closure_mtime = closure;
-
-    if (!imports_ok) { entry->state = CGEN_FAILED; return K_LOAD_ERROR; }
-    entry->state = CGEN_DONE;             /* terminado: sai da pendência */
-    *out = &entry->module;
+    if(!cgen_read_source(path,&source))return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    e->ast.source=(keel_slice_char){source.len,source.ptr};
+    size_t count=k_lexemes(e->ast.source,NULL,0,NULL);
+    if(count>SIZE_MAX/sizeof(KLexeme)-1 || count>SIZE_MAX/sizeof(KAstNode)-1)
+        return failure(t,e,K_DIAG_CAPACITY,before);
+    e->ast.tokens=calloc(count+1,sizeof *e->ast.tokens);
+    e->ast.nodes=calloc(count+1,sizeof *e->ast.nodes);
+    if(!e->ast.tokens||!e->ast.nodes)return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    e->ast.token_count=count;
+    k_lexemes(e->ast.source,e->ast.tokens,count,t->diag);
+    if(k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    if(!k_parse_headers(&e->ast,e->ast.nodes,count+1))return failure(t,e,K_DIAG_PARSE_FAILED,before);
+    KAstNode *mod=&e->ast.nodes[e->ast.module];
+    keel_slice_char declared=span(&e->ast,mod->name_first,mod->name_end);
+    char declared_name[4096];
+    size_t declared_size=k_name_normalize(declared,(keel_slice_char){sizeof declared_name,declared_name});
+    if(declared_size==SIZE_MAX||!k_symtab_same_name(name,(keel_slice_char){declared_size,declared_name})) {
+        k_diag_emit(t->diag,K_DIAG_MODULE_PATH_MISMATCH,declared,(KDiagArgs){{e->module.name,declared}});
+        return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    }
+    /* Imports contribute at most their exports plus qualifier and alias.
+       First load them through a counting-capacity table sized from the
+       source graph's actual exports, by reserving through the callback. */
+    size_t capacity=count+1;
+    CgenModuleEntry *parent=t->active;
+    t->active=e;e->module.closure_mtime=mtime;
+    /* Source roots are finite; reserve symbols after loading interfaces.
+       The header resolver is run once, using a growable tool-side bound:
+       each imported interface is loaded here, then the engine registers it. */
+    for(size_t i=0;i<e->ast.node_count;i++) {
+        KAstNode *n=&e->ast.nodes[i];
+        if(n->kind!=K_AST_IMPORT)continue;
+        KModule *m=NULL;
+        KLoadResult x=cgen_load(t,span(&e->ast,n->name_first,n->name_end),&m);
+        if(x==K_LOAD_OK||x==K_LOAD_ALREADY)capacity+=m->symbol_count+2;
+    }
+    if(!k_symtab_same_name(name,k_diag_text("keel"))) {
+        KModule *m=NULL;KLoadResult x=cgen_load(t,k_diag_text("keel"),&m);
+        if(x==K_LOAD_OK||x==K_LOAD_ALREADY)capacity+=m->symbol_count+1;
+    }
+    if(capacity>SIZE_MAX/sizeof(KSymbol)) {t->active=parent;return failure(t,e,K_DIAG_CAPACITY,before);}
+    KSymbol *storage=calloc(capacity,sizeof *storage);
+    k_symtab_init(&e->symbols,storage,capacity);
+    KLoader loader={cgen_load,t};
+    bool ok=storage && k_resolve_imports(&e->ast,&loader,&e->symbols,t->diag);
+    t->active=parent;
+    if(!ok||k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    /* Bind generic parameters before collecting declarations. */
+    for(size_t i=mod->type_first;i<mod->type_end;i++)
+        if(k_token_is_ident(e->ast.tokens[i].token))
+            if(!k_symtab_insert(&e->symbols,e->ast.tokens[i].token,K_SYM_TYPE,0))return failure(t,e,K_DIAG_CAPACITY,before);
+    if(!k_collect_ast(&e->ast,e->ast.nodes,count+1,&e->symbols))return failure(t,e,K_DIAG_PARSE_FAILED,before);
+    if(!exports(e))return failure(t,e,K_DIAG_CAPACITY,before);
+    e->ast.instances=calloc(count+1,sizeof(KInstanceUse));
+    if(!e->ast.instances||!k_collect_instances(&e->ast,e->ast.instances,count+1,t->diag))
+        return failure(t,e,K_DIAG_CAPACITY,before);
+    e->module.ast=&e->ast;e->state=CGEN_DONE;*out=&e->module;
     return K_LOAD_OK;
 }
-
-/* Monta o carregador de uma invocação. `roots` já vem na ordem de busca,
-   com a base por último (§2.7). */
-void cgen_loader_init(void *tool_v, const char *const *roots, int root_count,
-                      KDiagnosticSink *diag, KLoader *out) {
-    CgenTool *t = (CgenTool *)tool_v;
-    t->root_count = root_count < CGEN_MAX_ROOTS ? root_count : CGEN_MAX_ROOTS;
-    for (int i = 0; i < t->root_count; i++) t->roots[i] = roots[i];
-    t->diag = diag;
-    t->mod_count = 0;
-    out->load = cgen_load;
-    out->tool = t;
+KLoadResult cgen_load(void *v, keel_slice_char name, KModule **out) {
+    CgenTool *t=v;*out=NULL;
+    char canonical[4096];
+    size_t length=k_name_normalize(name,(keel_slice_char){sizeof canonical,canonical});
+    if(length==SIZE_MAX){k_diag_emit(t->diag,K_DIAG_LOAD_FAILED,name,(KDiagArgs){{name}});return K_LOAD_ERROR;}
+    name=(keel_slice_char){length,canonical};
+    CgenModuleEntry *e=find(t,name);
+    KLoadResult result;
+    if(e) {
+        if(e->state==CGEN_PENDING)return K_LOAD_CYCLE;
+        if(e->state==CGEN_FAILED)return K_LOAD_ERROR;
+        *out=&e->module;result=K_LOAD_ALREADY;
+    } else {
+        char path[4096];struct stat st;bool found=false;
+        for(int i=0;i<t->root_count;i++)
+            if(cgen_module_path(name.ptr,name.len,t->roots[i],path,sizeof path)&&
+               stat(path,&st)==0&&S_ISREG(st.st_mode)){found=true;break;}
+        if(!found)return K_LOAD_NOT_FOUND;
+        result=load_file(t,name,path,(long long)st.st_mtime,out);
+    }
+    if(*out&&t->active&&(*out)->closure_mtime>t->active->module.closure_mtime)
+        t->active->module.closure_mtime=(*out)->closure_mtime;
+    return result;
 }
-
-size_t cgen_loader_size(void) { return sizeof(CgenTool); }
+KLoadResult cgen_load_path(void *v,const char *path,const char *name,KModule **out) {
+    struct stat st;*out=NULL;
+    if(stat(path,&st)!=0) return K_LOAD_NOT_FOUND;
+    return load_file(v,k_diag_text(name),path,(long long)st.st_mtime,out);
+}
+void cgen_loader_init(void *v,const char *const *roots,int n,KDiagnosticSink *diag,KLoader *out) {
+    CgenTool *t=v;memset(t,0,sizeof *t);t->root_count=n<130?n:130;
+    for(int i=0;i<t->root_count;i++)t->roots[i]=roots[i];
+    t->diag=diag;*out=(KLoader){cgen_load,t};
+}
+size_t cgen_loader_size(void){return sizeof(CgenTool);}
+void cgen_loader_destroy(void *v) {
+    CgenTool *t=v;
+    for(CgenModuleEntry *e=t->mods,*next;e;e=next){
+        next=e->next;free(e->path);free(e->module.name.ptr);free(e->ast.source.ptr);
+        free(e->ast.tokens);free(e->ast.nodes);free(e->symbols.items);free(e->exports);
+        free(e->ast.instances);free(e);
+    }
+    t->mods=NULL;
+}
+void cgen_loader_report(void *v,const KDiagnosticSink *sink) {
+    CgenTool *t=v;
+    for(size_t i=0;i<sink->len;i++) {
+        KDiagnostic item=sink->items[i];CgenModuleEntry *owner=NULL;
+        for(CgenModuleEntry *e=t->mods;e;e=e->next) {
+            uintptr_t p=(uintptr_t)item.at.ptr,b=(uintptr_t)e->ast.source.ptr;
+            if(b&&p>=b&&p<=b+e->ast.source.len){owner=e;break;}
+        }
+        KDiagnosticSink one={.items=&item,.len=1};
+        if(owner)cgen_report(owner->path,owner->ast.source,&one);
+        else {item.at=k_diag_text("");cgen_report("cgen",item.at,&one);}
+    }
+}

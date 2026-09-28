@@ -74,8 +74,11 @@ bool cgen_module_name_of(const char *source, const char *root,
     if (strcmp(root, ".") != 0) {
         size_t rlen = strlen(root);
         if (strncmp(source, root, rlen) != 0) return false;
-        if (source[rlen] != '/') return false;
-        skip = rlen + 1;
+        if (rlen == 1 && root[0] == '/') skip = 1;
+        else {
+            if (source[rlen] != '/') return false;
+            skip = rlen + 1;
+        }
     }
     if (skip >= slen) return false;
 

@@ -1,4 +1,5 @@
 #include "engine/parser.h"
+#include "engine/names.h"
 
 /* qual-arg (keel-spec §2.2). All three are C words. */
 static bool is_qual_arg(KToken t) {
@@ -49,7 +50,12 @@ static bool scan_argument(KLexer *lexer, const KSymbolTable *symtab, int depth,
         to = tok->ptr + tok->len;
         *tok = k_lexer_next(lexer, pp);
     } else if (k_token_is_ident(*tok)) {
-        const KSymbol *sym = k_symtab_lookup(symtab, *tok);
+        KLexer look=*lexer; KToken after; TKPpKind look_pp;
+        keel_slice_char qualified=k_scan_qualified_name(&look,*tok,&after,&look_pp);
+        const KSymbol *sym = k_symbol_resolve(symtab, qualified);
+        const char *primitive=k_primitive_name(qualified);
+        if (!sym && primitive) { *lexer=look; *tok=after; *pp=look_pp;
+            to=qualified.ptr+qualified.len; goto trailing; }
         if (sym == NULL) return false;   /* not a keel argument */
         if (sym->kind == K_SYM_MODIFIER) {
             KSpecifier inner;
@@ -67,6 +73,7 @@ static bool scan_argument(KLexer *lexer, const KSymbolTable *symtab, int depth,
         return false;
     }
 
+trailing:
     while (is_qual_arg(*tok)) {
         to = tok->ptr + tok->len;
         *tok = k_lexer_next(lexer, pp);
@@ -86,22 +93,25 @@ static bool scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *sym
     out->dim_count = 0;
     out->text = (keel_slice_char){ 0, NULL };
 
-    const KSymbol *sym = k_symtab_lookup(symtab, first);
+    KLexer look=*lexer; KToken after; TKPpKind look_pp;
+    keel_slice_char qualified=k_scan_qualified_name(&look,first,&after,&look_pp);
+    const KSymbol *sym = k_symbol_resolve(symtab, qualified);
     if (sym == NULL) return true;   /* nothing consumed; *next_out untouched */
 
     if (sym->kind == K_SYM_TYPE || sym->kind == K_SYM_TAGS) {
         out->kind = K_SPEC_NAMED_TYPE;
-        out->type_name = first;
-        out->text = first;
-        *next_out = k_lexer_next(lexer, pp);
+        out->type_name = qualified;
+        out->text = qualified;
+        *lexer=look; *next_out=after; *pp=look_pp;
         return true;
     }
     if (sym->kind != K_SYM_MODIFIER) return true;
 
     out->kind = K_SPEC_MODIFIER;
-    out->modifier_name = first;
-    const char *to = first.ptr + first.len;
-    KToken tok = k_lexer_next(lexer, pp);
+    out->modifier_name = qualified;
+    const char *to = qualified.ptr + qualified.len;
+    *lexer=look; *pp=look_pp;
+    KToken tok = after;
 
     /* modifier ::= qualified-name [ '(' dim-value { ',' dim-value } ')' ]
        dim-value ::= NUM | qualified-name */
@@ -131,7 +141,7 @@ static bool scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *sym
        declaring module's arity, from the symbol table, not a free
        repetition (keel-spec §2.2: "o número de argumentos de um
        modificador é determinado pelo módulo declarado"). */
-    for (int i = 0; i < sym->arity; i++) {
+    for (int i = 0; i < sym->arity - sym->dim_arity; i++) {
         if (out->arg_count >= K_SPEC_MAX_ARGS) return false;
         keel_slice_char arg;
         if (!scan_argument(lexer, symtab, depth + 1, &tok, &arg, pp)) return false;

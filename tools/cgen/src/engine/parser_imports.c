@@ -27,6 +27,7 @@ static bool inject_types(KSymbolTable *symtab, const KModule *module) {
         const KSymbol *sym = &module->symbols[i];
         if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER) continue;
         if (!k_symtab_insert(symtab, sym->name, sym->kind, sym->arity)) return false;
+        symtab->items[symtab->count - 1] = *sym;
     }
     return true;
 }
@@ -45,11 +46,21 @@ static bool resolve_one(KLoader *loader, KSymbolTable *symtab, KDiagnosticSink *
         k_diag_emit(diag, K_DIAG_CIRCULAR_IMPORT, at, args);
         return false;
     }
+    if (result == K_LOAD_NOT_FOUND) {
+        k_diag_emit(diag, K_DIAG_MODULE_NOT_FOUND, at, (KDiagArgs){{module_name}});
+        return false;
+    }
     if (result != K_LOAD_OK && result != K_LOAD_ALREADY) return false;
     if (module == NULL) return false;
 
     if (has_types && !inject_types(symtab, module)) return false;
-    if (alias.len != 0 && !k_symtab_insert(symtab, alias, K_SYM_MODULE, 0)) return false;
+    /* Keep the real qualifier as well as any alias; neither changes origin. */
+    if (!k_symtab_insert(symtab, module_name, K_SYM_MODULE, 0)) return false;
+    symtab->items[symtab->count - 1].origin = module;
+    if (alias.len != 0) {
+        if (!k_symtab_insert(symtab, alias, K_SYM_MODULE, 0)) return false;
+        symtab->items[symtab->count - 1].origin = module;
+    }
     return true;
 }
 

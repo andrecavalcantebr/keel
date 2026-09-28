@@ -45,7 +45,7 @@ typedef struct {
     KToken types[8]; size_t type_count;
 } KModuleHeader;
 
-void k_scan_module_decl(KLexer *lexer, KToken module_kw, KModuleHeader *out,
+bool k_scan_module_decl(KLexer *lexer, KToken module_kw, KModuleHeader *out,
                          KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* import (keel-spec §2.2): 'import' module-name ['as' IDENT] ['types'] ';'
@@ -59,7 +59,7 @@ typedef struct {
     bool has_types;
 } KImportDecl;
 
-void k_scan_import(KLexer *lexer, KToken import_kw, KImportDecl *out,
+bool k_scan_import(KLexer *lexer, KToken import_kw, KImportDecl *out,
                     KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* import_c (keel-spec §2.2): 'import_c' (system-header | STRING) ';'
@@ -69,7 +69,7 @@ void k_scan_import(KLexer *lexer, KToken import_kw, KImportDecl *out,
  * after it. */
 typedef struct { keel_slice_char header; } KImportCDecl;
 
-void k_scan_import_c(KLexer *lexer, KToken import_c_kw, KImportCDecl *out,
+bool k_scan_import_c(KLexer *lexer, KToken import_c_kw, KImportCDecl *out,
                       KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* Scans a balanced '{' ... '}' region — the shape behind extern-c's body

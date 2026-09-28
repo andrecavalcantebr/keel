@@ -33,13 +33,17 @@ typedef struct {
     bool is_inline;
 } KAstNode;
 
-typedef struct {
+typedef struct KAst {
     keel_slice_char source;
     KLexeme *tokens;
     size_t token_count;
     KAstNode *nodes;
     size_t node_count;
     size_t module;              /* index of K_AST_MODULE */
+    KSymbolTable *symbols; /* caller-owned, retained collection environment */
+    size_t error_token;
+    struct KInstanceUse *instances;
+    size_t instance_count;
 } KAst;
 
 /* Both passes return the required count. A NULL/zero output only counts. */
@@ -47,12 +51,13 @@ size_t k_lexemes(keel_slice_char source, KLexeme *out, size_t cap,
                  KDiagnosticSink *diagnostics);
 /* Returns false on malformed/truncated input or insufficient node storage. */
 bool k_parse_ast(KAst *ast, KAstNode *nodes, size_t cap);
+bool k_parse_headers(KAst *ast, KAstNode *nodes, size_t cap);
+bool k_collect_ast(KAst *ast, KAstNode *nodes, size_t cap, KSymbolTable *symbols);
 /* Passage 1 (parser-design §3): resolves the file's imports — the
    implicit `import keel types;` first — into `symtab`, by calling back
    through `loader`. Emits `circular-import` at the offending `import`;
-   a module the loader could not find is left for the tool to report,
-   which is the half that knows the roots. Returns false if any import
-   did not resolve. */
+   emits module-not-found at the import when no root contains the module.
+   Returns false if any import did not resolve. */
 bool k_resolve_imports(const KAst *ast, KLoader *loader,
                        KSymbolTable *symtab, KDiagnosticSink *diag);
 /* Writes at most output.len bytes, returns the required length. */

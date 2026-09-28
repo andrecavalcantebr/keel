@@ -22,7 +22,32 @@ temporário, sem `mkstemp`, sem limpeza.
 | `lexer.h`, `lexer.c`, `lexer_*.c` | [lexer-design.md](../../../../design/lexer-design.md) |
 | `parser_keel.c` | ponto de entrada, `k_parser_keel(input, output, diagnostics)`; por ora, o despejo de tokens do `--stop-after=lex` ([desenho do cgen §5.1](../../../../design/cgen-tool.md#51---stop-afterlex)) |
 | `ast.h`, `ast.c` | AST de nível de arquivo, com spans de tokens e fonte persistente; coleta de `module`, imports e declarações para M2 |
-| `parser_dump.c` | projeta essa AST no formato `--stop-after=parse` (níveis `header` e `decl`) |
+| `parser_dump.c` | projeta essa AST no formato `--stop-after=parse` (níveis `header`, `decl` e `inst`) |
 | `parser.c`, `symtab.c` | [parser-design.md](../../../../design/parser-design.md) |
 | `emit/` | [codegen-design.md](../../../../design/codegen-design.md) |
 | `diag.h`, `diag.c` | [diag-design.md](../../../../design/diag-design.md): o sink, que acumula na memória dada por quem chama; a tabela tem por ora só os diagnósticos do lexer |
+
+## Estado da integração (2026-09-28)
+
+`--stop-after=parse` usa o carregador real, com a base por último nas raízes.
+O fluxo é `k_parse_headers` → `k_resolve_imports` → `k_collect_ast` →
+`k_collect_instances`. A primeira passagem guarda as regiões de declaração
+sem exigir símbolos importados; a coleta seguinte recebe a tabela resolvida.
+
+`KModule` conserva a AST e os exports; `KSymbol.origin` conserva a identidade
+original e o destino de um qualificador/alias. A ferramenta é dona dos fontes,
+tokens, nós, tabelas e instâncias durante toda a invocação. Sua destruição ocorre
+somente depois do dump e dos diagnósticos, quando nenhuma fatia será usada.
+
+O dump `inst` registra os usos concretos escritos no arquivo, inclusive em
+campos, parâmetros e corpos, em ordem de primeira ocorrência e sem repetir a
+mesma identidade. Não é ainda o fechamento transitivo das instanciações de
+módulos genéricos, nem a passagem de resolução das ilhas e dos escopos locais.
+A nomeação dos usos aninhados conserva as identidades completas conforme os
+oráculos atuais de `test/parse`; a divergência com a redação de “prefixo só na
+raiz” do backend §2.1 permanece uma questão de especificação a resolver.
+
+Regressões adicionais: `test/cli/imports.sh` cobre o executável e
+`test/unit/loader_regressions.sh` cobre estado de carga, fecho de timestamps,
+cache de falhas e mais de 256 exports. Os quatro oráculos `.parse` existentes
+não foram alterados. `PARSE_LEVEL=inst make check` verifica esse marco.

@@ -9,7 +9,7 @@
 #   lex_dump.sh  --stop-after=lex: fixed dumps, the reference lexer over every
 #                .k of golden/ and base/, and the lexical diagnostics
 #   parse_dump.sh --stop-after=parse at level $PARSE_LEVEL (header, decl, inst,
-#                ilha). The default is decl, the implemented M2 level.
+#                ilha). The default is inst: direct concrete instance uses are integrated.
 #
 # Each test prints its last line; the suite fails if any test fails.
 cd "$(dirname "$0")/../../.." || exit 2
@@ -41,6 +41,6 @@ for t in tools/cgen/test/unit/*.sh; do
 done
 for t in tools/cgen/test/cli/*.sh;  do run "cli/$(basename "$t" .sh)"  sh "$t"; done
 run lex_dump sh tools/cgen/test/lex_dump.sh
-PARSE_LEVEL=${PARSE_LEVEL:-decl}
+PARSE_LEVEL=${PARSE_LEVEL:-inst}
 run "parse_dump/$PARSE_LEVEL" sh tools/cgen/test/parse_dump.sh "$PARSE_LEVEL"
 exit $fail

@@ -38,7 +38,7 @@ $(PRJ): $(objects)
 run:
 	./$(PRJ)
 
-# the test suite (cgen design §10); PARSE_LEVEL=header|decl|inst|ilha adds the parser
+# the test suite (cgen design §10); PARSE_LEVEL=header|decl|inst|ilha (default inst)
 check: all
 	@sh test/run.sh
 

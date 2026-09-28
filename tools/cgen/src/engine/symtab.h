@@ -25,6 +25,8 @@ typedef enum {
     K_SYM_EXTERN_C     /* nome de extern_c: só a distinção variável/função   */
 } KSymKind;
 
+struct KModule;
+
 typedef struct {
     keel_slice_char name;   /* the keel name, as spelled */
     KSymKind kind;
@@ -35,6 +37,9 @@ typedef struct {
                     arity). K_SYM_FUNCTION: parameter count. Unused (0) for
                     the other kinds so far — this grows with later etapas,
                     same way KModuleHeader grew its binders. */
+    const struct KModule *origin; /* declaration identity, also alias target */
+    int dim_arity;
+    keel_slice_char value; /* explicit constexpr initializer, if present */
 } KSymbol;
 
 /* [P2] Ordered by insertion, not by hash — the emission order is the

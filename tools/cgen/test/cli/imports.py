@@ -77,4 +77,12 @@ struct S { i32 k; } s1, s2;
     write('keel/buffer', 'module keel.buffer type T; modifier special { T x; }')
     write('override', 'module override; import keel.buffer as b; b.special i32 value;')
     assert 'keel_buffer_special_i32' in run(root, 'override').stdout
+    # Generated names: 255 characters accepted, 256 diagnosed, no truncation.
+    for size in (249, 250):
+        modifier = 'M' * size
+        write('s', f'module s type T; pub modifier {modifier} {{ T value; }}')
+        write('name_limit', f'module name_limit; import s types; {modifier} i32 value;')
+        run(root, 'name_limit', 0 if size == 249 else 1,
+            None if size == 249 else 'name-too-long')
+
 print('ok')

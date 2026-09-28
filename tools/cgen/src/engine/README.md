@@ -51,3 +51,19 @@ Regressões adicionais: `test/cli/imports.sh` cobre o executável e
 `test/unit/loader_regressions.sh` cobre estado de carga, fecho de timestamps,
 cache de falhas e mais de 256 exports. Os quatro oráculos `.parse` existentes
 não foram alterados. `PARSE_LEVEL=inst make check` verifica esse marco.
+
+## Memória da ferramenta
+
+`tool/memory.h` fornece a arena por invocação e os helpers de string.
+`CGEN_ARENA_CAPACITY` configura o bloco na compilação (padrão: 64 MiB).
+Somente a aquisição/liberação desse bloco usa `malloc`/`free`; a arena não
+cresce nem move endereços. Falhas informam `implementation-limit` com o uso,
+a capacidade e a configuração. Os vetores e acessos por índice são preservados.
+
+`string` é `keel_buffer_char`: `len` exclui o terminador e `cap` inclui seu
+espaço. `str_str` empresta uma string C mutável; `str_cstr` devolve o ponteiro.
+`str_dup` copia uma região delimitada por comprimento para a arena e acrescenta
+zero, inclusive para entrada vazia. Falha retorna descritor com `ptr == NULL`.
+Fontes e tokens continuam sendo regiões delimitadas por comprimento; não se
+exige terminador nelas. Nomes de instância reservam 256 bytes e recusam nomes
+gerados acima dos 255 caracteres permitidos pelo backend.

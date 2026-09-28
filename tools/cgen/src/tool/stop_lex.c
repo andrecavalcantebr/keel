@@ -4,15 +4,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "keel/keel_buffer_char.type.h"
+#include "tool/memory.h"
 #include "engine/lexer.h"
 
-bool cgen_read_source(const char *path, keel_buffer_char *out);
+bool cgen_read_source(keel_arena *arena, const char *path, keel_buffer_char *out);
 void cgen_report(const char *path, keel_slice_char source, const KDiagnosticSink *sink);
 
-int cgen_stop_after_lex(const char *path) {
+int cgen_stop_after_lex(keel_arena *arena, const char *path) {
     keel_buffer_char source;
-    if (!cgen_read_source(path, &source)) return 2;
+    if (!cgen_read_source(arena,path, &source)) return 2;
 
     keel_slice_char input = { source.len, source.ptr };
     keel_slice_char none = { 0, NULL };
@@ -23,13 +23,9 @@ int cgen_stop_after_lex(const char *path) {
     size_t need = k_parser_keel(input, none, &counter);
     size_t ndiag = counter.count[K_INFO] + counter.count[K_WARNING] + counter.count[K_ERROR];
 
-    char *dump = malloc(need > 0 ? need : 1);
-    KDiagnostic *items = malloc((ndiag > 0 ? ndiag : 1) * sizeof *items);
+    char *dump = cgen_alloc(arena,need ? need : 1,1,1,false,"token dump");
+    KDiagnostic *items = CGEN_NEW(arena,KDiagnostic,ndiag ? ndiag : 1);
     if (dump == NULL || items == NULL) {
-        fprintf(stderr, "cgen: error: cannot allocate the token dump [out-of-memory]\n");
-        free(items);
-        free(dump);
-        free(source.ptr);
         return 2;
     }
     KDiagnosticSink sink;
@@ -52,8 +48,5 @@ int cgen_stop_after_lex(const char *path) {
     cgen_report(path, input, &sink);
     int status = k_diag_count(&sink, K_ERROR) > 0 ? 1 : 0;
 
-    free(items);
-    free(dump);
-    free(source.ptr);
     return status;
 }

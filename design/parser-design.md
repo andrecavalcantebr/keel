@@ -58,7 +58,7 @@ typedef struct {
 
 **[P1] Tudo é arena, nada é liberado por nó.** A memória do parser vem da `keel_arena` fornecida pela ferramenta por invocação, conforme cgen §3.2. Fontes, tokens, AST e tabelas permanecem válidos enquanto houver referências; a memória é liberada conjuntamente ao fim da invocação. O motor não faz E/S nem adquire memória do sistema por conta própria.
 
-**Dívida de implementação:** o código atual ainda contém alocações fora desse modelo e precisa de refatoração. Essa divergência não altera a regra arquitetural: arenas já são requisito, não uma evolução opcional. A refatoração permanece pendente; esta atualização documental não a implementa.
+**Estado da implementação (2026-09-28):** a ferramenta fornece uma arena por invocação, apoiada em um único bloco obtido com `malloc`. Fontes, tokens, nós, símbolos, instâncias, strings e dumps usam essa arena; o bloco é liberado após os diagnósticos e a saída. Os vetores e seus acessos permanecem como antes. A capacidade inicial é configurável na compilação por `CGEN_ARENA_CAPACITY` (64 MiB por padrão, valor inicial ainda sujeito a medições).
 
 Por ora, os vetores internos pequenos permanecem. Seus limites devem ser centralizados em constantes de compilação configuráveis (`constexpr` quando o perfil do código de implementação o admitir), usadas tanto para dimensionar o armazenamento quanto para verificar capacidade. Não se aumenta apenas a checagem conservando um vetor menor. A configuração inicial pode manter os valores atuais, a ajustar com programas reais.
 
@@ -472,7 +472,7 @@ Três famílias, na ordem em que valem a pena:
 
 | | Decisão | Por quê |
 | --- | --- | --- |
-| P1 | Tudo em arena por invocação, sem liberação por nó | regra arquitetural mantida; refatoração do código divergente pendente; vetores pequenos e limites configuráveis permanecem |
+| P1 | Tudo em arena por invocação, sem liberação por nó | regra arquitetural mantida; alocação migrada para arena; vetores pequenos e limites configuráveis permanecem |
 | P2 | Tabela de símbolos ordenada, iteração por inserção | a ordem de emissão é a de declaração; guardar a ordem duas vezes é onde ela diverge |
 | P3 | Três passagens, não uma com adiamento | o adiamento dá o mesmo resultado com mais estado, e o estado é onde o determinismo escapa |
 | P4 | Recuperação por ressincronização, sem reparo | nada é escrito quando há `error`, então a árvore não precisa ficar correta — só não travar nem inventar símbolo |

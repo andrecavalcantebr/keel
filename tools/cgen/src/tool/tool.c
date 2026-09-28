@@ -10,13 +10,13 @@
 #include "engine/names.h"
 #include "keel/keel_buffer_char.type.h"
 
-bool cgen_read_source(const char *, keel_buffer_char *);
+bool cgen_read_source(keel_arena *, const char *, keel_buffer_char *);
 void cgen_report(const char *, keel_slice_char, const KDiagnosticSink *);
 
 typedef enum { CGEN_PENDING, CGEN_DONE, CGEN_FAILED } CgenModState;
 typedef struct CgenModuleEntry {
     struct CgenModuleEntry *next;
-    char *path;
+    string path;
     CgenModState state;
     KModule module;
     KAst ast;
@@ -24,6 +24,7 @@ typedef struct CgenModuleEntry {
     KSymbol *exports;
 } CgenModuleEntry;
 typedef struct {
+    keel_arena *arena;
     const char *roots[130];
     int root_count;
     KDiagnosticSink *diag;
@@ -57,12 +58,12 @@ static KLoadResult failure(CgenTool *t, CgenModuleEntry *e, KDiagId id,
     }
     return K_LOAD_ERROR;
 }
-static bool exports(CgenModuleEntry *e) {
+static bool exports(CgenTool *t, CgenModuleEntry *e) {
     KAst *a=&e->ast;
     KAstNode *mod=&a->nodes[a->module];
     int dims=identifiers(a,mod->dim_first,mod->dim_end);
     int arity=dims+identifiers(a,mod->tags_first,mod->tags_end)+identifiers(a,mod->type_first,mod->type_end);
-    e->exports=calloc(a->node_count+1,sizeof *e->exports);
+    e->exports=CGEN_NEW(t->arena,KSymbol,a->node_count+1);
     if (!e->exports) return false;
     for (size_t i=0;i<a->node_count;i++) {
         KAstNode *n=&a->nodes[i];
@@ -106,22 +107,26 @@ static bool exports(CgenModuleEntry *e) {
 static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path,
                              long long mtime, KModule **out) {
     size_t before=k_diag_count(t->diag,K_ERROR);
-    CgenModuleEntry *e=calloc(1,sizeof *e);
-    if(!e) {k_diag_emit(t->diag,K_DIAG_LOAD_FAILED,name,(KDiagArgs){{name}});return K_LOAD_ERROR;}
-    e->path=strdup(path);
-    char *saved=strndup(name.ptr,name.len);
-    e->module.name=(keel_slice_char){name.len,saved};
+    CgenModuleEntry *e=CGEN_NEW(t->arena,CgenModuleEntry,1);
+    if(!e) {
+        keel_slice_char at=k_diag_text("module entry");
+        k_diag_emit(t->diag,K_DIAG_CAPACITY,at,(KDiagArgs){{at}});
+        return K_LOAD_ERROR;
+    }
+    e->path=cgen_string_dup(t->arena,path,strlen(path));
+    string saved=cgen_string_dup(t->arena,name.ptr,name.len);
+    e->module.name=(keel_slice_char){saved.len,saved.ptr};
     e->state=CGEN_PENDING;e->next=t->mods;t->mods=e;
-    if(!saved||!e->path)return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    if(!saved.ptr||!e->path.ptr)return failure(t,e,K_DIAG_CAPACITY,before);
     keel_buffer_char source;
-    if(!cgen_read_source(path,&source))return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    if(!cgen_read_source(t->arena,path,&source))return failure(t,e,K_DIAG_LOAD_FAILED,before);
     e->ast.source=(keel_slice_char){source.len,source.ptr};
     size_t count=k_lexemes(e->ast.source,NULL,0,NULL);
     if(count>SIZE_MAX/sizeof(KLexeme)-1 || count>SIZE_MAX/sizeof(KAstNode)-1)
         return failure(t,e,K_DIAG_CAPACITY,before);
-    e->ast.tokens=calloc(count+1,sizeof *e->ast.tokens);
-    e->ast.nodes=calloc(count+1,sizeof *e->ast.nodes);
-    if(!e->ast.tokens||!e->ast.nodes)return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    e->ast.tokens=CGEN_NEW(t->arena,KLexeme,count+1);
+    e->ast.nodes=CGEN_NEW(t->arena,KAstNode,count+1);
+    if(!e->ast.tokens||!e->ast.nodes)return failure(t,e,K_DIAG_CAPACITY,before);
     e->ast.token_count=count;
     k_lexemes(e->ast.source,e->ast.tokens,count,t->diag);
     if(k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
@@ -155,7 +160,7 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
         if(x==K_LOAD_OK||x==K_LOAD_ALREADY)capacity+=m->symbol_count+1;
     }
     if(capacity>SIZE_MAX/sizeof(KSymbol)) {t->active=parent;return failure(t,e,K_DIAG_CAPACITY,before);}
-    KSymbol *storage=calloc(capacity,sizeof *storage);
+    KSymbol *storage=CGEN_NEW(t->arena,KSymbol,capacity);
     k_symtab_init(&e->symbols,storage,capacity);
     KLoader loader={cgen_load,t};
     bool ok=storage && k_resolve_imports(&e->ast,&loader,&e->symbols,t->diag);
@@ -166,8 +171,8 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
         if(k_token_is_ident(e->ast.tokens[i].token))
             if(!k_symtab_insert(&e->symbols,e->ast.tokens[i].token,K_SYM_TYPE,0))return failure(t,e,K_DIAG_CAPACITY,before);
     if(!k_collect_ast(&e->ast,e->ast.nodes,count+1,&e->symbols))return failure(t,e,K_DIAG_PARSE_FAILED,before);
-    if(!exports(e))return failure(t,e,K_DIAG_CAPACITY,before);
-    e->ast.instances=calloc(count+1,sizeof(KInstanceUse));
+    if(!exports(t,e))return failure(t,e,K_DIAG_CAPACITY,before);
+    e->ast.instances=CGEN_NEW(t->arena,KInstanceUse,count+1);
     if(!e->ast.instances||!k_collect_instances(&e->ast,e->ast.instances,count+1,t->diag))
         return failure(t,e,K_DIAG_CAPACITY,before);
     e->module.ast=&e->ast;e->state=CGEN_DONE;*out=&e->module;
@@ -202,19 +207,15 @@ KLoadResult cgen_load_path(void *v,const char *path,const char *name,KModule **o
     if(stat(path,&st)!=0) return K_LOAD_NOT_FOUND;
     return load_file(v,k_diag_text(name),path,(long long)st.st_mtime,out);
 }
-void cgen_loader_init(void *v,const char *const *roots,int n,KDiagnosticSink *diag,KLoader *out) {
-    CgenTool *t=v;memset(t,0,sizeof *t);t->root_count=n<130?n:130;
+void cgen_loader_init(void *v,keel_arena *arena,const char *const *roots,int n,KDiagnosticSink *diag,KLoader *out) {
+    CgenTool *t=v;memset(t,0,sizeof *t);t->arena=arena;t->root_count=n<130?n:130;
     for(int i=0;i<t->root_count;i++)t->roots[i]=roots[i];
     t->diag=diag;*out=(KLoader){cgen_load,t};
 }
 size_t cgen_loader_size(void){return sizeof(CgenTool);}
 void cgen_loader_destroy(void *v) {
     CgenTool *t=v;
-    for(CgenModuleEntry *e=t->mods,*next;e;e=next){
-        next=e->next;free(e->path);free(e->module.name.ptr);free(e->ast.source.ptr);
-        free(e->ast.tokens);free(e->ast.nodes);free(e->symbols.items);free(e->exports);
-        free(e->ast.instances);free(e);
-    }
+    /* Storage belongs to the invocation arena, including failed loads. */
     t->mods=NULL;
 }
 void cgen_loader_report(void *v,const KDiagnosticSink *sink) {
@@ -226,7 +227,7 @@ void cgen_loader_report(void *v,const KDiagnosticSink *sink) {
             if(b&&p>=b&&p<=b+e->ast.source.len){owner=e;break;}
         }
         KDiagnosticSink one={.items=&item,.len=1};
-        if(owner)cgen_report(owner->path,owner->ast.source,&one);
+        if(owner)cgen_report(str_cstr(owner->path),owner->ast.source,&one);
         else {item.at=k_diag_text("");cgen_report("cgen",item.at,&one);}
     }
 }

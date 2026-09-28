@@ -6,9 +6,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <stdbool.h>
-#include "keel/keel_buffer_char.type.h"
+#include "tool/memory.h"
 
-bool cgen_read_source(const char *path, keel_buffer_char *out) {
+bool cgen_read_source(keel_arena *arena, const char *path, keel_buffer_char *out) {
     FILE *file = fopen(path, "rb");
     if (!file) {
         fprintf(stderr, "cgen: error: cannot open file '%s' [source-not-found]\n", path);
@@ -37,10 +37,9 @@ bool cgen_read_source(const char *path, keel_buffer_char *out) {
 
     size_t size = (size_t)st.st_size;
 
-    char *buffer = malloc(size);
+    char *buffer = cgen_alloc(arena, size ? size : 1, 1, 1, false, "source");
     if (!buffer) {
         fclose(file);
-        fprintf(stderr, "cgen: error: cannot allocate memory for file '%s' [source-not-found]\n", path);
         return false;
     }
 
@@ -48,7 +47,6 @@ bool cgen_read_source(const char *path, keel_buffer_char *out) {
     fclose(file);
 
     if (bytes_read != size) {
-        free(buffer);
         fprintf(stderr, "cgen: error: short read from file '%s' [source-not-found]\n", path);
         return false;
     }

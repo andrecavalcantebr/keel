@@ -11,7 +11,7 @@ BIN=$(mktemp)
 WORK=$(mktemp -d)
 trap 'rm -f "$BIN"; rm -rf "$WORK"' EXIT
 
-gcc -std=c11 -Wall -Wextra -O0 -g "$SRC" "$TESTMAIN" -o "$BIN" || {
+gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra -O0 -g "$SRC" "$TESTMAIN" -o "$BIN" || {
     echo "FAIL: compile error"
     exit 1
 }

@@ -8,12 +8,13 @@
  * run from the repository root.
  */
 #include <stdio.h>
+#include "tool/memory.h"
 #include <stdlib.h>
 #include <string.h>
 #include "engine/ast.h"
 #include "engine/loader.h"
 
-void   cgen_loader_init(void *tool, const char *const *roots, int root_count,
+void   cgen_loader_init(void *tool, keel_arena *arena, const char *const *roots, int root_count,
                         KDiagnosticSink *diag, KLoader *out);
 size_t cgen_loader_size(void);
 
@@ -28,6 +29,7 @@ static const KSymbol *find_sym(const KModule *m, const char *name) {
 }
 
 int main(void) {
+    keel_arena arena; if (!cgen_memory_init(&arena)) return 2;
     const char *roots[] = { "base" };
     KDiagnostic diags[64];
     KDiagnosticSink sink;
@@ -35,7 +37,7 @@ int main(void) {
 
     void *tool = calloc(1, cgen_loader_size());
     KLoader loader;
-    cgen_loader_init(tool, roots, 1, &sink, &loader);
+    cgen_loader_init(tool,&arena, roots, 1, &sink, &loader);
 
     /* the prelude: base/keel.k, found under the one root */
     KModule *keel = NULL;
@@ -118,6 +120,8 @@ int main(void) {
         failures++;
     }
 
+    free(tool);
+    cgen_memory_destroy(&arena);
     if (failures == 0) { puts("ok"); return 0; }
     fprintf(stderr, "%d failure(s)\n", failures);
     return 1;

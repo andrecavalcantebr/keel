@@ -6,20 +6,22 @@ import tempfile
 
 probe = r'''
 #include <stdio.h>
+#include "tool/memory.h"
 #include <stdlib.h>
 #include <string.h>
 #include "tool/tool.h"
 int main(int argc,char **argv) {
+    keel_arena arena; if (!cgen_memory_init(&arena)) return 2;
     KDiagnostic ds[128]; KDiagnosticSink sink; k_diag_init(&sink,ds,128);
     void *tool=calloc(1,cgen_loader_size()); KLoader loader;
-    const char *roots[]={argv[1]}; cgen_loader_init(tool,roots,1,&sink,&loader);
+    const char *roots[]={argv[1]}; cgen_loader_init(tool,&arena,roots,1,&sink,&loader);
     for(int i=2;i<argc;i++) {
         KModule *m=NULL; size_t before=k_diag_count(&sink,K_ERROR);
         KLoadResult result=loader.load(loader.tool,k_diag_text(argv[i]),&m);
         printf("%s %d %zu %lld %zu\n",argv[i],result,k_diag_count(&sink,K_ERROR)-before,
                m?m->closure_mtime:0,m?m->symbol_count:0);
     }
-    cgen_loader_destroy(tool);free(tool);
+    cgen_loader_destroy(tool);free(tool);cgen_memory_destroy(&arena);
 }
 '''
 with tempfile.TemporaryDirectory() as directory:

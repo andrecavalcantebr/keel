@@ -86,9 +86,9 @@ bool k_collect_instances(KAst *a,KInstanceUse *out,size_t cap,KDiagnosticSink *d
         KSpecifier spec;KToken next={0};
         if(!k_scan_known_type(&lexer,first,a->symbols,&spec,&next,&pp)||spec.kind!=K_SPEC_MODIFIER)continue;
         KInstanceUse use={.first=i};
-        Name name={use.symbol,0,sizeof use.symbol,true};
+        Name name={use.symbol,0,sizeof use.symbol-1,true};
         if(!type_name(spec.text,a->symbols,&name,0)) {
-            if(!name.ok){k_diag_emit(diag,K_DIAG_CAPACITY,first,(KDiagArgs){{first}});return false;}
+            if(!name.ok){k_diag_emit(diag,K_DIAG_NAME_TOO_LONG,first,(KDiagArgs){{first}});return false;}
             continue;
         }
         use.symbol_len=name.len;

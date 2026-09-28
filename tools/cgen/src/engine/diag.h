@@ -21,6 +21,7 @@ typedef enum {
     K_DIAG_PARSE_FAILED,
     K_DIAG_LOAD_FAILED,
     K_DIAG_CAPACITY,
+    K_DIAG_NAME_TOO_LONG,
     K_DIAG_COUNT
 } KDiagId;
 

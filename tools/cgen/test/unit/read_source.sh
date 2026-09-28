@@ -9,7 +9,7 @@ TESTMAIN=tools/cgen/test/unit/read_source_main.c
 BIN=$(mktemp)
 trap 'rm -f "$BIN"' EXIT
 
-gcc -std=c2x -I tools/cgen/gen -Wall -Wextra \
+gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra \
     -fsanitize=address,undefined -fno-sanitize-recover=all -g -O0 \
     "$SRC" "$TESTMAIN" -o "$BIN" || {
     echo "FAIL: compile error"

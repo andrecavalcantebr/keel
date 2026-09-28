@@ -5,6 +5,7 @@
 /* The messages say what was found and, when there is one, the correct form
    [G2]. Sorted by name. */
 const KDiagEntry k_diags[K_DIAG_COUNT] = {
+    [K_DIAG_NAME_TOO_LONG] = { "name-too-long", K_ERROR, "generated name exceeds the backend limit of 255 characters" },
     [K_DIAG_MODULE_NOT_FOUND] = { "module-not-found", K_ERROR, "module `%s` was not found in the source roots" },
     [K_DIAG_MODULE_PATH_MISMATCH] = { "module-path-mismatch", K_ERROR, "expected module `%s` for this path, found `%s`" },
     [K_DIAG_PARSE_FAILED] = { "unexpected-token", K_ERROR, "malformed or truncated declaration" },

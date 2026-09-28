@@ -1,7 +1,8 @@
 #ifndef CGEN_TOOL_H
 #define CGEN_TOOL_H
 #include "engine/ast.h"
-void cgen_loader_init(void *, const char *const *, int, KDiagnosticSink *, KLoader *);
+#include "tool/memory.h"
+void cgen_loader_init(void *, keel_arena *, const char *const *, int, KDiagnosticSink *, KLoader *);
 size_t cgen_loader_size(void);
 void cgen_loader_destroy(void *);
 KLoadResult cgen_load(void *, keel_slice_char, KModule **);

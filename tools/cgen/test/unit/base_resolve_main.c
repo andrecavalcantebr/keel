@@ -6,16 +6,20 @@
  * the no-argument case. */
 
 #include <stdio.h>
+#include "tool/memory.h"
 
 /* implemented by the file under test */
-char *cgen_resolve_base_dir(const char *explicit_base_dir);
+char *cgen_resolve_base_dir(keel_arena *, const char *explicit_base_dir);
 
 int main(int argc, char **argv) {
+    keel_arena arena; if (!cgen_memory_init(&arena)) return 2;
     const char *explicit_dir = argc > 1 ? argv[1] : NULL;
-    char *resolved = cgen_resolve_base_dir(explicit_dir);
+    char *resolved = cgen_resolve_base_dir(&arena,explicit_dir);
     if (!resolved) {
+        cgen_memory_destroy(&arena);
         return 1;
     }
     printf("%s\n", resolved);
+    cgen_memory_destroy(&arena);
     return 0;
 }

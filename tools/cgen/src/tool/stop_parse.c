@@ -12,7 +12,7 @@ static bool absolute(const char *path,char *out,size_t cap) {
     int n=snprintf(joined,sizeof joined,"%s/%s",cwd,path);
     return n>=0&&(size_t)n<sizeof joined&&cgen_path_normalize(joined,out,cap);
 }
-int cgen_stop_after_parse(const char *path,const char *const *roots,int n,const char *base) {
+int cgen_stop_after_parse(keel_arena *arena,const char *path,const char *const *roots,int n,const char *base) {
     char source[8192],normalized[8192],name[8192];
     if(!absolute(path,source,sizeof source))return 2;
     bool found=false;
@@ -26,8 +26,8 @@ int cgen_stop_after_parse(const char *path,const char *const *roots,int n,const 
     for(int i=0;i<n;i++)search[i]=roots[i];
     search[n++]=base;
     KDiagnostic items[4096];KDiagnosticSink sink;k_diag_init(&sink,items,4096);
-    void *tool=calloc(1,cgen_loader_size());if(!tool)return 2;
-    KLoader loader;cgen_loader_init(tool,search,n,&sink,&loader);
+    void *tool=cgen_alloc(arena,1,cgen_loader_size(),_Alignof(max_align_t),true,"loader");if(!tool)return 2;
+    KLoader loader;cgen_loader_init(tool,arena,search,n,&sink,&loader);
     KModule *module=NULL;
     KLoadResult result=cgen_load_path(tool,path,name,&module);
     cgen_loader_report(tool,&sink);
@@ -35,10 +35,10 @@ int cgen_stop_after_parse(const char *path,const char *const *roots,int n,const 
     if(result==K_LOAD_NOT_FOUND)fprintf(stderr,"%s: error: cannot read source [module-not-found]\n",path);
     if(result==K_LOAD_OK&&module&&k_diag_count(&sink,K_ERROR)==0) {
         size_t need=k_dump_ast(module->ast,path,(keel_slice_char){0});
-        char *dump=malloc(need?need:1);
+        char *dump=cgen_alloc(arena,need?need:1,1,1,false,"AST dump");
         if(dump){k_dump_ast(module->ast,path,(keel_slice_char){need,dump});
-            rc=fwrite(dump,1,need,stdout)==need?0:2;free(dump);}
+            rc=fwrite(dump,1,need,stdout)==need?0:2;}
         else rc=2;
     }
-    cgen_loader_destroy(tool);free(tool);return rc;
+    cgen_loader_destroy(tool);return rc;
 }

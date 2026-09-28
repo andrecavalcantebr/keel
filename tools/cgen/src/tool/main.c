@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "tool/memory.h"
 
 bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, const char **value);
 bool cgen_source_under_root(const char *source, const char *root);
 bool cgen_source_in_multiple_roots(const char *source, const char *const *roots, int root_count);
-extern char *cgen_resolve_base_dir(const char *explicit_base_dir);
-int cgen_stop_after_lex(const char *path);
-int cgen_stop_after_parse(const char *path,const char *const *roots,int n,const char *base);
+extern char *cgen_resolve_base_dir(keel_arena *, const char *explicit_base_dir);
+int cgen_stop_after_lex(keel_arena *, const char *path);
+int cgen_stop_after_parse(keel_arena *, const char *path,const char *const *roots,int n,const char *base);
 
 static void fatal(const char *diagnostic_id, const char *message) {
     fprintf(stderr, "cgen: error: %s [%s]\n", message, diagnostic_id);
@@ -207,24 +208,18 @@ int main(int argc, char *argv[]) {
             fatal("source-in-multiple-roots", "source file is under multiple -I roots");
     }
 
-    /* --stop-after=lex lexes only the given .k: no import, no base
-       (cgen design §2.6) */
-    if (k_file_count == 1 && stop_after && strcmp(stop_after, "lex") == 0)
-        return cgen_stop_after_lex(k_file);
-
-    if (k_file_count == 1) {
-        char *base = cgen_resolve_base_dir(base_dir);
-        if (!base) {
-            exit(2);
-        }
-        if (stop_after && strcmp(stop_after, "parse") == 0) {
-            int result=cgen_stop_after_parse(k_file,roots,root_count,base);
-            free(base);
-            return result;
-        }
-        free(base);
-    }
-
-    fprintf(stderr, "cgen: not yet implemented\n");
-    exit(1);
+    keel_arena arena;
+    if (!cgen_memory_init(&arena)) return 2;
+    int result=1;
+    if (k_file_count == 1 && stop_after && strcmp(stop_after,"lex") == 0) {
+        result=cgen_stop_after_lex(&arena,k_file);
+    } else if (k_file_count == 1) {
+        char *base=cgen_resolve_base_dir(&arena,base_dir);
+        if (!base) result=2;
+        else if (stop_after && strcmp(stop_after,"parse") == 0)
+            result=cgen_stop_after_parse(&arena,k_file,roots,root_count,base);
+        else fprintf(stderr,"cgen: not yet implemented\n");
+    } else fprintf(stderr,"cgen: not yet implemented\n");
+    cgen_memory_destroy(&arena);
+    return result;
 }

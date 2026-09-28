@@ -38,17 +38,15 @@ static bool resolve_one(KLoader *loader, KSymbolTable *symtab, KDiagnosticSink *
     KModule *module = NULL;
     KLoadResult result = loader->load(loader->tool, module_name, &module);
 
-    if (result == K_LOAD_ALREADY && module == NULL) {
-        /* on the load stack: the tool knows the chain, the parser knows
-           the position (cgen-tool §3.1) */
+    if (result == K_LOAD_CYCLE) {
+        /* the chain comes from the tool's load stack, the position from
+           here — neither half has both (cgen-tool §3.1) */
         KDiagArgs args = { { module_name } };
         k_diag_emit(diag, K_DIAG_CIRCULAR_IMPORT, at, args);
         return false;
     }
-    if (result == K_LOAD_NOT_FOUND || result == K_LOAD_ERROR || module == NULL) {
-        /* the tool reports these: only it knows the roots it searched */
-        return false;
-    }
+    if (result != K_LOAD_OK && result != K_LOAD_ALREADY) return false;
+    if (module == NULL) return false;
 
     if (has_types && !inject_types(symtab, module)) return false;
     if (alias.len != 0 && !k_symtab_insert(symtab, alias, K_SYM_MODULE, 0)) return false;

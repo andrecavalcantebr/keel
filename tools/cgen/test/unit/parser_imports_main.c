@@ -20,8 +20,8 @@ static int failures = 0;
 
 /* `keel` carries the prelude's primitives; `coll` a modifier of arity 1
    plus a function, to prove `types` injects the first and not the
-   second (keel-spec §4.1 item 6). `spin` is the module that is "still
-   on the load stack", i.e. a cycle. */
+   second (keel-spec §4.1 item 6). `spin` is the module the tool
+   reports as pending, i.e. a cycle. */
 static KSymbol keel_syms[] = {
     { { 3, (char *)"i32" }, K_SYM_TYPE, 0 },
     { { 3, (char *)"f64" }, K_SYM_TYPE, 0 },
@@ -41,7 +41,7 @@ static KLoadResult fake_load(void *tool, keel_slice_char name, KModule **out) {
     ((FakeTool *)tool)->calls++;
     if (k_symtab_same_name(name, S("keel"))) { *out = &mod_keel; return K_LOAD_OK; }
     if (k_symtab_same_name(name, S("coll"))) { *out = &mod_coll; return K_LOAD_OK; }
-    if (k_symtab_same_name(name, S("spin"))) { *out = NULL; return K_LOAD_ALREADY; }
+    if (k_symtab_same_name(name, S("spin"))) { *out = NULL; return K_LOAD_CYCLE; }
     *out = NULL;
     return K_LOAD_NOT_FOUND;
 }
@@ -128,7 +128,7 @@ int main(void) {
     run("not found", "module app;\nimport nope types;\n", false,
         "i32:0:0|f64:0:0", 0);
 
-    /* on the load stack: this half knows the position, so it reports */
+    /* pending in the tool: this half knows the position, so it reports */
     run("cycle", "module app;\nimport spin;\n", false, "i32:0:0|f64:0:0", 1);
 
     /* one bad import does not stop the others */

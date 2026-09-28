@@ -13,10 +13,18 @@
 
 #include "engine/symtab.h"
 
+/* The load state lives in the tool (cgen-tool §3.1): per module, one of
+ * never seen / pending / done / failed. Which of those a request lands
+ * on is what picks the result below — and only a request for a PENDING
+ * module is a cycle. A request for a module that is done is a
+ * memoization hit even while an ancestor further up the stack is still
+ * pending. "Pending" is therefore a state, never a result: a pending
+ * module is one whose load is in progress at another level of the
+ * stack, and asking for it again is exactly the cycle. */
 typedef enum {
-    K_LOAD_OK,         /* loaded now; *out is the module */
-    K_LOAD_ALREADY,    /* seen before. *out set: already finished, use it.
-                          *out NULL: still on the load stack, i.e. a cycle */
+    K_LOAD_OK,         /* loaded now, and complete */
+    K_LOAD_ALREADY,    /* was already loaded and complete: the memoized one */
+    K_LOAD_CYCLE,      /* a request for a pending module: closes a cycle */
     K_LOAD_NOT_FOUND,  /* no root has it; the tool reports, it knows the roots */
     K_LOAD_ERROR       /* the tool already diagnosed it */
 } KLoadResult;

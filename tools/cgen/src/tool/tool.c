@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "tool/tool.h"
+#include "tool/cli_limits.h"
 #include "engine/instances.h"
 #include "engine/names.h"
 #include "keel/keel_buffer_char.type.h"
@@ -25,7 +26,7 @@ typedef struct CgenModuleEntry {
 } CgenModuleEntry;
 typedef struct {
     keel_arena *arena;
-    const char *roots[130];
+    const char *roots[CGEN_SEARCH_ROOTS_CAP];
     int root_count;
     KDiagnosticSink *diag;
     CgenModuleEntry *mods;
@@ -208,9 +209,15 @@ KLoadResult cgen_load_path(void *v,const char *path,const char *name,KModule **o
     return load_file(v,k_diag_text(name),path,(long long)st.st_mtime,out);
 }
 void cgen_loader_init(void *v,keel_arena *arena,const char *const *roots,int n,KDiagnosticSink *diag,KLoader *out) {
-    CgenTool *t=v;memset(t,0,sizeof *t);t->arena=arena;t->root_count=n<130?n:130;
-    for(int i=0;i<t->root_count;i++)t->roots[i]=roots[i];
+    CgenTool *t=v;memset(t,0,sizeof *t);t->arena=arena;t->root_count=0;
     t->diag=diag;*out=(KLoader){cgen_load,t};
+    if(n<0 || n>CGEN_SEARCH_ROOTS_CAP) {
+        fprintf(stderr,"cgen: error: search roots exceed configured limit %d; adjust CGEN_CLI_ROOTS_CAP [implementation-limit]\n",CGEN_SEARCH_ROOTS_CAP);
+        k_diag_emit(diag,K_DIAG_CAPACITY,k_diag_text(""),(KDiagArgs){{k_diag_text("search roots")}});
+        return;
+    }
+    t->root_count=n;
+    for(int i=0;i<t->root_count;i++)t->roots[i]=roots[i];
 }
 size_t cgen_loader_size(void){return sizeof(CgenTool);}
 void cgen_loader_destroy(void *v) {

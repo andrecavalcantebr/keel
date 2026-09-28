@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "tool/memory.h"
+#include "tool/cli_limits.h"
 
 bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, const char **value);
 bool cgen_source_under_root(const char *source, const char *root);
@@ -16,6 +17,16 @@ static void fatal(const char *diagnostic_id, const char *message) {
     fprintf(stderr, "cgen: error: %s [%s]\n", message, diagnostic_id);
     exit(2);
 }
+
+static void require_room(size_t used, size_t extra, size_t cap,
+                         const char *name, const char *setting) {
+    if (used <= cap && extra <= cap-used) return;
+    fprintf(stderr, "cgen: error: %s limit exceeded: requested %zu, configured limit %zu; adjust %s [implementation-limit]\n",
+            name, used+extra, cap, setting);
+    exit(2);
+}
+#define ROOT_ROOM() require_room(root_count,1,CGEN_CLI_ROOTS_CAP,"CLI roots","CGEN_CLI_ROOTS_CAP")
+#define ARG_ROOM(n) require_room(passthrough_count,(n),CGEN_CLI_ARGS_CAP,"forwarded arguments","CGEN_CLI_ARGS_CAP")
 
 int main(int argc, char *argv[]) {
     if (argc == 1) {
@@ -38,9 +49,9 @@ int main(int argc, char *argv[]) {
     bool f_flag = false;
 
     int root_count = 0;
-    const char *roots[128]; // arbitrary limit
+    const char *roots[CGEN_CLI_ROOTS_CAP];
     int passthrough_count = 0;
-    const char *passthrough[256]; // arbitrary limit
+    const char *passthrough[CGEN_CLI_ARGS_CAP];
 
     int k_file_count = 0;
     const char *k_file = NULL;
@@ -54,10 +65,16 @@ int main(int argc, char *argv[]) {
         }
 
         if (strcmp(w, "-I") == 0) {
+            if (i + 1 >= argc)
+                fatal("invalid-option", "-I requires an argument");
+            ROOT_ROOM();
+            ARG_ROOM(2);
             roots[root_count++] = argv[++i];
             passthrough[passthrough_count++] = w;
             passthrough[passthrough_count++] = roots[root_count - 1];
         } else if (strncmp(w, "-I", 2) == 0 && w[2] != '\0') {
+            ROOT_ROOM();
+            ARG_ROOM(1);
             roots[root_count++] = w + 2;
             passthrough[passthrough_count++] = w;
         } else if (strcmp(w, "-o") == 0 || strcmp(w, "-MF") == 0 || strcmp(w, "-MT") == 0 ||
@@ -73,6 +90,7 @@ int main(int argc, char *argv[]) {
                    strcmp(w, "-aux-info") == 0) {
             if (i + 1 >= argc)
                 fatal("invalid-option", "option requires an argument");
+            ARG_ROOM(2);
             passthrough[passthrough_count++] = w;
             passthrough[passthrough_count++] = argv[++i];
         } else {
@@ -164,6 +182,7 @@ int main(int argc, char *argv[]) {
             } else if (strcmp(w, "-f") == 0) {
                 f_flag = true;
             } else if (w[0] == '-' && w[1] != '\0') {
+                ARG_ROOM(1);
                 passthrough[passthrough_count++] = w;
             } else if (strlen(w) > 2 && strcmp(w + strlen(w) - 2, ".k") == 0) {
                 k_file_count++;
@@ -171,6 +190,7 @@ int main(int argc, char *argv[]) {
                 if (k_file_count > 1)
                     fatal("multiple-sources", "only one source file allowed");
             } else {
+                ARG_ROOM(1);
                 passthrough[passthrough_count++] = w;
             }
         }
@@ -189,7 +209,7 @@ int main(int argc, char *argv[]) {
 
     if (k_file_count == 0 && instance == NULL) {
         // Transparent link
-        char *new_argv[256];
+        char *new_argv[CGEN_CLI_ARGS_CAP + 2]; /* executable + arguments + NULL */
         int new_argc = 0;
         new_argv[new_argc++] = (char *)cc;
         for (int i = 0; i < passthrough_count; ++i)
@@ -202,8 +222,10 @@ int main(int argc, char *argv[]) {
 
     if (k_file_count == 1) {
         // Check source in multiple roots
-        if (root_count == 0)
+        if (root_count == 0) {
+            ROOT_ROOM();
             roots[root_count++] = ".";
+        }
         if (cgen_source_in_multiple_roots(k_file, roots, root_count))
             fatal("source-in-multiple-roots", "source file is under multiple -I roots");
     }

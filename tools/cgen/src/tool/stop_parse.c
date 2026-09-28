@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "tool/tool.h"
+#include "tool/cli_limits.h"
 
 static bool absolute(const char *path,char *out,size_t cap) {
     if(path[0]=='/')return cgen_path_normalize(path,out,cap);
@@ -13,6 +14,10 @@ static bool absolute(const char *path,char *out,size_t cap) {
     return n>=0&&(size_t)n<sizeof joined&&cgen_path_normalize(joined,out,cap);
 }
 int cgen_stop_after_parse(keel_arena *arena,const char *path,const char *const *roots,int n,const char *base) {
+    if (n < 0 || n > CGEN_CLI_ROOTS_CAP) {
+        fprintf(stderr,"cgen: error: search roots exceed configured limit %d; adjust CGEN_CLI_ROOTS_CAP [implementation-limit]\n", CGEN_CLI_ROOTS_CAP);
+        return 2;
+    }
     char source[8192],normalized[8192],name[8192];
     if(!absolute(path,source,sizeof source))return 2;
     bool found=false;
@@ -21,8 +26,7 @@ int cgen_stop_after_parse(keel_arena *arena,const char *path,const char *const *
            cgen_module_name_of(source,normalized,name,sizeof name)){found=true;break;}
     /* Still lex the input first, so a lexical error keeps its diagnostic. */
     if(!found)name[0]='\0';
-    const char *search[130];
-    if(n>129)return 2;
+    const char *search[CGEN_SEARCH_ROOTS_CAP];
     for(int i=0;i<n;i++)search[i]=roots[i];
     search[n++]=base;
     KDiagnostic items[4096];KDiagnosticSink sink;k_diag_init(&sink,items,4096);

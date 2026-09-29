@@ -338,46 +338,55 @@ Motivo de ficar para depois: complexidade no núcleo para um ganho que a base e
 as construções (`walk`, `foreach`, `parallel`) não pedem, e que a
 documentação cobre enquanto o usuário não escreve algoritmos genéricos.
 
-### Protocolo de hierarquia: Hierarquizável
+### Protocolos de alocação e de hierarquia: Alocável e Hierarquizável
 
 Hoje o núcleo trata a arena pelo nome: registra a procedência (spec §5.2, regra
-10) e emite `child-arena-after-reset` só para os verbos de `keel.arena`. Um
-protocolo tiraria a arena da lista de pontos que o núcleo conhece pelo nome, e
-serviria a qualquer módulo em que uma região é feita de outra: um pool, um
-`slab`, uma pilha sobre arena.
+10) e emite `child-arena-after-reset` só para os verbos de `keel.arena`. Dois
+protocolos tirariam a arena da lista de pontos que o núcleo conhece pelo nome, e
+abririam a porta para outros alocadores (um pool, um `slab`, uma pilha sobre
+arena). São independentes: um módulo pode querer ser hierarquizável sem alocar.
 
-O que ele exige do núcleo é uma **verificação**, e não uma tradução: depois de
-`reset(pai)`, nenhum uso do filho nem de dado derivado dele, isto é, nenhum
-filho vivo além do reset do pai. Diferente dos demais protocolos da §5.1, não
-há construção que o consuma nem código a gerar; a coluna "Construção que o
-consome" diria *verificação de procedência*. A verificação fica no mesmo escopo,
-e o que escapa dele segue como `arena-escape`.
+| Protocolo | Verbos | Papel |
+| --- | --- | --- |
+| Alocável | `alloc(a, n, sz, al)` e `reset(a)`; opcionais `mark` e `restore` | entrega memória em lote e a recolhe em lote |
+| Hierarquizável | `from_parent(filho, pai, …)` | uma região feita de outra: invalidar o pai invalida as filhas |
 
-Dois papéis de verbo:
+Um verbo pode estar nos dois protocolos: `reset` é o recolhimento em Alocável, e
+é o que se propaga às filhas em Hierarquizável. O papel de cada verbo vem da
+pertença ao conjunto, e não de uma marca nele: um módulo que só tem `reset`,
+sem `alloc`, não é alocador, e o `reset` dele não conta. A arena é os dois
+protocolos juntos; um pool sem filhas é só Alocável; uma sessão com sessões
+filhas, sem `alloc`, é só Hierarquizável.
 
-| Papel | Hoje, na arena |
-| --- | --- |
-| derivar o filho do pai | `from_parent(filho, pai, n)` |
-| invalidar o que foi derivado | `reset(pai)`, `restore(pai, m)` |
+**A filosofia é a de muitos.** Alocar um e liberar um (`malloc` e `free`) é a
+filosofia oposta, e o núcleo não a distingue: keel escolheu o lote por causa do
+DOD. Um módulo que embrulhe `malloc`/`free` faz essa distinção por dentro; o
+protocolo só exige `alloc` e `reset`.
+
+**O que o núcleo consegue verificar é pouco.** O único diagnóstico possível é o
+de hoje, generalizado: uso de região filha depois de `reset` ou `restore` do
+pai, no mesmo escopo. Não há como mapear dado derivado usado depois do `reset`:
+o ponteiro devolvido por `alloc` circula por struct, retorno, argumento e alias,
+e a tradução não segue nada disso. Tampouco pega o caso interprocedural: se o
+pai é invalidado numa função e a filha é usada no chamador, passa. Ficam com o
+programa, como hoje (§5.2, "Casos especiais"). Os protocolos dão estrutura e
+nome ao que já existe; não prometem mais análise.
 
 Abertos:
 
 - **Nome.** "Componentizável" colide com "componente" da leitura ECS (§3), que é
-  coluna de `extent`. Hierarquizável segue o padrão de Indexável, Fatiável e
-  Percorrível.
-- **Como o núcleo acha os papéis.** `from_parent` se acha por nome e aridade,
-  como os verbos dos outros protocolos. `reset` não: outros módulos têm um
-  `reset` que não invalida ninguém, e o papel não se deduz do nome. Isso empurra
-  para o protocolo nominal (§2 acima), e este pode ser o caso que o justifique.
-- **Dado alocado.** O ponteiro devolvido por `alloc` é o nível folha da mesma
-  relação (dado dentro da arena, dentro do pai). O protocolo pode cobrir só a
-  arena-filha, ou qualquer verbo que derive.
+  coluna de `extent`. Alocável e Hierarquizável seguem o padrão de Indexável,
+  Fatiável e Percorrível. O diagnóstico `child-arena-after-reset` precisaria de um
+  nome que não diga `arena`, se o protocolo o generalizar.
+- **`clone` genérico.** `clone(arena *a, …)` de `buffer` e `slice` fixa o tipo.
+  Aceitar qualquer Alocável exige parâmetro genérico com exigência sobre ele,
+  que é o `bound` do protocolo nominal (§2 acima).
 - **`restore` com marca.** `restore(pai, m)` invalida só o que foi derivado
   depois de `m`, e `reset` invalida tudo. A verificação precisa da ordem de
   derivação, ou fica conservadora e recusa todas as filhas.
-- **Fora da arena.** Visões sobre um `buffer`, como o `slice` depois de `clear`
-  ou `push`, seguem uma lógica parecida de invalidação. Registrada aqui como
-  vizinha, sem estar incluída.
+- **Fora dos alocadores.** Visões sobre um `buffer`, como o `slice` depois de
+  `clear` ou `push`, seguem uma lógica parecida de invalidação. Registrada aqui
+  como vizinha, sem estar incluída.
 
 ---
 

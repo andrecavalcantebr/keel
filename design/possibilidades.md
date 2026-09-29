@@ -388,6 +388,76 @@ Abertos:
   `clear` ou `push`, seguem uma lógica parecida de invalidação. Registrada aqui
   como vizinha, sem estar incluída.
 
+### Construções definidas por módulo (`construct`)
+
+Hoje `foreach`, `walk`, `apply`, `parallel`, `match` e `else` são do núcleo, e
+cada uma tem os seus diagnósticos escritos à mão. A ideia: um módulo declara a
+construção como um molde de substituição de código, com parâmetros que exigem
+protocolo, e a construção passa a ser um símbolo conhecido como qualquer outro.
+Exportada por um módulo e importada, ela faz a ilha (spec §2.3): o parser
+reconhece o símbolo, e o uso é uma ilha que se expande pelo molde.
+
+Um esboço, com o mesmo espírito do protocolo nominal (§2 acima):
+
+```keel
+construct foreach(T x, size_t i : Indexable c) { body } {
+    size_t n = length(c);
+    for (size_t i = 0; i < n; i++) {
+        T x = get(c, i);
+        body
+    }
+}
+```
+
+`Indexable c` é o mesmo mecanismo do `bound` do protocolo nominal: o parâmetro
+da construção exige o protocolo, do mesmo modo que o parâmetro de tipo do módulo
+genérico. Não é preciso nomear o módulo do contêiner (`M.length(c)`): o verbo
+sem qualificador é resolvido pelo tipo de `c` (spec §4.4, passo 1). O módulo só
+faria falta para nomear um tipo dele, como o `cursor` de `walk`.
+
+**Direção.** Se existem genéricos e metadados, uma metaprogramação simples pode
+deixar a linguagem menor: o núcleo passa a entender `module`, `modifier`,
+`construct` e `protocol`, com seus acessórios (`import`, `dim`, `type`, `tags`),
+e o resto sai como biblioteca. A lista do que o núcleo conhece pelo nome (spec
+§5.1) encolhe na mesma direção da arena. Isto revisa a recusa de "gerar keel" da
+§4 abaixo: lá o que se recusou foi gerar módulos a partir de reflexão sobre
+campos; aqui o molde só substitui texto, e a resolução dos verbos vem depois da
+expansão, sobre os tipos dos argumentos.
+
+O que substituição simples não cobre:
+
+- **Avaliação única e higiene.** `foreach` obtém contêiner e comprimento na
+  entrada. O molde precisa de temporários que o usuário não vê, e de garantir
+  que `c` é avaliado uma vez, senão `foreach (x : f())` chama `f` a cada volta.
+- **Forma do binder.** O binder por valor ou por endereço escolhe `get` ou
+  `ptr`. No molde, são duas formas casadas por padrão sintático (`T x` contra
+  `T *x`), ou uma condicional. É casamento de sintaxe, e não substituição.
+- **`parallel`.** O corpo é extraído para uma função de worker, com gerente, e
+  `return`, `break` e `worker-exit` mudam de sentido.
+- **`match` e `else`.** Trazem verificação de exaustividade, `default` com
+  `KEEL_CHECK` e fluxo por `goto`. É análise.
+
+O molde cobriria os laços, `foreach`, `walk` e `apply`. As outras três seguem
+no núcleo, ou pedem um segundo mecanismo, além da substituição.
+
+Abertos:
+
+- **Forma sintática fixa.** O parser precisa reconhecer o uso antes de saber o
+  que ele faz: algo como `palavra ( binders : expressões ) { bloco }`, com o
+  molde parametrizando o que está dentro.
+- **Diagnósticos.** Devem sair do protocolo (o parâmetro não cumpre o
+  protocolo), e um molde não deveria poder emitir diagnóstico livre. Os de hoje
+  do `foreach` e do `walk` passariam a ser os da conformidade.
+- **Mapeamento de linhas.** O código expandido aponta para o uso da construção,
+  e não para o molde (backend §6).
+- **Ordem de implementação.** Protocolo nominal primeiro, com `bound`; a
+  construção é o terceiro consumidor, depois do `bound` de módulo genérico.
+- **Tipo do elemento.** Hoje o usuário escreve o tipo do binder. Inferi-lo pelo
+  protocolo exigiria tipo associado (o `Item` do Rust), que é outro recurso, e
+  fica fora enquanto o binder for tipado por quem escreve.
+- **Custo no núcleo.** Substituir o que hoje é código de tradução por um
+  expansor é trabalho grande, e a v0 já depende das construções como estão.
+
 ---
 
 ## 3. Leituras e digressões

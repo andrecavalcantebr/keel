@@ -1,0 +1,2 @@
+module usebad;
+import bad;

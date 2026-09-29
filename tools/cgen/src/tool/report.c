@@ -58,7 +58,7 @@ void cgen_report(const char *path, keel_slice_char source, const KDiagnosticSink
         size_t line, col;
         position(source, d->at.ptr, &line, &col);
         fprintf(stderr, "%s:%zu:%zu: %s: ", path, line, col, severity_name[d->severity]);
-        put_message(k_diags[d->id].fmt, &d->args);
+        put_message(k_diag_message(d->id), &d->args);
         fprintf(stderr, " [%s]\n", k_diags[d->id].name);
     }
 }

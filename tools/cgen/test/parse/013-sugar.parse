@@ -16,6 +16,7 @@ ilha	type	buffer i32 → keel_buffer_i32	app/ac.k:13:14
 ilha	index	b → keel_buffer_i32_ptr1	app/ac.k:14:5
 ilha	array	v [2,3,4]	app/ac.k:20:5
 ilha	array-index	v rank 3	app/ac.k:21:5
+ilha	array-index	v rank 3	app/ac.k:22:12
 ilha	type	buffer i32 → keel_buffer_i32	app/ac.k:26:16
 ilha	type	slice i32 → keel_slice_i32	app/ac.k:27:5
 ilha	range-index	b 2..7 → keel_buffer_i32_as_slice2	app/ac.k:27:21

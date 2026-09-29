@@ -8,6 +8,10 @@
 #   cli/         a sanitized cgen: argv partition, invocation errors, --base-dir
 #   lex_dump.sh  --stop-after=lex: fixed dumps, the reference lexer over every
 #                .k of golden/ and base/, and the lexical diagnostics
+#   diag.sh      the catalog table is current with keel-spec §6.2, and each
+#                failure case (diag/, DIAG markers in the sources) draws exactly
+#                the diagnostics its sources ask for; the last line is the
+#                catalog's coverage (diag-design §7)
 #   parse_dump.sh --stop-after=parse at level $PARSE_LEVEL (header, decl, inst,
 #                ilha, or ilha:<kinds> for the island stages of parser design
 #                §3.2). The default is stages 4a and 4b: the islands type, name,
@@ -44,6 +48,7 @@ for t in tools/cgen/test/unit/*.sh; do
 done
 for t in tools/cgen/test/cli/*.sh;  do run "cli/$(basename "$t" .sh)"  sh "$t"; done
 run lex_dump sh tools/cgen/test/lex_dump.sh
+run diag sh tools/cgen/test/diag.sh
 PARSE_LEVEL=${PARSE_LEVEL:-ilha:type,name,call,from-stack,ref,implicit-init,array,array-index,index,range-index}
 run "parse_dump/$PARSE_LEVEL" sh tools/cgen/test/parse_dump.sh "$PARSE_LEVEL"
 exit $fail

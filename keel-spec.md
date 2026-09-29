@@ -488,6 +488,8 @@ O reconhecimento consulta nomes e informações declaradas, com as seguintes ori
 
 Nomes que apareçam apenas em headers C ou que sejam produzidos pela expansão de macros não passam a ser símbolos conhecidos por keel. O reconhecimento de um nome declarado não autoriza inferir o tipo de uma expressão C arbitrária.
 
+**O símbolo conhecido é o que faz a ilha.** Toda ocorrência de `Q.IDENT` em que `Q` é módulo ou alias ativo é ilha keel, resolva ou não; a que não resolve segue o passo 3 da §4.4. Todo `x[…]` em que `x` é símbolo registrado como `array` ou como instância de modificador é ilha keel, ainda que a emissão coincida com o C, como em `y[1][5]`: o parser reconhece a ilha, e só então conclui que a emissão é a própria escrita.
+
 #### Formas candidatas
 
 | Forma | Condição de reconhecimento |

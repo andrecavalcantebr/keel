@@ -81,14 +81,34 @@ não há regra escrita para o módulo do programa declarar o seu verbo de
 `range-index`; um contêiner de fora da base não recebe ilha. A marca `&1`
 segue a regra da chamada (objeto por valor, parâmetro ponteiro).
 
-**O que fica sem ilha, de propósito:** chamada cujo contêiner não é um
-identificador declarado (`x.f`, resultado de outro verbo), chamada sobre um
-`array` (`slice.of(steps)`, `arena.from_array(a, memo)`: o verbo de `keel.array`
-e a extensão vinda da tabela ainda não são resolvidos), chamada C desconhecida,
-e `alias.CONSTANTE`. A ausência é o
-"emite a chamada para o C validar" do §4.4; o diagnóstico
-`not-a-container-expression` ainda não existe. A marca de adaptação `*k`
-(parâmetro por valor, argumento ponteiro) não está no §5.2 e não é impressa.
+**A regra (spec §2.3):** o símbolo conhecido é o que faz a ilha. `Q.IDENT` com `Q`
+módulo ou alias ativo é ilha, resolva ou não: o que o módulo não declara sai
+como a chamada (ou o nome) qualificada, para o C validar (§4.4, item 3), e o que
+o módulo declara mas o objeto não serve vira diagnóstico (`wrong-qualifier`,
+`not-a-container-expression`, `address-in-object-position`,
+`flat-view-of-n-dim-array`). `x[…]` sobre `array` ou instância de modificador é
+sempre ilha, mesmo quando a emissão é o próprio texto (`y[1][5]`); um índice sem
+`ptr` daquela aridade é `no-ptr-for-arity`, e um intervalo sobre tipo da base
+sem verbo de `range-index` é `no-range-index-verb`. Símbolos de arquivo
+(`buffer i32 gbuf;`, `array i32 v[6]`) valem em todas as funções, onde quer que
+estejam no arquivo.
+
+`of`, `from` e `clone` são produtores, qualificados pelo módulo do produto
+(§4.4, regra 1), então `slice.of(b, r)` sobre um `buffer` é o `as_slice` do buffer
+e não é `wrong-qualifier`. Sobre `array`, `slice.of(v…)` baixa para `from` (e `of1`
+ou `of2` sobre ele), `buffer.of(v)` para o `of` do buffer, e os verbos de
+`keel.array` para `keel_array_<T>_<verbo>`, todos com a marca `dim:1`.
+
+**O que fica sem ilha, por ora:** chamada cujo objeto é uma forma que o
+`container` admite mas a passagem não tipa (`x.f`, `x[i][j]` sobre contêiner,
+resultado de outro verbo); a chamada `keel.length/capacity/dim` (núcleo, sem
+função); o intervalo sobre `array` (sem verbo); e o `range-index` de contêiner
+de fora da base, cuja declaração o §4.5 não descreve. Também **não há ainda**
+`from-without-target` (falta o alvo de atribuição e de `return`),
+`verb-not-in-instance`, e o `not-a-container-expression` para um nome que a
+passagem não viu declarado (faltam os binders de `foreach`, `parallel` e
+`apply`, das etapas 4d e 4e). A marca `*k` (parâmetro por valor, argumento
+ponteiro) não está no §5.2 e não é impressa.
 
 `PARSE_LEVEL=ilha:<espécies>` (padrão do `make check`: as das etapas 4a e 4b)
 compara só essas espécies nos `.parse`, que continuam inteiros (001, 009 e 013
@@ -127,3 +147,19 @@ As funções `k_parse_ast`, `k_parse_headers`, `k_collect_ast` e
 `k_collect_instances` usam o armazenamento do próprio `KAst`, sem repetir
 ponteiro e capacidade nos argumentos. A operação de contagem `k_lexemes`
 continua aceitando saída nula antes da alocação dos tokens.
+
+## Diagnósticos (2026-09-29)
+
+`diag_catalog.def` é gerado por `tools/cgen/gen-diags.py` a partir do catálogo do
+`keel-spec.md` §6.2 ([G1]): 140 identificadores de tradução, sem os 9 `debug`,
+que são verificações do programa gerado. Os identificadores da ferramenta
+(`module-not-found`, `unexpected-token`, `module-load-failed`,
+`implementation-limit`) ficam em `diag.h`. Só as mensagens são escritas à mão,
+em `diag.c`; um diagnóstico sem mensagem é um que o motor ainda não emite.
+`gen-diags.py --check` roda no `make check` e falha se o `.def` divergir da spec.
+
+Os casos de falha ficam em `test/diag/` ([G3], `diag-design.md` §7): cada fonte
+marca a linha que deve ser recusada com `/* DIAG: <identificador> */`, e
+`test/diag.py` compara o conjunto (arquivo, linha, identificador) impresso com o
+marcado. A última linha do teste é a cobertura do catálogo;
+`python3 tools/cgen/test/diag.py --coverage -v` lista o que falta.

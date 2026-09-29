@@ -491,12 +491,15 @@ viram um espaço só.
 | `index` | o contêiner | `<contêiner> → <símbolo do acessor>`, e as marcas |
 | `range-index` | o contêiner | `<contêiner> <intervalo como escrito> → <símbolo> [<símbolo do limite>]`, e as marcas |
 | `array` | a palavra `array` | `<nome> [<dimensões>]` |
-| `array-index` | o nome | `<nome> rank <n>`: o índice com vírgulas |
+| `array-index` | o nome | `<nome> rank <n>`: todo `x[…]` sobre símbolo `array`, com `n` os índices escritos, num colchete ou em vários (`v[1,2,3]` e `v[1][2][3]` são `rank 3`); a emissão pode ser a própria escrita, e a ilha existe do mesmo jeito (spec §2.3) |
 
 As marcas de adaptação vêm depois dos símbolos, separadas por espaço. `&<k>`: o
 argumento *k*, contado de 1, recebe `&`, porque o parâmetro declarado no
 chamado é ponteiro e o argumento é o objeto (spec §4.4). `type:<k>`: o
-argumento *k* é um tipo, apagado em tamanho e alinhamento (backend §5.16).
+argumento *k* é um tipo, apagado em tamanho e alinhamento (backend §5.16). `dim:<k>`: o argumento *k* é um `array`, e a
+dimensão 0 dele, vinda da tabela, entra como argumento a mais (backend §5.2, §5.18).
+Quando a chamada baixa para dois verbos — `slice.of(v, a, b)` sobre `array` é o `of2`
+da instância sobre o `from` dela —, os dois símbolos vêm nessa ordem, antes das marcas.
 
 Os módulos importados são carregados (é preciso, para resolver) e não são
 impressos. Os despejos esperados de três casos do golden estão em

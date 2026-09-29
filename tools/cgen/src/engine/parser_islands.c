@@ -30,6 +30,8 @@ typedef struct {
     int depth;                  /* brace depth of the block that declared it */
     size_t decl_at;             /* token index of the declarator's name */
     int rank;                   /* dimensions of an `array`; 0 for anything else */
+    keel_slice_char element;    /* an `array`'s element type, as written */
+    keel_slice_char dims;       /* its dimensions, as written: `[2,3,4]` */
 } Local;
 
 typedef struct {
@@ -37,6 +39,9 @@ typedef struct {
     KDiagnosticSink *diag;
     Local locals[K_LOCALS_MAX];
     size_t local_count;
+    Local globals[K_LOCALS_MAX];    /* what the file declares at file scope */
+    size_t global_count;
+    bool quiet;                     /* reading declarations, not printing islands */
     int depth;
     bool failed;
     bool has_target;            /* an initializer is being read... */
@@ -47,8 +52,9 @@ typedef struct { char s[K_DETAIL_MAX]; size_t n; bool ok; } Text;
 
 typedef struct {
     bool is_type;               /* `type X` */
-    bool pointer;               /* declared as pointer (or array) */
-    keel_slice_char base;       /* first type name of the parameter */
+    bool is_array;              /* `array T v[size_t N]` */
+    bool pointer;               /* declared as pointer */
+    keel_slice_char base;       /* first type name of the parameter; the element of an array */
 } Param;
 
 static KToken tok(const KAst *a, size_t i) { return keel_buffer_KLexeme_ptr(&a->tokens, i)->token; }
@@ -128,6 +134,7 @@ static void put_source(Text *t, const char *p, const char *end) {
    before an earlier declarator's initializer is read */
 static bool emit(Ctx *c, KIslandKind kind, size_t anchor, const Text *t) {
     KAst *a = c->ast;
+    if (c->quiet) return true;
     if (!t->ok || a->islands.len == a->islands.cap || t->n > a->island_text.cap - a->island_text.len) {
         if (!c->failed) {
             KToken at = tok(a, anchor);
@@ -155,16 +162,16 @@ static const Local *find_local(const Ctx *c, keel_slice_char name) {
     return NULL;
 }
 
-static void add_local(Ctx *c, keel_slice_char name, const KSpecifier *spec, int pointers,
-                      size_t decl_at, int rank) {
+static void add_local(Ctx *c, Local local) {
     if (c->local_count == K_LOCALS_MAX) {
         if (!c->failed) {
-            k_diag_emit(c->diag, K_DIAG_CAPACITY, name, (KDiagArgs){{name}});
+            k_diag_emit(c->diag, K_DIAG_CAPACITY, local.name, (KDiagArgs){{local.name}});
             c->failed = true;
         }
         return;
     }
-    c->locals[c->local_count++] = (Local){ name, *spec, pointers, c->depth, decl_at, rank };
+    local.depth = c->depth;
+    c->locals[c->local_count++] = local;
 }
 
 /* The dimensions a `[...]` part declares: one per comma inside a group, one
@@ -238,10 +245,10 @@ static size_t params_of(const KAst *a, const KAstNode *fn, Param *out, size_t ca
         if (!closing && !(depth == 0 && punct(a, j, ","))) continue;
         if (j > start && !(j == start + 1 && word(a, start, "void"))) {
             if (n == cap) return SIZE_MAX;
-            Param p = { .is_type = word(a, start, "type") };
+            Param p = { .is_type = word(a, start, "type"), .is_array = word(a, start, "array") };
             for (size_t k = start; k < j; k++) {
-                if (punct(a, k, "*") || punct(a, k, "[")) p.pointer = true;
-                if (!p.base.len && ident(a, k) && !(p.is_type && k == start)) p.base = tok(a, k);
+                if (punct(a, k, "*") || (punct(a, k, "[") && !p.is_array)) p.pointer = true;
+                if (!p.base.len && ident(a, k) && !((p.is_type || p.is_array) && k == start)) p.base = tok(a, k);
             }
             out[n++] = p;
         }
@@ -256,6 +263,7 @@ typedef struct {
     size_t n;
     bool found;
     bool overloaded;            /* declared in more than one arity (backend §2.1.1) */
+    bool producer;              /* returns the module's own type: `of`, `from`, `clone` (spec §4.4, item 1) */
 } Sig;
 
 /* The declaration of `verb` in `a` with `arity` parameters (any arity when
@@ -274,6 +282,9 @@ static Sig find_verb(const KAst *a, keel_slice_char verb, size_t arity) {
             memcpy(sig.p, p, n * sizeof *p);
             sig.n = n;
             sig.found = true;
+            keel_slice_char own = modifier_of(a);
+            for (size_t j = fn->first; own.len && j < fn->name_first; j++)
+                if (ident(a, j) && k_symtab_same_name(tok(a, j), own)) sig.producer = true;
         }
     }
     sig.overloaded = (seen & (seen - 1)) != 0;
@@ -292,9 +303,69 @@ static const KModule *module_alias(const KSymbolTable *symbols, keel_slice_char 
 
 typedef struct { size_t first, end; } Range;
 
+static keel_slice_char range_text(const KAst *a, Range r) {
+    if (r.first >= r.end) return (keel_slice_char){0};
+    KToken f = tok(a, r.first), l = tok(a, r.end - 1);
+    return (keel_slice_char){ (size_t)(l.ptr + l.len - f.ptr), f.ptr };
+}
+
+static void diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, keel_slice_char y,
+                  keel_slice_char z) {
+    if (c->quiet) return;
+    k_diag_emit(c->diag, id, at, (KDiagArgs){{ x, y, z }});
+}
+
+/* The shortest name a module is imported under: the alias, when there is one. */
+static keel_slice_char alias_of(const KSymbolTable *symbols, const KModule *m) {
+    keel_slice_char best = m->name;
+    for (size_t i = 0; i < symbols->len; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(symbols, i);
+        if (s->kind == K_SYM_MODULE && s->origin == m && s->name.len < best.len) best = s->name;
+    }
+    return best;
+}
+
+typedef enum { SHAPE_NAME, SHAPE_CONTAINER, SHAPE_C } Shape;
+
+/* What the `container` production (spec §2.2) makes of an argument: one
+   identifier, a shape it admits but this pass cannot type (a field, an index,
+   a verb over a container), or C — a literal, an operator, a cast, a call of
+   anything but a qualified verb — which gives no container identity (§4.4). */
+static Shape container_shape(const KAst *a, Range r) {
+    if (r.end == r.first + 1 && ident(a, r.first)) return SHAPE_NAME;
+    size_t depth = 0;
+    for (size_t j = r.first; j < r.end; j++) {
+        if (punct(a, j, "(")) {
+            if (depth == 0) {
+                size_t k = close_paren(a, j, r.end);
+                if (k != SIZE_MAX && k + 1 < r.end &&
+                    (ident(a, k + 1) || k_token_is_number(tok(a, k + 1)))) return SHAPE_C;   /* a cast */
+                bool verb = j >= r.first + 3 && ident(a, j - 1) && punct(a, j - 2, ".") && ident(a, j - 3);
+                if (j > r.first && ident(a, j - 1) && !verb) return SHAPE_C;                  /* a C call */
+            }
+            depth++;
+        } else if (punct(a, j, "[") || punct(a, j, "{")) depth++;
+        else if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) { if (depth) depth--; }
+        else if (depth == 0) {
+            KToken t = tok(a, j);
+            if (k_token_is_number(t) || k_token_is_string(t) || k_token_is_char(t)) return SHAPE_C;
+            bool prefix = j == r.first && (punct(a, j, "*") || punct(a, j, "&"));
+            if (!(ident(a, j) || punct(a, j, ".") || punct(a, j, "->") || prefix)) return SHAPE_C;
+        }
+    }
+    return SHAPE_CONTAINER;
+}
+
+static const Local *arg_local(const Ctx *c, Range r) {
+    return r.end == r.first + 1 && ident(c->ast, r.first) ? find_local(c, tok(c->ast, r.first)) : NULL;
+}
+
 /* One call: `callee` is the first token of the written callee, `verb` its
    last, `open` the '(' — `module` is the qualifier's module, NULL for a call
-   to the file's own function. Prints nothing when the call is not resolved. */
+   to the file's own function. The island is always printed, resolved or not:
+   what the module does not declare goes on as the qualified call, for the C
+   compiler to validate (spec §4.4, item 3). It is not printed only where this
+   pass cannot name the instance: the object is a shape it does not type yet. */
 static void call(Ctx *c, size_t callee, size_t verb, size_t open, const KModule *module) {
     KAst *a = c->ast;
     size_t close = close_paren(a, open, a->tokens.len);
@@ -317,79 +388,155 @@ static void call(Ctx *c, size_t callee, size_t verb, size_t open, const KModule 
     const KAst *home = module ? module->ast : a;
     if (!home) return;
     KToken name = tok(a, verb);
+    keel_slice_char written = range_text(a, (Range){ callee, verb + 1 });
+    keel_slice_char redirected = {0};
+    /* `slice.of` over a `buffer` is the buffer's `as_slice`, chosen by arity (backend §5.2, item 3) */
+    if (module && module_named(home, "keel.slice") && k_token_spelled(name, "of") && argc) {
+        const Local *object = arg_local(c, args[0]);
+        const KSymbol *m = object && object->spec.kind == K_SPEC_MODIFIER && !object->rank
+                         ? k_symbol_resolve(a->symbols, object->spec.modifier_name) : NULL;
+        if (m && m->origin && m->origin != module && m->origin->ast && module_named(m->origin->ast, "keel.buffer")) {
+            module = m->origin;
+            home = module->ast;
+            redirected = k_diag_text("as_slice");
+        }
+    }
     bool from_stack = module && module_named(home, "keel.arena") && k_token_spelled(name, "from_stack");
     Sig sig = from_stack ? find_verb(home, k_diag_text("from_array"), SIZE_MAX)
-                         : find_verb(home, name, argc);
-    if (!sig.found) return;
-    keel_slice_char declared = from_stack ? k_diag_text("from_array") : name;
+                         : find_verb(home, redirected.len ? redirected : name, argc);
+    keel_slice_char declared = from_stack ? k_diag_text("from_array") : redirected.len ? redirected : name;
+    /* the core's `length`, `capacity` and `dim` lower to no function (backend §5.2) */
+    if (module && module_named(home, "keel")) return;
+    bool gen = module && generic(home);
+    keel_slice_char modifier = gen ? modifier_of(home) : (keel_slice_char){0};
+
+    /* which parameter takes the container, which takes an `array`, and whether a
+       `type` parameter selects the instance (spec §4.4, item 4) */
+    size_t recv = SIZE_MAX, arr = SIZE_MAX;
+    bool selection = false;
+    for (size_t k = 0; sig.found && k < sig.n; k++) {
+        if (sig.p[k].is_type) selection = selection || binder(home, sig.p[k].base);
+        else if (sig.p[k].is_array) { if (arr == SIZE_MAX) arr = k; }
+        else if (gen && recv == SIZE_MAX && k_symtab_same_name(sig.p[k].base, modifier)) recv = k;
+    }
+    if (!sig.found && gen && argc) recv = 0;        /* the module declares no such verb: the object is first */
 
     Text t = { .ok = true };
-    put_glued(&t, a, callee, verb + 1);
+    put(&t, written.ptr, written.len);
     put_str(&t, "/");
     put_uint(&t, argc);
     put_str(&t, " \xe2\x86\x92 ");
 
-    if (module && generic(home)) {
-        /* The instance comes from the object argument, or, for a producer that
-           takes none, from the declared type of the object being initialized
-           (spec §4.4, item 4). */
-        keel_slice_char modifier = modifier_of(home), text = {0};
-        size_t receiver = SIZE_MAX;
-        bool selection = false;
-        for (size_t k = 0; k < sig.n; k++) {
-            if (sig.p[k].is_type) selection = selection || binder(home, sig.p[k].base);
-            else if (receiver == SIZE_MAX && k_symtab_same_name(sig.p[k].base, modifier)) receiver = k;
-        }
-        Text written = { .ok = true };
-        const KSpecifier *spec = NULL;
-        if (receiver != SIZE_MAX) {
-            if (receiver >= argc) return;
-            const Range *r = &args[receiver];
-            const Local *l = r->end == r->first + 1 && ident(a, r->first) ? find_local(c, tok(a, r->first)) : NULL;
-            if (l) spec = &l->spec;
-            if (!spec || spec->kind != K_SPEC_MODIFIER) return;
-            text = spec->text;
-        } else if (selection) {
-            /* the written types are the instance's arguments, in parameter order */
-            put(&written, modifier.ptr, modifier.len);
-            for (size_t k = 0; k < sig.n && k < argc; k++) {
-                if (!sig.p[k].is_type || !binder(home, sig.p[k].base)) continue;
-                put_str(&written, " ");
-                put_tokens(&written, a, args[k].first, args[k].end);
-            }
-            if (!written.ok) return;
-            text = (keel_slice_char){ written.n, written.s };
-        } else if (c->has_target && c->target.kind == K_SPEC_MODIFIER) {
-            spec = &c->target;
-            text = spec->text;
-        } else {
+    /* `slice.of(v ...)` and `buffer.of(v)` over an `array` lower to the view's
+       `from`, with dimension 0 from the table (backend §5.2) */
+    const Local *first = argc ? arg_local(c, args[0]) : NULL;
+    if (gen && first && first->rank > 0 && k_token_spelled(name, "of") &&
+        (module_named(home, "keel.slice") || module_named(home, "keel.buffer"))) {
+        char elem[K_DETAIL_MAX];
+        size_t n = k_spec_symbol(first->element, a->symbols, elem, sizeof elem);
+        if (n == SIZE_MAX) return;
+        if (first->rank > 1) {
+            diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, tok(a, callee), written, args[0].first < args[0].end ? tok(a, args[0].first) : written, first->dims);
             return;
         }
-        if (spec) {
-            const KSymbol *m = k_symbol_resolve(a->symbols, spec->modifier_name);
-            if (!m || m->origin != module) return;
-        }
+        bool slice = module_named(home, "keel.slice");
+        if (!slice && argc != 1) return;            /* buffer.of(p, n) is the ordinary verb */
+        if (slice && argc > 3) return;
+        put_module_prefix(&t, home);
+        put_str(&t, "_");
+        put(&t, elem, n);
+        if (slice && argc > 1) { put_str(&t, "_of"); put_uint(&t, argc - 1); put_str(&t, " "); put_module_prefix(&t, home); put_str(&t, "_"); put(&t, elem, n); put_str(&t, "_from"); }
+        else put_str(&t, slice ? "_from" : "_of");
+        put_str(&t, " dim:1");
+        emit(c, K_ISLAND_CALL, callee, &t);
+        return;
+    }
+
+    if (gen) {
         char inst[K_DETAIL_MAX];
-        size_t n = k_spec_symbol(text, a->symbols, inst, sizeof inst);
-        if (n == SIZE_MAX) return;
-        put(&t, inst, n);
+        size_t inst_len = SIZE_MAX;
+        if (recv != SIZE_MAX || arr != SIZE_MAX) {
+            size_t k = recv != SIZE_MAX ? recv : arr;
+            if (k >= argc) return;
+            Range r = args[k];
+            if (punct(a, r.first, "&") && recv != SIZE_MAX) {
+                diag3(c, K_DIAG_ADDRESS_IN_OBJECT_POSITION, tok(a, r.first), written, range_text(a, r), (keel_slice_char){0});
+                return;
+            }
+            const Local *l = arg_local(c, r);
+            bool wanted = recv != SIZE_MAX ? l && l->spec.kind == K_SPEC_MODIFIER && !l->rank
+                                           : l && l->rank > 0;
+            if (!wanted) {
+                /* only what is certainly not a container is refused: a local seen
+                   declared as something else, or a shape that is C. A name this pass
+                   could not have seen declared is not refused. */
+                if (l || container_shape(a, r) == SHAPE_C)
+                    diag3(c, K_DIAG_NOT_A_CONTAINER_EXPRESSION, tok(a, r.first), written, range_text(a, r),
+                          (keel_slice_char){0});
+                return;
+            }
+            if (recv != SIZE_MAX) {
+                const KSymbol *m = k_symbol_resolve(a->symbols, l->spec.modifier_name);
+                if (!m || m->origin != module) {
+                    if (m && m->origin && !sig.producer)
+                        diag3(c, K_DIAG_WRONG_QUALIFIER, tok(a, callee), written, alias_of(a->symbols, m->origin), range_text(a, r));
+                    return;
+                }
+                inst_len = k_spec_symbol(l->spec.text, a->symbols, inst, sizeof inst);
+            } else {
+                Text head = { .ok = true };
+                put_module_prefix(&head, home);
+                char elem[K_DETAIL_MAX];
+                size_t n = k_spec_symbol(l->element, a->symbols, elem, sizeof elem);
+                if (n != SIZE_MAX && head.ok && head.n + 1 + n < sizeof inst) {
+                    memcpy(inst, head.s, head.n);
+                    inst[head.n] = '_';
+                    memcpy(inst + head.n + 1, elem, n);
+                    inst_len = head.n + 1 + n;
+                }
+            }
+        } else if (selection) {
+            /* the written types are the instance's arguments, in parameter order */
+            Text spelled = { .ok = true };
+            put(&spelled, modifier.ptr, modifier.len);
+            for (size_t k = 0; k < sig.n && k < argc; k++) {
+                if (!sig.p[k].is_type || !binder(home, sig.p[k].base)) continue;
+                put_str(&spelled, " ");
+                put_tokens(&spelled, a, args[k].first, args[k].end);
+            }
+            if (!spelled.ok) return;
+            inst_len = k_spec_symbol((keel_slice_char){ spelled.n, spelled.s }, a->symbols, inst, sizeof inst);
+        } else if (sig.found && c->has_target && c->target.kind == K_SPEC_MODIFIER) {
+            const KSymbol *m = k_symbol_resolve(a->symbols, c->target.modifier_name);
+            if (!m || m->origin != module) return;
+            inst_len = k_spec_symbol(c->target.text, a->symbols, inst, sizeof inst);
+        } else {
+            /* from-without-target waits for the targets of an assignment and of
+               a return: refusing now would refuse valid programs */
+            return;
+        }
+        if (inst_len == SIZE_MAX) return;
+        put(&t, inst, inst_len);
     } else {
         put_module_prefix(&t, home);
     }
     put_str(&t, "_");
     put(&t, declared.ptr, declared.len);
-    if (sig.overloaded && argc > 1) put_uint(&t, argc - 1);
+    if (sig.found && sig.overloaded && argc > 1) put_uint(&t, argc - 1);
 
     /* adaptation marks, from the declared parameter (spec §4.4, item 5) */
-    for (size_t k = 0; k < argc && k < sig.n; k++) {
+    for (size_t k = 0; sig.found && k < argc && k < sig.n; k++) {
         const Range *r = &args[k];
         if (sig.p[k].is_type) {
             if (!binder(home, sig.p[k].base)) { put_str(&t, " type:"); put_uint(&t, k + 1); }
             continue;
         }
-        if (!sig.p[k].pointer || r->end != r->first + 1 || !ident(a, r->first)) continue;
-        const Local *l = find_local(c, tok(a, r->first));
-        if (l && l->pointers == 0) { put_str(&t, " &"); put_uint(&t, k + 1); }
+        const Local *l = arg_local(c, *r);
+        if (sig.p[k].is_array) {
+            if (l && l->rank > 0) { put_str(&t, " dim:"); put_uint(&t, k + 1); }
+            continue;
+        }
+        if (sig.p[k].pointer && l && l->pointers == 0) { put_str(&t, " &"); put_uint(&t, k + 1); }
     }
     emit(c, from_stack ? K_ISLAND_FROM_STACK : K_ISLAND_CALL, callee, &t);
 }
@@ -434,6 +581,33 @@ static void name_island(Ctx *c, size_t i) {
         if (n > sizeof sym) return;
         put(&t, sym, n);
     } else if (!tag_value(a, name, &t)) {
+        return;
+    }
+    emit(c, K_ISLAND_NAME, i, &t);
+}
+
+/* `Q.IDENT` that is not a call: a constant, a variable or a function of the
+   module the qualifier names. What the module does not export goes on as the
+   qualified name, for the C compiler to validate (spec §4.4, item 3). */
+static void qualified_name(Ctx *c, size_t i, const KModule *module) {
+    KAst *a = c->ast;
+    KToken member = tok(a, i + 2);
+    Text t = { .ok = true };
+    put_glued(&t, a, i, i + 3);
+    put_str(&t, " \xe2\x86\x92 ");
+    const KSymbol *found = NULL;
+    for (size_t k = 0; k < module->symbol_count && !found; k++)
+        if (k_symtab_same_name(module->symbols[k].name, member)) found = &module->symbols[k];
+    if (found) {
+        char sym[K_DETAIL_MAX];
+        size_t n = k_mangle_symbol(found, (keel_slice_char){ sizeof sym, sym });
+        if (n > sizeof sym) return;
+        put(&t, sym, n);
+    } else if (module->ast) {
+        put_module_prefix(&t, module->ast);
+        put_str(&t, "_");
+        put(&t, member.ptr, member.len);
+    } else {
         return;
     }
     emit(c, K_ISLAND_NAME, i, &t);
@@ -485,7 +659,8 @@ static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexe
         if (!k_scan_declarator(lexer, d, &decl, &after, &pp) || !decl.name.len) break;
         if (decl.has_function_suffix && !decl.parenthesized) break;   /* a prototype */
         size_t at = index_at(a, i, decl.name.ptr);
-        add_local(c, decl.name, spec, decl.pointer_depth + (decl.has_array_suffix ? 1 : 0), at, 0);
+        add_local(c, (Local){ .name = decl.name, .spec = *spec, .decl_at = at,
+                              .pointers = decl.pointer_depth + (decl.has_array_suffix ? 1 : 0) });
 
         bool initialized = k_token_is_punct(after, "=");
         if (!signature && !external && !initialized && decl.pointer_depth == 0 &&
@@ -544,7 +719,6 @@ static size_t array_decl(Ctx *c, size_t i, bool signature) {
         declaration(c, i + 1, &spec, &look, after_type, signature, false);
 
     const char *source_end = a->source.ptr + a->source.len;
-    KSpecifier none = {0};
     for (KToken d = next; d.len; ) {
         KDeclarator decl;
         KToken after;
@@ -557,8 +731,9 @@ static size_t array_decl(Ctx *c, size_t i, bool signature) {
         put_str(&t, " ");
         put_source(&t, dims, end);
         emit(c, K_ISLAND_ARRAY, i, &t);
-        add_local(c, decl.name, &none, decl.pointer_depth + 1, index_at(a, i, decl.name.ptr), rank_of(dims, end));
-
+        add_local(c, (Local){ .name = decl.name, .pointers = decl.pointer_depth + 1,
+                              .decl_at = index_at(a, i, decl.name.ptr), .rank = rank_of(dims, end),
+                              .element = element, .dims = { (size_t)(end - dims), (char *)dims } });
         if (k_token_is_punct(after, "=")) {
             static const char *const stops[] = { ",", ";" };
             size_t which;
@@ -569,16 +744,6 @@ static size_t array_decl(Ctx *c, size_t i, bool signature) {
         d = k_lexer_next(&lexer, &pp);
     }
     return last;
-}
-
-static int module_array_rank(const KAst *a, KToken name) {
-    for (size_t i = 0; i < a->nodes.len; i++) {
-        const KAstNode *n = node_at(a, i);
-        if (n->kind != K_AST_VARIABLE || n->dim_first == n->dim_end ||
-            !k_symtab_same_name(tok(a, n->name_first), name)) continue;
-        return rank_of(tok(a, n->dim_first).ptr, tok(a, n->dim_end - 1).ptr + tok(a, n->dim_end - 1).len);
-    }
-    return 0;
 }
 
 /* The module whose verbs a container of this local's type answers to. */
@@ -605,14 +770,16 @@ static bool container_verb(const Ctx *c, const Local *l, const KAst *home, keel_
     return true;
 }
 
-/* `x[` at token `i`. True when an island was printed. */
+/* `x[` at token `i`: every index or range-index over a symbol registered as an
+   `array` or as an instance of a modifier is an island, even when the emission
+   is the written text (spec §2.3). True when one was printed. */
 static bool index_forms(Ctx *c, size_t i) {
     KAst *a = c->ast;
     size_t open = i + 1, close = close_bracket(a, open, a->tokens.len);
     if (close == SIZE_MAX) return false;
     KToken name = tok(a, i);
     const Local *l = find_local(c, name);
-    if (l && l->decl_at == i) return false;         /* the declarator's own brackets */
+    if (!l || l->decl_at == i) return false;        /* not ours, or the declarator's own brackets */
 
     size_t commas = 0, range = SIZE_MAX, depth = 0;
     for (size_t j = open + 1; j < close; j++) {
@@ -623,37 +790,63 @@ static bool index_forms(Ctx *c, size_t i) {
     }
     Text t = { .ok = true };
 
-    /* an `array` takes several indices as successive brackets, with no verb */
-    int rank = l ? l->rank : module_array_rank(a, name);
-    if (rank > 0) {
-        if (commas == 0 || range != SIZE_MAX) return false;
+    /* an `array` takes its indices as they come, in one bracket or several */
+    if (l->rank > 0) {
+        if (range != SIZE_MAX) return false;        /* the view of an array has no verb to name */
+        size_t indices = commas + 1;
+        for (size_t at = close; punct(a, at + 1, "["); ) {
+            size_t next = close_bracket(a, at + 1, a->tokens.len);
+            if (next == SIZE_MAX) break;
+            indices++;
+            for (size_t j = at + 2, d = 0; j < next; j++) {
+                if (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{")) d++;
+                else if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) d--;
+                else if (d == 0 && punct(a, j, ",")) indices++;
+            }
+            at = next;
+        }
         put(&t, name.ptr, name.len);
         put_str(&t, " rank ");
-        put_uint(&t, commas + 1);
+        put_uint(&t, indices);
         return emit(c, K_ISLAND_ARRAY_INDEX, i, &t);
     }
 
-    const KAst *home = l ? container_home(c, l) : NULL;
+    const KAst *home = container_home(c, l);
     if (!home || close == open + 1) return false;
+    if (module_node(home)->dim_first != module_node(home)->dim_end) return false;   /* full-rank accessor: §5.3.1 */
+    keel_slice_char text = { (size_t)(tok(a, close).ptr - tok(a, open).ptr) + 1, tok(a, open).ptr };
     bool adapt = false;
     put(&t, name.ptr, name.len);
     if (range == SIZE_MAX) {
         /* x[i, j] is *ptr(x, i, j) (spec §4.5, item 1) */
         put_str(&t, " \xe2\x86\x92 ");
-        if (!container_verb(c, l, home, k_diag_text("ptr"), commas + 2, &t, &adapt)) return false;
+        if (!container_verb(c, l, home, k_diag_text("ptr"), commas + 2, &t, &adapt)) {
+            diag3(c, K_DIAG_NO_PTR_FOR_ARITY, name, l->spec.text, text, (keel_slice_char){0});
+            return false;
+        }
     } else {
         /* x[a..b] goes through the verb of the memory side of the pair; the
            base's two are named by the spec (§4.5, item 5) */
         if (commas) return false;
+        const KAstNode *hm = module_node(home);
+        bool base = hm->name_end > hm->name_first + 1 && k_token_spelled(tok(home, hm->name_first), "keel");
         keel_slice_char verb = module_named(home, "keel.buffer") ? k_diag_text("as_slice")
                              : module_named(home, "keel.slice") ? k_diag_text("of")
                              : (keel_slice_char){0};
-        if (!verb.len) return false;
+        if (!verb.len) {
+            /* a base type outside the pair has none; how a program's module declares
+               its own is not written down (spec §4.5, item 7), so it is not judged */
+            if (base) diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, name, l->spec.text, text, (keel_slice_char){0});
+            return false;
+        }
         bool low = range > open + 1, high = range + 1 < close;
         put_str(&t, " ");
         put_source(&t, tok(a, open).ptr + 1, tok(a, close).ptr);
         put_str(&t, " \xe2\x86\x92 ");
-        if (!container_verb(c, l, home, verb, low || high ? 3 : 1, &t, &adapt)) return false;
+        if (!container_verb(c, l, home, verb, low || high ? 3 : 1, &t, &adapt)) {
+            diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, name, l->spec.text, text, (keel_slice_char){0});
+            return false;
+        }
         if (low && !high) {                         /* the limit is length(x) */
             bool ignored = false;
             put_str(&t, " ");
@@ -666,7 +859,8 @@ static bool index_forms(Ctx *c, size_t i) {
 
 static void walk(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
-    c->local_count = 0;
+    memcpy(c->locals, c->globals, c->global_count * sizeof *c->globals);
+    c->local_count = c->global_count;
     c->depth = 0;
     c->has_target = false;
     for (size_t i = n->first; i < n->end && !c->failed; i++) {
@@ -713,6 +907,10 @@ static void walk(Ctx *c, const KAstNode *n) {
             const KModule *module = module_alias(a->symbols, t);
             if (module) { call(c, i, i + 2, i + 3, module); continue; }
         }
+        if (!find_local(c, t) && punct(a, i + 1, ".") && ident(a, i + 2) && !punct(a, i + 3, "(")) {
+            const KModule *module = module_alias(a->symbols, t);
+            if (module) { qualified_name(c, i, module); i += 2; continue; }
+        }
         if (punct(a, i + 1, "(")) {
             if (!find_local(c, t)) {
                 bool own = false;
@@ -736,6 +934,19 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     a->island_text.len = 0;
     if (!a->symbols || generic(a)) return true;
     Ctx ctx = { .ast = a, .diag = diag };
+    /* what the file declares at file scope is known to every function, wherever
+       it stands in the file: read those declarations first, printing nothing */
+    ctx.quiet = true;
+    size_t seen = 0;
+    for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (n->kind != K_AST_VARIABLE || n->first < seen) continue;
+        seen = n->end;
+        walk(&ctx, n);
+        for (size_t k = ctx.global_count; k < ctx.local_count && ctx.global_count < K_LOCALS_MAX; k++)
+            if (ctx.locals[k].depth == 0) ctx.globals[ctx.global_count++] = ctx.locals[k];
+    }
+    ctx.quiet = false;
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = node_at(a, i);

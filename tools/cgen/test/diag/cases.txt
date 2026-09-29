@@ -1,0 +1,9 @@
+# <case dir> <source to translate>; the expectation is in the sources (DIAG markers)
+imports-cycle a.k
+module-path wrong.k
+define-keel-name usebad.k
+literal-newline str.k
+name-limit name_limit.k
+wrong-qualifier wq.k
+containers c.k
+indexing i.k

@@ -17,7 +17,7 @@ SOURCE = [
     'import keel.arena as arena types;',                          # 2
     'import keel.buffer as buffer types;',                        # 3
     'import keel.slice as slice types;',                          # 4
-    '',                                                           # 5
+    'import keel.outcome as outcome types;',                      # 5
     'pub constexpr size_t N = 4;',                                # 6
     'pub tags Mode [FAST, SLOW];',                                # 7
     '',                                                           # 8
@@ -45,6 +45,12 @@ SOURCE = [
     '    slice i32 t = s[1..];',                                  # 30
     '    return t[0] + unknown[1,2];',                            # 31
     '}',                                                          # 32
+    'pub buffer i32 gbuf;',                                       # 33
+    'pub i32 more(arena *a, buffer i32 c) {',                     # 34
+    '    arena.reset_all(a);',                                    # 35
+    '    slice i32 w = slice.of(c);',                             # 36
+    '    return gbuf[0] + outcome.OK + (i32)buffer.length(c);',   # 37
+    '}',                                                          # 38
 ]
 
 # (kind, detail, line, needle, which occurrence of the needle in the line)
@@ -72,6 +78,17 @@ EXPECTED = [
     ('type', 'slice i32 → keel_slice_i32', 30, 'slice', 0),
     ('range-index', 's 1.. → keel_slice_i32_of2 keel_slice_i32_length', 30, 's[', 0),
     ('index', 't → keel_slice_i32_ptr1', 31, 't[', 0),
+    # a qualified name is an island whether or not the module declares it, an
+    # index over a file-scope symbol is one, and slice.of over a buffer is its as_slice
+    ('type', 'buffer i32 → keel_buffer_i32', 33, 'buffer', 0),
+    ('type', 'arena → keel_arena', 34, 'arena', 0),
+    ('type', 'buffer i32 → keel_buffer_i32', 34, 'buffer', 0),
+    ('call', 'arena.reset_all/1 → keel_arena_reset_all', 35, 'arena', 0),
+    ('type', 'slice i32 → keel_slice_i32', 36, 'slice', 0),
+    ('call', 'slice.of/1 → keel_buffer_i32_as_slice &1', 36, 'slice.of', 0),
+    ('index', 'gbuf → keel_buffer_i32_ptr1 &1', 37, 'gbuf', 0),
+    ('name', 'outcome.OK → keel_outcome_OK', 37, 'outcome.OK', 0),
+    ('call', 'buffer.length/1 → keel_buffer_i32_length &1', 37, 'buffer.length', 0),
 ]
 
 def column(line, needle, which):

@@ -47,7 +47,7 @@ A divisão vale nos três documentos, e é um critério só:
   - [5.4 `arena`](#54-arena)
   - [5.5 `defer`](#55-defer)
   - [5.6 `tags` e `match`](#56-tags-e-match)
-  - [5.7 `foreach` e `apply`](#57-foreach-e-apply)
+  - [5.7 `foreach`](#57-foreach)
   - [5.8 Ponto de entrada](#58-ponto-de-entrada)
   - [5.9 `parallel`](#59-parallel)
   - [5.10 `keel.routine`](#510-keelroutine)
@@ -212,8 +212,8 @@ buffer _Atomic u32 →  keel_buffer_atomic_u32
 
 | Nome gerado | O quê | Onde |
 | --- | --- | --- |
-| `keel__c<N>` | struct de captura do `defer`; ponteiro para o contêiner de `foreach`, `apply` e `parallel` | §5.5, §5.7, §5.9 |
-| `keel__n<N>`, `keel__i<N>` | comprimento e índice de `foreach` e `apply` | §5.7 |
+| `keel__c<N>` | struct de captura do `defer`; ponteiro para o contêiner de `foreach` e `parallel` | §5.5, §5.7, §5.9 |
+| `keel__n<N>` | comprimento de `foreach` | §5.7 |
 | `keel__f<N>`, `keel__l<N>` | `first` e `limit` da forma contável de `foreach` | §5.7 |
 | `keel__rv<N>`, `keel__e<N>` | valor de retorno e rótulo de saída da escada de cleanup | §5.5 |
 | `keel__m<N>_<TAG>`, `keel__m<N>_end` | rótulos de braço e de fim de `match` | §5.6 |
@@ -1208,9 +1208,9 @@ void ast_eval(keel_tagged_ast_Kind_ast_NodeRef t) {
 
 **Perfis:** iguais.
 
-### 5.7 `foreach` e `apply`
+### 5.7 `foreach`
 
-**Forma:** `foreach (valor, índice : contêiner)`, `foreach (contador : contável)` e `apply` (linguagem §4.7).
+**Forma:** `foreach (valor, índice : contêiner)` e `foreach (contador : contável)` (linguagem §4.7).
 
 **Emissão**
 
@@ -1241,22 +1241,11 @@ foreach (auto v : r) {
 **Regras**
 
 1. Na forma de dois binders, o contêiner vai para um ponteiro temporário `keel__c<N>` e o comprimento para um `size_t` `keel__n<N>`, ambos antes do `for`: é a avaliação única da linguagem §4.7.
-2. O binder de índice é a própria variável do laço, com o nome que o usuário escolheu. `keel__i<N>` só aparece no `apply`, que não tem binder de índice.
+2. O binder de índice é a própria variável do laço, com o nome que o usuário escolheu.
 3. Binder por valor gera `get`; binder por ponteiro gera `ptr` de um índice.
 4. Um bloco em volta faz os temporários morrerem no fim, e permite `foreach` aninhado sem colisão de nome.
 5. Tudo até a abertura do corpo cabe numa linha, e o corpo mapeia 1:1, sem `#line` (§6, regra 2).
 6. Na forma contável, de um binder, o binder é o contador: `first` e `limit` saem para temporários `keel__f<N>` e `keel__l<N>` antes do laço, e o `for` conta de um ao outro. Nenhum `get` é chamado, e por isso a forma serve tipos que só declaram `first` e `limit`. Um tipo com as quatro operações, como `range`, passa por aqui na forma de um binder, e pela regra 1 na de dois.
-7. `apply(T, c, fn, …)` é o laço de dois binders com o corpo fixo: `fn` recebe o elemento e o índice, nessa ordem, e depois os argumentos de contexto, que atravessam na ordem escrita. `fn` keel sai manglada, e a de `extern_c`, como está. O backend não conta nem examina os argumentos de contexto: quem os confere é o compilador C.
-
-```keel
-apply(i32, xs, doubler);
-apply(Node *, p->ns, visit, pool, sb);
-```
-
-```c
-{ keel_buffer_i32 *keel__c0 = &xs; size_t keel__n0 = keel_buffer_i32_length(keel__c0); for (size_t keel__i0 = 0; keel__i0 < keel__n0; keel__i0++) { m_doubler(keel_buffer_i32_get(keel__c0, keel__i0), keel__i0); } }
-{ keel_buffer_ast_Node *keel__c1 = &p->ns; size_t keel__n1 = keel_buffer_ast_Node_length(keel__c1); for (size_t keel__i1 = 0; keel__i1 < keel__n1; keel__i1++) { lift_visit(keel_buffer_ast_Node_ptr(keel__c1, keel__i1), keel__i1, pool, sb); } }
-```
 
 **Verificações:** as dos verbos chamados. **Perfis:** iguais.
 

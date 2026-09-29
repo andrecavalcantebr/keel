@@ -66,7 +66,7 @@ E uma por construção, na correspondência com as seções do backend §5:
 | `arena.c` | §5.4 | a reescrita de `alloc(a,T,n)` e `from_stack` |
 | `defer.c` | §5.5 | varredura de saídas e injeção do corpo |
 | `match.c` | §5.6 | `tags` e o despacho |
-| `loop.c` | §5.7 | `foreach` e `apply` |
+| `loop.c` | §5.7 | `foreach` |
 | `entry.c` | §5.8 | a unidade de ponto de entrada |
 | `parallel.c` | §5.9 | o gestor, o `#pragma` e os dois lowerings |
 | `result.c` | §5.12–5.14 | `else`, `at`, `outcome` e `corot` |
@@ -402,7 +402,7 @@ pronto antes de atacá-las:
 | `arena` | §5.4 | reescrita de `alloc(a,T,n)` materializando `sizeof`/`alignof`/cast |
 | `defer` | §5.5 | varredura dos pontos de saída do escopo; injeção em cada um, ordem inversa |
 | `tags` e `match` | §5.6 | `switch` com exaustividade já verificada; `tag-out-of-range` sob `--checks` |
-| `foreach`, `apply` | §5.7 | temporários de contêiner e comprimento, em bloco próprio |
+| `foreach` | §5.7 | temporários de contêiner e comprimento, em bloco próprio |
 | ponto de entrada | §5.8 | unidade separada, só sob `--main` |
 | `parallel` | §5.9 | símbolo de controle fora do bloco; `#pragma` com cláusulas em ordem fixada |
 | `keel.routine` | §5.10 | nada de especial: são funções de instância |

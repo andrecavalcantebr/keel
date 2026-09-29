@@ -22,7 +22,7 @@ void k_lexer_init(KLexer *lexer, keel_slice_char source, KDiagnosticSink *diagno
 
 /* the contextual words of keel (lexer-design §4), sorted by strcmp */
 static const char *const k_contextual_words[] = {
-    "ALL", "ANY", "apply", "array", "as", "byref", "constexpr", "defer",
+    "ALL", "ANY", "array", "as", "byref", "constexpr", "defer",
     "dim", "else", "extent", "extern_c", "fail", "foreach", "import",
     "import_c", "instance", "later", "match", "modifier", "module", "now",
     "parallel", "priv", "pub", "ref", "tags", "type", "type_h", "types",

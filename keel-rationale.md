@@ -1311,10 +1311,17 @@ Sua garantia depende da chamada escrita, enquanto o açúcar de indexação cons
 um contrato de índice válido, com instrumentação de debug.
 
 `foreach` obtém contêiner e comprimento na entrada para definir o conjunto
-percorrido. A informação dos binders escolhe cópia ou endereço; `apply` usa a
-mesma escolha e uma chamada fixa. Um parâmetro `dim` não precisa representar um
-rank para participar desse modelo: o módulo declara suas operações e suas
-aridades, e a travessia consulta o protocolo disponível.
+percorrido. A informação dos binders escolhe cópia ou endereço. Um parâmetro
+`dim` não precisa representar um rank para participar desse modelo: o módulo
+declara suas operações e suas aridades, e a travessia consulta o protocolo
+disponível.
+
+Não há `apply`. Sem funções anônimas, "aplicar `f` a cada elemento" é um
+`foreach` de dois binders com uma chamada no corpo, e uma construção à parte só
+encurtaria a escrita: em troca, imporia a toda função aplicada a assinatura
+`(elemento, índice, …)`, índice incluído, e reservaria uma palavra comum em C,
+que no mar de C viraria ilha onde uma função `apply` fosse chamada. Se voltar,
+volta com o que lhe dá sentido.
 
 A forma contável de `foreach` não impõe protocolo rígido: `first` e `limit`
 bastam, porque o binder recebe o próprio contador e nenhum verbo de acesso por

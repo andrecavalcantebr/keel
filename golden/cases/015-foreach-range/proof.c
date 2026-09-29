@@ -1,4 +1,4 @@
-/* proof.c — harness for `apply` and for the named `range`. */
+/* proof.c — harness for the two-binder `foreach` over a buffer and for the named `range`. */
 
 #include "keel.type.h"
 #include "app/app_ap.h"

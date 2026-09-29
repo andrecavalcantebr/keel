@@ -42,7 +42,7 @@ Detalhe de cada um em [[ideias-pendentes-soa-e-cooperativo]]:
 
 ## Digressão registrada (2026-09-17): keel como linguagem DOD, e o nome "cdod"
 
-Andre observou que o conjunto já reunido (soa, buffer/slice, foreach/walk/apply/parallel+partition, tags/match) é, na prática, uma linguagem DOD (data-oriented design) sobre C — e cogitou, como digressão filosófica, batizar o projeto de **cdod** (C + DOD) em vez de keel. Não é decisão, é musing explicitamente rotulado como tal — registrado para não se perder, sem nenhuma ação tomada (nenhum arquivo, license ou nome de repo foi tocado). Retomar só se Andre trouxer de novo com intenção de decidir; se isso acontecer, lembrar que é mudança de grande superfície (toca license, docs, nome do repo/remote, tooling) e vale tratar como decisão à parte, não de passagem.
+Andre observou que o conjunto já reunido (soa, buffer/slice, foreach/walk/parallel+partition, tags/match; `apply` saiu da v0 em 2026-09-29) é, na prática, uma linguagem DOD (data-oriented design) sobre C — e cogitou, como digressão filosófica, batizar o projeto de **cdod** (C + DOD) em vez de keel. Não é decisão, é musing explicitamente rotulado como tal — registrado para não se perder, sem nenhuma ação tomada (nenhum arquivo, license ou nome de repo foi tocado). Retomar só se Andre trouxer de novo com intenção de decidir; se isso acontecer, lembrar que é mudança de grande superfície (toca license, docs, nome do repo/remote, tooling) e vale tratar como decisão à parte, não de passagem.
 
 ## Digressão registrada (2026-09-17): leitura ECS do que já existe / falta
 
@@ -52,9 +52,9 @@ Mapeamento que Andre fez entre keel e um ECS (entity-component-system) clássico
 | --- | --- |
 | Entidade (id) | índice (`i` num `soa`/`buffer`/`slice`) |
 | Componente (struct) | campo de `soa struct` (layout SoA) |
-| Busca e travessia | `foreach`/`walk`/`apply`/`parallel` + `slice` (já existem) |
+| Busca e travessia | `foreach`/`walk`/`parallel` + `slice` (já existem; `apply` saiu da v0 em 2026-09-29) |
 | Bitmask / presença de componente | `bitbuffer`/`bitslice` (candidato, item 4 acima) |
-| Query / reduce / filter | sem módulo dedicado; Andre propôs simular com `apply` |
+| Query / reduce / filter | sem módulo dedicado; Andre propôs simular com `apply`, que saiu da v0 em 2026-09-29: hoje é `foreach` |
 
 **Lacuna que Claude apontou (2026-09-17) — retratada no mesmo dia, com correção do Andre:** eu tinha apontado "índice geracional" (recicla o slot de uma entidade removida, detecta referência obsoleta ao slot reciclado) como peça faltando. Andre corrigiu: isso pressupõe um modelo de alocador com free-list e reuso de slot com identidade nova, que não é como arena/buffer funcionam aqui — **arena não gerencia elementos individualmente**; invalidação é lógica (encolher `len`, ou uma flag), e a liberação de memória é sempre no fim do ciclo de vida da arena inteira, não por slot. Não há "slot reciclado com identidade diferente" nesse modelo, então geração não tem o que resolver. Retirado da lista de lacunas — não é um gap real dado como o keel trata memória.
 

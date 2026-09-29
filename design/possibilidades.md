@@ -390,7 +390,7 @@ Abertos:
 
 ### Construções definidas por módulo (`construct`)
 
-Hoje `foreach`, `walk`, `apply`, `parallel`, `match` e `else` são do núcleo, e
+Hoje `foreach`, `walk`, `parallel`, `match` e `else` são do núcleo, e
 cada uma tem os seus diagnósticos escritos à mão. A ideia: um módulo declara a
 construção como um molde de substituição de código, com parâmetros que exigem
 protocolo, e a construção passa a ser um símbolo conhecido como qualquer outro.
@@ -437,8 +437,14 @@ O que substituição simples não cobre:
 - **`match` e `else`.** Trazem verificação de exaustividade, `default` com
   `KEEL_CHECK` e fluxo por `goto`. É análise.
 
-O molde cobriria os laços, `foreach`, `walk` e `apply`. As outras três seguem
-no núcleo, ou pedem um segundo mecanismo, além da substituição.
+O molde cobriria os laços, `foreach` e `walk`. As outras três seguem no núcleo,
+ou pedem um segundo mecanismo, além da substituição.
+
+É também o caminho de volta do `apply`, retirado da v0 em 2026-09-29
+(rationale, "Acesso e travessia"): como molde de biblioteca, escrito sobre
+`foreach` e importado de um módulo, ele não reserva palavra no mar de C, e a
+assinatura da função aplicada (com ou sem índice, contexto como captura) pode
+ser decidida junto com o que lhe dá sentido, como uma função anônima.
 
 Abertos:
 
@@ -465,7 +471,7 @@ Abertos:
 Registradas para não se perderem; nenhuma pede ação.
 
 **keel como linguagem DOD.** `extent`, `buffer`/`slice`,
-`foreach`/`walk`/`apply`/`parallel` com `partition`, e `tags`/`match` formam,
+`foreach`/`walk`/`parallel` com `partition`, e `tags`/`match` formam,
 na prática, uma linguagem orientada a projeto de dados sobre C. Cogitou-se, como
 digressão, o nome **cdod** (C + DOD). Mudar o nome toca licença, documentos,
 repositório e ferramentas: é decisão à parte, não de passagem.
@@ -476,9 +482,9 @@ repositório e ferramentas: é decisão à parte, não de passagem.
 | --- | --- |
 | entidade | índice num `extent`/`buffer`/`slice` |
 | componente | coluna de `extent struct` |
-| travessia | `foreach`/`walk`/`apply`/`parallel` sobre `slice` |
+| travessia | `foreach`/`walk`/`parallel` sobre `slice` |
 | presença de componente | `bitbuffer(1)` (§1) |
-| query / filtro / redução | sem módulo; `apply` cobre o caso simples |
+| query / filtro / redução | sem módulo; `foreach` cobre o caso simples |
 
 Índice geracional não é lacuna: pressupõe alocador com free-list e reuso de
 slot, e a arena não gerencia elemento individual — a invalidação é lógica, e a

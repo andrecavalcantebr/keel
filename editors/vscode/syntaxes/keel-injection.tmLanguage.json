@@ -6,7 +6,7 @@
   "patterns": [
     {
       "name": "keyword.control.keel",
-      "match": "\\b(parallel|foreach|apply|defer|later|match|fail|walk|ALL|ANY|now|win)\\b"
+      "match": "\\b(parallel|foreach|defer|later|match|fail|walk|ALL|ANY|now|win)\\b"
     },
     {
       "name": "keyword.other.keel",

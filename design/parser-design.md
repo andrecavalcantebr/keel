@@ -267,7 +267,7 @@ quebrar as anteriores.
 | 4a | `ilha` (parcial) | `decl-keel`, `container`, `call` | primeiras `KIsland` de espécie `type`, `name`, `call`, `ref` | golden 001 |
 | 4b | `ilha` | `decl-array`, `index`/`range-index` | espécies `array`, `array-index`, `index`, `range-index` | golden 002, 003, 006, 015, 025 |
 | 4c | `ilha` | `defer` | espécie `defer` | golden 001, 005, 014, 017 |
-| 4d | `ilha` | `foreach`, `walk`, `apply` | espécie `foreach` (e o que `walk`/`apply` precisarem) | golden 001, 019 |
+| 4d | `ilha` | `foreach`, `walk` | espécie `foreach` (e o que `walk` precisar) | golden 001, 019 |
 | 4e | `ilha` | `parallel`, `worker-exit` | manager e `win`/`fail` | golden 004, 012 |
 | 4f | `ilha` | `match`, `tags-block` | espécie `match` | golden 009 |
 | 4g | `ilha` | `assign-else`, `else-tail` | tratamento de resultado (via `call` com marca) | golden 011, 018, 021 |

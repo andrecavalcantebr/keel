@@ -105,7 +105,6 @@ runtime: o backend varre os pontos de saída e injeta o corpo em cada um.
 ```keel
 foreach (i32 x, size_t i : xs) { ... }           // índice
 walk    (i32 *p, buffer.cursor c : xs) { ... }   // cursor
-apply   (i32, xs, doubler);                      // função sobre cada elemento
 ```
 
 ### Execução particionada
@@ -154,7 +153,7 @@ seu módulo participa.
 
 | Para usar | Declare |
 | --- | --- |
-| `foreach` de dois binders, `apply`, `x[i]` | `length`, e `get` ou `ptr` |
+| `foreach` de dois binders, `x[i]` | `length`, e `get` ou `ptr` |
 | `foreach` de um binder | `first`, `limit` |
 | `walk` | `begin`, `has_next`, `next` |
 | `parallel` | `partition` |

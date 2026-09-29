@@ -216,7 +216,7 @@ As palavras abaixo têm função keel nas posições indicadas. Fora delas, apli
 | `instance` | declaração de arquivo (§4.3); nenhum modificador pode ter esse nome. [Justificativa da reserva](keel-rationale.md#por-que-instance-é-a-única-ressalva-do-documento) |
 | `extent` | declaração de arquivo, seguido de `struct`, do nome e de `[` (§4.11) |
 | `defer`, `now`, `later` | statement de corpo de função; `now` e `later` dentro do `[ ]` do `defer` (§4.6) |
-| `foreach`, `walk`, `apply` | statement de corpo de função, seguido de `(` (§4.7) |
+| `foreach`, `walk` | statement de corpo de função, seguido de `(` (§4.7) |
 | `parallel`, `ALL`, `ANY`, `win`, `fail` | `parallel` seguido do nome e da política; `ALL` e `ANY` como política; `win;` e `fail;` no corpo do worker (§4.8) |
 | `match` | statement de corpo de função, seguido de `(` (§4.9) |
 | `else` | cauda de declaração ou de atribuição (§4.10); é também palavra C |
@@ -243,7 +243,7 @@ pub T *alloc(arena *a, type T, size_t n);   // arena is a type; type T receives 
 u16 *p = arena.alloc(a, u16, 100);
 ```
 
-**Estruturas de controle:** `defer`, `foreach`, `apply`, `walk`, `parallel`, `match`, a cauda `else` e os `win;` e `fail;` do worker.
+**Estruturas de controle:** `defer`, `foreach`, `walk`, `parallel`, `match`, a cauda `else` e os `win;` e `fail;` do worker.
 
 O resto — `arena`, `slice`, `outcome`, `routine.par`, `routine.seq` — são tipos e funções de módulos comuns, chamados como `m.f(…)` e resolvidos pela §4.4. Não são gramática.
 
@@ -400,7 +400,7 @@ stmt-c       ::= 'if' '(' <opaque> ')' stmt [ 'else' stmt ]
                | ';'
 
 stmt-keel    ::= decl-keel | decl-tags | assign-else
-               | defer | foreach | walk | apply | parallel
+               | defer | foreach | walk | parallel
                | match | worker-exit | extern-c
 
 defer        ::= 'defer' [ '[' defer-options ']' ] defer-body
@@ -414,8 +414,6 @@ foreach      ::= 'foreach' '(' binder ',' binder ':' container ')' stmt
 binder       ::= binder-type IDENT
 binder-type  ::= { qual-arg } ( specifier | base-type | 'auto' | <opaque-no-parens> )
                  { '*' { qual-c } }
-apply        ::= 'apply' '(' binder-type ',' container ',' qualified-name
-                 { ',' <opaque> } ')' ';'
 walk         ::= 'walk' '(' binder [ ',' binder ] ':' container ')' stmt
 
 parallel     ::= 'parallel' IDENT policy
@@ -650,7 +648,7 @@ A aplicação de um modificador ao tipo forma o especificador que precede o decl
 | `keel.capacity(v)` | `size_t` | total de elementos |
 | `keel.dim(v, k)` | `size_t` | dimensão de índice `k`, a partir de zero; `k` é decimal conhecido |
 
-As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice (`x[i]`, `x[i,j]`), `foreach` e `apply` sobre `array` são do núcleo e não pedem import: o C tem a sintaxe. `x[a..b]` não tem, e é o `as_slice` de `keel.array` (§5.3), que precisa estar importado. Protocolos (§5.1): Indexável, pela tradução do núcleo; Fatiável, por `keel.array`; `begin` e `partition` não existem sobre `array`.
+As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice (`x[i]`, `x[i,j]`) e `foreach` sobre `array` são do núcleo e não pedem import: o C tem a sintaxe. `x[a..b]` não tem, e é o `as_slice` de `keel.array` (§5.3), que precisa estar importado. Protocolos (§5.1): Indexável, pela tradução do núcleo; Fatiável, por `keel.array`; `begin` e `partition` não existem sobre `array`.
 
 Um parâmetro `array` pode ligar um nome à sua dimensão 0, o **binder**:
 
@@ -772,7 +770,7 @@ Definir modificadores de tipos e expandir suas declarações para os argumentos 
 4. `dim` substitui um inteiro positivo conhecido na tradução: literal decimal ou `constexpr` de inicializador decimal conhecido.
 5. `tags` liga um parâmetro, como `E`, ao **nome** de um conjunto declarado por `tags Nome [ … ];`. Na expansão, o parâmetro é substituído pelo `enum` C correspondente, e as constantes do conjunto ficam disponíveis para as declarações da instância.
 6. Num verbo com parâmetro declarado com o nome do parâmetro `tags` — `mark(m *t, E e)` —, uma constante de tag reconhecida no argumento pertence ao conjunto daquela instância, sob pena de `tag-from-other-set`. Outro argumento segue para o compilador C. A regra vale para todo módulo com parâmetro `tags`.
-7. Dentro do módulo genérico, o parâmetro de tipo é opaco: um valor de tipo `T`, ou ponteiro para ele, não participa de protocolo (§4.4) — `foreach`, `walk`, `apply`, `else`, `match`, indexação, `range-index`, `at` e chamadas qualificadas não se resolvem sobre ele. Expressões C sobre `T` atravessam como texto e são validadas pelo compilador C depois da substituição.
+7. Dentro do módulo genérico, o parâmetro de tipo é opaco: um valor de tipo `T`, ou ponteiro para ele, não participa de protocolo (§4.4) — `foreach`, `walk`, `else`, `match`, indexação, `range-index`, `at` e chamadas qualificadas não se resolvem sobre ele. Expressões C sobre `T` atravessam como texto e são validadas pelo compilador C depois da substituição.
 8. Uma instância de modificador que menciona `T`, como `outcome buffer T`, tem tipo conhecido e participa normalmente dos protocolos.
 9. O significado de `N` pertence ao modificador. Não há associação automática entre `dim`, rank e quantidade de índices de um verbo.
 10. A substituição não gera listas de parâmetros, campos ou funções; a aridade escrita de cada verbo é fixa. `T valores[static N]` é um parâmetro, cuja extensão exigida muda com a instância.
@@ -1092,12 +1090,10 @@ De keel, na tradução; condições no [catálogo](#62-catálogo): `defer-withou
 foreach (i32 valor, size_t i : xs) { use(valor, i); }
 foreach (i32 *p, size_t i : xs) { *p += 1; }
 foreach (auto i : 0..n) { use_index(i); }
-apply(i32, xs, use);
-apply(i32 *, xs, visit, context);
 walk (i32 *p, buffer.cursor c : xs) { use(*p); }
 ```
 
-São statements de corpo de função. Em `foreach`, dois binders antes de `:` pedem travessia de contêiner por índice; um binder pede intervalo ou objeto contável. Em `apply`, o primeiro argumento é o tipo do binder sem nome, com `*` quando a operação recebe ponteiro; os argumentos depois da função são de contexto. Em `walk`, o primeiro binder recebe o elemento e o segundo declara o cursor, com o tipo escrito e qualificado pelo módulo do contêiner.
+São statements de corpo de função. Em `foreach`, dois binders antes de `:` pedem travessia de contêiner por índice; um binder pede intervalo ou objeto contável. Em `walk`, o primeiro binder recebe o elemento e o segundo declara o cursor, com o tipo escrito e qualificado pelo módulo do contêiner.
 
 **Reconhecimento**
 
@@ -1111,30 +1107,29 @@ São statements de corpo de função. Em `foreach`, dois binders antes de `:` pe
 
 Percorrer elementos ou valores contáveis em ordem sequencial, por índice ou por cursor.
 
-##### `foreach` e `apply`
+##### `foreach`
 
 1. O contêiner e seu comprimento são avaliados uma vez, na entrada. O índice percorre de zero até esse comprimento, excluído, em ordem crescente.
 2. O binder por valor recebe uma cópia do elemento a cada iteração; por ponteiro, recebe seu endereço. Ambos ficam no escopo do corpo.
 3. Na forma contável, início e limite são obtidos uma vez, e percorre-se `[first,limit)`. O binder recebe o próprio contador a cada passo, sem verbo de acesso por posição. Um intervalo vazio executa zero iterações.
 4. `auto` no binder de intervalo é traduzido como `size_t`. Os demais tipos escritos seguem para o compilador C.
 5. `range` nomeado admite dois binders, com valor e posição. O literal de intervalo admite só a forma de um binder.
-6. `apply(T,x,f)` equivale à travessia de dois binders que chama `f(elemento,i)` em cada iteração. Os argumentos de contexto seguem elemento e índice na ordem escrita e são avaliados a cada chamada, segundo as regras C, sem captura nem dedução de tipo.
 
 ##### `walk`
 
-7. `begin(x)` é avaliado uma vez, na entrada, e inicializa o cursor. O contêiner também é avaliado uma vez.
-8. Cada iteração testa `has_next(x, cursor)` e, sendo verdadeiro, liga o elemento a partir de `next(x, cursor)`. O avanço do cursor pertence a `next`.
-9. `next` é chamado uma vez por iteração, depois do teste.
-10. O tipo do elemento é o que `next` declara: `T` atende o binder por valor, e `T *` o binder por ponteiro. Não há conversão nem seleção por sobrecarga.
-11. O cursor é um objeto do programa, no escopo do corpo. Escrevê-lo é permitido, e as consequências pertencem ao contrato do módulo.
-12. `walk` não exige `length`, `get` nem `ptr`.
+6. `begin(x)` é avaliado uma vez, na entrada, e inicializa o cursor. O contêiner também é avaliado uma vez.
+7. Cada iteração testa `has_next(x, cursor)` e, sendo verdadeiro, liga o elemento a partir de `next(x, cursor)`. O avanço do cursor pertence a `next`.
+8. `next` é chamado uma vez por iteração, depois do teste.
+9. O tipo do elemento é o que `next` declara: `T` atende o binder por valor, e `T *` o binder por ponteiro. Não há conversão nem seleção por sobrecarga.
+10. O cursor é um objeto do programa, no escopo do corpo. Escrevê-lo é permitido, e as consequências pertencem ao contrato do módulo.
+11. `walk` não exige `length`, `get` nem `ptr`.
 
 ##### Comum
 
-13. `break`, `continue` e `return` conservam o significado C no laço resultante, com o cleanup da §4.6.
-14. A travessia é linear. Escrever nos elementos não muda o comprimento; operações estruturais sobre o contêiner percorrido são recusadas.
+12. `break`, `continue` e `return` conservam o significado C no laço resultante, com o cleanup da §4.6.
+13. A travessia é linear. Escrever nos elementos não muda o comprimento; operações estruturais sobre o contêiner percorrido são recusadas.
 
-Referências: [Rationale: acesso e travessia](keel-rationale.md#acesso-e-travessia); [Rationale: cursor explícito](keel-rationale.md#cursor-explícito); [Backend: foreach e apply](keel-c-backend.md#57-foreach-e-apply).
+Referências: [Rationale: acesso e travessia](keel-rationale.md#acesso-e-travessia); [Rationale: cursor explícito](keel-rationale.md#cursor-explícito); [Backend: foreach](keel-c-backend.md#57-foreach).
 
 #### 3. Exemplo
 
@@ -1548,7 +1543,7 @@ Um protocolo é o conjunto de verbos que uma construção do núcleo exige do ti
 
 | Protocolo | Verbos exigidos | Construção que o consome | Declarado na base por |
 | --- | --- | --- | --- |
-| Indexável | `length` e `ptr(x, i)`; `get` no lugar de `ptr` no `foreach` de binder por valor | `x[i]` (sobrecarga de operador), `foreach` de dois binders, `apply` | `buffer`, `slice`; `array` pelo núcleo |
+| Indexável | `length` e `ptr(x, i)`; `get` no lugar de `ptr` no `foreach` de binder por valor | `x[i]` (sobrecarga de operador), `foreach` de dois binders | `buffer`, `slice`; `array` pelo núcleo |
 | Fatiável | `length` e `as_slice(x, a, b)` | `x[a..b]` e suas formas abertas (sobrecarga de operador) | `array` (`keel.array`), `buffer`, `slice` |
 | Percorrível | `begin`, `has_next`, `next` | `walk` | `buffer`, `slice` |
 | Particionável | `partition` | `parallel` | `buffer`, `slice`, `range` |
@@ -1558,7 +1553,7 @@ Um protocolo é o conjunto de verbos que uma construção do núcleo exige do ti
 
 `length` faz parte de Indexável e de Fatiável, e é obrigação do módulo: a verificação de limite de `x[i]` e de `x[a..b]` depende dele. `x[i]` o exige, portanto, só indiretamente, porque o chamado é `ptr`.
 
-`array` participa de Indexável pelo núcleo: `x[i]`, `foreach` e `apply` sobre `array` são traduzidos sem verbo, porque o C tem a sintaxe (§4.2, §4.5). `x[a..b]` não tem, e segue o protocolo como em qualquer módulo, pelo `as_slice` de `keel.array`. As chamadas explícitas de acesso e a de intervalo são de `keel.array` (§5.3). Um valor cujo tipo é um conjunto `tags` é operando de `match` sem verbo (§4.9).
+`array` participa de Indexável pelo núcleo: `x[i]` e `foreach` sobre `array` são traduzidos sem verbo, porque o C tem a sintaxe (§4.2, §4.5). `x[a..b]` não tem, e segue o protocolo como em qualquer módulo, pelo `as_slice` de `keel.array`. As chamadas explícitas de acesso e a de intervalo são de `keel.array` (§5.3). Um valor cujo tipo é um conjunto `tags` é operando de `match` sem verbo (§4.9).
 
 #### O que um módulo do programa declara
 

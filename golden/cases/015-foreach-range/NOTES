@@ -8,8 +8,11 @@ só o cabeçalho de uma linha (desenho do cgen §5.3).
 
 **`app/app_ap.c`** (c23, c11)
 
-`apply` é o mesmo laço do `foreach` com corpo fixo, e os índices saem na
-família `keel__i<N>` porque não há binder escrito (backend §5.7, regra 2).
+O `foreach` de dois binders sobre o `buffer` usa os nomes escritos no laço:
+o índice é o binder `i`, e o elemento, o binder `v` (backend §5.7, regra 2).
+Até 2026-09-29 o caso era `015-apply-range` e exercitava `apply`, retirado da
+v0 (rationale, "Acesso e travessia"); os dois `apply` viraram estes `foreach`,
+com o mesmo resultado na prova.
 
 `foreach (auto v : r)` — a forma de um binder — despacha só para
 `first`/`limit`, nos temporários `keel__f2`/`keel__l2`; o binder `v` é o

@@ -129,7 +129,7 @@ dimensão 0 vem da tabela (`fx 2..5 → keel_array_f32_as_slice2 dim:1`; ponta a
 direita acrescenta `core`, e `fx[..]` tem as duas pontas: `… as_slice2 core dim:1`).
 
 **O que ainda fica sem ilha:** chamada cujo objeto é uma expressão fora do que a
-passagem tipa (variável que `foreach`, `parallel` ou `apply` declaram, até as
+passagem tipa (variável que `foreach` ou `parallel` declaram, até as
 etapas 4d e 4e; o resultado de `x[a..b]`); e o acessor de vários índices sobre
 modificador com `dim` (§4.5, item 1; oráculo 006). Também **não há ainda**
 `from-without-target` (falta o alvo de atribuição e de `return`),

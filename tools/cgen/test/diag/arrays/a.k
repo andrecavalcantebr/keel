@@ -24,3 +24,8 @@ pub size_t g(buffer i32 b) {
 pub i32 h(array i32 w[8], array i32 z[], array i32 ok[size_t n], array i32 grid[2,3]) {  /* DIAG: array-1d-as-parameter */ /* DIAG: array-parameter-without-dimension */
     return 0;
 }
+
+pub size_t k(size_t n) {
+    array i32 q[2,3];
+    return keel.dim(q, 1) + keel.dim(q, n);      /* DIAG: nonconstant-dim-index */
+}

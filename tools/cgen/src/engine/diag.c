@@ -33,7 +33,9 @@ static const char *const messages[K_DIAG_COUNT] = {
     [K_DIAG_NO_PTR_FOR_ARITY] =
         "`%s` has no `ptr` for the indices `%s`: a container is indexed with the arities its module declares `ptr` for",
     [K_DIAG_NO_RANGE_INDEX_VERB] =
-        "`%s` declares no range-index verb for `%s`: the memory side of a memory/view pair (`buffer`, `slice`) does",
+        "the type of `%s` declares no range-index verb for `%s`: the memory side of a memory/view pair (`buffer`, `slice`) does",
+    [K_DIAG_NONCONSTANT_DIM_INDEX] =
+        "`keel.dim` needs a dimension index known at translation time, and `%s` is not one: write a decimal literal or a `constexpr`",
     [K_DIAG_PARTIAL_ARRAY_INDEX] =
         "the array has dimensions %s: index every one of them (`v[i,j]` or `v[i][j]`); a partial index has no meaning",
     [K_DIAG_ARRAY_INDEX_ABOVE_DIMENSION] =

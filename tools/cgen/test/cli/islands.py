@@ -51,6 +51,14 @@ SOURCE = [
     '    slice i32 w = slice.of(c);',                             # 36
     '    return gbuf[0] + outcome.OK + (i32)buffer.length(c);',   # 37
     '}',                                                          # 38
+    'pub typedef struct { buffer i32 items; array i32 tab[2,2]; } Box;',   # 39
+    'pub i32 pick(Box *w, Box v, buffer buffer i32 grid) {',      # 40
+    '    i32 a = w->items[1];',                                   # 41
+    '    i32 b = v.tab[1,1];',                                    # 42
+    '    i32 d = grid[3][7];',                                    # 43
+    '    return a + b + d + (i32)buffer.length(w->items) + (i32)slice.length(buffer.as_slice(v.items));',  # 44
+    '}',                                                          # 45
+    'pub size_t rows(void) { return keel.length(grid) + keel.dim(grid, 1); }',   # 46
 ]
 
 # (kind, detail, line, needle, which occurrence of the needle in the line)
@@ -89,6 +97,24 @@ EXPECTED = [
     ('index', 'gbuf → keel_buffer_i32_ptr1 &1', 37, 'gbuf', 0),
     ('name', 'outcome.OK → keel_outcome_OK', 37, 'outcome.OK', 0),
     ('call', 'buffer.length/1 → keel_buffer_i32_length &1', 37, 'buffer.length', 0),
+    # a container is any expression of the `container` production: a field, an
+    # element that is itself a container, the result of a verb
+    ('type', 'Box → app_t_Box', 40, 'Box', 0),
+    ('type', 'Box → app_t_Box', 40, 'Box', 1),
+    # nested names keep the whole identity, as the golden's expected C does (backend §2.1, rule 3 says otherwise)
+    ('type', 'buffer buffer i32 → keel_buffer_keel_buffer_i32', 40, 'buffer', 0),
+    ('index', 'w->items → keel_buffer_i32_ptr1 &1', 41, 'w->items', 0),
+    ('array-index', 'v.tab rank 2', 42, 'v.tab', 0),
+    ('index', 'grid → keel_buffer_keel_buffer_i32_ptr1 &1', 43, 'grid', 0),
+    ('index', 'grid[3] → keel_buffer_i32_ptr1 &1', 43, 'grid', 0),
+    ('call', 'buffer.length/1 → keel_buffer_i32_length &1', 44, 'buffer.length', 0),
+    ('call', 'slice.length/1 → keel_slice_i32_length', 44, 'slice.length', 0),
+    ('call', 'buffer.as_slice/1 → keel_buffer_i32_as_slice &1', 44, 'buffer.as_slice', 0),
+    # the core's operations lower to no function; they are islands all the same
+    ('call', 'keel.length/1 → core dim:1', 46, 'keel.length', 0),
+    ('name', 'grid → app_t_grid', 46, 'grid', 0),
+    ('call', 'keel.dim/2 → core dim:1', 46, 'keel.dim', 0),
+    ('name', 'grid → app_t_grid', 46, 'grid', 1),
 ]
 
 def column(line, needle, which):

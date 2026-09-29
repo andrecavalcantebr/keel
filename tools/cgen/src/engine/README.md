@@ -104,16 +104,35 @@ e não é `wrong-qualifier`. Sobre `array`, `slice.of(v…)` baixa para `from` (
 ou `of2` sobre ele), `buffer.of(v)` para o `of` do buffer, e os verbos de
 `keel.array` para `keel_array_<T>_<verbo>`, todos com a marca `dim:1`.
 
-**O que fica sem ilha, por ora:** chamada cujo objeto é uma forma que o
-`container` admite mas a passagem não tipa (`x.f`, `x[i][j]` sobre contêiner,
-resultado de outro verbo); a chamada `keel.length/capacity/dim` (núcleo, sem
-função); o intervalo sobre `array` (sem verbo); e o `range-index` de contêiner
-de fora da base, cuja declaração o §4.5 não descreve. Também **não há ainda**
+**Tipagem de contêiner.** A posição de contêiner é a produção `container` da §2.2
+(`IDENT`, `x[…]`, `x.f`, `x->f`, `verb(x…)`, `*x`, `&x`, `(x)`), e a passagem
+tipa cada uma delas com o que viu declarado: um nome (local, parâmetro, variável
+de arquivo), o elemento de um `array` ou o que o `ptr` de um modificador aponta,
+um campo de `struct` (do arquivo ou de um import), e o retorno declarado de um
+verbo com os parâmetros de tipo do módulo trocados pelos argumentos da instância.
+O tipo é estrutural (`KType`): módulo, argumentos, símbolo C, quantidade de `*`,
+e se tem endereço (é dele que sai a marca `&k`). Chamada com objeto que não é o
+próprio modificador (`routine.seq(slice.of(steps))`, onde `seq` recebe `slice slot`)
+acha a instância do módulo dentro do tipo do argumento. O prefixo do símbolo segue
+o objeto: o próprio modificador leva o símbolo do tipo (`keel_routine_slot_ag2_Ag_code`),
+o resto leva o módulo mais os argumentos (`keel_routine_ag2_Ag_seq`).
+
+**As operações do núcleo** (`keel.length`, `keel.capacity`, `keel.dim`) são ilhas de
+qualquer módulo, mas não lançam função: o detalhe diz `core`, e a marca `dim:1`
+diz que a dimensão vem da tabela.
+
+**O que ainda fica sem ilha:** chamada cujo objeto é uma expressão fora do que a
+passagem tipa (variável que `foreach`, `parallel` ou `apply` declaram, até as
+etapas 4d e 4e; o resultado de `x[a..b]`, cujo tipo é o do verbo de range-index); o
+intervalo sobre `array` (sem verbo); e o `range-index` de contêiner de fora da
+base, cuja declaração o §4.5 não descreve (hoje `buffer` e `slice` estão escritos no
+código, o que o §5.1 diz que não se deve: **em aberto**). Também **não há ainda**
 `from-without-target` (falta o alvo de atribuição e de `return`),
 `verb-not-in-instance`, e o `not-a-container-expression` para um nome que a
-passagem não viu declarado (faltam os binders de `foreach`, `parallel` e
-`apply`, das etapas 4d e 4e). A marca `*k` (parâmetro por valor, argumento
-ponteiro) não está no §5.2 e não é impressa.
+passagem não viu declarado. A marca `*k` (parâmetro por valor, argumento
+ponteiro) não está no §5.2 e não é impressa. A nomeação de instância aninhada
+segue o C esperado do golden (`keel_buffer_keel_buffer_i32`), não o §2.1 do
+backend (`keel_buffer_buffer_i32`).
 
 `PARSE_LEVEL=ilha:<espécies>` (padrão do `make check`: as das etapas 4a e 4b)
 compara só essas espécies nos `.parse`, que continuam inteiros (001, 009 e 013

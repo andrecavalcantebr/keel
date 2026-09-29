@@ -1,6 +1,7 @@
-/* Pass 3 (parser-design §3), stage 4a: type, name, call, from-stack, ref and
- * implicit-init islands, read from the token stream of each function and
- * variable declaration — signature and body alike.
+/* Pass 3 (parser-design §3), stages 4a and 4b: type, name, call, from-stack,
+ * ref and implicit-init islands, then array, array-index, index and
+ * range-index, read from the token stream of each function and variable
+ * declaration — signature and body alike.
  *
  * What resolves a call is the declared signature, never the call site (spec
  * §4.4): the callee module's own AST gives the parameter list, so the pass
@@ -27,6 +28,8 @@ typedef struct {
     KSpecifier spec;
     int pointers;               /* leading '*' of the declarator, or 1 for an array */
     int depth;                  /* brace depth of the block that declared it */
+    size_t decl_at;             /* token index of the declarator's name */
+    int rank;                   /* dimensions of an `array`; 0 for anything else */
 } Local;
 
 typedef struct {
@@ -109,6 +112,17 @@ static void put_tokens(Text *t, const KAst *a, size_t first, size_t end) {
 static void put_glued(Text *t, const KAst *a, size_t first, size_t end) {
     for (size_t j = first; j < end; j++) put(t, tok(a, j).ptr, tok(a, j).len);
 }
+/* source text, its white space collapsed to one space and trimmed at both ends */
+static void put_source(Text *t, const char *p, const char *end) {
+    bool space = false, any = false;
+    for (; p < end; p++) {
+        if (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') { space = any; continue; }
+        if (space) put(t, " ", 1);
+        put(t, p, 1);
+        space = false;
+        any = true;
+    }
+}
 
 /* islands stay sorted by anchor: a later declarator's island can be found
    before an earlier declarator's initializer is read */
@@ -141,7 +155,8 @@ static const Local *find_local(const Ctx *c, keel_slice_char name) {
     return NULL;
 }
 
-static void add_local(Ctx *c, keel_slice_char name, const KSpecifier *spec, int pointers) {
+static void add_local(Ctx *c, keel_slice_char name, const KSpecifier *spec, int pointers,
+                      size_t decl_at, int rank) {
     if (c->local_count == K_LOCALS_MAX) {
         if (!c->failed) {
             k_diag_emit(c->diag, K_DIAG_CAPACITY, name, (KDiagArgs){{name}});
@@ -149,7 +164,19 @@ static void add_local(Ctx *c, keel_slice_char name, const KSpecifier *spec, int 
         }
         return;
     }
-    c->locals[c->local_count++] = (Local){ name, *spec, pointers, c->depth };
+    c->locals[c->local_count++] = (Local){ name, *spec, pointers, c->depth, decl_at, rank };
+}
+
+/* The dimensions a `[...]` part declares: one per comma inside a group, one
+   per group — `[2,3,4]` and `[2][3][4]` are both rank 3. */
+static int rank_of(const char *p, const char *end) {
+    int rank = 0, depth = 0;
+    for (; p < end; p++) {
+        if (*p == '[' || *p == '(' || *p == '{') { if (depth++ == 0 && *p == '[') rank++; }
+        else if (*p == ']' || *p == ')' || *p == '}') depth--;
+        else if (*p == ',' && depth == 1) rank++;
+    }
+    return rank;
 }
 
 /* ---- the module a call lands in ---------------------------------------- */
@@ -425,7 +452,7 @@ static bool is_arena(const KAst *a, const KSpecifier *spec) {
 /* A keel type at token `i`: its `type` island, then what it declares. Returns
    the index of the last token of the specifier. */
 static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, KToken next,
-                          bool signature) {
+                          bool signature, bool declarators) {
     KAst *a = c->ast;
     size_t end = index_at(a, i, spec->text.ptr + spec->text.len);
 
@@ -447,6 +474,8 @@ static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexe
         }
     }
 
+    if (!declarators) return end - 1;
+
     bool external = i > 0 && word(a, i - 1, "extern");
     TKPpKind pp;
     for (KToken d = next; d.len; ) {
@@ -456,7 +485,7 @@ static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexe
         if (!k_scan_declarator(lexer, d, &decl, &after, &pp) || !decl.name.len) break;
         if (decl.has_function_suffix && !decl.parenthesized) break;   /* a prototype */
         size_t at = index_at(a, i, decl.name.ptr);
-        add_local(c, decl.name, spec, decl.pointer_depth + (decl.has_array_suffix ? 1 : 0));
+        add_local(c, decl.name, spec, decl.pointer_depth + (decl.has_array_suffix ? 1 : 0), at, 0);
 
         bool initialized = k_token_is_punct(after, "=");
         if (!signature && !external && !initialized && decl.pointer_depth == 0 &&
@@ -479,6 +508,162 @@ static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexe
     return end - 1;
 }
 
+/* ---- stage 4b: array, array-index, index, range-index ------------------ */
+
+static size_t close_bracket(const KAst *a, size_t open, size_t end) {
+    size_t depth = 0;
+    for (size_t j = open; j < end; j++) {
+        if (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{")) depth++;
+        else if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) {
+            if (--depth == 0) return punct(a, j, "]") ? j : SIZE_MAX;
+        }
+    }
+    return SIZE_MAX;
+}
+
+/* decl-array (spec §2.2, §4.2) at the `array` word `i`: one island per declared
+   name, with the dimensions as written, and the name known as an array from
+   there on. Returns the last token of the element type, which is not a
+   declaration of its own: the caller skips to it. */
+static size_t array_decl(Ctx *c, size_t i, bool signature) {
+    KAst *a = c->ast;
+    if (i + 1 >= a->tokens.len) return i;
+    KLexer lexer;
+    TKPpKind pp;
+    KToken next = {0}, first = enter(a, i + 1, &lexer, &pp);
+    keel_slice_char element;
+    if (!k_scan_argument(&lexer, first, a->symbols, &element, &next, &pp)) return i;
+    size_t last = index_at(a, i + 1, next.len ? next.ptr : a->source.ptr + a->source.len) - 1;
+
+    /* a keel element type is a use like any other; the declarators follow it */
+    KLexer look;
+    KSpecifier spec;
+    KToken after_type = {0}, head = enter(a, i + 1, &look, &pp);
+    if (k_token_is_ident(head) && k_scan_known_type(&look, head, a->symbols, &spec, &after_type, &pp) &&
+        spec.kind != K_SPEC_NONE)
+        declaration(c, i + 1, &spec, &look, after_type, signature, false);
+
+    const char *source_end = a->source.ptr + a->source.len;
+    KSpecifier none = {0};
+    for (KToken d = next; d.len; ) {
+        KDeclarator decl;
+        KToken after;
+        if (!(k_token_is_punct(d, "*") || k_token_is_ident(d))) break;
+        if (!k_scan_declarator(&lexer, d, &decl, &after, &pp) || !decl.name.len ||
+            !decl.has_array_suffix || decl.parenthesized) break;
+        const char *dims = decl.name.ptr + decl.name.len, *end = after.len ? after.ptr : source_end;
+        Text t = { .ok = true };
+        put(&t, decl.name.ptr, decl.name.len);
+        put_str(&t, " ");
+        put_source(&t, dims, end);
+        emit(c, K_ISLAND_ARRAY, i, &t);
+        add_local(c, decl.name, &none, decl.pointer_depth + 1, index_at(a, i, decl.name.ptr), rank_of(dims, end));
+
+        if (k_token_is_punct(after, "=")) {
+            static const char *const stops[] = { ",", ";" };
+            size_t which;
+            KToken value = k_lexer_next(&lexer, &pp);
+            k_scan_opaque_until(&lexer, value, stops, 2, &which, &after, &pp);
+        }
+        if (signature || !k_token_is_punct(after, ",")) break;
+        d = k_lexer_next(&lexer, &pp);
+    }
+    return last;
+}
+
+static int module_array_rank(const KAst *a, KToken name) {
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (n->kind != K_AST_VARIABLE || n->dim_first == n->dim_end ||
+            !k_symtab_same_name(tok(a, n->name_first), name)) continue;
+        return rank_of(tok(a, n->dim_first).ptr, tok(a, n->dim_end - 1).ptr + tok(a, n->dim_end - 1).len);
+    }
+    return 0;
+}
+
+/* The module whose verbs a container of this local's type answers to. */
+static const KAst *container_home(const Ctx *c, const Local *l) {
+    if (l->spec.kind != K_SPEC_MODIFIER || l->rank) return NULL;
+    const KSymbol *m = k_symbol_resolve(c->ast->symbols, l->spec.modifier_name);
+    return m && m->origin ? m->origin->ast : NULL;
+}
+
+/* `<instance>_<verb><suffix>` for the container `l` and a call of `arity`
+   arguments, object included; `adapt` says the object takes an `&`. */
+static bool container_verb(const Ctx *c, const Local *l, const KAst *home, keel_slice_char verb,
+                           size_t arity, Text *t, bool *adapt) {
+    Sig sig = find_verb(home, verb, arity);
+    if (!sig.found) return false;
+    char inst[K_DETAIL_MAX];
+    size_t n = k_spec_symbol(l->spec.text, c->ast->symbols, inst, sizeof inst);
+    if (n == SIZE_MAX) return false;
+    put(t, inst, n);
+    put_str(t, "_");
+    put(t, verb.ptr, verb.len);
+    if (sig.overloaded && arity > 1) put_uint(t, arity - 1);
+    if (sig.n && sig.p[0].pointer && l->pointers == 0) *adapt = true;
+    return true;
+}
+
+/* `x[` at token `i`. True when an island was printed. */
+static bool index_forms(Ctx *c, size_t i) {
+    KAst *a = c->ast;
+    size_t open = i + 1, close = close_bracket(a, open, a->tokens.len);
+    if (close == SIZE_MAX) return false;
+    KToken name = tok(a, i);
+    const Local *l = find_local(c, name);
+    if (l && l->decl_at == i) return false;         /* the declarator's own brackets */
+
+    size_t commas = 0, range = SIZE_MAX, depth = 0;
+    for (size_t j = open + 1; j < close; j++) {
+        if (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{")) depth++;
+        else if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) depth--;
+        else if (depth == 0 && punct(a, j, ",")) commas++;
+        else if (depth == 0 && punct(a, j, "..") && range == SIZE_MAX) range = j;
+    }
+    Text t = { .ok = true };
+
+    /* an `array` takes several indices as successive brackets, with no verb */
+    int rank = l ? l->rank : module_array_rank(a, name);
+    if (rank > 0) {
+        if (commas == 0 || range != SIZE_MAX) return false;
+        put(&t, name.ptr, name.len);
+        put_str(&t, " rank ");
+        put_uint(&t, commas + 1);
+        return emit(c, K_ISLAND_ARRAY_INDEX, i, &t);
+    }
+
+    const KAst *home = l ? container_home(c, l) : NULL;
+    if (!home || close == open + 1) return false;
+    bool adapt = false;
+    put(&t, name.ptr, name.len);
+    if (range == SIZE_MAX) {
+        /* x[i, j] is *ptr(x, i, j) (spec §4.5, item 1) */
+        put_str(&t, " \xe2\x86\x92 ");
+        if (!container_verb(c, l, home, k_diag_text("ptr"), commas + 2, &t, &adapt)) return false;
+    } else {
+        /* x[a..b] goes through the verb of the memory side of the pair; the
+           base's two are named by the spec (§4.5, item 5) */
+        if (commas) return false;
+        keel_slice_char verb = module_named(home, "keel.buffer") ? k_diag_text("as_slice")
+                             : module_named(home, "keel.slice") ? k_diag_text("of")
+                             : (keel_slice_char){0};
+        if (!verb.len) return false;
+        bool low = range > open + 1, high = range + 1 < close;
+        put_str(&t, " ");
+        put_source(&t, tok(a, open).ptr + 1, tok(a, close).ptr);
+        put_str(&t, " \xe2\x86\x92 ");
+        if (!container_verb(c, l, home, verb, low || high ? 3 : 1, &t, &adapt)) return false;
+        if (low && !high) {                         /* the limit is length(x) */
+            bool ignored = false;
+            put_str(&t, " ");
+            if (!container_verb(c, l, home, k_diag_text("length"), 1, &t, &ignored)) return false;
+        }
+    }
+    if (adapt) put_str(&t, " &1");
+    return emit(c, range == SIZE_MAX ? K_ISLAND_INDEX : K_ISLAND_RANGE_INDEX, i, &t);
+}
+
 static void walk(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
     c->local_count = 0;
@@ -497,6 +682,13 @@ static void walk(Ctx *c, const KAstNode *n) {
         if (i > n->first && (punct(a, i - 1, ".") || punct(a, i - 1, "->"))) continue;
 
         KToken t = tok(a, i);
+        bool signature = n->body_first != SIZE_MAX ? i < n->body_first : n->kind == K_AST_FUNCTION;
+
+        /* the marker, unless a qualifier: `array.get(`, with `array` an alias */
+        if (k_token_spelled(t, "array") && !punct(a, i + 1, ".")) {
+            i = array_decl(c, i, signature);
+            continue;
+        }
         if (k_token_spelled(t, "ref") && ident(a, i + 1) &&
             (punct(a, i - 1, "*") || word(a, i - 1, "const") || word(a, i - 1, "volatile"))) {
             Text d = { .ok = true };
@@ -512,9 +704,7 @@ static void walk(Ctx *c, const KAstNode *n) {
         KToken next = {0};
         KToken first = enter(a, i, &lexer, &pp);
         if (k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind != K_SPEC_NONE) {
-            bool signature = n->body_first != SIZE_MAX && i < n->body_first;
-            if (n->body_first == SIZE_MAX && n->kind == K_AST_FUNCTION) signature = true;
-            i = declaration(c, i, &spec, &lexer, next, signature);
+            i = declaration(c, i, &spec, &lexer, next, signature, true);
             continue;
         }
 
@@ -536,6 +726,7 @@ static void walk(Ctx *c, const KAstNode *n) {
         if (punct(a, i + 1, ":") && (i == n->first || punct(a, i - 1, "{") || punct(a, i - 1, ";") ||
                                      punct(a, i - 1, "}") || punct(a, i - 1, ":")))
             continue;
+        if (punct(a, i + 1, "[") && index_forms(c, i)) continue;
         name_island(c, i);
     }
 }

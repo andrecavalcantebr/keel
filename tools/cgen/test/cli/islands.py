@@ -39,6 +39,12 @@ SOURCE = [
     '    i32 N = 1;',                                             # 24
     '    return N;',                                              # 25
     '}',                                                          # 26
+    'pub array i32 grid[2,3];',                                   # 27
+    'pub i32 pick(buffer i32 c, slice i32 s, array i32 m[2,2]) {',  # 28
+    '    grid[1,2] = c[3] + m[1,1];',                             # 29
+    '    slice i32 t = s[1..];',                                  # 30
+    '    return t[0] + unknown[1,2];',                            # 31
+    '}',                                                          # 32
 ]
 
 # (kind, detail, line, needle, which occurrence of the needle in the line)
@@ -55,6 +61,17 @@ EXPECTED = [
     ('implicit-init', 'a', 20, 'a,', 0),
     ('type', 'Mode → app_t_Mode', 21, 'Mode', 0),
     ('name', 'FAST → app_t_Mode_FAST', 21, 'FAST', 0),
+    # stage 4b
+    ('array', 'grid [2,3]', 27, 'array', 0),
+    ('type', 'buffer i32 → keel_buffer_i32', 28, 'buffer', 0),
+    ('type', 'slice i32 → keel_slice_i32', 28, 'slice', 0),
+    ('array', 'm [2,2]', 28, 'array', 0),
+    ('array-index', 'grid rank 2', 29, 'grid', 0),
+    ('index', 'c → keel_buffer_i32_ptr1 &1', 29, 'c[', 0),
+    ('array-index', 'm rank 2', 29, 'm[', 0),
+    ('type', 'slice i32 → keel_slice_i32', 30, 'slice', 0),
+    ('range-index', 's 1.. → keel_slice_i32_of2 keel_slice_i32_length', 30, 's[', 0),
+    ('index', 't → keel_slice_i32_ptr1', 31, 't[', 0),
 ]
 
 def column(line, needle, which):

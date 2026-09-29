@@ -53,7 +53,7 @@ Regressões adicionais: `test/cli/imports.sh` cobre o executável e
 cache de falhas e mais de 256 exports. Os quatro oráculos `.parse` existentes
 não foram alterados. `PARSE_LEVEL=inst make check` verifica esse marco.
 
-## Ilhas, etapa 4a (2026-09-29)
+## Ilhas, etapas 4a e 4b (2026-09-29)
 
 `k_collect_islands` (`parser_islands.c`) roda depois de `k_collect_instances`,
 sobre as declarações `func` e `var` do próprio arquivo, em assinatura e em
@@ -70,16 +70,29 @@ antes com tipo keel. A origem da instância segue a tabela do §4.4: o objeto nu
 argumento, o tipo escrito num parâmetro `type` de seleção, ou o tipo declarado
 do objeto que a chamada inicializa. O sufixo de aridade vem do backend §2.1.1.
 
+A etapa 4b acrescenta `array`, `array-index`, `index` e `range-index`. `array`
+sai por nome declarado, com as dimensões como escritas, em corpo, parâmetro e
+arquivo; o nome passa a ser um `array` de certo rank. `array-index` só sai
+para vários índices (`v[1,2,3]`, `v rank 3`): `v[1][2][3]` e `v[i]` são C.
+`index` e `range-index` valem para um identificador declarado com modificador:
+`x[i,j]` é `ptr(x,i,j)`, e `x[a..b]` vai pelo verbo do lado memória, que a spec
+(§4.5, item 5) nomeia só para a base: `buffer.as_slice` e `slice.of`. **Aberto:**
+não há regra escrita para o módulo do programa declarar o seu verbo de
+`range-index`; um contêiner de fora da base não recebe ilha. A marca `&1`
+segue a regra da chamada (objeto por valor, parâmetro ponteiro).
+
 **O que fica sem ilha, de propósito:** chamada cujo contêiner não é um
-identificador declarado (`slice.of(steps)` sobre um `array`, `x.f`, resultado de
-outro verbo), chamada C desconhecida, e `alias.CONSTANTE`. A ausência é o
+identificador declarado (`x.f`, resultado de outro verbo), chamada sobre um
+`array` (`slice.of(steps)`, `arena.from_array(a, memo)`: o verbo de `keel.array`
+e a extensão vinda da tabela ainda não são resolvidos), chamada C desconhecida,
+e `alias.CONSTANTE`. A ausência é o
 "emite a chamada para o C validar" do §4.4; o diagnóstico
 `not-a-container-expression` ainda não existe. A marca de adaptação `*k`
 (parâmetro por valor, argumento ponteiro) não está no §5.2 e não é impressa.
 
-`PARSE_LEVEL=ilha:type,name,call,from-stack,ref,implicit-init` é o padrão do
-`make check`: compara só essas espécies nos `.parse`, que continuam inteiros
-(001, 009 e 013 passam; 021 segue `wip`). `test/cli/islands.sh` cobre o que os
+`PARSE_LEVEL=ilha:<espécies>` (padrão do `make check`: as das etapas 4a e 4b)
+compara só essas espécies nos `.parse`, que continuam inteiros (001, 009 e 013
+passam; 021 segue `wip`). `test/cli/islands.sh` cobre o que os
 três oráculos não alcançam.
 
 ## Memória da ferramenta

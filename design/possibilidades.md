@@ -338,6 +338,47 @@ Motivo de ficar para depois: complexidade no núcleo para um ganho que a base e
 as construções (`walk`, `foreach`, `parallel`) não pedem, e que a
 documentação cobre enquanto o usuário não escreve algoritmos genéricos.
 
+### Protocolo de hierarquia: Hierarquizável
+
+Hoje o núcleo trata a arena pelo nome: registra a procedência (spec §5.2, regra
+10) e emite `child-arena-after-reset` só para os verbos de `keel.arena`. Um
+protocolo tiraria a arena da lista de pontos que o núcleo conhece pelo nome, e
+serviria a qualquer módulo em que uma região é feita de outra: um pool, um
+`slab`, uma pilha sobre arena.
+
+O que ele exige do núcleo é uma **verificação**, e não uma tradução: depois de
+`reset(pai)`, nenhum uso do filho nem de dado derivado dele, isto é, nenhum
+filho vivo além do reset do pai. Diferente dos demais protocolos da §5.1, não
+há construção que o consuma nem código a gerar; a coluna "Construção que o
+consome" diria *verificação de procedência*. A verificação fica no mesmo escopo,
+e o que escapa dele segue como `arena-escape`.
+
+Dois papéis de verbo:
+
+| Papel | Hoje, na arena |
+| --- | --- |
+| derivar o filho do pai | `from_parent(filho, pai, n)` |
+| invalidar o que foi derivado | `reset(pai)`, `restore(pai, m)` |
+
+Abertos:
+
+- **Nome.** "Componentizável" colide com "componente" da leitura ECS (§3), que é
+  coluna de `extent`. Hierarquizável segue o padrão de Indexável, Fatiável e
+  Percorrível.
+- **Como o núcleo acha os papéis.** `from_parent` se acha por nome e aridade,
+  como os verbos dos outros protocolos. `reset` não: outros módulos têm um
+  `reset` que não invalida ninguém, e o papel não se deduz do nome. Isso empurra
+  para o protocolo nominal (§2 acima), e este pode ser o caso que o justifique.
+- **Dado alocado.** O ponteiro devolvido por `alloc` é o nível folha da mesma
+  relação (dado dentro da arena, dentro do pai). O protocolo pode cobrir só a
+  arena-filha, ou qualquer verbo que derive.
+- **`restore` com marca.** `restore(pai, m)` invalida só o que foi derivado
+  depois de `m`, e `reset` invalida tudo. A verificação precisa da ordem de
+  derivação, ou fica conservadora e recusa todas as filhas.
+- **Fora da arena.** Visões sobre um `buffer`, como o `slice` depois de `clear`
+  ou `push`, seguem uma lógica parecida de invalidação. Registrada aqui como
+  vizinha, sem estar incluída.
+
 ---
 
 ## 3. Leituras e digressões

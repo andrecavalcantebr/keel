@@ -650,7 +650,7 @@ A aplicação de um modificador ao tipo forma o especificador que precede o decl
 | `keel.capacity(v)` | `size_t` | total de elementos |
 | `keel.dim(v, k)` | `size_t` | dimensão de índice `k`, a partir de zero; `k` é decimal conhecido |
 
-As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice (`x[i]`, `x[i,j]`), `foreach` e `apply` sobre `array` são do núcleo e não pedem import: o C tem a sintaxe. `x[a..b]` não tem, e é o `as_slice` de `keel.array` (§5.3), que precisa estar importado. Protocolos (§5.1): Indexável, pela tradução do núcleo; Indexável por intervalo, por `keel.array`; `begin` e `partition` não existem sobre `array`.
+As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice (`x[i]`, `x[i,j]`), `foreach` e `apply` sobre `array` são do núcleo e não pedem import: o C tem a sintaxe. `x[a..b]` não tem, e é o `as_slice` de `keel.array` (§5.3), que precisa estar importado. Protocolos (§5.1): Indexável, pela tradução do núcleo; Fatiável, por `keel.array`; `begin` e `partition` não existem sobre `array`.
 
 Um parâmetro `array` pode ligar um nome à sua dimensão 0, o **binder**:
 
@@ -1105,7 +1105,7 @@ São statements de corpo de função. Em `foreach`, dois binders antes de `:` pe
 - Dois binders exigem `length` e `get`, para valor, ou `length` e `ptr`, para ponteiro. Um binder exige `first` e `limit`, ou um literal `a..b`.
 - `walk` tem uma forma só, de dois binders. A forma de um binder é reconhecida e recusada por `walk-without-cursor`.
 - `walk` exige `begin`, `has_next` e `next`. O tipo do cursor escrito é o produto declarado de `begin`; o tipo do elemento é o produto declarado de `next`. A compatibilidade final é verificada pelo compilador C.
-- Indexável e percorrível por cursor são capacidades independentes (§5.1): `foreach` e `walk` pedem cada um a sua.
+- Indexável e Percorrível são capacidades independentes (§5.1): `foreach` e `walk` pedem cada um a sua.
 
 #### 2. Regras
 
@@ -1548,13 +1548,15 @@ Um protocolo é o conjunto de verbos que uma construção do núcleo exige do ti
 
 | Protocolo | Verbos exigidos | Construção que o consome | Declarado na base por |
 | --- | --- | --- | --- |
-| Indexável | `length`, e `get` ou `ptr` conforme o binder | `foreach` de dois binders, `apply`, `x[i]` | `buffer`, `slice` |
-| Contável | `first`, `limit` | `foreach` de um binder | `range` |
-| Percorrível por cursor | `begin`, `has_next`, `next` | `walk` | `buffer`, `slice` |
+| Indexável | `length` e `ptr(x, i)`; `get` no lugar de `ptr` no `foreach` de binder por valor | `x[i]` (sobrecarga de operador), `foreach` de dois binders, `apply` | `buffer`, `slice`; `array` pelo núcleo |
+| Fatiável | `length` e `as_slice(x, a, b)` | `x[a..b]` e suas formas abertas (sobrecarga de operador) | `array` (`keel.array`), `buffer`, `slice` |
+| Percorrível | `begin`, `has_next`, `next` | `walk` | `buffer`, `slice` |
 | Particionável | `partition` | `parallel` | `buffer`, `slice`, `range` |
-| Indexável por intervalo | `length` e `as_slice(x, a, b)` | `x[a..b]` e suas formas abertas | `array` (`keel.array`), `buffer`, `slice` |
+| Contável | `first`, `limit` | `foreach` de um binder | `range` |
 | Etiquetado | `tag` | `match` | `tagged`, `corot` |
 | Falível | `failed`, mais `win` para a forma de default | `else` | `outcome` |
+
+`length` faz parte de Indexável e de Fatiável, e é obrigação do módulo: a verificação de limite de `x[i]` e de `x[a..b]` depende dele. `x[i]` o exige, portanto, só indiretamente, porque o chamado é `ptr`.
 
 `array` participa de Indexável pelo núcleo: `x[i]`, `foreach` e `apply` sobre `array` são traduzidos sem verbo, porque o C tem a sintaxe (§4.2, §4.5). `x[a..b]` não tem, e segue o protocolo como em qualquer módulo, pelo `as_slice` de `keel.array`. As chamadas explícitas de acesso e a de intervalo são de `keel.array` (§5.3). Um valor cujo tipo é um conjunto `tags` é operando de `match` sem verbo (§4.9).
 
@@ -1563,7 +1565,7 @@ Um protocolo é o conjunto de verbos que uma construção do núcleo exige do ti
 1. Declarar os verbos de um protocolo basta para participar da construção correspondente. Não há registro, marcação nem permissão; keel não distingue módulo da base de módulo do programa ao resolver.
 2. A forma dos argumentos vem do bit `byref` do modificador (§4.3), e não do protocolo.
 3. As aridades escritas nas assinaturas são as que valem: `ptr(x, i)` serve a `x[i]`, e `ptr(x, size_t idx[static N])`, com `N` o `dim` do modificador, serve a `x[i,j,…]`. A forma de vários índices é provisória (§4.5, observação).
-4. O nome do verbo de Indexável por intervalo é `as_slice`: como o dos demais protocolos, é do protocolo, e o módulo o declara. O módulo que o declara importa `slice` para devolvê-la, e nunca o contrário. [R: memória e visão](keel-rationale.md#memória-e-visão-a-direção-da-conversão)
+4. O nome do verbo de Fatiável é `as_slice`: como o dos demais protocolos, é do protocolo, e o módulo o declara. O módulo que o declara importa `slice` para devolvê-la, e nunca o contrário. [R: memória e visão](keel-rationale.md#memória-e-visão-a-direção-da-conversão)
 
 #### O que o núcleo conhece pelo nome
 
@@ -1738,7 +1740,7 @@ outcome i32 r = array.at(v, 9);
 | --- | --- | --- |
 | `slice.from(T, p, n)` | `slice T` | vista dos `n` elementos afirmados em `p`; `type T` seleciona a instância (§4.4) |
 | `slice.as_slice(s, a, c)` | `slice T` | vista de `[a, c)` de `s`; é o verbo de `x[a..b]` sobre `slice` (§4.5) |
-| `slice.of(x)` | `slice T` | vista do comprimento atual de `x`, qualquer Indexável por intervalo: `buffer`, `slice`, `array` unidimensional ou tipo do programa |
+| `slice.of(x)` | `slice T` | vista do comprimento atual de `x`, qualquer Fatiável: `buffer`, `slice`, `array` unidimensional ou tipo do programa |
 | `slice.of(x, a, c)` | `slice T` | vista de `[a, c)` de `x`: é `x[a..c]` |
 | `slice.of(x, r)` | `slice T` | vista dos limites do `range` `r` |
 | `slice.length(s)` | `size_t` | elementos da vista |
@@ -1771,12 +1773,12 @@ outcome i32 r = array.at(v, 9);
 | `array.as_slice(v, a, b)` | `slice T` | vista de `[a, b)` do `array` unidimensional `v`; é o verbo de `x[a..b]` sobre `array` (§4.5) |
 | `array.at(v, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora da extensão, em toda build |
 
-Protocolos (§5.1): Indexável — `length`, `get`, `ptr`; Contável — `first`, `limit`; Percorrível por cursor — `begin`, `has_next`, `next`; Particionável — `partition`; Indexável por intervalo — `length` e `as_slice`. O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção.
+Protocolos (§5.1): Indexável — `length`, `get`, `ptr`; Contável — `first`, `limit`; Percorrível — `begin`, `has_next`, `next`; Particionável — `partition`; Fatiável — `length` e `as_slice`. O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção.
 
 **Reconhecimento**
 
 - A instância vem das declarações ou da origem indicada na §4.4.
-- `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of(x, …)` é a forma escrita do protocolo de intervalo: resolve pelo `as_slice` do tipo de `x` (§4.5), e exige um Indexável por intervalo de elemento compatível.
+- `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of(x, …)` é a forma escrita do protocolo de intervalo: resolve pelo `as_slice` do tipo de `x` (§4.5), e exige um Fatiável de elemento compatível.
 - `a..b` constrói um `range`. Os limites são expressões C; `..` é reconhecido fora de literais, comentários e diretivas.
 - Os verbos de `keel.array` recebem `array` unidimensional, pelo parâmetro `array T v[size_t N]`: a instância vem do tipo do elemento (§4.4), e a extensão, do binder (§4.2).
 

@@ -831,7 +831,7 @@ i32 x = keel_array_i32_get(v, 8, 3);
 
 1. Cada instância é uma struct e funções `static inline`, uma por verbo e aridade (§2.1.1). `push(x)` e `push(x,v)` são `_push` e `_push1`, e não uma variádica. [D36](#10-decisões-de-emissão)
 2. A chamada é reescrita para a função manglada. A forma do parâmetro é o bit `byref` (linguagem §4.3): instância `byref` recebe o endereço do contêiner, e a que não é — `slice`, `range` — recebe cópia, pela adaptação da linguagem §4.4.
-3. `slice.of` sobre `slice` é o `of` que a própria slice declara. Sobre qualquer outro Indexável por intervalo, é o `as_slice` do módulo do tipo do objeto (linguagem §4.5), escolhido pela aridade: `_as_slice`, `_as_slice1` e `_as_slice2` no `buffer`.
+3. `slice.of` sobre `slice` é o `of` que a própria slice declara. Sobre qualquer outro Fatiável, é o `as_slice` do módulo do tipo do objeto (linguagem §4.5), escolhido pela aridade: `_as_slice`, `_as_slice1` e `_as_slice2` no `buffer`.
 4. `slice.of` e `x[a..b]` sobre `array` são o `as_slice` de `keel.array`, com a dimensão 0 da tabela logo depois do vetor (§5.18): `keel_array_i32_as_slice2(v, 6, a, b)`. As formas abertas passam a ponta que falta, `length(x)`, no ponto de chamada. `buffer.of(v)` é o `of(p, n)` do buffer, com `n` da tabela. Cada argumento é avaliado uma vez.
 5. Todo verbo que pode falhar sai com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
 6. A verificação de limites de `get`, `set` e `ptr(x, i)` está no corpo do verbo, ligada por `KEEL_CHECKS` (§5.17).

@@ -810,7 +810,7 @@ quem escreve o programa nada muda no caso comum; para quem escreve um módulo,
 distribuir passa a ser possível.
 
 A separação também é entre capacidades: particionável, indexável e percorrível
-por cursor são independentes. Um contêiner pode declarar uma, duas ou as três,
+são independentes. Um contêiner pode declarar uma, duas ou as três,
 e cada construção pede a sua. `parallel` deixa de percorrer: entrega a parte, e
 percorrê-la é escolha escrita no corpo do worker, por `foreach`, por `walk` ou
 por qualquer forma C.
@@ -1303,6 +1303,8 @@ Indexação por `ptr` produz um lvalue para o elemento original. Isso permite
 alterar um contêiner aninhado sem copiar seu descritor. `get` tem uma finalidade
 diferente: obter um valor. A recusa de cópias de elementos que sejam instâncias
 de modificadores torna explícita essa diferença no ponto de uso.
+
+`length` é do protocolo de quem indexa e de quem fatia, porque o limite que o `ptr` e o `as_slice` verificam é o dele: `x[i]` o exige, ainda que só por meio do `ptr`.
 
 O acesso `at` oferece resultado falível com verificação também em release.
 Sua garantia depende da chamada escrita, enquanto o açúcar de indexação conserva

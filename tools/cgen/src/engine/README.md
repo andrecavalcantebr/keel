@@ -93,6 +93,11 @@ sem verbo de `range-index` é `no-range-index-verb`. Símbolos de arquivo
 (`buffer i32 gbuf;`, `array i32 v[6]`) valem em todas as funções, onde quer que
 estejam no arquivo.
 
+Um verbo sem qualificador (`length(s)`, `push(s, 7)`) é o verbo do tipo do
+contêiner `s`, quando o primeiro argumento é um nome declarado com modificador e o
+módulo dele declara o verbo (§4.4, passo 1); antes de uma função do próprio arquivo
+com o mesmo nome.
+
 `of`, `from` e `clone` são produtores, qualificados pelo módulo do produto
 (§4.4, regra 1), então `slice.of(b, r)` sobre um `buffer` é o `as_slice` do buffer
 e não é `wrong-qualifier`. Sobre `array`, `slice.of(v…)` baixa para `from` (e `of1`

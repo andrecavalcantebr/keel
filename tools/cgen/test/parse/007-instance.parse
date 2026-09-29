@@ -1,0 +1,15 @@
+# Hand-written from app/p.k and expected/. `stack` is injected by `import coll types;`;
+# `length(s)` and `push(s, 7)` are verbs of the type of the container `s` (spec §4.4, item 1),
+# so they take the instance coll_stack_i32; `s` is a value, hence &1. `coll.EMPTY` is the
+# module constant, emitted once with no argument in its name (backend §4.9).
+module	app.p	app/p.k:1:1
+import	coll types	app/p.k:2:1
+import_c	<stdio.h>	app/p.k:3:1
+decl	pub func	main	app_p_main	app/p.k:5:1
+inst	stack i32	coll_stack_i32	app/p.k:7:5
+ilha	array	v [4]	app/p.k:6:5
+ilha	type	stack i32 → coll_stack_i32	app/p.k:7:5
+ilha	call	length/1 → coll_stack_i32_length &1	app/p.k:10:9
+ilha	call	push/2 → coll_stack_i32_push &1	app/p.k:11:10
+ilha	call	length/1 → coll_stack_i32_length &1	app/p.k:12:9
+ilha	name	coll.EMPTY → coll_EMPTY	app/p.k:13:9

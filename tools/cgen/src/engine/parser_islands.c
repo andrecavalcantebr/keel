@@ -32,6 +32,7 @@ typedef struct {
     int rank;                   /* dimensions of an `array`; 0 for anything else */
     keel_slice_char element;    /* an `array`'s element type, as written */
     keel_slice_char dims;       /* its dimensions, as written: `[2,3,4]` */
+    bool global;                /* declared at file scope: also a name of the module */
     bool is_ref;                /* declared with `ref` */
     bool is_constexpr;          /* a block-level `constexpr` */
     keel_slice_char value;      /* its initializer, as written */
@@ -695,7 +696,8 @@ static bool tag_value(const KAst *a, keel_slice_char name, Text *t) {
 static void name_island(Ctx *c, size_t i) {
     KAst *a = c->ast;
     KToken name = tok(a, i);
-    if (find_local(c, name)) return;
+    const Local *l = find_local(c, name);
+    if (l && !l->global) return;                    /* a local, or a parameter: not a name of the module */
     Text t = { .ok = true };
     put(&t, name.ptr, name.len);
     put_str(&t, " \xe2\x86\x92 ");
@@ -1178,6 +1180,15 @@ static void walk(Ctx *c, const KAstNode *n) {
             if (module) { qualified_name(c, i, module); i += 2; continue; }
         }
         if (punct(a, i + 1, "(")) {
+            /* `verb(x, ...)`: the verb of the type of the container `x`, first (spec §4.4, item 1) */
+            const Local *object = ident(a, i + 2) && (punct(a, i + 3, ",") || punct(a, i + 3, ")"))
+                                ? find_local(c, tok(a, i + 2)) : NULL;
+            const KSymbol *m = object && object->spec.kind == K_SPEC_MODIFIER && !object->rank && !find_local(c, t)
+                             ? k_symbol_resolve(a->symbols, object->spec.modifier_name) : NULL;
+            if (m && m->origin && m->origin->ast && find_verb(m->origin->ast, t, SIZE_MAX).found) {
+                call(c, i, i, i + 1, m->origin);
+                continue;
+            }
             if (!find_local(c, t)) {
                 bool own = false;
                 for (size_t k = 0; k < a->nodes.len && !own; k++)
@@ -1210,7 +1221,10 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
         seen = n->end;
         walk(&ctx, n);
         for (size_t k = ctx.global_count; k < ctx.local_count && ctx.global_count < K_LOCALS_MAX; k++)
-            if (ctx.locals[k].depth == 0) ctx.globals[ctx.global_count++] = ctx.locals[k];
+            if (ctx.locals[k].depth == 0) {
+                ctx.globals[ctx.global_count] = ctx.locals[k];
+                ctx.globals[ctx.global_count++].global = true;
+            }
     }
     ctx.quiet = false;
     size_t covered = 0;

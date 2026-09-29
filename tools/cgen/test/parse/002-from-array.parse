@@ -1,0 +1,11 @@
+# Hand-written from app/pool.k and expected/ (backend §5.4: from_array(a, v) passes the
+# extent of the `array u8`, here as `sizeof app_pool_memo`, hence the mark dim:2).
+# `a` is a pointer parameter, so no `&`.
+module	app.pool	app/pool.k:1:1
+import	keel.arena as arena types	app/pool.k:2:1
+decl	priv var	memo	app_pool_memo	app/pool.k:7:1
+decl	pub func	start	app_pool_start	app/pool.k:9:1
+ilha	array	memo [65536]	app/pool.k:7:18
+ilha	type	arena → keel_arena	app/pool.k:9:16
+ilha	call	arena.from_array/2 → keel_arena_from_array dim:2	app/pool.k:10:12
+ilha	name	memo → app_pool_memo	app/pool.k:10:32

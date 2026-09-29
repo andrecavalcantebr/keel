@@ -2,3 +2,6 @@
 009-match-tags ag.k
 013-sugar app/ac.k
 021-else-assign app/reg.k inst
+002-from-array app/pool.k
+003-alignment app/align.k
+007-instance app/p.k

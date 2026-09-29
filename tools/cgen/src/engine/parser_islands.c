@@ -1503,7 +1503,35 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
 
     Text tx = { .ok = true };
     if (k->kind == KT_ARRAY) {
-        if (range != SIZE_MAX) { check_inverted(c, name, open, range, close); return close + 1; }   /* an array's view has no verb */
+        if (range != SIZE_MAX) {
+            /* `x[a..b]` over an `array` is `slice.of(x, a, b)`: the element gives the
+               instance, and dimension 0 comes from the table (backend §5.2) */
+            check_inverted(c, name, open, range, close);
+            const char *elem = kt_symbol(c, k->elem);
+            if (commas || !*elem) return close + 1;
+            keel_slice_char group = { (size_t)(tok(a, close).ptr - tok(a, open).ptr) + 1, tok(a, open).ptr };
+            if (k->rank > 1) {
+                diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, name, k_diag_text("slice.of"), group, k->dims);
+                return close + 1;
+            }
+            bool low = range > open + 1, high = range + 1 < close;
+            put(&tx, path.ptr, path.len);
+            put_str(&tx, " ");
+            put_source(&tx, tok(a, open).ptr + 1, tok(a, close).ptr);
+            put_str(&tx, " \xe2\x86\x92 keel_slice_");
+            put_str(&tx, elem);
+            if (low || high) {
+                put_str(&tx, "_of2 keel_slice_");
+                put_str(&tx, elem);
+                put_str(&tx, "_from");
+                if (low && !high) put_str(&tx, " core");     /* the limit is keel.length(x) */
+            } else {
+                put_str(&tx, "_from");
+            }
+            put_str(&tx, " dim:1");
+            *any = emit(c, K_ISLAND_RANGE_INDEX, i, &tx) || *any;
+            return close + 1;
+        }
         Range idx[8];
         size_t indices = 0, last = close;
         for (size_t o = open; punct(a, o, "[") && indices < (size_t)k->rank; ) {

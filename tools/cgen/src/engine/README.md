@@ -121,10 +121,13 @@ o resto leva o módulo mais os argumentos (`keel_routine_ag2_Ag_seq`).
 qualquer módulo, mas não lançam função: o detalhe diz `core`, e a marca `dim:1`
 diz que a dimensão vem da tabela.
 
+**`x[a..b]` sobre `array`** é `slice.of(x, a, b)`: o elemento dá a instância e a
+dimensão 0 vem da tabela (`fx 2..5 → keel_slice_f32_of2 keel_slice_f32_from dim:1`;
+ponta aberta à direita acrescenta `core`; `fx[..]` é só o `from`).
+
 **O que ainda fica sem ilha:** chamada cujo objeto é uma expressão fora do que a
 passagem tipa (variável que `foreach`, `parallel` ou `apply` declaram, até as
-etapas 4d e 4e; o resultado de `x[a..b]`, cujo tipo é o do verbo de range-index); o
-intervalo sobre `array` (sem verbo); e o `range-index` de contêiner de fora da
+etapas 4d e 4e; o resultado de `x[a..b]`); e o `range-index` de contêiner de fora da
 base, cuja declaração o §4.5 não descreve (hoje `buffer` e `slice` estão escritos no
 código, o que o §5.1 diz que não se deve: **em aberto**). Também **não há ainda**
 `from-without-target` (falta o alvo de atribuição e de `return`),

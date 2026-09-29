@@ -59,6 +59,14 @@ SOURCE = [
     '    return a + b + d + (i32)buffer.length(w->items) + (i32)slice.length(buffer.as_slice(v.items));',  # 44
     '}',                                                          # 45
     'pub size_t rows(void) { return keel.length(grid) + keel.dim(grid, 1); }',   # 46
+    'pub size_t views(void) {',                                   # 47
+    '    array f32 fx[8];',                                       # 48
+    '    slice f32 p = fx[2..5];',                                # 49
+    '    slice f32 q = fx[3..];',                                 # 50
+    '    slice f32 r = fx[..4];',                                 # 51
+    '    slice f32 w = fx[..];',                                  # 52
+    '    return slice.length(p) + slice.length(q) + slice.length(r) + slice.length(w);',  # 53
+    '}',                                                          # 54
 ]
 
 # (kind, detail, line, needle, which occurrence of the needle in the line)
@@ -115,6 +123,20 @@ EXPECTED = [
     ('name', 'grid → app_t_grid', 46, 'grid', 0),
     ('call', 'keel.dim/2 → core dim:1', 46, 'keel.dim', 0),
     ('name', 'grid → app_t_grid', 46, 'grid', 1),
+    # x[a..b] over an array is slice.of(x, a, b): the element gives the instance
+    ('array', 'fx [8]', 48, 'array', 0),
+    ('type', 'slice f32 → keel_slice_f32', 49, 'slice', 0),
+    ('range-index', 'fx 2..5 → keel_slice_f32_of2 keel_slice_f32_from dim:1', 49, 'fx', 0),
+    ('type', 'slice f32 → keel_slice_f32', 50, 'slice', 0),
+    ('range-index', 'fx 3.. → keel_slice_f32_of2 keel_slice_f32_from core dim:1', 50, 'fx', 0),
+    ('type', 'slice f32 → keel_slice_f32', 51, 'slice', 0),
+    ('range-index', 'fx ..4 → keel_slice_f32_of2 keel_slice_f32_from dim:1', 51, 'fx', 0),
+    ('type', 'slice f32 → keel_slice_f32', 52, 'slice', 0),
+    ('range-index', 'fx .. → keel_slice_f32_from dim:1', 52, 'fx', 0),
+    ('call', 'slice.length/1 → keel_slice_f32_length', 53, 'slice.length', 0),
+    ('call', 'slice.length/1 → keel_slice_f32_length', 53, 'slice.length', 1),
+    ('call', 'slice.length/1 → keel_slice_f32_length', 53, 'slice.length', 2),
+    ('call', 'slice.length/1 → keel_slice_f32_length', 53, 'slice.length', 3),
 ]
 
 def column(line, needle, which):

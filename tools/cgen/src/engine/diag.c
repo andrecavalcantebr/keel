@@ -34,6 +34,40 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` has no `ptr` for the indices `%s`: a container is indexed with the arities its module declares `ptr` for",
     [K_DIAG_NO_RANGE_INDEX_VERB] =
         "`%s` declares no range-index verb for `%s`: the memory side of a memory/view pair (`buffer`, `slice`) does",
+    [K_DIAG_PARTIAL_ARRAY_INDEX] =
+        "the array has dimensions %s: index every one of them (`v[i,j]` or `v[i][j]`); a partial index has no meaning",
+    [K_DIAG_ARRAY_INDEX_ABOVE_DIMENSION] =
+        "index `%s` is at or above its dimension in %s",
+    [K_DIAG_INVERTED_RANGE_INDEX] =
+        "the range `[%s]` starts above where it ends; the empty range is `[a..a]`",
+    [K_DIAG_OPEN_RANGE_INDEX_ON_COMPLEX_PATH] =
+        "`%s` leaves the end open on a path that holds an index or a verb, and the path would be evaluated twice: name the length",
+    [K_DIAG_ARRAY_PARAMETER_WITHOUT_DIMENSION] =
+        "the parameter `%s` is an `array` without a dimension: write `array T name[size_t n]` to bind its length",
+    [K_DIAG_ARRAY_1D_AS_PARAMETER] =
+        "the one-dimensional `array` parameter `%s` has no binder: write `array T name[size_t n]` so the function receives its length",
+    [K_DIAG_REF_WITHOUT_INITIALIZER] =
+        "`ref` symbol `%s` has no initializer: a `ref` is initialized where it is declared",
+    [K_DIAG_REF_ARITHMETIC] =
+        "`%s` is a `ref`: it names one element and takes no arithmetic or index; use a plain pointer to walk",
+    [K_DIAG_CONSTEXPR_AS_LVALUE] =
+        "`%s` is a `constexpr`: it has no address and cannot be assigned; use `static const` for an object",
+    [K_DIAG_BUFFER_OF_UNKNOWN_SIZE] =
+        "`%s` needs a one-dimensional `array` to read the size from, and `%s` is not one: use `buffer.of(p, n)`",
+    [K_DIAG_BUFFER_OVER_CONST] =
+        "`%s` cannot make a `buffer` over the const elements `%s`: use `slice.of`, which gives a `slice const T`",
+    [K_DIAG_ARENA_FROM_ARRAY_NOT_U8] =
+        "`arena.from_array` takes an `array u8`, and `%s` is not one (its elements are `%s`)",
+    [K_DIAG_NONCONSTANT_ARENA_STACK] =
+        "`arena.from_stack` needs a size known at translation time, and `%s` is not: use `arena.from_parent`",
+    [K_DIAG_C_TYPE_AS_ARGUMENT] =
+        "`%s` takes keel types as arguments, and `%s` is a C keyword: write the keel spelling (`i32`, `u8`, `f64`, ...) or a named type",
+    [K_DIAG_RESTRICT_ON_CONTAINER] =
+        "`restrict` does not apply to the type `%s`: qualify a pointer to it (`T *restrict p`)",
+    [K_DIAG_ELEMENT_COPY_IN_GET_SET] =
+        "`%s` would copy an element that is itself `%s`; take its address with `ptr` instead",
+    [K_DIAG_SLICE_FROM_REF] =
+        "`slice.from` over `%s`, a `ref`: keel does not vouch for the extent behind a `ref`; pass a pointer",
     [K_DIAG_DEFINE_OVER_KEEL_NAME] = "cannot `#%s` `%s`: %s",
     [K_DIAG_LITERAL_WITH_NEWLINE] =
         "%s literal has no closing `%s` before the end of the line; write `\\n` for a newline inside it",

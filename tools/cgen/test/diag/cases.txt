@@ -7,3 +7,7 @@ name-limit name_limit.k
 wrong-qualifier wq.k
 containers c.k
 indexing i.k
+arrays a.k
+refs r.k
+arenas ar.k
+types t.k

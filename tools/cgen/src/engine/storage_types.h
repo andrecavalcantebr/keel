@@ -64,4 +64,20 @@ typedef struct KInstanceUse {
     size_t symbol_len;
 } KInstanceUse;
 
+/* Islands (parser-design §2.3, cgen-tool §5.2): what pass 3 recognizes in
+ * signatures and bodies. The detail column lives in KAst.island_text
+ * (`text`, `text_len`), already formatted the way the dump prints it. */
+typedef enum {
+    K_ISLAND_TYPE, K_ISLAND_NAME, K_ISLAND_CALL, K_ISLAND_FROM_STACK,
+    K_ISLAND_REF, K_ISLAND_DEFER, K_ISLAND_IMPLICIT_INIT,
+    K_ISLAND_FOREACH, K_ISLAND_MATCH, K_ISLAND_INDEX,
+    K_ISLAND_RANGE_INDEX, K_ISLAND_ARRAY, K_ISLAND_ARRAY_INDEX
+} KIslandKind;
+
+typedef struct KIsland {
+    KIslandKind kind;
+    size_t anchor;              /* token index of the island's anchor (§5.2) */
+    size_t text, text_len;      /* detail: offset and length in island_text */
+} KIsland;
+
 #endif

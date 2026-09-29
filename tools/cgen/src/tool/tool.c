@@ -8,6 +8,7 @@
 #include "tool/tool.h"
 #include "tool/cli_limits.h"
 #include "engine/instances.h"
+#include "engine/islands.h"
 #include "engine/names.h"
 #include "keel/keel_buffer_char.type.h"
 
@@ -175,6 +176,13 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     if(!exports(t,e))return failure(t,e,K_DIAG_CAPACITY,before);
     e->ast.instances=keel_buffer_KInstanceUse_from(CGEN_NEW(t->arena,KInstanceUse,count+1),count+1);
     if(!e->ast.instances.ptr||!k_collect_instances(&e->ast,t->diag))
+        return failure(t,e,K_DIAG_CAPACITY,before);
+    /* An island holds a few tokens' worth of text; the bound is generous, and
+       running into it is a diagnostic, never a truncation. */
+    size_t text=count*CGEN_ISLAND_TEXT_PER_TOKEN+CGEN_ISLAND_TEXT_BASE;
+    e->ast.islands=keel_buffer_KIsland_from(CGEN_NEW(t->arena,KIsland,count+1),count+1);
+    e->ast.island_text=(keel_buffer_char){.ptr=CGEN_NEW(t->arena,char,text),.len=0,.cap=text};
+    if(!e->ast.islands.ptr||!e->ast.island_text.ptr||!k_collect_islands(&e->ast,t->diag))
         return failure(t,e,K_DIAG_CAPACITY,before);
     e->module.ast=&e->ast;e->state=CGEN_DONE;*out=&e->module;
     return K_LOAD_OK;

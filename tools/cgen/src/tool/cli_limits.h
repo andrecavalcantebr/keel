@@ -8,6 +8,14 @@
 #define CGEN_CLI_ARGS_CAP 256
 #endif
 #define CGEN_SEARCH_ROOTS_CAP (CGEN_CLI_ROOTS_CAP + 1)
+/* Detail text of the parse dump's island lines: bytes per token of the file,
+   plus a fixed base. */
+#ifndef CGEN_ISLAND_TEXT_PER_TOKEN
+#define CGEN_ISLAND_TEXT_PER_TOKEN 32
+#endif
+#ifndef CGEN_ISLAND_TEXT_BASE
+#define CGEN_ISLAND_TEXT_BASE 1024
+#endif
 _Static_assert(CGEN_CLI_ROOTS_CAP > 0, "CLI roots capacity must be positive");
 _Static_assert(CGEN_CLI_ARGS_CAP > 0, "CLI arguments capacity must be positive");
 #endif

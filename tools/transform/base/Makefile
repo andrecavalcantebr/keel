@@ -22,7 +22,7 @@ all: parser-buffers
 	done
 
 # Parser-owned element types; declarations are shared without container dependencies.
-PARSER_TYPES := KSymbol KLexeme KAstNode KInstanceUse
+PARSER_TYPES := KSymbol KLexeme KAstNode KInstanceUse KIsland
 parser-buffers:
 	@set -e; for T in $(PARSER_TYPES); do \
 	  $(CG) -m keel.outcome -i $(SRC) -d $(DEST) -t $$T -a engine/storage_types.h; \

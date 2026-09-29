@@ -99,5 +99,13 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
         for(size_t j=0;j<use->symbol_len;j++)put_c(&o,use->symbol[j]);
         put_c(&o,'\t');put_pos(&o,a,path,use->first);
     }
+    static const char *const island_names[]={"type","name","call","from-stack","ref","defer",
+        "implicit-init","foreach","match","index","range-index","array","array-index"};
+    for(size_t i=0;i<a->islands.len;i++) {
+        const KIsland *island=keel_buffer_KIsland_ptr(&a->islands, i);
+        put_s(&o,"ilha\t");put_s(&o,island_names[island->kind]);put_c(&o,'\t');
+        for(size_t j=0;j<island->text_len;j++)put_c(&o,a->island_text.ptr[island->text+j]);
+        put_c(&o,'\t');put_pos(&o,a,path,island->anchor);
+    }
     return o.n;
 }

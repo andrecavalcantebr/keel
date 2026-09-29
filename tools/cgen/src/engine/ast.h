@@ -8,6 +8,8 @@
 #include "keel/keel_buffer_KLexeme.h"
 #include "keel/keel_buffer_KAstNode.h"
 #include "keel/keel_buffer_KInstanceUse.h"
+#include "keel/keel_buffer_KIsland.h"
+#include "keel/keel_buffer_char.h"
 
 typedef struct KAst {
     keel_slice_char source;
@@ -17,6 +19,8 @@ typedef struct KAst {
     KSymbolTable *symbols; /* caller-owned, retained collection environment */
     size_t error_token;
     keel_buffer_KInstanceUse instances;
+    keel_buffer_KIsland islands;   /* pass 3, sorted by anchor */
+    keel_buffer_char island_text;  /* the islands' detail columns */
 } KAst;
 
 /* Both passes return the required count. A NULL/zero output only counts. */

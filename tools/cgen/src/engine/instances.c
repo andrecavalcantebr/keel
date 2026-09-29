@@ -64,6 +64,10 @@ static bool type_name(keel_slice_char source,const KSymbolTable *symbols,Name *n
     }
     return name->ok;
 }
+size_t k_spec_symbol(keel_slice_char text,const KSymbolTable *symbols,char *out,size_t cap) {
+    Name name={out,0,cap,true};
+    return type_name(text,symbols,&name,0)?name.len:SIZE_MAX;
+}
 bool k_collect_instances(KAst *a,KDiagnosticSink *diag) {
     a->instances.len=0;
     if(!a->symbols)return true;

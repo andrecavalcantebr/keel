@@ -22,7 +22,8 @@ temporário, sem `mkstemp`, sem limpeza.
 | `lexer.h`, `lexer.c`, `lexer_*.c` | [lexer-design.md](../../../../design/lexer-design.md) |
 | `parser_keel.c` | ponto de entrada, `k_parser_keel(input, output, diagnostics)`; por ora, o despejo de tokens do `--stop-after=lex` ([desenho do cgen §5.1](../../../../design/cgen-tool.md#51---stop-afterlex)) |
 | `ast.h`, `ast.c` | AST de nível de arquivo, com spans de tokens e fonte persistente; coleta de `module`, imports e declarações para M2 |
-| `parser_dump.c` | projeta essa AST no formato `--stop-after=parse` (níveis `header`, `decl` e `inst`) |
+| `parser_dump.c` | projeta essa AST no formato `--stop-after=parse` (níveis `header`, `decl`, `inst` e `ilha`) |
+| `parser_islands.c`, `islands.h` | passagem 3, etapa 4a: as ilhas `type`, `name`, `call`, `from-stack`, `ref` e `implicit-init` ([parser-design §3.2](../../../../design/parser-design.md)) |
 | `parser.c`, `symtab.c` | [parser-design.md](../../../../design/parser-design.md) |
 | `emit/` | [codegen-design.md](../../../../design/codegen-design.md) |
 | `diag.h`, `diag.c` | [diag-design.md](../../../../design/diag-design.md): o sink, que acumula na memória dada por quem chama; a tabela tem por ora só os diagnósticos do lexer |
@@ -51,6 +52,35 @@ Regressões adicionais: `test/cli/imports.sh` cobre o executável e
 `test/unit/loader_regressions.sh` cobre estado de carga, fecho de timestamps,
 cache de falhas e mais de 256 exports. Os quatro oráculos `.parse` existentes
 não foram alterados. `PARSE_LEVEL=inst make check` verifica esse marco.
+
+## Ilhas, etapa 4a (2026-09-29)
+
+`k_collect_islands` (`parser_islands.c`) roda depois de `k_collect_instances`,
+sobre as declarações `func` e `var` do próprio arquivo, em assinatura e em
+corpo, e preenche `KAst.islands` (ordenado pela âncora) e `KAst.island_text`
+(a coluna de detalhe, já formatada). O módulo genérico não tem ilhas concretas,
+como não tem instâncias. O dump imprime as linhas `ilha` depois das `inst`.
+
+Espécies desta etapa: `type`, `name`, `call`, `from-stack`, `ref` e
+`implicit-init`. O que a chamada resolve vem da assinatura declarada no módulo
+chamado (spec §4.4), nunca do ponto de chamada; por isso a passagem lê os
+parâmetros da AST dos módulos importados. A única tipagem de expressão é a forma
+mais simples de `container`: um argumento que é um identificador só, declarado
+antes com tipo keel. A origem da instância segue a tabela do §4.4: o objeto num
+argumento, o tipo escrito num parâmetro `type` de seleção, ou o tipo declarado
+do objeto que a chamada inicializa. O sufixo de aridade vem do backend §2.1.1.
+
+**O que fica sem ilha, de propósito:** chamada cujo contêiner não é um
+identificador declarado (`slice.of(steps)` sobre um `array`, `x.f`, resultado de
+outro verbo), chamada C desconhecida, e `alias.CONSTANTE`. A ausência é o
+"emite a chamada para o C validar" do §4.4; o diagnóstico
+`not-a-container-expression` ainda não existe. A marca de adaptação `*k`
+(parâmetro por valor, argumento ponteiro) não está no §5.2 e não é impressa.
+
+`PARSE_LEVEL=ilha:type,name,call,from-stack,ref,implicit-init` é o padrão do
+`make check`: compara só essas espécies nos `.parse`, que continuam inteiros
+(001, 009 e 013 passam; 021 segue `wip`). `test/cli/islands.sh` cobre o que os
+três oráculos não alcançam.
 
 ## Memória da ferramenta
 

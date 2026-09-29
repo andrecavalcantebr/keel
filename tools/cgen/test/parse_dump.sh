@@ -27,6 +27,13 @@
 # expected C of the golden case: they are NOT regenerated from cgen.
 set -u
 LEVEL=${1:-ilha}
+# `ilha:<kind>,<kind>...` compares only those kinds of island — the stages of
+# parser design §3.2 (4a..4i), while the .parse files stay whole. Plain `ilha`
+# compares every kind.
+ISLANDS=
+case $LEVEL in
+    ilha:*) ISLANDS=$(printf '%s' "${LEVEL#ilha:}" | tr ',' '|'); LEVEL=ilha ;;
+esac
 rank() {
     case $1 in
         header) echo 1 ;; decl) echo 2 ;; inst) echo 3 ;; ilha) echo 4 ;;
@@ -38,9 +45,11 @@ case $LEVEL in
     decl)   KINDS='module|import|import_c|decl' ;;
     inst)   KINDS='module|import|import_c|decl|inst' ;;
     ilha)   KINDS='module|import|import_c|decl|inst|ilha' ;;
-    *) echo "usage: $0 [header|decl|inst|ilha]"; exit 2 ;;
+    *) echo "usage: $0 [header|decl|inst|ilha[:<island kinds>]]"; exit 2 ;;
 esac
 WANT=$(rank "$LEVEL")
+[ -n "$ISLANDS" ] && KINDS="module|import|import_c|decl|inst"
+[ -n "$ISLANDS" ] && LEVEL="ilha:$ISLANDS"
 
 ROOT=$(pwd)
 D=$ROOT/tools/cgen/test/parse
@@ -53,7 +62,11 @@ gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra \
     $(find tools/cgen/src -name '*.c') -o "$BIN" 2>/dev/null ||
     { echo "FAIL: compile error (sanitized build)"; exit 1; }
 
-only() { grep -E "^($KINDS)	" || true; }
+if [ -n "$ISLANDS" ]; then
+    only() { grep -E "^($KINDS)	|^ilha	($ISLANDS)	" || true; }
+else
+    only() { grep -E "^($KINDS)	" || true; }
+fi
 
 bad=0
 wip=0

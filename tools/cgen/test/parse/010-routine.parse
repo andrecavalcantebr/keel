@@ -7,81 +7,82 @@ import	keel.corot as corot types	ag2.k:2:1
 import	keel.outcome as outcome types	ag2.k:3:1
 import	keel.routine as routine types	ag2.k:4:1
 import	keel.slice as slice types	ag2.k:5:1
-decl	pub type	Ag	ag2_Ag	ag2.k:7:1
-decl	priv func	hello	ag2_hello	ag2.k:9:1
-decl	priv func	authenticate	ag2_authenticate	ag2.k:10:1
-decl	priv func	ready	ag2_ready	ag2.k:11:1
-decl	priv func	faults	ag2_faults	ag2.k:12:1
-decl	pub func	chain	ag2_chain	ag2.k:16:1
-decl	pub func	broken_chain	ag2_broken_chain	ag2.k:27:1
-decl	pub func	together	ag2_together	ag2.k:40:1
-decl	pub func	two	ag2_two	ag2.k:49:1
-decl	pub func	impossible	ag2_impossible	ag2.k:59:1
-inst	outcome u32	keel_outcome_u32	ag2.k:16:5
-inst	routine.slot Ag	keel_routine_slot_ag2_Ag	ag2.k:17:11
-ilha	type	corot → keel_corot	ag2.k:9:6
-ilha	type	Ag → ag2_Ag	ag2.k:9:18
-ilha	type	corot → keel_corot	ag2.k:9:33
-ilha	call	corot.again/1 → keel_corot_again &1	ag2.k:9:71
-ilha	call	corot.win/1 → keel_corot_win &1	ag2.k:9:94
+import	keel.array as array	ag2.k:6:1
+decl	pub type	Ag	ag2_Ag	ag2.k:8:1
+decl	priv func	hello	ag2_hello	ag2.k:10:1
+decl	priv func	authenticate	ag2_authenticate	ag2.k:11:1
+decl	priv func	ready	ag2_ready	ag2.k:12:1
+decl	priv func	faults	ag2_faults	ag2.k:13:1
+decl	pub func	chain	ag2_chain	ag2.k:17:1
+decl	pub func	broken_chain	ag2_broken_chain	ag2.k:28:1
+decl	pub func	together	ag2_together	ag2.k:41:1
+decl	pub func	two	ag2_two	ag2.k:50:1
+decl	pub func	impossible	ag2_impossible	ag2.k:60:1
+inst	outcome u32	keel_outcome_u32	ag2.k:17:5
+inst	routine.slot Ag	keel_routine_slot_ag2_Ag	ag2.k:18:11
 ilha	type	corot → keel_corot	ag2.k:10:6
-ilha	type	Ag → ag2_Ag	ag2.k:10:25
-ilha	type	corot → keel_corot	ag2.k:10:34
-ilha	call	corot.again/1 → keel_corot_again &1	ag2.k:10:72
-ilha	call	corot.win/1 → keel_corot_win &1	ag2.k:10:95
+ilha	type	Ag → ag2_Ag	ag2.k:10:18
+ilha	type	corot → keel_corot	ag2.k:10:33
+ilha	call	corot.again/1 → keel_corot_again &1	ag2.k:10:71
+ilha	call	corot.win/1 → keel_corot_win &1	ag2.k:10:94
 ilha	type	corot → keel_corot	ag2.k:11:6
-ilha	type	Ag → ag2_Ag	ag2.k:11:18
-ilha	type	corot → keel_corot	ag2.k:11:30
-ilha	call	corot.again/1 → keel_corot_again &1	ag2.k:11:68
-ilha	call	corot.win/1 → keel_corot_win &1	ag2.k:11:91
+ilha	type	Ag → ag2_Ag	ag2.k:11:25
+ilha	type	corot → keel_corot	ag2.k:11:34
+ilha	call	corot.again/1 → keel_corot_again &1	ag2.k:11:72
+ilha	call	corot.win/1 → keel_corot_win &1	ag2.k:11:95
 ilha	type	corot → keel_corot	ag2.k:12:6
-ilha	type	Ag → ag2_Ag	ag2.k:12:19
-ilha	type	corot → keel_corot	ag2.k:12:31
-ilha	call	corot.fault/2 → keel_corot_fault &1	ag2.k:12:53
-ilha	type	outcome u32 → keel_outcome_u32	ag2.k:16:5
-ilha	type	Ag → ag2_Ag	ag2.k:16:23
-ilha	array	steps [3]	ag2.k:17:5
-ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:17:11
-ilha	name	hello → ag2_hello	ag2.k:18:16
-ilha	name	authenticate → ag2_authenticate	ag2.k:19:16
-ilha	name	ready → ag2_ready	ag2.k:20:16
-ilha	call	routine.seq/1 → keel_routine_ag2_Ag_seq	ag2.k:22:12
-ilha	call	slice.of/1 → keel_slice_keel_routine_slot_ag2_Ag_from dim:1	ag2.k:22:24
-ilha	type	outcome u32 → keel_outcome_u32	ag2.k:27:5
-ilha	type	Ag → ag2_Ag	ag2.k:27:30
-ilha	array	steps [3]	ag2.k:28:5
-ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:28:11
-ilha	name	hello → ag2_hello	ag2.k:29:16
-ilha	name	faults → ag2_faults	ag2.k:30:16
-ilha	name	ready → ag2_ready	ag2.k:31:16
-ilha	type	outcome u32 → keel_outcome_u32	ag2.k:33:5
-ilha	call	routine.seq/1 → keel_routine_ag2_Ag_seq	ag2.k:33:21
-ilha	call	slice.of/1 → keel_slice_keel_routine_slot_ag2_Ag_from dim:1	ag2.k:33:33
-ilha	call	routine.code/1 → keel_routine_slot_ag2_Ag_code &1	ag2.k:34:20
-ilha	array-index	steps rank 1	ag2.k:34:33
-ilha	type	outcome u32 → keel_outcome_u32	ag2.k:40:5
-ilha	type	Ag → ag2_Ag	ag2.k:40:26
-ilha	array	steps [2]	ag2.k:41:5
-ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:41:11
-ilha	name	hello → ag2_hello	ag2.k:42:16
-ilha	name	authenticate → ag2_authenticate	ag2.k:43:16
-ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:45:12
-ilha	call	slice.of/1 → keel_slice_keel_routine_slot_ag2_Ag_from dim:1	ag2.k:45:24
-ilha	type	outcome u32 → keel_outcome_u32	ag2.k:49:5
-ilha	type	Ag → ag2_Ag	ag2.k:49:21
-ilha	array	steps [3]	ag2.k:50:5
-ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:50:11
-ilha	name	faults → ag2_faults	ag2.k:51:16
-ilha	name	hello → ag2_hello	ag2.k:52:16
-ilha	name	authenticate → ag2_authenticate	ag2.k:53:16
-ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:55:12
-ilha	call	slice.of/1 → keel_slice_keel_routine_slot_ag2_Ag_from dim:1	ag2.k:55:24
-ilha	type	outcome u32 → keel_outcome_u32	ag2.k:59:5
-ilha	type	Ag → ag2_Ag	ag2.k:59:28
-ilha	array	steps [3]	ag2.k:60:5
-ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:60:11
-ilha	name	faults → ag2_faults	ag2.k:61:16
+ilha	type	Ag → ag2_Ag	ag2.k:12:18
+ilha	type	corot → keel_corot	ag2.k:12:30
+ilha	call	corot.again/1 → keel_corot_again &1	ag2.k:12:68
+ilha	call	corot.win/1 → keel_corot_win &1	ag2.k:12:91
+ilha	type	corot → keel_corot	ag2.k:13:6
+ilha	type	Ag → ag2_Ag	ag2.k:13:19
+ilha	type	corot → keel_corot	ag2.k:13:31
+ilha	call	corot.fault/2 → keel_corot_fault &1	ag2.k:13:53
+ilha	type	outcome u32 → keel_outcome_u32	ag2.k:17:5
+ilha	type	Ag → ag2_Ag	ag2.k:17:23
+ilha	array	steps [3]	ag2.k:18:5
+ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:18:11
+ilha	name	hello → ag2_hello	ag2.k:19:16
+ilha	name	authenticate → ag2_authenticate	ag2.k:20:16
+ilha	name	ready → ag2_ready	ag2.k:21:16
+ilha	call	routine.seq/1 → keel_routine_ag2_Ag_seq	ag2.k:23:12
+ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:23:24
+ilha	type	outcome u32 → keel_outcome_u32	ag2.k:28:5
+ilha	type	Ag → ag2_Ag	ag2.k:28:30
+ilha	array	steps [3]	ag2.k:29:5
+ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:29:11
+ilha	name	hello → ag2_hello	ag2.k:30:16
+ilha	name	faults → ag2_faults	ag2.k:31:16
+ilha	name	ready → ag2_ready	ag2.k:32:16
+ilha	type	outcome u32 → keel_outcome_u32	ag2.k:34:5
+ilha	call	routine.seq/1 → keel_routine_ag2_Ag_seq	ag2.k:34:21
+ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:34:33
+ilha	call	routine.code/1 → keel_routine_slot_ag2_Ag_code &1	ag2.k:35:20
+ilha	array-index	steps rank 1	ag2.k:35:33
+ilha	type	outcome u32 → keel_outcome_u32	ag2.k:41:5
+ilha	type	Ag → ag2_Ag	ag2.k:41:26
+ilha	array	steps [2]	ag2.k:42:5
+ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:42:11
+ilha	name	hello → ag2_hello	ag2.k:43:16
+ilha	name	authenticate → ag2_authenticate	ag2.k:44:16
+ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:46:12
+ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:46:24
+ilha	type	outcome u32 → keel_outcome_u32	ag2.k:50:5
+ilha	type	Ag → ag2_Ag	ag2.k:50:21
+ilha	array	steps [3]	ag2.k:51:5
+ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:51:11
+ilha	name	faults → ag2_faults	ag2.k:52:16
+ilha	name	hello → ag2_hello	ag2.k:53:16
+ilha	name	authenticate → ag2_authenticate	ag2.k:54:16
+ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:56:12
+ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:56:24
+ilha	type	outcome u32 → keel_outcome_u32	ag2.k:60:5
+ilha	type	Ag → ag2_Ag	ag2.k:60:28
+ilha	array	steps [3]	ag2.k:61:5
+ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:61:11
 ilha	name	faults → ag2_faults	ag2.k:62:16
-ilha	name	ready → ag2_ready	ag2.k:63:16
-ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:65:12
-ilha	call	slice.of/1 → keel_slice_keel_routine_slot_ag2_Ag_from dim:1	ag2.k:65:24
+ilha	name	faults → ag2_faults	ag2.k:63:16
+ilha	name	ready → ag2_ready	ag2.k:64:16
+ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:66:12
+ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:66:24

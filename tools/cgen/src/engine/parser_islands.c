@@ -401,6 +401,17 @@ static const KModule *module_alias(const KSymbolTable *symbols, keel_slice_char 
     return NULL;
 }
 
+/* the module a file imports under its own declared name, whatever the alias */
+static const KModule *module_by_name(const KSymbolTable *symbols, const char *name) {
+    for (size_t i = 0; i < symbols->len; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(symbols, i);
+        if (s->kind == K_SYM_MODULE && s->origin && s->origin->name.len == strlen(name) &&
+            !memcmp(s->origin->name.ptr, name, s->origin->name.len))
+            return s->origin;
+    }
+    return NULL;
+}
+
 /* ---- calls ------------------------------------------------------------- */
 
 static keel_slice_char range_text(const KAst *a, Range r) {
@@ -1007,6 +1018,21 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         home = ast_of(c, module);
         redirected = k_diag_text("as_slice");
     }
+    /* `slice.of` over an `array` is the `as_slice` of `keel.array`, which the file imports (spec §5.3) */
+    if (module && module_named(home, "keel.slice") && k_token_spelled(name, "of") && k0 && k0->kind == KT_ARRAY) {
+        if (k0->rank > 1) {
+            diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, tok(a, callee), written, range_text(a, args[0]), k0->dims);
+            return -1;
+        }
+        const KModule *am = module_by_name(a->symbols, "keel.array");
+        if (!am || !ast_of(c, am) || !find_verb(ast_of(c, am), k_diag_text("as_slice"), argc).found) {
+            diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, tok(a, callee), range_text(a, args[0]), written, none);
+            return -1;
+        }
+        module = am;
+        home = ast_of(c, module);
+        redirected = k_diag_text("as_slice");
+    }
     bool from_stack = module && module_named(home, "keel.arena") && k_token_spelled(name, "from_stack");
     Sig sig = from_stack ? find_verb(home, k_diag_text("from_array"), SIZE_MAX)
                          : find_verb(home, redirected.len ? redirected : name, argc);
@@ -1073,36 +1099,25 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         return prim_type(c, "bool");
     }
 
-    /* `slice.of(v ...)` and `buffer.of(v)` over an `array` lower to the view's
-       `from`, with dimension 0 from the table (backend §5.2) */
-    if (gen && k0 && k0->kind == KT_ARRAY && k_token_spelled(name, "of") &&
-        (module_named(home, "keel.slice") || module_named(home, "keel.buffer"))) {
+    /* `buffer.of(v)` over an `array` lowers to the buffer's `of`, with dimension 0
+       from the table (backend §5.2) */
+    if (gen && !redirected.len && k0 && k0->kind == KT_ARRAY && k_token_spelled(name, "of") &&
+        module_named(home, "keel.buffer")) {
         const char *elem = kt_symbol(c, k0->elem);
         if (!*elem) return -1;
         if (k0->rank > 1) {
             diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, tok(a, callee), written, range_text(a, args[0]), k0->dims);
             return -1;
         }
-        bool slice = module_named(home, "keel.slice");
-        if (!slice && argc == 1 && !strncmp(elem, "const_", 6))
+        if (argc == 1 && !strncmp(elem, "const_", 6))
             diag3(c, K_DIAG_BUFFER_OVER_CONST, tok(a, callee), written, (keel_slice_char){ strlen(elem), (char *)elem }, none);
-        if (!slice && argc != 1) return -1;         /* buffer.of(p, n) is the ordinary verb */
-        if (slice && argc > 3) return -1;
+        if (argc != 1) return -1;                   /* buffer.of(p, n) is the ordinary verb */
         put_module_prefix(&t, home);
         put_str(&t, "_");
         put_str(&t, elem);
-        if (slice && argc > 1) {
-            put_str(&t, "_of");
-            put_uint(&t, argc - 1);
-            put_str(&t, " ");
-            put_module_prefix(&t, home);
-            put_str(&t, "_");
-            put_str(&t, elem);
-            put_str(&t, "_from");
-        } else put_str(&t, slice ? "_from" : "_of");
-        put_str(&t, " dim:1");
+        put_str(&t, "_of dim:1");
         emit(c, K_ISLAND_CALL, callee, &t);
-        /* the result is a view over the element */
+        /* the result is a buffer over the element */
         int view = kt_new(c);
         if (view < 0) return -1;
         kt(c, view)->kind = KT_MODIFIER;
@@ -1110,11 +1125,11 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         kt(c, view)->argc = 1;
         kt(c, view)->arg[0] = kt_copy(c, k0->elem);
         char symbol[K_SYMBOL_MAX];
-        Text s = { .ok = true };
-        put_module_prefix(&s, home);
-        put_str(&s, "_");
-        put_str(&s, elem);
-        if (s.ok) { memcpy(symbol, s.s, s.n); kt_set_symbol(kt(c, view), symbol, s.n); }
+        Text sy = { .ok = true };
+        put_module_prefix(&sy, home);
+        put_str(&sy, "_");
+        put_str(&sy, elem);
+        if (sy.ok) { memcpy(symbol, sy.s, sy.n); kt_set_symbol(kt(c, view), symbol, sy.n); }
         return view;
     }
 
@@ -1504,30 +1519,32 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
     Text tx = { .ok = true };
     if (k->kind == KT_ARRAY) {
         if (range != SIZE_MAX) {
-            /* `x[a..b]` over an `array` is `slice.of(x, a, b)`: the element gives the
-               instance, and dimension 0 comes from the table (backend §5.2) */
+            /* `x[a..b]` over an `array` is the `as_slice` of `keel.array`: the element
+               gives the instance, and dimension 0 comes from the table (spec §4.5) */
             check_inverted(c, name, open, range, close);
             const char *elem = kt_symbol(c, k->elem);
             if (commas || !*elem) return close + 1;
             keel_slice_char group = { (size_t)(tok(a, close).ptr - tok(a, open).ptr) + 1, tok(a, open).ptr };
             if (k->rank > 1) {
-                diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, name, k_diag_text("slice.of"), group, k->dims);
+                diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, name, k_diag_text("as_slice"), group, k->dims);
                 return close + 1;
             }
-            bool low = range > open + 1, high = range + 1 < close;
+            const KModule *am = module_by_name(a->symbols, "keel.array");
+            Sig sig = am && ast_of(c, am) ? find_verb(ast_of(c, am), k_diag_text("as_slice"), 3) : (Sig){0};
+            if (!sig.found) {
+                diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, name, path, group, none);
+                return close + 1;
+            }
+            bool high = range + 1 < close;
             put(&tx, path.ptr, path.len);
             put_str(&tx, " ");
             put_source(&tx, tok(a, open).ptr + 1, tok(a, close).ptr);
-            put_str(&tx, " \xe2\x86\x92 keel_slice_");
+            put_str(&tx, " \xe2\x86\x92 ");
+            put_module_prefix(&tx, ast_of(c, am));
+            put_str(&tx, "_");
             put_str(&tx, elem);
-            if (low || high) {
-                put_str(&tx, "_of2 keel_slice_");
-                put_str(&tx, elem);
-                put_str(&tx, "_from");
-                if (low && !high) put_str(&tx, " core");     /* the limit is keel.length(x) */
-            } else {
-                put_str(&tx, "_from");
-            }
+            put_str(&tx, sig.overloaded ? "_as_slice2" : "_as_slice");
+            if (!high) put_str(&tx, " core");         /* the limit is keel.length(x) */
             put_str(&tx, " dim:1");
             *any = emit(c, K_ISLAND_RANGE_INDEX, i, &tx) || *any;
             return close + 1;
@@ -1573,40 +1590,27 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
     bool adapt = false;
     put(&tx, path.ptr, path.len);
     if (range == SIZE_MAX) {
-        /* x[i, j] is *ptr(x, i, j) (spec §4.5, item 1) */
+        /* x[i] is *ptr(x, i); x[i, j] is *ptr(x, idx) with a vector of indices, and a
+           module with no `dim` declares none (spec §4.5, item 1) */
         put_str(&tx, " \xe2\x86\x92 ");
-        if (!container_verb(k, home, k_diag_text("ptr"), commas + 2, &tx, &adapt)) {
+        if (commas || !container_verb(k, home, k_diag_text("ptr"), 2, &tx, &adapt)) {
             diag3(c, K_DIAG_NO_PTR_FOR_ARITY, name, path, text, none);
             return close + 1;
         }
     } else {
-        /* x[a..b] goes through the verb of the memory side of the pair; the
-           base's two are named by the spec (§4.5, item 5) */
+        /* x[a..b] is as_slice(x, a, b) of the module of the container's type, and the
+           open ends read `length` (spec §4.5, items 5 and 6) */
         if (commas) return close + 1;
         check_inverted(c, name, open, range, close);
-        const KAstNode *hm = module_node(home);
-        bool base = hm->name_end > hm->name_first + 1 && k_token_spelled(tok(home, hm->name_first), "keel");
-        keel_slice_char verb = module_named(home, "keel.buffer") ? k_diag_text("as_slice")
-                             : module_named(home, "keel.slice") ? k_diag_text("of")
-                             : none;
-        if (!verb.len) {
-            /* a base type outside the pair has none; how a program's module declares
-               its own is not written down (spec §4.5, item 7), so it is not judged */
-            if (base) diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, name, path, text, none);
-            return close + 1;
-        }
-        bool low = range > open + 1, high = range + 1 < close;
+        bool high = range + 1 < close;
         put_str(&tx, " ");
         put_source(&tx, tok(a, open).ptr + 1, tok(a, close).ptr);
         put_str(&tx, " \xe2\x86\x92 ");
-        if (!container_verb(k, home, verb, low || high ? 3 : 1, &tx, &adapt)) {
+        bool ignored = false;
+        if (!container_verb(k, home, k_diag_text("as_slice"), 3, &tx, &adapt) ||
+            (!high && (put_str(&tx, " "), !container_verb(k, home, k_diag_text("length"), 1, &tx, &ignored)))) {
             diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, name, path, text, none);
             return close + 1;
-        }
-        if (low && !high) {                         /* the limit is length(x) */
-            bool ignored = false;
-            put_str(&tx, " ");
-            if (!container_verb(k, home, k_diag_text("length"), 1, &tx, &ignored)) return close + 1;
         }
     }
     if (adapt) put_str(&tx, " &1");

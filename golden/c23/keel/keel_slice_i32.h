@@ -23,21 +23,23 @@ static inline i32   *keel_slice_i32_ptr (keel_slice_i32 s);
 static inline i32   *keel_slice_i32_ptr1(keel_slice_i32 s, size_t i);
 #line 37 "keel/slice.k"
 static inline keel_outcome_i32 keel_slice_i32_at(keel_slice_i32 s, size_t i);
-#line 44 "keel/slice.k"
-static inline keel_slice_i32 keel_slice_i32_of2(keel_slice_i32 s, size_t a, size_t b);
-#line 52 "keel/slice.k"
+#line 45 "keel/slice.k"
+static inline keel_slice_i32 keel_slice_i32_as_slice(keel_slice_i32 s, size_t a, size_t b);
+#line 54 "keel/slice.k"
 static inline keel_slice_i32 keel_slice_i32_of(keel_slice_i32 s);
-#line 53 "keel/slice.k"
+#line 55 "keel/slice.k"
 static inline keel_slice_i32 keel_slice_i32_of1(keel_slice_i32 s, keel_range r);
 #line 56 "keel/slice.k"
+static inline keel_slice_i32 keel_slice_i32_of2(keel_slice_i32 s, size_t a, size_t b);
+#line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_i32 keel_slice_i32_clone(keel_arena *a, keel_slice_i32 s);
-#line 65 "keel/slice.k"
+#line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_i32_begin(keel_slice_i32 s);
-#line 66 "keel/slice.k"
+#line 69 "keel/slice.k"
 static inline bool keel_slice_i32_has_next(keel_slice_i32 s, keel_slice_cursor *c);
-#line 67 "keel/slice.k"
+#line 70 "keel/slice.k"
 static inline i32 *keel_slice_i32_next(keel_slice_i32 s, keel_slice_cursor *c);
-#line 71 "keel/slice.k"
+#line 74 "keel/slice.k"
 static inline keel_slice_i32 keel_slice_i32_partition(keel_slice_i32 s, size_t k, size_t w);
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_i32.h"
@@ -62,17 +64,20 @@ static inline keel_outcome_i32 keel_slice_i32_at(keel_slice_i32 s, size_t i) {
     keel_outcome_i32 r = {0};
     return i < s.len ? keel_outcome_i32_win1(&r, s.ptr[i]) : keel_outcome_i32_none(&r);
 }
-#line 44 "keel/slice.k"
-static inline keel_slice_i32 keel_slice_i32_of2(keel_slice_i32 s, size_t a, size_t b) {
-    KEEL_CHECK(a <= b && b <= s.len, "range-index-out-of-bounds");
-    if (b > s.len) b = s.len; if (a > b) a = b;
+#line 45 "keel/slice.k"
+static inline keel_slice_i32 keel_slice_i32_as_slice(keel_slice_i32 s, size_t a, size_t b) {
+    KEEL_CHECK(a <= b && b <= keel_slice_i32_length(s), "range-index-out-of-bounds");
+    if (b > s.len) b = s.len;
+    if (a > b) a = b;
     return (keel_slice_i32){ b - a, s.ptr + a };
 }
-#line 52 "keel/slice.k"
+#line 54 "keel/slice.k"
 static inline keel_slice_i32 keel_slice_i32_of(keel_slice_i32 s) { return s; }
-#line 53 "keel/slice.k"
-static inline keel_slice_i32 keel_slice_i32_of1(keel_slice_i32 s, keel_range r) { return keel_slice_i32_of2(s, r.first, r.limit); }
+#line 55 "keel/slice.k"
+static inline keel_slice_i32 keel_slice_i32_of1(keel_slice_i32 s, keel_range r) { return keel_slice_i32_as_slice(s, r.first, r.limit); }
 #line 56 "keel/slice.k"
+static inline keel_slice_i32 keel_slice_i32_of2(keel_slice_i32 s, size_t a, size_t b) { return keel_slice_i32_as_slice(s, a, b); }
+#line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_i32 keel_slice_i32_clone(keel_arena *a, keel_slice_i32 s) {
     keel_outcome_keel_slice_i32 r = {0};
     i32 *data = (i32 *)keel_arena_alloc2(a, sizeof(i32), alignof(i32), s.len);
@@ -80,13 +85,13 @@ static inline keel_outcome_keel_slice_i32 keel_slice_i32_clone(keel_arena *a, ke
     if (s.len > 0) memcpy(data, s.ptr, s.len * sizeof(i32));
     return keel_outcome_keel_slice_i32_win1(&r, (keel_slice_i32){ s.len, data });
 }
-#line 65 "keel/slice.k"
+#line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_i32_begin(keel_slice_i32 s) { (void)s; return (keel_slice_cursor){0}; }
-#line 66 "keel/slice.k"
+#line 69 "keel/slice.k"
 static inline bool   keel_slice_i32_has_next(keel_slice_i32 s, keel_slice_cursor *c) { return c->i < s.len; }
-#line 67 "keel/slice.k"
+#line 70 "keel/slice.k"
 static inline i32   *keel_slice_i32_next(keel_slice_i32 s, keel_slice_cursor *c) { return &s.ptr[c->i++]; }
-#line 71 "keel/slice.k"
+#line 74 "keel/slice.k"
 static inline keel_slice_i32 keel_slice_i32_partition(keel_slice_i32 s, size_t k, size_t w) {
     if (k == 0) return (keel_slice_i32){0, s.ptr};
     size_t step = s.len / k + (s.len % k ? 1 : 0);

@@ -650,7 +650,7 @@ A aplicação de um modificador ao tipo forma o especificador que precede o decl
 | `keel.capacity(v)` | `size_t` | total de elementos |
 | `keel.dim(v, k)` | `size_t` | dimensão de índice `k`, a partir de zero; `k` é decimal conhecido |
 
-As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice, `foreach`, `apply` e `range-index` sobre `array` são do núcleo e não pedem import. Protocolos (§5.1): Indexável e Indexável por intervalo, pela tradução do núcleo; `begin` e `partition` não existem sobre `array`.
+As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice (`x[i]`, `x[i,j]`), `foreach` e `apply` sobre `array` são do núcleo e não pedem import: o C tem a sintaxe. `x[a..b]` não tem, e é o `as_slice` de `keel.array` (§5.3), que precisa estar importado. Protocolos (§5.1): Indexável, pela tradução do núcleo; Indexável por intervalo, por `keel.array`; `begin` e `partition` não existem sobre `array`.
 
 Um parâmetro `array` pode ligar um nome à sua dimensão 0, o **binder**:
 
@@ -978,11 +978,11 @@ x[..b]
 x[..]
 ```
 
-São formas de expressão sobre `container`. Índices e limites são regiões C opacas. O `range-index` usa uma dimensão; índices por intervalo multidimensionais são operações dos módulos que os implementam.
+São formas de expressão sobre `container`. Índices e limites são regiões C opacas. Cada forma é uma sobrecarga de operador ligada a um protocolo (§5.1): o núcleo escreve a chamada, e o módulo do tipo de `x` declara o verbo. O `range-index` usa uma dimensão; índices por intervalo multidimensionais são operações dos módulos que os implementam.
 
 **Reconhecimento**
 
-- O símbolo ou caminho fornece a identidade do contêiner. Em `array`, a declaração fornece a quantidade de dimensões; em modificador, a assinatura do verbo fornece as aridades aceitas.
+- O símbolo ou caminho fornece a identidade do contêiner. Em `array`, a declaração fornece a quantidade de dimensões; em modificador, o módulo fornece os verbos do protocolo.
 - Colchetes sobre símbolos C desconhecidos permanecem C, inclusive seu operador vírgula. A presença de vírgulas não registra um `array`.
 - `..` dentro dos colchetes distingue `range-index` de acesso a elemento.
 
@@ -990,20 +990,22 @@ São formas de expressão sobre `container`. Índices e limites são regiões C 
 
 Acessar elementos e delimitar fatias a partir de contêineres conhecidos.
 
-1. `x[i]` equivale a `*ptr(x,i)`: é lvalue e designa o elemento original. `x[i,j,...]` chama `ptr` com os índices escritos. `dim` não gera essa assinatura nem determina sua aridade.
+1. `x[i]` equivale a `*ptr(x,i)`: é lvalue e designa o elemento original. `x[i,j,...]`, com dois ou mais índices, equivale a `*ptr(x,idx)`, com `idx` o vetor `(size_t[N]){i,j,...}` dos `N` índices escritos. O verbo é um só, `ptr(x, size_t idx[static N])`, e `N` é o tamanho do vetor, em geral o `dim` do modificador: um módulo não declara `ptr` em `N` aridades, porque a aridade escrita de cada verbo é fixa (§4.3, regra 10).
 2. Sobre `array`, a forma de vários índices traduz para colchetes C sucessivos, com todos os índices, no layout do vetor multidimensional C.
 3. Sobre coluna de `extent`, a indexação segue a §4.11.
 4. Cada índice é avaliado uma vez. A tradução não impõe ordem adicional entre expressões que o C não ordena.
-5. `x[a..b]` chama o verbo de `range-index` declarado pelo lado **memória** do par memória/visão a que `x` pertence, e nunca pelo lado visão, e produz um descritor por valor. Sobre a base, é `buffer.as_slice(x,a,b)` quando `x` é `buffer`, e `slice.of(x,a,b)` quando `x` é `slice`.
-6. `x[..b]` fornece início zero; `x[a..]` fornece `length(x)` como fim; `x[..]` usa a forma de um argumento.
-7. O nome do verbo de `range-index` é do módulo do contêiner. A única exigência deste contrato é a direção: memória para visão.
+5. `x[a..b]` chama o verbo `as_slice(x,a,b)` do módulo do tipo de `x` e produz um descritor `slice` por valor. O nome é o do protocolo (§5.1); o módulo o declara, e é o lado **memória** que importa o lado visão para devolvê-lo, e nunca o contrário. Sobre a base, é `buffer.as_slice(x,a,b)` quando `x` é `buffer`, `slice.as_slice(x,a,b)` quando `x` é `slice` e `array.as_slice(x,a,b)`, de `keel.array`, quando `x` é `array`, caso em que o módulo precisa estar importado.
+6. `x[..b]` fornece início zero; `x[a..]` fornece `length(x)` como fim; `x[..]` fornece as duas pontas: `as_slice(x,0,length(x))`. O protocolo pede só a forma de três parâmetros.
+7. Os parâmetros do verbo de `range-index` são `(x, a, b)`, nessa ordem, e o resultado é um `slice` do mesmo elemento de `x`. Sobre `array`, ele só existe para vetor unidimensional (`array T v[size_t N]`); o multidimensional é `flat-view-of-n-dim-array`.
 8. O `range-index` é rvalue. Um elemento da vista segue o contrato do elemento.
 9. Na forma `x[a..]`, o contêiner é usado duas vezes, e o caminho só admite identificadores, `.`, `->`, `*`, `&` e parênteses.
-10. Um `range-index` exige `a <= b <= length(x)`; o trecho vazio é permitido. A violação é verificada em debug.
-11. Em release, a violação tem resultado definido: `b` acima do comprimento é recortado para o comprimento, e `a` acima de `b` dá trecho vazio.
+10. Um `range-index` exige `a <= b <= length(x)`; o trecho vazio é permitido. A violação é verificada em debug, por código que o backend injeta no início de todo verbo `as_slice` de três parâmetros (backend §5.17); vale também para a chamada escrita à mão.
+11. Em release, o resultado é o do corpo do verbo. Os da base saturam: `b` acima do comprimento é recortado para o comprimento, e `a` acima de `b` dá trecho vazio. Um módulo do programa pode adotar outra regra.
 12. Sobre `array`, cada índice é verificado contra a dimensão declarada correspondente. Quando índice e dimensão são decimais conhecidos, a verificação é da tradução e recusa; nos demais casos é de execução em perfil debug.
 13. Na dimensão 0 de um parâmetro `array`, o número declarado é o contrato, e não a extensão do vetor que o chamador entregou.
 14. `inverted-range-index` e `array-index-above-dimension` admitem literais e `constexpr` de valor decimal conhecido. Não calculam expressões C.
+
+**Observação.** A forma de vários índices sobre modificador (regra 1) é escrita para o `tensor` da biblioteca v1+, e tem um custo que ainda não se paga: o `dim` é parte do tipo, então `tensor(N)` aparece a cada uso. Ela é provisória, e a regra de vários índices pode mudar. O índice de N dimensões e a vista multidimensional (`index(N)`, `box(N)`, `v[box]`) estão em `possibilidades.md`, também para v1+.
 
 Referências: [Rationale: acesso e travessia](keel-rationale.md#acesso-e-travessia); [Rationale: memória e visão](keel-rationale.md#memória-e-visão-a-direção-da-conversão); [Backend: açúcar de indexação](keel-c-backend.md#53-açúcar-de-indexação).
 
@@ -1550,26 +1552,27 @@ Um protocolo é o conjunto de verbos que uma construção do núcleo exige do ti
 | Contável | `first`, `limit` | `foreach` de um binder | `range` |
 | Percorrível por cursor | `begin`, `has_next`, `next` | `walk` | `buffer`, `slice` |
 | Particionável | `partition` | `parallel` | `buffer`, `slice`, `range` |
-| Indexável por intervalo | o verbo que o próprio módulo declara, na aridade escrita | `x[a..b]` e suas formas abertas | `buffer`, por `as_slice`; `slice`, por `of` |
+| Indexável por intervalo | `length` e `as_slice(x, a, b)` | `x[a..b]` e suas formas abertas | `array` (`keel.array`), `buffer`, `slice` |
 | Etiquetado | `tag` | `match` | `tagged`, `corot` |
 | Falível | `failed`, mais `win` para a forma de default | `else` | `outcome` |
 
-`array` participa de Indexável e de Indexável por intervalo pelo núcleo: `x[i]`, `foreach`, `apply` e `x[a..b]` sobre `array` são traduzidos sem verbo (§4.2, §4.5). As chamadas explícitas de acesso são de `keel.array` (§5.3). Um valor cujo tipo é um conjunto `tags` é operando de `match` sem verbo (§4.9).
+`array` participa de Indexável pelo núcleo: `x[i]`, `foreach` e `apply` sobre `array` são traduzidos sem verbo, porque o C tem a sintaxe (§4.2, §4.5). `x[a..b]` não tem, e segue o protocolo como em qualquer módulo, pelo `as_slice` de `keel.array`. As chamadas explícitas de acesso e a de intervalo são de `keel.array` (§5.3). Um valor cujo tipo é um conjunto `tags` é operando de `match` sem verbo (§4.9).
 
 #### O que um módulo do programa declara
 
 1. Declarar os verbos de um protocolo basta para participar da construção correspondente. Não há registro, marcação nem permissão; keel não distingue módulo da base de módulo do programa ao resolver.
 2. A forma dos argumentos vem do bit `byref` do modificador (§4.3), e não do protocolo.
-3. As aridades escritas nas assinaturas são as que valem: `ptr` declarado em duas aridades serve a `x[i]` e a `x[i,j]`.
-4. O nome do verbo de Indexável por intervalo é do módulo que o declara, e não do protocolo. [R: memória e visão](keel-rationale.md#memória-e-visão-a-direção-da-conversão)
+3. As aridades escritas nas assinaturas são as que valem: `ptr(x, i)` serve a `x[i]`, e `ptr(x, size_t idx[static N])`, com `N` o `dim` do modificador, serve a `x[i,j,…]`. A forma de vários índices é provisória (§4.5, observação).
+4. O nome do verbo de Indexável por intervalo é `as_slice`: como o dos demais protocolos, é do protocolo, e o módulo o declara. O módulo que o declara importa `slice` para devolvê-la, e nunca o contrário. [R: memória e visão](keel-rationale.md#memória-e-visão-a-direção-da-conversão)
 
 #### O que o núcleo conhece pelo nome
 
-Fora dos protocolos, três pontos ligam uma construção a um módulo determinado. A lista é fechada:
+Fora dos protocolos, os pontos abaixo ligam uma construção a um módulo determinado. A lista é fechada:
 
 | Onde | O que o núcleo assume |
 | --- | --- |
 | `arena` | quatro verificações da tradução nomeiam este módulo: procedência do retorno, origem de `from_array`, constância de `from_stack` e uso de filha depois do reset do pai; e a definição sem inicializador recebe `= {0}` (§5.2) |
+| `array` | o verbo de `x[a..b]` sobre `array` é o `as_slice` de `keel.array`, que precisa estar importado (§4.5, §5.3) |
 | `a..b` | o literal de intervalo produz um `range` (§5.3) |
 | `parallel` | o nome do bloco declara um símbolo de tipo `parallel.control` (§5.7) |
 
@@ -1724,7 +1727,7 @@ outcome i32 r = array.at(v, 9);
 | `buffer.at(b, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora do comprimento, em toda build |
 | `buffer.as_slice(b)` | [`slice T`](#53-keelbuffer-keelslice-keelrange-e-keelarray) | vista do comprimento atual |
 | `buffer.as_slice(b, r)` | `slice T` | vista dos limites do `range` `r` |
-| `buffer.as_slice(b, a, c)` | `slice T` | vista de `[a, c)` |
+| `buffer.as_slice(b, a, c)` | `slice T` | vista de `[a, c)`; é o verbo de `x[a..b]` (§4.5) |
 | `buffer.clone(a, b)` | [`outcome buffer T`](#55-keeloutcome-e-keelcorot) | cópia do comprimento atual na [`arena`](#52-keelarena) `a`; falha sem espaço |
 | `begin(b)`, `has_next(b, c)`, `next(b, c)` | `buffer.cursor`, `bool`, `T *` | cursor de `walk` (§4.7) |
 | `partition(b, k, w)` | `slice T` | parte `w` de `k`, para `parallel` (§4.8) |
@@ -1734,8 +1737,9 @@ outcome i32 r = array.at(v, 9);
 | Chamada | Devolve | O que faz |
 | --- | --- | --- |
 | `slice.from(T, p, n)` | `slice T` | vista dos `n` elementos afirmados em `p`; `type T` seleciona a instância (§4.4) |
-| `slice.of(x)` | `slice T` | vista do comprimento atual de `x`: `buffer`, `slice` ou `array` unidimensional |
-| `slice.of(x, a, c)` | `slice T` | vista de `[a, c)` de `x` |
+| `slice.as_slice(s, a, c)` | `slice T` | vista de `[a, c)` de `s`; é o verbo de `x[a..b]` sobre `slice` (§4.5) |
+| `slice.of(x)` | `slice T` | vista do comprimento atual de `x`, qualquer Indexável por intervalo: `buffer`, `slice`, `array` unidimensional ou tipo do programa |
+| `slice.of(x, a, c)` | `slice T` | vista de `[a, c)` de `x`: é `x[a..c]` |
 | `slice.of(x, r)` | `slice T` | vista dos limites do `range` `r` |
 | `slice.length(s)` | `size_t` | elementos da vista |
 | `slice.get(s, i)`, `slice.set(s, i, v)` | `T`, — | lê ou escreve o elemento `i` |
@@ -1764,14 +1768,15 @@ outcome i32 r = array.at(v, 9);
 | `array.set(v, i, x)` | — | escreve o elemento `i` |
 | `array.ptr(v)` | `T *` | início do vetor |
 | `array.ptr(v, i)` | `T *` | endereço do elemento `i` |
+| `array.as_slice(v, a, b)` | `slice T` | vista de `[a, b)` do `array` unidimensional `v`; é o verbo de `x[a..b]` sobre `array` (§4.5) |
 | `array.at(v, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora da extensão, em toda build |
 
-Protocolos (§5.1): Indexável — `length`, `get`, `ptr`; Contável — `first`, `limit`; Percorrível por cursor — `begin`, `has_next`, `next`; Particionável — `partition`; Indexável por intervalo — `buffer.as_slice` e `slice.of`. O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção.
+Protocolos (§5.1): Indexável — `length`, `get`, `ptr`; Contável — `first`, `limit`; Percorrível por cursor — `begin`, `has_next`, `next`; Particionável — `partition`; Indexável por intervalo — `length` e `as_slice`. O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção.
 
 **Reconhecimento**
 
 - A instância vem das declarações ou da origem indicada na §4.4.
-- `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of` exige `buffer`, `slice` ou `array` unidimensional de elemento compatível.
+- `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of(x, …)` é a forma escrita do protocolo de intervalo: resolve pelo `as_slice` do tipo de `x` (§4.5), e exige um Indexável por intervalo de elemento compatível.
 - `a..b` constrói um `range`. Os limites são expressões C; `..` é reconhecido fora de literais, comentários e diretivas.
 - Os verbos de `keel.array` recebem `array` unidimensional, pelo parâmetro `array T v[size_t N]`: a instância vem do tipo do elemento (§4.4), e a extensão, do binder (§4.2).
 
@@ -2216,7 +2221,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `array-parameter-without-dimension` | `array T v[]` sem dimensão em parâmetro | `error` | keel | §4.2 |
 | `array-argument-wrong-dimension` | Argumento `array` com aridade diferente, dimensão de índice 1 em diante diferente, ou dimensão 0 menor que a do parâmetro | `error` | keel | §4.2 |
 | `partial-array-index` | Indexação parcial de `array` multidimensional | `error` | keel | §4.2 |
-| `flat-view-of-n-dim-array` | `buffer.of` ou `slice.of` sobre `array` multidimensional | `error` | keel | §4.2 |
+| `flat-view-of-n-dim-array` | `buffer.of`, `slice.of` ou `x[a..b]` sobre `array` multidimensional | `error` | keel | §4.2 |
 | `binder-argument-not-array` | Argumento de parâmetro com binder de dimensão que não é símbolo ou campo `array`, inclusive coluna de `extent` | `error` | keel | §4.2 |
 | `binder-as-dimension` | Binder de dimensão usado como dimensão de vetor | `error` | keel | §4.2 |
 | `nonconstant-dim-index` | Índice de `keel.dim(v,k)` sem valor decimal conhecido | `error` | keel | §4.2 |
@@ -2264,7 +2269,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `ambiguous-match-tags` | Operando cujo módulo declara mais de um conjunto, sem parâmetro `tags` que decida | `error` | keel | §4.9 |
 | `invalid-fault-code` | `corot.fault(r,c)` com código conhecido zero ou negativo | `error` | keel | §5.5 |
 | `tag-out-of-range` | Etiqueta fora da lista declarada | `debug` | Backend, em execução | §4.9 |
-| `no-ptr-for-arity` | Índice de aridade N sobre modificador sem `ptr` dessa aridade — a mensagem lista as que existem | `error` | keel | §4.5 |
+| `no-ptr-for-arity` | Índice de dois ou mais valores sobre modificador sem `ptr` de vetor, ou cujo `dim` difere do número de índices — a mensagem diz o que o módulo declara | `error` | keel | §4.5 |
 | `not-iterable` | `foreach` sobre tipo que não declara `length`, ou `get`/`ptr` conforme o binder | `error` | keel | §4.7 |
 | `not-cursor-iterable` | `walk` sobre tipo que não declara `begin`, `has_next` e `next` | `error` | keel | §4.7 |
 | `walk-without-cursor` | `walk` sem o binder de cursor | `error` | keel | §4.7 |
@@ -2275,7 +2280,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `mutation-during-traversal` | `push`, `pop` ou `clear` sobre o contêiner percorrido ou particionado, no corpo do `foreach`, do `walk` ou do `parallel` | `error` | keel | §4.7 |
 | `index-not-size-t` | Binder de índice cujo tipo não é `size_t` | `error` | keel | §4.7 |
 | `not-countable` | `foreach` de um binder sobre tipo que não declara `first` e `limit` | `error` | keel | §4.7 |
-| `no-range-index-verb` | Índice por intervalo sobre tipo que não declara o verbo de `range-index` da aridade que a forma exige | `error` | keel | §4.5 |
+| `no-range-index-verb` | Índice por intervalo sobre tipo cujo módulo não declara `length` e `as_slice` de três parâmetros, inclusive `array` sem `keel.array` importado | `error` | keel | §4.5 |
 | `inverted-range-index` | Índice por intervalo com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
 | `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
 | `array-index-above-dimension` | Índice de `array` decimal conhecido acima da dimensão declarada | `error` | keel | §4.5 |

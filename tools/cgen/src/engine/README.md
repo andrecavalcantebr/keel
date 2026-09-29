@@ -75,11 +75,14 @@ sai por nome declarado, com as dimensões como escritas, em corpo, parâmetro e
 arquivo; o nome passa a ser um `array` de certo rank. `array-index` só sai
 para vários índices (`v[1,2,3]`, `v rank 3`): `v[1][2][3]` e `v[i]` são C.
 `index` e `range-index` valem para um identificador declarado com modificador:
-`x[i,j]` é `ptr(x,i,j)`, e `x[a..b]` vai pelo verbo do lado memória, que a spec
-(§4.5, item 5) nomeia só para a base: `buffer.as_slice` e `slice.of`. **Aberto:**
-não há regra escrita para o módulo do programa declarar o seu verbo de
-`range-index`; um contêiner de fora da base não recebe ilha. A marca `&1`
-segue a regra da chamada (objeto por valor, parâmetro ponteiro).
+`x[a..b]` é `as_slice(x, a, b)` do módulo do tipo do contêiner, e `x[a..]`,
+`x[..]` pedem também o `length` dele: é o protocolo da spec (§4.5, §5.1), o
+mesmo para qualquer módulo, da base ou do programa. Sobre `array` o verbo é o
+de `keel.array`, que o arquivo tem de importar (`no-range-index-verb`); o
+limite aberto é do núcleo (`core`). `x[i,j]` sobre modificador não tem `ptr`
+por aridade (§4.5, item 1): sem `dim` é `no-ptr-for-arity`, e com `dim` (o
+acessor de vetor, provisório) ainda não recebe ilha, à espera do oráculo 006.
+A marca `&1` segue a regra da chamada (objeto por valor, parâmetro ponteiro).
 
 **A regra (spec §2.3):** o símbolo conhecido é o que faz a ilha. `Q.IDENT` com `Q`
 módulo ou alias ativo é ilha, resolva ou não: o que o módulo não declara sai
@@ -88,8 +91,8 @@ o módulo declara mas o objeto não serve vira diagnóstico (`wrong-qualifier`,
 `not-a-container-expression`, `address-in-object-position`,
 `flat-view-of-n-dim-array`). `x[…]` sobre `array` ou instância de modificador é
 sempre ilha, mesmo quando a emissão é o próprio texto (`y[1][5]`); um índice sem
-`ptr` daquela aridade é `no-ptr-for-arity`, e um intervalo sobre tipo da base
-sem verbo de `range-index` é `no-range-index-verb`. Símbolos de arquivo
+`ptr` daquela aridade é `no-ptr-for-arity`, e um intervalo sobre tipo cujo módulo
+não declara `length` e `as_slice` de três parâmetros é `no-range-index-verb`. Símbolos de arquivo
 (`buffer i32 gbuf;`, `array i32 v[6]`) valem em todas as funções, onde quer que
 estejam no arquivo.
 
@@ -100,9 +103,9 @@ com o mesmo nome.
 
 `of`, `from` e `clone` são produtores, qualificados pelo módulo do produto
 (§4.4, regra 1), então `slice.of(b, r)` sobre um `buffer` é o `as_slice` do buffer
-e não é `wrong-qualifier`. Sobre `array`, `slice.of(v…)` baixa para `from` (e `of1`
-ou `of2` sobre ele), `buffer.of(v)` para o `of` do buffer, e os verbos de
-`keel.array` para `keel_array_<T>_<verbo>`, todos com a marca `dim:1`.
+e não é `wrong-qualifier`. Sobre `array`, `slice.of(v…)` é o `as_slice` de
+`keel.array`, `buffer.of(v)` baixa para o `of` do buffer, e os verbos de
+`keel.array` são `keel_array_<T>_<verbo>`, todos com a marca `dim:1`.
 
 **Tipagem de contêiner.** A posição de contêiner é a produção `container` da §2.2
 (`IDENT`, `x[…]`, `x.f`, `x->f`, `verb(x…)`, `*x`, `&x`, `(x)`), e a passagem
@@ -121,15 +124,14 @@ o resto leva o módulo mais os argumentos (`keel_routine_ag2_Ag_seq`).
 qualquer módulo, mas não lançam função: o detalhe diz `core`, e a marca `dim:1`
 diz que a dimensão vem da tabela.
 
-**`x[a..b]` sobre `array`** é `slice.of(x, a, b)`: o elemento dá a instância e a
-dimensão 0 vem da tabela (`fx 2..5 → keel_slice_f32_of2 keel_slice_f32_from dim:1`;
-ponta aberta à direita acrescenta `core`; `fx[..]` é só o `from`).
+**`x[a..b]` sobre `array`** é `array.as_slice(x, a, b)`: o elemento dá a instância e a
+dimensão 0 vem da tabela (`fx 2..5 → keel_array_f32_as_slice2 dim:1`; ponta aberta à
+direita acrescenta `core`, e `fx[..]` tem as duas pontas: `… as_slice2 core dim:1`).
 
 **O que ainda fica sem ilha:** chamada cujo objeto é uma expressão fora do que a
 passagem tipa (variável que `foreach`, `parallel` ou `apply` declaram, até as
-etapas 4d e 4e; o resultado de `x[a..b]`); e o `range-index` de contêiner de fora da
-base, cuja declaração o §4.5 não descreve (hoje `buffer` e `slice` estão escritos no
-código, o que o §5.1 diz que não se deve: **em aberto**). Também **não há ainda**
+etapas 4d e 4e; o resultado de `x[a..b]`); e o acessor de vários índices sobre
+modificador com `dim` (§4.5, item 1; oráculo 006). Também **não há ainda**
 `from-without-target` (falta o alvo de atribuição e de `return`),
 `verb-not-in-instance`, e o `not-a-container-expression` para um nome que a
 passagem não viu declarado. A marca `*k` (parâmetro por valor, argumento

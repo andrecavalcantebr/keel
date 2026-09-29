@@ -8,6 +8,8 @@
 module keel.array type T;
 
 import keel.outcome as outcome types;
+import keel.slice   as slice   types;
+import keel.range   as range   types;
 
 // No type and no modifier: an instance is only the verbs of one element type,
 // chosen by the element type of the argument (spec §4.4). `N` is the length
@@ -26,3 +28,18 @@ pub inline outcome T at(array T v[size_t N], size_t i) {
     outcome T r = {0};
     return i < N ? outcome.win(r, v[i]) : outcome.none(r);
 }
+
+// the range-index protocol (spec §5.1, §5.3): `length` and `as_slice(x, a, b)`.
+// The length is the constant `N` that arrived; the verb is this module's, so
+// `x[a..b]` over an `array` is `as_slice(x, a, b)` like over any container.
+// The backend injects the range check at the top of the three-parameter
+// verb (backend §5.17); the body saturates, which is what a release build runs.
+pub inline slice as_slice(array T v[size_t N]) { return (slice){ N, v }; }
+
+pub inline slice as_slice(array T v[size_t N], size_t a, size_t b) {
+    if (b > N) b = N;
+    if (a > b) a = b;
+    return (slice){ b - a, v + a };
+}
+
+pub inline slice as_slice(array T v[size_t N], range r) { return as_slice(v, r.first, r.limit); }

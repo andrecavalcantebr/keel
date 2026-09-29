@@ -40,17 +40,17 @@ static inline keel_outcome_i32 keel_buffer_i32_at(keel_buffer_i32 *b, size_t i);
 static inline keel_slice_i32 keel_buffer_i32_as_slice (keel_buffer_i32 *b);
 #line 73 "keel/buffer.k"
 static inline keel_slice_i32 keel_buffer_i32_as_slice2(keel_buffer_i32 *b, size_t a, size_t c);
-#line 80 "keel/buffer.k"
+#line 79 "keel/buffer.k"
 static inline keel_slice_i32 keel_buffer_i32_as_slice1(keel_buffer_i32 *b, keel_range r);
-#line 83 "keel/buffer.k"
+#line 82 "keel/buffer.k"
 static inline keel_outcome_keel_buffer_i32 keel_buffer_i32_clone(keel_arena *a, keel_buffer_i32 *b);
-#line 93 "keel/buffer.k"
+#line 92 "keel/buffer.k"
 static inline keel_buffer_cursor keel_buffer_i32_begin(keel_buffer_i32 *b);
-#line 94 "keel/buffer.k"
+#line 93 "keel/buffer.k"
 static inline bool   keel_buffer_i32_has_next(keel_buffer_i32 *b, keel_buffer_cursor *c);
-#line 95 "keel/buffer.k"
+#line 94 "keel/buffer.k"
 static inline i32   *keel_buffer_i32_next(keel_buffer_i32 *b, keel_buffer_cursor *c);
-#line 99 "keel/buffer.k"
+#line 98 "keel/buffer.k"
 static inline keel_slice_i32 keel_buffer_i32_partition(keel_buffer_i32 *b, size_t k, size_t w);
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_i32.h"
@@ -105,13 +105,13 @@ static inline keel_slice_i32 keel_buffer_i32_as_slice (keel_buffer_i32 *b) {
 }
 #line 73 "keel/buffer.k"
 static inline keel_slice_i32 keel_buffer_i32_as_slice2(keel_buffer_i32 *b, size_t a, size_t c) {
-    KEEL_CHECK(a <= c && c <= b->len, "range-index-out-of-bounds");
+    KEEL_CHECK(a <= c && c <= keel_buffer_i32_length(b), "range-index-out-of-bounds");
     if (c > b->len) c = b->len; if (a > c) a = c;
     return (keel_slice_i32){ c - a, b->ptr + a };
 }
-#line 80 "keel/buffer.k"
+#line 79 "keel/buffer.k"
 static inline keel_slice_i32 keel_buffer_i32_as_slice1(keel_buffer_i32 *b, keel_range r) { return keel_buffer_i32_as_slice2(b, r.first, r.limit); }
-#line 83 "keel/buffer.k"
+#line 82 "keel/buffer.k"
 static inline keel_outcome_keel_buffer_i32 keel_buffer_i32_clone(keel_arena *a, keel_buffer_i32 *b) {
     keel_outcome_keel_buffer_i32 r = {0};
     i32 *data = (i32 *)keel_arena_alloc2(a, sizeof(i32), alignof(i32), b->cap);
@@ -119,13 +119,13 @@ static inline keel_outcome_keel_buffer_i32 keel_buffer_i32_clone(keel_arena *a, 
     if (b->len > 0) memcpy(data, b->ptr, b->len * sizeof(i32));
     return keel_outcome_keel_buffer_i32_win1(&r, (keel_buffer_i32){ b->cap, b->len, data });
 }
-#line 93 "keel/buffer.k"
+#line 92 "keel/buffer.k"
 static inline keel_buffer_cursor keel_buffer_i32_begin(keel_buffer_i32 *b) { (void)b; return (keel_buffer_cursor){0}; }
-#line 94 "keel/buffer.k"
+#line 93 "keel/buffer.k"
 static inline bool   keel_buffer_i32_has_next(keel_buffer_i32 *b, keel_buffer_cursor *c) { return c->i < b->len; }
-#line 95 "keel/buffer.k"
+#line 94 "keel/buffer.k"
 static inline i32   *keel_buffer_i32_next(keel_buffer_i32 *b, keel_buffer_cursor *c) { return &b->ptr[c->i++]; }
-#line 99 "keel/buffer.k"
+#line 98 "keel/buffer.k"
 static inline keel_slice_i32 keel_buffer_i32_partition(keel_buffer_i32 *b, size_t k, size_t w) {
     if (k == 0) return (keel_slice_i32){0, b->ptr};
     size_t step = b->len / k + (b->len % k ? 1 : 0);

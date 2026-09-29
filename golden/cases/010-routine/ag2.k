@@ -3,6 +3,7 @@ import keel.corot   as corot   types;
 import keel.outcome as outcome types;
 import keel.routine as routine types;
 import keel.slice   as slice   types;
+import keel.array   as array;
 
 pub typedef struct { i32 a, b, c; } Ag;
 

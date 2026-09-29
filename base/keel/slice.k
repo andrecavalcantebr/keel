@@ -39,18 +39,21 @@ pub inline outcome T at(slice s, size_t i) {
     return i < s.len ? outcome.win(r, s.ptr[i]) : outcome.none(r);
 }
 
-// a slice of a slice — the arity-2 `of` (spec §4.5: the container's module
-// declares its `of`; for a `slice` source, that is this module).
-pub inline slice of(slice s, size_t a, size_t b) {
-    KEEL_CHECK(a <= b && b <= s.len, "range-index-out-of-bounds");
-    if (b > s.len) b = s.len; if (a > b) a = b;
+// a slice of a slice: the range-index verb of this module (spec §5.3,
+// backend §5.17 injects the range check at the top). The body saturates,
+// which is what a release build runs.
+pub inline slice as_slice(slice s, size_t a, size_t b) {
+    if (b > s.len) b = s.len;
+    if (a > b) a = b;
     return (slice){ b - a, s.ptr + a };
 }
 
-// the other two arities of `of` over a slice (spec §5.3): the whole view, and
-// the limits of a `range`. The arity tells the three apart (backend §2.1).
+// `slice.of` over a slice is the declared `of` (spec §5.3): the whole view,
+// the limits of a `range`, and the two limits. The arity tells them apart
+// (backend §2.1).
 pub inline slice of(slice s) { return s; }
-pub inline slice of(slice s, range r) { return of(s, r.first, r.limit); }
+pub inline slice of(slice s, range r) { return as_slice(s, r.first, r.limit); }
+pub inline slice of(slice s, size_t a, size_t b) { return as_slice(s, a, b); }
 
 // allocates in `a`, copies the source's length (spec §5.3).
 pub inline outcome slice clone(arena *a, slice s) {

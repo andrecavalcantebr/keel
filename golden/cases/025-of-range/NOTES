@@ -1,7 +1,7 @@
 Notas do caso.
 
 O caso fecha o que a spec §§4.2 e 5.3 prometiam e a base ainda não escrevia:
-`slice.of` nas três aridades, sobre `array`, `slice` e `buffer`; `buffer.of(v)`
+`slice.of` nas três aridades, sobre `array`, `slice` e `buffer`, e o `as_slice` de `keel.array`; `buffer.of(v)`
 sobre `array`; a constante do núcleo e os verbos de `keel.array` sobre
 `array`; e `range.of`.
 
@@ -10,12 +10,16 @@ Comentários dos esperados
 
 **`app/app_ofr.c`** (c23, c11)
 
-- `slice.of` é escolhido pela aridade (backend §2.1): `_of` com um argumento,
-  `_of1` com o `range`, `_of2` com os dois limites. Sobre `array`, o núcleo
-  fornece a extensão da tabela e passa pelo `of` do `slice` (backend §5.2):
-  cada argumento é avaliado uma vez, e a verificação e a saturação são as do
-  `slice`. Sobre `buffer`, o verbo é o `as_slice` do buffer — `_as_slice1` com
-  o `range`.
+- `slice.of` é a forma escrita do protocolo de intervalo (spec §5.1, §5.3), e o
+  verbo é escolhido pela aridade (backend §2.1). Sobre `array`, é o `as_slice`
+  de `keel.array` (o núcleo não emite `of` nem `from`): `_as_slice` com um
+  argumento, `_as_slice1` com o `range`, `_as_slice2` com os dois limites, e a
+  dimensão declarada, `6`, logo depois do vetor (backend §5.18). Sobre `slice`,
+  é o `of` declarado pelo `slice` (`_of`, `_of1`, `_of2`), que delega ao
+  `as_slice` do próprio `slice`. Sobre `buffer`, é o `as_slice` do buffer
+  (`_as_slice1` com o `range`). O `as_slice` de três parâmetros recebe do
+  backend, no início, o `KEEL_CHECK(a <= b && b <= length, ...)` (backend §5.17,
+  regra 7a); a saturação de release está no corpo.
 - `buffer.of(v)` é o `of(p, n)` do buffer com `n` vindo da tabela.
 - `keel.length(v)` é do núcleo e sai por `sizeof`. `array.get`, `array.set`,
   `array.ptr` e `array.at` são os verbos da instância `keel.array i32`

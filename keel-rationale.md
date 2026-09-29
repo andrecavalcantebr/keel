@@ -765,16 +765,30 @@ conhecer o da visão, para devolvê-la de `partition` e do próprio `range-index
 As duas importações juntas são circulares, e a linguagem já recusa isso
 (`circular-import`, §4.1).
 
-A saída, já implementada antes de estar escrita aqui: cada lado memória
-declara seu próprio verbo de `range-index`, com o nome que fizer sentido para ele
-— `buffer.as_slice`, não `buffer.of` — e o lado visão continua com o seu
-próprio `of`, para recortar a si mesma, sem depender de nada além do próprio
-tipo. `slice` nunca importa `buffer`; é sempre `buffer` que importa `slice`.
+A saída é o protocolo. O núcleo escreve `as_slice(x, a, b)` no ponto de chamada,
+e a resolução (§4.4, passo 1) acha o verbo no módulo do tipo de `x`: cada lado
+memória declara o seu, importa a visão para devolvê-la, e a visão continua com
+o seu próprio `of`, para recortar a si mesma, sem depender de nada além do
+próprio tipo. `slice` nunca importa `buffer`; é sempre `buffer` que importa
+`slice`.
 
-Por isso o nome do verbo de `range-index` é do módulo que o declara, e não do
-protocolo — na base, `as_slice` em `buffer` e `of` em `slice`. A liberdade não é
-estilo: é o que permite ao lado memória declarar o verbo sem que o lado visão
-precise conhecê-lo, e o que mantém o grafo de imports acíclico.
+O nome `as_slice` é do protocolo, como `length`, `ptr` ou `partition` são dos
+seus: sem nome fixo, o parser não distinguiria `as_slice(b, a, c)` de
+`partition(b, k, w)`, que têm a mesma forma. Isso reverte a redação anterior,
+que deixava o nome com o módulo; a liberdade que importava, a de o lado memória
+declarar o verbo sem que o lado visão o conheça, continua inteira. Um módulo do
+programa declara `length` e `as_slice` e participa de `x[a..b]` como `buffer`.
+
+`array` fica no mesmo desenho, com uma diferença que vem do C. O C já tem a
+sintaxe de `x[i]` e de `x[i][j]`, e por isso o núcleo as traduz sem verbo.
+`x[a..b]` não tem sintaxe em C: cai no caso de qualquer módulo, e o verbo é o
+`as_slice` de `keel.array`, que importa `keel.slice` como `buffer` importa. O
+núcleo fornece `length` e `ptr` porque as dimensões são constantes.
+
+A verificação `a <= b <= length(x)` é do protocolo, e não de cada módulo: o
+backend a injeta no início do verbo, para que a chamada escrita à mão e o
+açúcar tenham o mesmo regime, e para que um módulo do programa não possa
+esquecê-la. A saturação de release fica no corpo do verbo.
 
 Referência: [spec §4.5](keel-spec.md#45-indexação-e-range-index).
 
@@ -1306,9 +1320,9 @@ posição é despachado.
 
 **Recorte: erro em debug, saturação em release.** Um `range-index` fora de
 `a <= b <= length(x)` quase sempre é erro de índice, e o debug o acusa. Em
-release o resultado é definido — o fim é recortado no comprimento, e início
-além do fim dá trecho vazio —, para que o programa que erra não leia memória
-alheia. A saturação não é o contrato: é a rede de segurança. Tratá-la como
+release o resultado é o do corpo do verbo, e os da base o definem — o fim é
+recortado no comprimento, e início além do fim dá trecho vazio —, para que o
+programa que erra não leia memória alheia. A saturação não é o contrato: é a rede de segurança. Tratá-la como
 contrato, à maneira das fatias do Python, esconderia o bug de quem pede quatro
 elementos perto do fim e recebe menos, e deixaria `x[a..b]` com um regime
 diferente do de `x[i]`. Quem quer a forma total escreve o verbo, como faz com

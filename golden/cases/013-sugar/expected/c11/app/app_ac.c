@@ -32,7 +32,7 @@ size_t app_ac_cut(keel_buffer_i32 *b) {
     keel_slice_i32 mid = keel_buffer_i32_as_slice2(b, 2, 7);
     keel_slice_i32 tail  = keel_buffer_i32_as_slice2(b, 5, keel_buffer_i32_length(b));
     keel_slice_i32 head  = keel_buffer_i32_as_slice2(b, 0, 3);
-    keel_slice_i32 all = keel_buffer_i32_as_slice(b);
+    keel_slice_i32 all = keel_buffer_i32_as_slice2(b, 0, keel_buffer_i32_length(b));
     return keel_slice_i32_length(mid) + keel_slice_i32_length(tail)
          + keel_slice_i32_length(head)  + keel_slice_i32_length(all);
 }

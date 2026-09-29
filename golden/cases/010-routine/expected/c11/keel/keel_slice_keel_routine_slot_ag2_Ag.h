@@ -23,21 +23,23 @@ static inline keel_routine_slot_ag2_Ag   *keel_slice_keel_routine_slot_ag2_Ag_pt
 static inline keel_routine_slot_ag2_Ag   *keel_slice_keel_routine_slot_ag2_Ag_ptr1(keel_slice_keel_routine_slot_ag2_Ag s, size_t i);
 #line 37 "keel/slice.k"
 static inline keel_outcome_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_at(keel_slice_keel_routine_slot_ag2_Ag s, size_t i);
-#line 44 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of2(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b);
-#line 52 "keel/slice.k"
+#line 45 "keel/slice.k"
+static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_as_slice(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b);
+#line 54 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of(keel_slice_keel_routine_slot_ag2_Ag s);
-#line 53 "keel/slice.k"
+#line 55 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of1(keel_slice_keel_routine_slot_ag2_Ag s, keel_range r);
 #line 56 "keel/slice.k"
+static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of2(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b);
+#line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_clone(keel_arena *a, keel_slice_keel_routine_slot_ag2_Ag s);
-#line 65 "keel/slice.k"
+#line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_keel_routine_slot_ag2_Ag_begin(keel_slice_keel_routine_slot_ag2_Ag s);
-#line 66 "keel/slice.k"
+#line 69 "keel/slice.k"
 static inline bool keel_slice_keel_routine_slot_ag2_Ag_has_next(keel_slice_keel_routine_slot_ag2_Ag s, keel_slice_cursor *c);
-#line 67 "keel/slice.k"
+#line 70 "keel/slice.k"
 static inline keel_routine_slot_ag2_Ag *keel_slice_keel_routine_slot_ag2_Ag_next(keel_slice_keel_routine_slot_ag2_Ag s, keel_slice_cursor *c);
-#line 71 "keel/slice.k"
+#line 74 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_partition(keel_slice_keel_routine_slot_ag2_Ag s, size_t k, size_t w);
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_keel_routine_slot_ag2_Ag.h"
@@ -62,17 +64,20 @@ static inline keel_outcome_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot
     keel_outcome_keel_routine_slot_ag2_Ag r = {0};
     return i < s.len ? keel_outcome_keel_routine_slot_ag2_Ag_win1(&r, s.ptr[i]) : keel_outcome_keel_routine_slot_ag2_Ag_none(&r);
 }
-#line 44 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of2(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b) {
-    KEEL_CHECK(a <= b && b <= s.len, "range-index-out-of-bounds");
-    if (b > s.len) b = s.len; if (a > b) a = b;
+#line 45 "keel/slice.k"
+static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_as_slice(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b) {
+    KEEL_CHECK(a <= b && b <= keel_slice_keel_routine_slot_ag2_Ag_length(s), "range-index-out-of-bounds");
+    if (b > s.len) b = s.len;
+    if (a > b) a = b;
     return (keel_slice_keel_routine_slot_ag2_Ag){ b - a, s.ptr + a };
 }
-#line 52 "keel/slice.k"
+#line 54 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of(keel_slice_keel_routine_slot_ag2_Ag s) { return s; }
-#line 53 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of1(keel_slice_keel_routine_slot_ag2_Ag s, keel_range r) { return keel_slice_keel_routine_slot_ag2_Ag_of2(s, r.first, r.limit); }
+#line 55 "keel/slice.k"
+static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of1(keel_slice_keel_routine_slot_ag2_Ag s, keel_range r) { return keel_slice_keel_routine_slot_ag2_Ag_as_slice(s, r.first, r.limit); }
 #line 56 "keel/slice.k"
+static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of2(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b) { return keel_slice_keel_routine_slot_ag2_Ag_as_slice(s, a, b); }
+#line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_clone(keel_arena *a, keel_slice_keel_routine_slot_ag2_Ag s) {
     keel_outcome_keel_slice_keel_routine_slot_ag2_Ag r = {0};
     keel_routine_slot_ag2_Ag *data = (keel_routine_slot_ag2_Ag *)keel_arena_alloc2(a, sizeof(keel_routine_slot_ag2_Ag), _Alignof(keel_routine_slot_ag2_Ag), s.len);
@@ -80,13 +85,13 @@ static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_r
     if (s.len > 0) memcpy(data, s.ptr, s.len * sizeof(keel_routine_slot_ag2_Ag));
     return keel_outcome_keel_slice_keel_routine_slot_ag2_Ag_win1(&r, (keel_slice_keel_routine_slot_ag2_Ag){ s.len, data });
 }
-#line 65 "keel/slice.k"
+#line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_keel_routine_slot_ag2_Ag_begin(keel_slice_keel_routine_slot_ag2_Ag s) { (void)s; return (keel_slice_cursor){0}; }
-#line 66 "keel/slice.k"
+#line 69 "keel/slice.k"
 static inline bool   keel_slice_keel_routine_slot_ag2_Ag_has_next(keel_slice_keel_routine_slot_ag2_Ag s, keel_slice_cursor *c) { return c->i < s.len; }
-#line 67 "keel/slice.k"
+#line 70 "keel/slice.k"
 static inline keel_routine_slot_ag2_Ag   *keel_slice_keel_routine_slot_ag2_Ag_next(keel_slice_keel_routine_slot_ag2_Ag s, keel_slice_cursor *c) { return &s.ptr[c->i++]; }
-#line 71 "keel/slice.k"
+#line 74 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_partition(keel_slice_keel_routine_slot_ag2_Ag s, size_t k, size_t w) {
     if (k == 0) return (keel_slice_keel_routine_slot_ag2_Ag){0, s.ptr};
     size_t step = s.len / k + (s.len % k ? 1 : 0);

@@ -3,6 +3,6 @@
 #define AG2_TYPE_H
 #include "keel.type.h"
 
-#line 7 "ag2.k"
+#line 8 "ag2.k"
 typedef struct ag2_Ag { i32 a, b, c; } ag2_Ag;
 #endif /* AG2_TYPE_H */

@@ -158,7 +158,7 @@ seu módulo participa.
 | `foreach` de um binder | `first`, `limit` |
 | `walk` | `begin`, `has_next`, `next` |
 | `parallel` | `partition` |
-| `x[a..b]` | o verbo de `range-index` do seu módulo, na aridade escrita — o nome é seu |
+| `x[a..b]` | `length` e `as_slice(x, a, b)` |
 | `match` | `tag` |
 | `else` | `failed`, e `win` para a forma com valor padrão |
 

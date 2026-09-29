@@ -18,9 +18,9 @@ i32 app_ofr_v[6] = {10, 11, 12, 13, 14, 15};
 
 
 
-keel_slice_i32 app_ofr_whole(void) { return keel_slice_i32_from(app_ofr_v, 6); }
-keel_slice_i32 app_ofr_middle(size_t a, size_t b) { return keel_slice_i32_of2(keel_slice_i32_from(app_ofr_v, 6), a, b); }
-keel_slice_i32 app_ofr_by_range(keel_range r) { return keel_slice_i32_of1(keel_slice_i32_from(app_ofr_v, 6), r); }
+keel_slice_i32 app_ofr_whole(void) { return keel_array_i32_as_slice(app_ofr_v, 6); }
+keel_slice_i32 app_ofr_middle(size_t a, size_t b) { return keel_array_i32_as_slice2(app_ofr_v, 6, a, b); }
+keel_slice_i32 app_ofr_by_range(keel_range r) { return keel_array_i32_as_slice1(app_ofr_v, 6, r); }
 
 
 keel_slice_i32 app_ofr_same(keel_slice_i32 s) { return keel_slice_i32_of(s); }

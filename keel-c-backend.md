@@ -157,7 +157,6 @@ of(s)           →  keel_slice_i32_of
 of(s,r)         →  keel_slice_i32_of1
 of(s,a,b)       →  keel_slice_i32_of2
 push(b,v)       →  keel_buffer_i32_push1
-ptr(m,i,j)      →  mat_matrix_f32_ptr2
 get(b,i)        →  keel_buffer_i32_get      /* aridade única: sem sufixo */
 alloc(a,T,n)    →  keel_arena_alloc2        /* função de módulo; `type` conta um */
 alloc(a,n,sz,al) → keel_arena_alloc3
@@ -172,7 +171,7 @@ ptr(t,(size_t[2]){…}) →  tens_tensor_2_f32_ptr2   /* `dim`: dois índices es
 3. O sufixo é a última parte do símbolo: módulo, modificador, argumentos de tipo, sufixo.
 4. Vale também para função de módulo não genérico, com o primeiro argumento no papel de contêiner.
 5. Conta os argumentos escritos em keel: um parâmetro `type` apagado conta um, embora saia como dois no C (§5.16); um binder de dimensão não conta, embora saia como um `size_t` (§5.18).
-6. Com `dim`, conta os índices escritos no ponto de chamada: o acessor de rank cheio recebe um vetor e leva o sufixo do rank. É a única exceção à regra 5, e não há acessor parcial (linguagem §4.3). [D18](#10-decisões-de-emissão)
+6. O acessor de vários índices recebe um vetor `size_t idx[static N]` e leva o sufixo do rank `N`, que é o `dim` do modificador: conta os índices escritos no ponto de chamada. É a única exceção à regra 5, e não há acessor parcial (linguagem §4.5). [D18](#10-decisões-de-emissão)
 7. A contagem é sintática: nenhum tipo de argumento é examinado, e a regra vale igual para modificador da base e do programa. [R: substituição e aridade fixa](keel-rationale.md#substituição-e-aridade-fixa)
 
 ### 2.2 Normalização do argumento
@@ -811,9 +810,10 @@ keel_buffer_i32_as_slice2(&xs, 2, 7)
 ```
 
 ```plain
-slice.of(v)            →  keel_slice_i32_from(v, <dim 0>)
-slice.of(v, r)         →  keel_slice_i32_of1(keel_slice_i32_from(v, <dim 0>), r)
-slice.of(v, a, b)      →  keel_slice_i32_of2(keel_slice_i32_from(v, <dim 0>), a, b)
+slice.of(v)            →  keel_array_i32_as_slice(v, <dim 0>)
+slice.of(v, r)         →  keel_array_i32_as_slice1(v, <dim 0>, r)
+slice.of(v, a, b)      →  keel_array_i32_as_slice2(v, <dim 0>, a, b)
+v[a..b]                →  keel_array_i32_as_slice2(v, <dim 0>, a, b)
 buffer.of(v)           →  keel_buffer_i32_of(v, <dim 0>)
 ```
 
@@ -831,8 +831,8 @@ i32 x = keel_array_i32_get(v, 8, 3);
 
 1. Cada instância é uma struct e funções `static inline`, uma por verbo e aridade (§2.1.1). `push(x)` e `push(x,v)` são `_push` e `_push1`, e não uma variádica. [D36](#10-decisões-de-emissão)
 2. A chamada é reescrita para a função manglada. A forma do parâmetro é o bit `byref` (linguagem §4.3): instância `byref` recebe o endereço do contêiner, e a que não é — `slice`, `range` — recebe cópia, pela adaptação da linguagem §4.4.
-3. `slice.of` sobre `buffer` é o `as_slice` do buffer, e sobre `slice`, o `of` da própria slice, escolhidos pela aridade: `_as_slice`, `_as_slice1` e `_as_slice2`.
-4. `slice.of` sobre `array` baixa para `from`, com a dimensão 0 da tabela, e as formas de `range` e de dois limites passam pelo `of` da instância sobre esse `from`. `buffer.of(v)` é o `of(p, n)` do buffer, com `n` da tabela. Cada argumento é avaliado uma vez.
+3. `slice.of` sobre `slice` é o `of` que a própria slice declara. Sobre qualquer outro Indexável por intervalo, é o `as_slice` do módulo do tipo do objeto (linguagem §4.5), escolhido pela aridade: `_as_slice`, `_as_slice1` e `_as_slice2` no `buffer`.
+4. `slice.of` e `x[a..b]` sobre `array` são o `as_slice` de `keel.array`, com a dimensão 0 da tabela logo depois do vetor (§5.18): `keel_array_i32_as_slice2(v, 6, a, b)`. As formas abertas passam a ponta que falta, `length(x)`, no ponto de chamada. `buffer.of(v)` é o `of(p, n)` do buffer, com `n` da tabela. Cada argumento é avaliado uma vez.
 5. Todo verbo que pode falhar sai com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
 6. A verificação de limites de `get`, `set` e `ptr(x, i)` está no corpo do verbo, ligada por `KEEL_CHECKS` (§5.17).
 7. Sobre `array`, `keel.length` e `keel.capacity` saem `sizeof(v)/sizeof(<elem>)`, com o tipo do elemento vindo da tabela, e não de `*(v)`; `keel.dim(v, k)` sai literal. Em parâmetro multidimensional, onde `sizeof` não serve, `length` sai o produto literal das dimensões, com o binder no lugar da dimensão 0 quando há (§5.18).
@@ -848,7 +848,7 @@ outcome slice geom.Point out = slice.clone(a, slice.of(tmp)) else return -1;
 keel_outcome_keel_slice_geom_Point out = keel_slice_geom_Point_clone(&a, keel_buffer_geom_Point_as_slice(&tmp)); if (keel_outcome_keel_slice_geom_Point_failed(out)) return -1;
 ```
 
-**Verificações:** `index-out-of-length`, `set-out-of-length` e `range-index-out-of-bounds`, no corpo dos verbos (§5.17).
+**Verificações:** `index-out-of-length` e `set-out-of-length`, no corpo dos verbos, e `range-index-out-of-bounds`, injetada no início de todo `as_slice` de três parâmetros (§5.17).
 
 **Perfis:** C11 escreve `_Alignof` onde C23 escreve `alignof` (§9.1); o resto é igual.
 
@@ -911,15 +911,15 @@ v[1][2][3] = 0;
 4. Cada índice sobre `array` passa por `keel_index(i, d)`, contra a dimensão declarada correspondente, e é avaliado uma vez: `v[i][j]` sai `v[keel_index(i, 2)][keel_index(j, 3)]`. O número vem da tabela, e não de `sizeof`, que não serve em parâmetro multidimensional.
 5. Na dimensão 0 de parâmetro sem binder, a verificação afirma o contrato declarado, e não a extensão recebida: nunca acusa falso, mas não alcança o chamador que entregou menos, que a tradução pega com `array-argument-wrong-dimension` (linguagem §4.2). Com binder, a verificação alcança a extensão recebida (§5.18). [D3](#10-decisões-de-emissão)
 6. Com índice e dimensão decimais conhecidos, sai o colchete simples: a tradução já conferiu (`array-index-above-dimension`, linguagem §4.5).
-7. `range-index` sai pelo verbo que o módulo declara (§5.2). A verificação em debug e a saturação em release estão no corpo do verbo, e não no emissor (§5.17).
+7. `range-index` sai pelo `as_slice` do módulo do tipo do objeto (§5.2): `x[a..b]` é `as_slice(x, a, b)`, `x[..b]` passa 0, `x[a..]` passa `length(x)`, e `x[..]` passa as duas pontas. A verificação em debug é injetada pelo backend no início do verbo (§5.17); a saturação em release está no corpo do verbo, e não no emissor.
 
 **Verificações:** `array-index-out-of-bounds`, `index-out-of-length` e `range-index-out-of-bounds` (§5.17).
 
 **Perfis:** iguais.
 
-#### 5.3.1 Açúcar sobre modificador com `dim`
+#### 5.3.1 Vários índices sobre modificador
 
-**Forma:** `x[i, j, …]` sobre modificador que declara `dim N` (linguagem §4.3).
+**Forma:** `x[i, j, …]`, com dois ou mais índices, sobre modificador (linguagem §4.5). A forma é provisória, escrita para o `tensor` da biblioteca v1+: pode mudar.
 
 **Emissão**
 
@@ -938,11 +938,11 @@ f32 y = *tens_tensor_2_f32_ptr2(&m, (size_t[2]){i, j});
 
 **Regras**
 
-1. A emissão conta os índices escritos e emite o acessor de rank cheio. É a única ramificação que `dim` acrescenta ao emissor.
+1. A emissão conta os índices escritos e emite o acessor de vetor, de rank cheio. Vale para todo modificador com dois ou mais índices.
 2. O literal composto `(size_t[N]){…}` é emitido no ponto da indexação, com os índices na ordem escrita, copiados como escritos e avaliados uma vez: `t[i++, j]` incrementa `i` uma vez.
 3. O literal vive até o fim do bloco que o contém, e o acessor não guarda o ponteiro.
 4. Um número de índices diferente de `N` é recusado pela linguagem antes da emissão.
-5. Modificador sem `dim` não passa por aqui: o rank fixo declara um acessor por aridade (linguagem §4.3), e nenhum literal composto é emitido.
+5. Não há acessor por aridade: um módulo não declara `ptr` em `N` aridades (linguagem §4.3, regra 10), e é o `dim` que diz o tamanho do vetor.
 6. Em `-O2` o laço do acessor desenrola e o literal some; em `-O0` não, e é o custo declarado na linguagem §4.3. O backend não o mitiga. [D38](#10-decisões-de-emissão)
 
 ```c
@@ -1774,12 +1774,13 @@ static inline size_t keel_index(size_t i, size_t d) {
 | --- | --- | --- |
 | `get(x, i)`, `ptr(x, i)` de `buffer` e `slice` | `i < len` | `index-out-of-length` |
 | `set(x, i, v)` de `buffer` e `slice` | `i < len` | `set-out-of-length` |
-| `slice.of(s, a, b)`, `buffer.as_slice(b, a, c)` | `a <= b && b <= len` | `range-index-out-of-bounds` |
 | `arena.alloc(a, n, sz, al)` | `sz == 0 \|\| n <= SIZE_MAX / sz` | `alloc-overflow` |
 | `routine.par(s, alvo)` | `alvo <= length(s)` | `par-target-above-total` |
 | `routine.mask(s)` | `length(s) <= 64` | `mask-above-64-slots` |
 
 7. O açúcar `x[i]` sobre `buffer` e `slice` é `*ptr(x, i)` (§5.3), e é verificado por essa via.
+
+7a. O `as_slice` de três parâmetros, de qualquer módulo, não escreve a verificação de intervalo: o backend injeta no início da função `KEEL_CHECK(a <= b && b <= length(x), "range-index-out-of-bounds")`, com `length` o do protocolo (`keel.length` sobre `array`, com o binder no lugar da dimensão 0). Vale para `x[a..b]` e para a chamada escrita à mão, porque está dentro da função. A saturação em release é do corpo do verbo.
 8. No C que o núcleo emite, a mesma macro:
 
 | Onde | Emissão | Identificador |
@@ -2050,7 +2051,7 @@ alternativa em aberto.
 | 15 | Todo nome criado pelo backend começa por `keel__` | §2.3. O mangling nunca produz `__`, e o programa não declara nada em `keel_`: o espaço é só do backend, e um nome novo não pede consulta à tabela de símbolos nem pode colidir com um símbolo que a base venha a ter — a função `m0` de um módulo sairia `keel_m0`, o rótulo, `keel__m0_LIT` |
 | 16 | Nome de tipo, tag e constante de enum de arquivo levam o prefixo do módulo | §2.1. Os três aparecem no `.h` e colidem entre módulos. A constante de enum é a que mais importa: vive no espaço dos identificadores comuns, e sem prefixo dois módulos que declarem `STOPPED` não podem ser importados pelo mesmo terceiro |
 | 17 | Qualificador com `_` inicial perde o underscore e baixa a caixa | §2.1. Evita `_Atomic_u32`, reservado ao C, e o `__` de `keel_buffer__Atomic_u32`, que é do backend (§2.3). A perda é só de grafia: `atomic` não é tipo válido no fonte, então nada mais produz esse componente |
-| 18 | Com `dim`, o sufixo de aridade conta índices escritos | §2.1.1. O nome passa a dizer o rank, e o caso `dim` se alinha com o rank fixo, em que `mat_matrix_f32_ptr2` sai de dois índices escritos por extenso. Não há acessor parcial, então não há par a desempatar: a exceção compra legibilidade, não unicidade |
+| 18 | O acessor de vários índices é um só, de vetor, e leva o sufixo do rank | §2.1.1. Um módulo não declara `ptr` em N aridades (linguagem §4.3, regra 10), então o acessor de vários índices recebe o vetor, e o nome passa a dizer o rank. Não há acessor parcial, então não há par a desempatar: a exceção compra legibilidade, não unicidade |
 | 19 | O argumento de `dim` entra no nome pelo valor, e não pela grafia | §2.2. Com a grafia, dois módulos que declarassem `DIM` com valores diferentes pediriam o mesmo arquivo com conteúdos diferentes, e o header de instância deixaria de ser função das entradas (§7.1) |
 | 20 | O C gerado usa `i32`, e não `int32_t` | §2.2. O corpo do usuário é copiado como escrito, então `i32` chega ao `.c` de qualquer forma e o `typedef` do prelúdio é necessário. Emitir `int32_t` nas structs criaria duas grafias para o mesmo tipo, e a mensagem do compilador C deve citar o nome que o usuário escreveu: `expected i32 *` lê direto contra o fonte |
 | 21 | Nome gerado acima de 255 caracteres é erro | §2.4. Onde o linker só considera os primeiros *N* caracteres, duas instâncias que só diferem depois do corte colidem em silêncio no link, com um símbolo vencendo o outro; o teto transforma isso em diagnóstico. Truncar com hash mataria a legibilidade. O mínimo do padrão para nome externo é 31, que tornaria a composição de modificadores inutilizável (`keel_buffer_geom_Point` já tem 22), e não descreve compilador real: o pior caso prático é 255, do IAR (Anexo). Uma edição anterior deste documento dava 63, que é o mínimo do padrão para nome **interno** |
@@ -2094,6 +2095,7 @@ alternativa em aberto.
 | 59 | Em bloco, a macro do `constexpr` tem nome gerado, e os usos são reescritos | §9.2. Com o nome do usuário, a macro capturaria toda ocorrência do token no resto do bloco: `s->N` viraria `s->((size_t)8)`, erro do compilador C com mensagem que não aponta a causa. O prefixo `keel__` não colide com símbolo nem com macro de header, o nome do usuário no meio mantém o gerado legível, e o ordinal separa dois blocos irmãos |
 | 60 | A macro do `constexpr` sob C11 não é truque de macro | §9.2. O que a linguagem dispensa é a macro que constrói estrutura — colagem de token, X-Macro, `TRY`/`CATCH` —, que some do depurador e do diagnóstico. Uma constante nomeada não some de lugar nenhum, e `#define MAX ((size_t)4096)` é o que um C99 bem escrito faz |
 | 61 | Uma linha de fonte, uma linha de saída, mesmo quando longa | §6. Quebrar custaria um `#line` por statement, e sem ele todo o resto do corpo apontaria para a linha errada. A linha gerada fica mais longa que a de um humano, e se paga: é o que faz cada erro do compilador C cair na linha certa do `.k`, a razão de o princípio 3 funcionar. Linha vazia a mais no `.c` é C comum; trocar sequências delas por `#line` manteria a invariante |
+| 62 | A verificação de `range-index` é injetada no início do verbo, e não escrita nele | §5.17. Dentro da função, a chamada escrita à mão e o açúcar `x[a..b]` têm o mesmo regime, e o módulo não pode esquecê-la; os argumentos já foram avaliados uma vez (regra 5) |
 
 ---
 

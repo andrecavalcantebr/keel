@@ -25,7 +25,7 @@ ilha	range-index	b 5.. → keel_buffer_i32_as_slice2 keel_buffer_i32_length	app/
 ilha	type	slice i32 → keel_slice_i32	app/ac.k:29:5
 ilha	range-index	b ..3 → keel_buffer_i32_as_slice2	app/ac.k:29:23
 ilha	type	slice i32 → keel_slice_i32	app/ac.k:30:5
-ilha	range-index	b .. → keel_buffer_i32_as_slice	app/ac.k:30:21
+ilha	range-index	b .. → keel_buffer_i32_as_slice2 keel_buffer_i32_length	app/ac.k:30:21
 ilha	call	slice.length/1 → keel_slice_i32_length	app/ac.k:31:12
 ilha	call	slice.length/1 → keel_slice_i32_length	app/ac.k:31:32
 ilha	call	slice.length/1 → keel_slice_i32_length	app/ac.k:32:12

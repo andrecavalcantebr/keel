@@ -70,3 +70,13 @@ Arrastada pela instanciação de `keel.routine` (backend §4.3).
 
 instância de `slice slot`.
 Arrastada pela instanciação de `keel.routine` (backend §4.3).
+
+**`keel/keel_array_keel_routine_slot_ag2_Ag.h`** (c23, c11)
+
+instância de `keel.array` sobre o `slot`. `slice.of(steps)` sobre o `array` é o
+`as_slice` de `keel.array` (spec §5.3), e o fonte importa `keel.array` para isso:
+`_as_slice(steps, 3)`, com a dimensão da tabela logo depois do vetor.
+
+**`keel/keel_array_keel_routine_slot_ag2_Ag.type.h`** (c23, c11)
+
+instância de `keel.array` sobre o `slot`: sem struct, só o `keel.type.h`.

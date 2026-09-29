@@ -15,19 +15,21 @@ static inline char    keel_slice_const_char_get (keel_slice_const_char s, size_t
 static inline const char   *keel_slice_const_char_ptr (keel_slice_const_char s);
 #line 34 "keel/slice.k"
 static inline const char   *keel_slice_const_char_ptr1(keel_slice_const_char s, size_t i);
-#line 44 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of2(keel_slice_const_char s, size_t a, size_t b);
-#line 52 "keel/slice.k"
+#line 45 "keel/slice.k"
+static inline keel_slice_const_char keel_slice_const_char_as_slice(keel_slice_const_char s, size_t a, size_t b);
+#line 54 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_of(keel_slice_const_char s);
-#line 53 "keel/slice.k"
+#line 55 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_of1(keel_slice_const_char s, keel_range r);
-#line 65 "keel/slice.k"
+#line 56 "keel/slice.k"
+static inline keel_slice_const_char keel_slice_const_char_of2(keel_slice_const_char s, size_t a, size_t b);
+#line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_const_char_begin(keel_slice_const_char s);
-#line 66 "keel/slice.k"
+#line 69 "keel/slice.k"
 static inline bool keel_slice_const_char_has_next(keel_slice_const_char s, keel_slice_cursor *c);
-#line 67 "keel/slice.k"
+#line 70 "keel/slice.k"
 static inline const char *keel_slice_const_char_next(keel_slice_const_char s, keel_slice_cursor *c);
-#line 71 "keel/slice.k"
+#line 74 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_partition(keel_slice_const_char s, size_t k, size_t w);
 
 #line 26 "keel/slice.k"
@@ -42,23 +44,26 @@ static inline char    keel_slice_const_char_get (keel_slice_const_char s, size_t
 static inline const char   *keel_slice_const_char_ptr (keel_slice_const_char s) { return s.ptr; }
 #line 34 "keel/slice.k"
 static inline const char   *keel_slice_const_char_ptr1(keel_slice_const_char s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return &s.ptr[i]; }
-#line 44 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of2(keel_slice_const_char s, size_t a, size_t b) {
-    KEEL_CHECK(a <= b && b <= s.len, "range-index-out-of-bounds");
-    if (b > s.len) b = s.len; if (a > b) a = b;
+#line 45 "keel/slice.k"
+static inline keel_slice_const_char keel_slice_const_char_as_slice(keel_slice_const_char s, size_t a, size_t b) {
+    KEEL_CHECK(a <= b && b <= keel_slice_const_char_length(s), "range-index-out-of-bounds");
+    if (b > s.len) b = s.len;
+    if (a > b) a = b;
     return (keel_slice_const_char){ b - a, s.ptr + a };
 }
-#line 52 "keel/slice.k"
+#line 54 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_of(keel_slice_const_char s) { return s; }
-#line 53 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of1(keel_slice_const_char s, keel_range r) { return keel_slice_const_char_of2(s, r.first, r.limit); }
-#line 65 "keel/slice.k"
+#line 55 "keel/slice.k"
+static inline keel_slice_const_char keel_slice_const_char_of1(keel_slice_const_char s, keel_range r) { return keel_slice_const_char_as_slice(s, r.first, r.limit); }
+#line 56 "keel/slice.k"
+static inline keel_slice_const_char keel_slice_const_char_of2(keel_slice_const_char s, size_t a, size_t b) { return keel_slice_const_char_as_slice(s, a, b); }
+#line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_const_char_begin(keel_slice_const_char s) { (void)s; return (keel_slice_cursor){0}; }
-#line 66 "keel/slice.k"
+#line 69 "keel/slice.k"
 static inline bool   keel_slice_const_char_has_next(keel_slice_const_char s, keel_slice_cursor *c) { return c->i < s.len; }
-#line 67 "keel/slice.k"
+#line 70 "keel/slice.k"
 static inline const char   *keel_slice_const_char_next(keel_slice_const_char s, keel_slice_cursor *c) { return &s.ptr[c->i++]; }
-#line 71 "keel/slice.k"
+#line 74 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_partition(keel_slice_const_char s, size_t k, size_t w) {
     if (k == 0) return (keel_slice_const_char){0, s.ptr};
     size_t step = s.len / k + (s.len % k ? 1 : 0);

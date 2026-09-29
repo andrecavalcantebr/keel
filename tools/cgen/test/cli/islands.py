@@ -17,7 +17,7 @@ SOURCE = [
     'import keel.arena as arena types;',                          # 2
     'import keel.buffer as buffer types;',                        # 3
     'import keel.slice as slice types;',                          # 4
-    'import keel.outcome as outcome types;',                      # 5
+    'import keel.outcome as outcome types; import keel.array as array;',  # 5
     'pub constexpr size_t N = 4;',                                # 6
     'pub tags Mode [FAST, SLOW];',                                # 7
     '',                                                           # 8
@@ -92,7 +92,7 @@ EXPECTED = [
     ('index', 'c → keel_buffer_i32_ptr1 &1', 29, 'c[', 0),
     ('array-index', 'm rank 2', 29, 'm[', 0),
     ('type', 'slice i32 → keel_slice_i32', 30, 'slice', 0),
-    ('range-index', 's 1.. → keel_slice_i32_of2 keel_slice_i32_length', 30, 's[', 0),
+    ('range-index', 's 1.. → keel_slice_i32_as_slice keel_slice_i32_length', 30, 's[', 0),
     ('index', 't → keel_slice_i32_ptr1', 31, 't[', 0),
     # a qualified name is an island whether or not the module declares it, an
     # index over a file-scope symbol is one, and slice.of over a buffer is its as_slice
@@ -123,16 +123,16 @@ EXPECTED = [
     ('name', 'grid → app_t_grid', 46, 'grid', 0),
     ('call', 'keel.dim/2 → core dim:1', 46, 'keel.dim', 0),
     ('name', 'grid → app_t_grid', 46, 'grid', 1),
-    # x[a..b] over an array is slice.of(x, a, b): the element gives the instance
+    # x[a..b] over an array is the as_slice of keel.array: the element gives the instance
     ('array', 'fx [8]', 48, 'array', 0),
     ('type', 'slice f32 → keel_slice_f32', 49, 'slice', 0),
-    ('range-index', 'fx 2..5 → keel_slice_f32_of2 keel_slice_f32_from dim:1', 49, 'fx', 0),
+    ('range-index', 'fx 2..5 → keel_array_f32_as_slice2 dim:1', 49, 'fx', 0),
     ('type', 'slice f32 → keel_slice_f32', 50, 'slice', 0),
-    ('range-index', 'fx 3.. → keel_slice_f32_of2 keel_slice_f32_from core dim:1', 50, 'fx', 0),
+    ('range-index', 'fx 3.. → keel_array_f32_as_slice2 core dim:1', 50, 'fx', 0),
     ('type', 'slice f32 → keel_slice_f32', 51, 'slice', 0),
-    ('range-index', 'fx ..4 → keel_slice_f32_of2 keel_slice_f32_from dim:1', 51, 'fx', 0),
+    ('range-index', 'fx ..4 → keel_array_f32_as_slice2 dim:1', 51, 'fx', 0),
     ('type', 'slice f32 → keel_slice_f32', 52, 'slice', 0),
-    ('range-index', 'fx .. → keel_slice_f32_from dim:1', 52, 'fx', 0),
+    ('range-index', 'fx .. → keel_array_f32_as_slice2 core dim:1', 52, 'fx', 0),
     ('call', 'slice.length/1 → keel_slice_f32_length', 53, 'slice.length', 0),
     ('call', 'slice.length/1 → keel_slice_f32_length', 53, 'slice.length', 1),
     ('call', 'slice.length/1 → keel_slice_f32_length', 53, 'slice.length', 2),

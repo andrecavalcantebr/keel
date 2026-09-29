@@ -363,9 +363,10 @@ filosofia oposta, e o núcleo não a distingue: keel escolheu o lote por causa d
 DOD. Um módulo que embrulhe `malloc`/`free` faz essa distinção por dentro; o
 protocolo só exige `alloc` e `reset`.
 
-**O que o núcleo consegue verificar é pouco.** O único diagnóstico possível é o
-de hoje, generalizado: uso de região filha depois de `reset` ou `restore` do
-pai, no mesmo escopo. Não há como mapear dado derivado usado depois do `reset`:
+**O que o núcleo consegue verificar é pouco.** Esta entrada inicialmente
+considerava só o uso de região filha depois de `reset` ou `restore` do pai,
+no mesmo escopo. A proposta específica abaixo preserva também o diagnóstico
+de escape de contêiner com procedência local conhecida. Não há como mapear dado derivado usado depois do `reset`:
 o ponteiro devolvido por `alloc` circula por struct, retorno, argumento e alias,
 e a tradução não segue nada disso. Tampouco pega o caso interprocedural: se o
 pai é invalidado numa função e a filha é usada no chamador, passa. Ficam com o
@@ -387,6 +388,220 @@ Abertos:
 - **Fora dos alocadores.** Visões sobre um `buffer`, como o `slice` depois de
   `clear` ou `push`, seguem uma lógica parecida de invalidação. Registrada aqui
   como vizinha, sem estar incluída.
+
+### Proposta de texto: regiões, procedência e arena na Base (2026-09-29)
+
+**Status: proposta para discussão, não normativa.** Reelaboração da entrada
+anterior. O objetivo é manter no núcleo garantias mínimas e mecanismos gerais
+para abstrações que se resolvem em C, deixando a arena como implementação
+padrão da Base. Não altera a v0 nem autoriza mudanças nos normativos.
+
+**Direção acordada nesta discussão:** `arena.from_stack` fica adiado. Ele
+expande armazenamento no escopo do chamador e não pode virar uma função comum
+sem mudar o tempo de vida da memória. Um futuro mecanismo geral de construção
+pode permitir implementá-lo na biblioteca; até lá, escreve-se o armazenamento
+local explicitamente.
+
+A generalização deve preservar duas verificações distintas: escape de
+contêiner cuja procedência conhecida é armazenamento local, e uso de região
+filha após invalidação do pai. Validar o tipo do argumento de `from_array` não
+substitui nenhuma delas.
+
+#### Texto candidato para substituir a spec §5.2
+
+##### Alocação, procedência e hierarquia de regiões
+
+**1. Contratos**
+
+Alocável e Hierarquizável são protocolos independentes. Seus verbos pertencem
+a módulos comuns e são resolvidos pelas regras de resolução de operações.
+O núcleo reconhece os contratos pelas declarações, sem depender do nome
+`keel.arena`.
+
+| Protocolo | Verbos | Papel |
+| --- | --- | --- |
+| Alocável | `alloc(a, n, sz, al)` e `reset(a)`; opcionais `mark` e `restore` | reservar armazenamento e invalidar alocações em lote |
+| Hierarquizável | `from_parent(child, parent, …)` e `reset(region)`; opcional `restore` | estabelecer dependência entre regiões e invalidar derivadas |
+
+A presença isolada de um nome não estabelece um protocolo. Os verbos exigidos
+devem operar sobre o mesmo tipo receptor. Uma região pode ser Hierarquizável
+sem oferecer alocação; um Alocável pode não oferecer regiões filhas.
+
+`alloc` recebe o alocador por ponteiro, a quantidade de objetos, o tamanho
+de cada objeto e o alinhamento. Devolve `void *`, ou `NULL` quando não puder
+satisfazer a solicitação. Tamanho, alinhamento e algoritmo são responsabilidades
+da implementação. A forma tipada `alloc(a, T, n)` pode ser escrita pelo módulo
+com parâmetro `type T` apagado; usa o mecanismo geral de tamanho, alinhamento
+e conversão do retorno.
+
+`from_parent` recebe primeiro a filha e depois o pai, por ponteiro. Os demais
+parâmetros pertencem ao módulo. O retorno `bool` informa sucesso; na falha,
+a filha fica sem região utilizável. Na construção bem-sucedida, sua validade
+depende da validade do pai.
+
+`reset` invalida os recursos anteriores da região. O protocolo não determina
+se a implementação devolve memória ao sistema ou limpa objetos. `restore`,
+quando declarado, invalida os recursos descartados pela restauração; a
+representação da marca pertence ao módulo.
+
+**2. Procedência**
+
+A procedência é informação de tradução, associada a símbolos e construções
+reconhecidos. Não exige campos no descritor nem registros em execução.
+
+1. Uma construção reconhecida sobre um `array` de armazenamento automático
+   registra origem local e seu escopo de duração. Um vetor de duração estática
+   não é classificado como local apenas por ser declarado dentro de função.
+2. `from_parent` registra a dependência da filha e transmite a procedência
+   conhecida do pai.
+3. Uma operação reconhecida de alocação ou construção de contêiner transmite
+   a procedência de sua origem somente nas formas que o contrato de análise
+   já acompanha. Isso não autoriza rastreamento geral de ponteiros.
+4. Uma reatribuição sem procedência reconhecível torna a origem desconhecida.
+   Origem desconhecida não equivale a origem comprovadamente válida.
+5. Retornar um contêiner cuja procedência conhecida é armazenamento local
+   produz `region-escape`. A regra independe da implementação do alocador.
+6. O núcleo não deduz procedência de corpos C opacos, headers ou expressões
+   arbitrárias. A procedência de uma construção sobre ponteiro cru permanece
+   desconhecida quando sua origem não puder ser registrada pelas formas
+   reconhecidas.
+
+Para aplicar essas regras a bibliotecas do programa, o contrato de construção
+deve tornar explícita a posição da origem e a posição do produto. A construção
+sobre vetor conhecido, como `from_array`, tem esse papel; o nome da arena não
+o tem. A forma declarativa geral para expressar esses papéis deve ser fechada
+antes de incorporar este texto à spec. Reconhecer funções arbitrárias pelo
+nome, sem contrato, não é suficiente.
+
+**3. Hierarquia e invalidação**
+
+1. Invalidar o pai invalida suas filhas e, transitivamente, as regiões
+   derivadas delas.
+2. Resetar uma filha não revalida armazenamento invalidado pelo pai.
+3. Sair do escopo de um descritor não devolve recursos ao pai. A duração do
+   descritor não determina a duração do armazenamento.
+4. O núcleo registra dependências entre símbolos conhecidos estabelecidas por
+   construções reconhecidas. Não avalia o resultado booleano do construtor:
+   registra a dependência que existirá caso ele tenha sucesso.
+5. No mesmo escopo, uma operação reconhecida sobre filha cuja dependência
+   permanece conhecida, depois de invalidação do pai, produz
+   `child-region-after-invalidation`. O próprio `reset(child)` é uso.
+6. Uma nova construção reconhecida da filha substitui sua relação anterior.
+7. `restore` exige uma política lexical explícita. Como proposta mínima,
+   considerar todas as filhas conhecidas invalidadas; essa política é
+   conservadora e pode recusar uma filha que a implementação tenha preservado.
+   Não se interpreta o valor de uma marca nem o histórico de alocações em
+   execução.
+
+**4. Inicialização e construção**
+
+Inicialização padrão é uma propriedade declarada pelo tipo, independente dos
+protocolos Alocável e Hierarquizável.
+
+1. Uma definição sem inicializador escrito recebe o inicializador padrão
+   declarado pelo tipo, quando houver.
+2. Um inicializador explícito prevalece.
+3. Declarações `extern` e campos de agregados não recebem inicialização
+   inserida. A inicialização do agregado continua sendo responsabilidade do
+   programa.
+4. A regra deve contemplar vetores do tipo e duração estática, preservando os
+   casos hoje admitidos para arena. A forma de composição do inicializador
+   para vetores precisa ser especificada no backend.
+5. O núcleo substitui o inicializador declarado; não avalia expressões C nem
+   insere chamada de construtor ou cleanup.
+6. Os construtores são operações explícitas do módulo. Inicializador padrão
+   não adquire armazenamento nem prolonga seu tempo de vida.
+
+A arena declara `{0}` como seu padrão porque sua implementação define esse
+estado como vazio. Outro tipo pode declarar outro padrão ou exigir
+inicialização explícita. A sintaxe da declaração do padrão ainda está aberta;
+não é uma palavra nova aprovada por esta proposta.
+
+Exemplo de uso pretendido, com os mecanismos de declaração ainda a definir:
+
+```keel
+array u8 storage[4096];
+arena a;  // The type declares {0} as its default initializer.
+if (!arena.from_array(a, storage)) return false;
+
+arena child;
+if (!arena.from_parent(child, a, 1024)) return false;
+```
+
+As condições de alinhamento e de tipo efetivo do respaldo continuam no
+contrato da Base e no backend. Escrever um vetor local explicitamente não
+dispensa essas condições.
+
+**5. Implementação padrão e custo**
+
+`keel.arena` é a implementação padrão dos contratos na Base. Seu layout,
+algoritmo linear, construtores, marcas, capacidade e comportamento na falta
+de espaço pertencem ao contrato da biblioteca.
+
+Os protocolos não impõem despacho dinâmico, campos adicionais nem controle de
+procedência em execução. A resolução emite chamadas C diretas; as
+verificações de procedência e hierarquia são de tradução. As operações e
+checagens executadas pelo módulo têm o custo documentado pela implementação.
+
+**6. Diagnósticos e limites**
+
+| Diagnóstico atual | Destino proposto |
+| --- | --- |
+| `nonconstant-arena-stack` | adiado junto com `from_stack` |
+| `arena-from-array-not-u8` | exigência de assinatura do construtor da Base; não é uma garantia de procedência |
+| `arena-escape` | `region-escape`, conservando o alcance lexical atual |
+| `child-arena-after-reset` | `child-region-after-invalidation`, conservando o alcance lexical e explicitando a política de `restore` |
+| `byref-param` | preservar mediante mecanismo geral de passagem por referência, independente da alocação |
+| `alloc-overflow` | checagem da implementação de `alloc`; preservar o comportamento documentado de debug e o retorno `NULL` na falha |
+
+A assinatura de `from_array` na Base exige `array u8`. O mecanismo geral de
+parâmetro `array` fornece a extensão; a compatibilidade do elemento é
+validada conforme as regras keel e C aplicáveis. Mover a exigência para a
+assinatura pode mudar a origem e a identificação do diagnóstico, e isso deve
+ser declarado na revisão do catálogo.
+
+Arena hoje é um tipo comum com restrição especial de passagem por valor.
+Remover esse privilégio sem perder `byref-param` exige generalizar a
+propriedade `byref` para tipos comuns. Exigir ponteiro nas operações do
+protocolo não proíbe, por si só, passagem por valor em outras funções.
+A sintaxe dessa generalização permanece aberta.
+
+O programa mantém o armazenamento válido, respeita as marcas e não usa dados
+descartados por `reset` ou `restore`. A verificação não acompanha aliases,
+cópias, parâmetros de saída ou efeitos interprocedurais. Ponteiros derivados
+usados depois da invalidação permanecem fora da garantia quando essas formas
+escapam do reconhecimento atual. Não se promete segurança geral de memória.
+
+#### Impacto editorial e condições de incorporação
+
+| Documento / seção | Alteração necessária |
+| --- | --- |
+| Spec §5.1 | incluir protocolos consumidos por verificações; acrescentar Alocável e Hierarquizável; retirar o privilégio pelo nome `arena` |
+| Spec §5.2 | substituir o contrato específico pelo contrato geral de regiões; mover a descrição concreta para a documentação da Base |
+| Spec §§2.2 e 4.2 | declarar a forma geral de inicializador padrão, depois de escolhida sua sintaxe |
+| Spec §§2.2 e 4.3 | generalizar `byref` para tipos comuns, depois de escolhida sua sintaxe |
+| Spec contrato de análise e resolução (§§1.3, 2.3 e 4.4) | explicitar os papéis de origem e produto usados para transmitir procedência |
+| Spec §6.2 | generalizar escape e invalidação; rever os diagnósticos de `from_stack`, `from_array` e overflow |
+| Spec §§6.3–6.5 | separar garantias gerais de regiões das condições particulares do respaldo da arena |
+| Base | documentar a arena como implementação padrão; preservar checagens de capacidade, overflow, alinhamento e estado vazio |
+| Backend | substituir reconhecimento pelo nome da arena pelos contratos gerais; especificar inicializadores e procedência |
+| Rationale | registrar o motivo da generalização, os limites mantidos e o adiamento de `from_stack` |
+
+Exemplos de `arena.alloc` podem permanecer na spec: passam a exemplificar uma
+biblioteca. `buffer.clone` e `slice.clone` podem continuar recebendo arena;
+generalizá-los para qualquer Alocável depende do futuro `bound`.
+
+**Critério de aceite:** conseguir retirar o reconhecimento de
+`keel.arena` pelo nome, preservando escape de origem local conhecida,
+invalidação de filhas, inicialização padrão e restrição de passagem por valor
+por mecanismos gerais. As exceções adiadas ou alterações de diagnóstico devem
+ser explícitas. Essa proposta não acrescenta análise geral de C.
+
+**Ainda a fechar:** declaração dos papéis de procedência; sintaxe do
+inicializador padrão; aplicação de `byref` a tipos comuns; política lexical
+de `restore`; localização do contrato concreto da arena na documentação da
+Base. Não se deve apresentar esses pontos como já resolvidos por uma simples
+troca de nomes.
 
 ### Construções definidas por módulo (`construct`)
 

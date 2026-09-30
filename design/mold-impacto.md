@@ -33,7 +33,7 @@ seria descartado depois. Este é o argumento principal para não esperar.
 | Prelúdio e posição da chamada | médio a grande | o `walk` hoje não acompanha profundidade de parênteses |
 | Armazenamento sem alocação | médio | o engine não aloca; a expansão precisa de buffers do `tool` |
 | Diagnósticos, dump e testes | pequeno a médio | o catálogo e o `diag_catalog.def` são gerados |
-| Golden | pequeno, mas à mão | c11 e c23 escritos à mão, nunca derivados |
+| Golden | pequeno, mas à mão | c11 e c23 escritos à mão; o 001 não muda de nome, e há um caso novo |
 
 ## 2. Documentação
 
@@ -48,7 +48,7 @@ Cada linha é uma mudança **proposta**; nenhuma está feita.
 | | nova subseção (§4.12, ou dentro de §4.4) | o contrato do molde: parâmetros, expansão, `return`, posição, limites, higiene | proposta em `possibilidades.md` |
 | | §5.1 | a lista do que o núcleo conhece pelo nome perde o `from_stack` e, com os papéis, o resto da arena; papéis de procedência na assinatura | proposta dos papéis |
 | | §5.2 | `from_stack` passa a ser um molde da biblioteca; a regra 10 (procedência) passa a vir dos papéis | |
-| | §6.2 | catálogo: novos `circular-mold`, `mold-depth`, `mold-size`, `mold-position`, `mold-return`, `mold-argument`; sai `nonconstant-arena-stack` (o `nonconstant-dim` cobre o `dim`) | `gen-diags.py` gera o `.def` a partir daqui |
+| | §6.2 | catálogo: novos `circular-mold`, `mold-depth`, `mold-size`, `mold-position`, `mold-return`, `mold-argument`, `mold-reserved-name`; sai `nonconstant-arena-stack` (o `nonconstant-dim` cobre o `dim`) | `gen-diags.py` gera o `.def` a partir daqui |
 | | §6.3 a §6.5 | garantias e limites: a expansão é ficha a ficha; o que duplica código; o que o molde não garante | |
 | `keel-rationale.md` | "Macros e sintaxe de keel" (l. 1412) | reconciliar: a rationale diz que keel evita colagem de fichas e avaliação duplicada, e o molde respeita isso (sem `##`, valor comum avaliado uma vez, higiene) | |
 | | nova seção "Moldes" | o motivo: macros escapam da análise; `template` e `macro` descartados; o `inline` de C não move código para o escopo do chamador | |
@@ -93,7 +93,7 @@ das fichas do fonte, e uma ilha `K_ISLAND_MOLD` guarda o intervalo `[exp_first,
 exp_end)`. O `walk` percorre esse intervalo com o mesmo laço. Como tudo é
 índice de ficha em intervalo semiaberto, isso é coerente com o resto da árvore.
 Uma ficha do corpo é uma fatia do fonte do módulo do molde (mantido vivo pelo
-`KModule.ast`); uma ficha renomeada (`keel__greet0_buf`) não existe em nenhum
+`KModule.ast`); uma ficha renomeada (`keel__buf0`) não existe em nenhum
 fonte, e precisa de um buffer de texto próprio.
 
 **Sem alocação.** O engine não aloca (`lexer.h`, `loader.h`) e segue o
@@ -145,8 +145,9 @@ Isso é estimativa da forma, e não um projeto de função a função.
   de falha por identificador novo. A cobertura do catálogo (hoje 29 de 140) sobe.
 - **Golden:** o caso `001-arena-buffer-defer` usa
   `if (!arena.from_stack(t, 4096)) return ...` (`golden/cases/001-.../app/cfg.k:33`);
-  o esperado dos dois perfis muda o nome `keel__st0` para o esquema do molde.
-  Um caso novo (por exemplo `026-mold`) cobre parâmetro de valor, dois moldes no
+  o esperado **não muda** de nome: o esquema `keel__<local><N>`, com o local
+  `st` no molde, reproduz `keel__st0`. Só a linha da ilha no oráculo de parse
+  muda. Um caso novo (por exemplo `026-mold`) cobre parâmetro de valor, dois moldes no
   mesmo bloco e o prelúdio em posição de statement. Os dois perfis são escritos à
   mão; a skill `cgen-harness-task` cobre o esperado do parser.
 
@@ -172,11 +173,17 @@ ela como uma ilha a mais.
   eu mediria primeiro num protótipo pequeno.
 - **Duplicação de código.** Um parâmetro `keel_code` usado duas vezes duplica o
   fragmento. É aceitável, mas precisa constar nos documentos.
-- **Golden mudando de nome.** `keel__st0` deixa de ser o nome. Manter o nome
-  antigo seria possível com um esquema de nome próprio por molde, ao custo de uma
-  regra a mais. Decisão do André.
-- **Ordem no plano.** Este estudo propõe as fases 0 a 5 antes do M5 (base). Se o
-  plano prefere o M5 primeiro, o `from_stack` especial precisa ser emitido antes
-  e depois removido.
+- **Nome dos locais.** Decidido: manter `keel__st0`. O esquema `keel__<local><N>`
+  divide o espaço de nomes com as demais construções (`keel__n<N>`, `keel__c<N>`,
+  ...), então o local de molde com nome reservado é diagnosticado
+  (`mold-reserved-name`), e o `st` da tabela do backend passa a ser "local `st` de
+  molde". O escopo do contador `N` está por conferir.
+- **`from_array` sobre `unsigned char`.** O `from_stack` emite `unsigned char` de
+  propósito (backend §5.4, item 2) e o `from_array` exige `array u8`: é preciso
+  decidir se o `from_array` aceita tipo-caractere ou se o molde usa um verbo
+  interno sem essa checagem.
+- **Ordem no plano.** Decidido: as fases 0 a 5 vêm antes do M5 (base).
+- **Corpo executável em posição de expressão.** Decidido: recusar, sem função
+  auxiliar.
 - **O que a expansão não cobre:** alias, retorno indireto e efeito
   interprocedural continuam fora do alcance da análise, com ou sem molde.

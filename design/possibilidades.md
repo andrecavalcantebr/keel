@@ -620,6 +620,37 @@ não pode ser escrito. É um **tipo associado** (o `Item` do Rust). `foreach` so
    em `parser_islands.c:656` que já calcula o retorno declarado de um verbo numa
    instância; não verifiquei se serve para o cursor.
 
+**Direção (2026-09-30): a saída 3, com um marcador de keel para o tipo declarado**
+(`keel_declared`, nome provisório; o prefixo `keel_` é reservado e o nome diz o que
+é, ao contrário de `typeof`, que sugere o tipo de uma expressão qualquer, o que
+a §1.3 recusa). O marcador vale no lugar de um tipo e se resolve na tradução para o
+**tipo declarado** de um verbo de keel ou de um símbolo:
+
+```keel
+void fn(Traversable b) {
+    walk (f64 *x, keel_declared(begin(b)) k : b) { /* ... */ }   // declared product of `begin`
+}
+```
+
+- **Só o declarado.** O argumento é uma chamada a verbo de keel (resolvida pela §4.4)
+  ou um símbolo de tipo declarado. Expressão de C e função de C são erro: keel não
+  deduz tipo de expressão. Em instância, o marcador vira o nome do tipo concreto
+  (`keel_buffer_cursor`), escrito no C, e por isso funciona no perfil C11, sem `auto`
+  nem `typeof`.
+- **Em corpo genérico**, o tipo é opaco até a instância: só pode ir aos verbos do
+  protocolo que o recebem (`has_next(b, k)`, `next(b, k)`). Num molde, os tipos dos
+  argumentos já são conhecidos na expansão, então o marcador vale antes das instâncias.
+- **Abreviação nos binders** (a decidir): `walk (keel_declared *x, keel_declared k :
+  b)`, sem argumento, significaria o produto do verbo da própria construção (`next`
+  para o elemento, `begin` para o cursor, `partition` para a partição).
+- **O que resolve.** O tipo do cursor e o da partição (sem nome fixo `cursor`, nem
+  membro de tipo no protocolo); o tipo da entidade que o `alloc` de um pool devolve;
+  o tipo de retorno de um molde; e `outcome keel_declared(...)` para embrulhar o
+  produto de um verbo. A saída 2 deixa de ser necessária.
+- **Limites.** Ciclo (um retorno declarado que depende do marcador dele mesmo) é
+  erro; verbo sobrecarregado resolve pela aridade escrita; o produto de um verbo de
+  C não é conhecido.
+
 **Protocolos da base e o núcleo.** Cada construção do núcleo estabelece o protocolo
 que consome (a tabela acima), e o protocolo é declarado na base, em
 `keel.protocols`. O protocolo é o **contrato** da construção, como a gramática é o

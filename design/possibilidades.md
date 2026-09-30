@@ -597,11 +597,96 @@ invalidação de filhas, inicialização padrão e restrição de passagem por v
 por mecanismos gerais. As exceções adiadas ou alterações de diagnóstico devem
 ser explícitas. Essa proposta não acrescenta análise geral de C.
 
-**Ainda a fechar:** declaração dos papéis de procedência; sintaxe do
+**Ainda a fechar:** declaração dos papéis de procedência (proposta na
+subseção seguinte); sintaxe do
 inicializador padrão; aplicação de `byref` a tipos comuns; política lexical
 de `restore`; localização do contrato concreto da arena na documentação da
 Base. Não se deve apresentar esses pontos como já resolvidos por uma simples
 troca de nomes.
+
+#### Papéis de procedência na assinatura (2026-09-30)
+
+**Status: proposta para discussão, não normativa.** Responde ao primeiro ponto
+de "Ainda a fechar": como um módulo declara a origem e o produto de uma
+construção, sem que o núcleo reconheça funções pelo nome. As grafias `out`,
+`from` e `invalidates` são provisórias.
+
+A assinatura já carrega marcas lidas pela resolução: `type T` (§4.4) e `byref`
+(§4.3). Os papéis são da mesma família: **a assinatura declara, e o núcleo
+verifica os pontos de uso.**
+
+```keel
+module keel.arena;
+
+pub bool from_array (out arena *a, from array u8 v);
+pub bool from_parent(out arena *a, from arena *parent, size_t n);
+pub bool from_memory(out arena *a, u8 *p, size_t n);   // no `from`
+pub T   *alloc      (from arena *a, type T, size_t n);
+pub void reset      (invalidates arena *a);
+pub void restore    (invalidates arena *a, size_t m);
+```
+
+1. **Produto.** É o retorno, ou o parâmetro marcado `out`. Um verbo tem no
+   máximo um produto.
+2. **`from`.** O produto depende do argumento: sua memória vive na origem e
+   ele morre quando a origem é invalidada. Numa chamada com símbolo conhecido
+   nessa posição, o núcleo registra a procedência do argumento no produto e uma
+   aresta de dependência do produto para a origem. Vários `from` unem as
+   procedências.
+3. **Raiz.** A única raiz é o `array` do núcleo. Ele é local se a duração é
+   automática, e a duração vem da declaração. Todo o resto vem por transmissão
+   pelo `from`. Um molde de `construct` que expande `array u8 tmp[N]` e chama
+   `from_array` recebe a procedência local por esta regra, sem regra própria:
+   é assim que o `from_stack` adiado poderia voltar como biblioteca.
+4. **`invalidates`.** A operação invalida o argumento e, transitivamente, tudo
+   o que depende dele pelas arestas. O uso posterior de um dependente
+   conhecido, no mesmo escopo, produz `child-region-after-invalidation`. Para
+   `restore`, vale a política conservadora da proposta acima.
+5. **Estados da procedência.** Dois: *local conhecida* e *sem garantia*. Só o
+   primeiro produz `region-escape` no retorno. O segundo cobre a origem
+   externa (verbo com `out` e sem `from`, como `from_memory`), a reatribuição
+   sem procedência, o argumento que não é símbolo conhecido e a expressão C.
+   Sem garantia não equivale a válida. Distinguir a origem externa declarada
+   da perdida só teria consumidor num modo estrito ("avise quando a origem for
+   desconhecida"), e fica como extensão.
+6. **Confiança.** Os papéis são declaração do autor do módulo. Corpo C opaco
+   não é verificado: uma assinatura que mente não é detectada. A garantia vale
+   só para o que a declaração afirma.
+
+**Protocolos definidos pelos papéis.** Hierarquizável é o módulo com um verbo
+`out T` + `from T` do mesmo tipo e um `invalidates T`. Alocável é o módulo com
+um verbo de retorno `from T` e um `invalidates T`. O núcleo deixa de casar
+`alloc` e `reset` pelo nome. Isso substitui, nesta proposta, a definição por
+lista de verbos da tabela dos protocolos.
+
+**Efeitos sobre o catálogo.** `arena-from-array-not-u8` vira a checagem
+comum do tipo do parâmetro `array u8`. `buffer.clone(from arena *a, …)`
+declara o papel na assinatura, sem depender do `bound`; generalizar o tipo de
+`a` segue dependendo dele. Alias, struct, retorno indireto e efeito
+interprocedural continuam fora do alcance.
+
+**`from` único, ou um papel por espécie.** O `from` reúne dois fatos: o
+armazenamento (a localidade que alimenta o escape) e a validade (a aresta que
+alimenta a invalidação). Para a arena, os dois coincidem. Divergem quando há
+dependência sem memória emprestada, como uma sessão filha sem `alloc`, e
+quando há memória emprestada sem invalidação, como um `slice` sobre `static`.
+Ficou o `from` único: o primeiro caso é hipotético hoje, e um papel só de
+validade (`under`, nome provisório) entra depois sem quebrar assinaturas, com
+`from` continuando a valer pelos dois.
+
+Abertos:
+
+- **`from_stack` como molde.** Precisa declarar `tmp` no escopo do uso, e não
+  num bloco próprio, como o `for` do `foreach`. Além disso, `arena.from_stack(a,
+  N)` é chamada qualificada, e a forma fixa do `construct`
+  (`palavra ( binders : expressões ) { bloco }`) não a cobre.
+- **Grafias.** `out`, `from` e `invalidates` são contextuais: valem só na lista
+  de parâmetros de um verbo, e precisam ser conferidos contra o mar de C
+  (spec §1.4).
+- **Verbos sem produto** que só invalidam, mas cujo argumento não é o receptor
+  (por exemplo, `clear(b)` sobre um `buffer` com `slice` derivados): entram
+  pelo mesmo `invalidates`, e o caso das visões sobre `buffer` fica registrado
+  como vizinho, sem estar incluído.
 
 ### Construções definidas por módulo (`construct`)
 

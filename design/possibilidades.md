@@ -1111,10 +1111,60 @@ i)` (e o verbo `ptr(x)` de aridade um já existe nas instâncias, backend §2.1.
   operador que restam são o índice e a região. Só reavaliar se o uso mostrar que o
   verbo é pesado demais.
 
-**A estudar.** Se o ganho compensa o esforço: o handle só cobre o uso pelos verbos
-dele, em troca de três palavras por ponteiro, e a cultura de DOD de keel já
-prefere índices a ponteiros. Um índice geracional (um `u32` e uma geração em
-tabela) é a alternativa, e custa menos por referência.
+**Desenho preferido: índice geracional sobre um alocador de slots.** O handle com
+ponteiro é a versão sobre arena. O ponto de chegada é o que o DOD já pratica: uma
+referência por **índice e geração** a um alocador de slots (`pool`), no estilo de
+uma entidade. O handle passa a guardar só `{ index, gen }`, sem ponteiro:
+
+```keel
+module keel.pool type T;
+
+modifier pool byref { /* slot array, per-slot generation, free list */ }
+modifier entity { u32 index; u32 gen; }                   // no pointer: 8 bytes
+
+pub child entity alloc(parent pool *p);                   // takes a slot
+pub void free(parent pool *p, invalidates entity e);      // frees ONE element
+pub void reset(invalidates pool *p);                      // invalidates the whole pool
+pub T *ref ptr(parent pool *p, entity e);                 // checks the generation
+```
+
+- **Por que melhora o handle.** A referência custa 8 bytes, e não três palavras;
+  não guarda endereço, então sobrevive ao crescimento do array de slots (o ponteiro
+  do handle ficaria pendurado); e é relocável e serializável, como os elos por
+  índice da entrada sobre estruturas flat.
+- **`free` e `reset` são verbos diferentes.** `reset` é o recolhimento em lote, o
+  mesmo dos protocolos de alocação e de hierarquia (`reset(invalidates T *a)`):
+  invalida a região e tudo o que depende dela. A liberação de **um** elemento é o
+  `free`, com `invalidates` sobre o **argumento** `e`, e não sobre o pool. Dar o
+  mesmo nome às duas (`reset(p)` e `reset(p, e)`) é possível pela aridade (backend
+  §2.1.1, sufixo), mas o mesmo verbo com raios de invalidação tão diferentes
+  esconde o custo, e keel escolheu o lote para o `reset` (a filosofia é a de muitos).
+- **Estático.** `invalidates` sobre `e` faz do uso de `e` depois do `free`, no mesmo
+  escopo, um `child-region-after-invalidation`, e o mesmo vale para os `T *ref`
+  derivados dele. Cópias de `e` não são seguidas na análise lexical.
+- **Em execução.** `ptr` compara a geração do slot com a de `e`: pega o uso de uma
+  cópia depois do `free`, o que a análise lexical não alcança. É a mesma divisão
+  em duas camadas do resto. A detecção é exata por elemento, e não grossa por
+  época da região.
+- **Protocolos.** O `pool` é um Alocável (`alloc` e `reset`) com um `free` a mais.
+  Em vez de ampliar o Alocável, um protocolo composto, pela lista entre colchetes:
+  `protocol Freeable [Allocatable] { pub void free(parent T *p, invalidates
+  Entity e); }`. Falta decidir o nome e como o protocolo nomeia o tipo da entidade
+  (tipo associado).
+- **Custo, especificado por módulo.** Alocar e liberar em tempo constante com lista
+  livre; uma comparação por `ptr`; `reset` em tempo constante com uma época do pool
+  junto da geração do slot, ou linear, subindo a geração de cada slot. A geração de
+  32 bits dá a volta depois de 2^32 liberações do mesmo slot, e o comportamento
+  nessa volta deve ser especificado (ou alargar a geração).
+
+Limites: o `T *ref` obtido por `ptr` tem a mesma restrição do handle: copiar para
+um `T *` cru escapa da análise; e a arena não tem esse desenho, porque não libera
+elemento individual.
+
+**A estudar.** Se o ganho compensa o esforço: o handle com ponteiro só cobre o uso
+pelos verbos dele, em troca de três palavras por ponteiro, e a cultura de DOD de
+keel já prefere índices a ponteiros. O índice geracional acima custa menos por
+referência e cobre mais, e é o desenho que eu estudaria primeiro.
 
 #### Moldes: a marca `keel_code` (2026-09-30)
 

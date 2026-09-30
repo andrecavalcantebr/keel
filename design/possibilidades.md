@@ -1085,6 +1085,32 @@ pub T get(handle h);                                // checks the generation
   campo de instância de outro módulo é diagnosticado (`instance-field-access`). A
   arena teria de expor a época por um verbo público.
 
+**Ideia: `*` e `->` como açúcar sobre o handle.** Como o acesso é por verbo, `*h`
+poderia ser reescrito para `*handle.ptr(h)` e `h->f` para `handle.ptr(h)->f`, com o
+`ptr` expandido em linha. É a mesma forma de `x[i]`, que já é açúcar sobre `ptr(x,
+i)` (e o verbo `ptr(x)` de aridade um já existe nas instâncias, backend §2.1.1).
+
+- **`&h` não muda.** Seria ambíguo (o endereço do struct, para passar por
+  referência, ou o do ponteiro que ele guarda), mas o primeiro é o de C e não pede
+  reescrita; o segundo é `handle.ptr(h)`, por verbo. Keel nunca reescreve `&`.
+- **O ponteiro devolvido é `ref`.** `T *ref p = handle.ptr(h)`: o `ref` da spec
+  (§4.2) já proíbe aritmética (`ref-arithmetic`), exige inicialização, desaparece no
+  C, e dá ao ponteiro um símbolo conhecido. Com o papel `child` em `ptr`, esse
+  símbolo é filho do handle e, por ele, da arena, então o uso depois do `reset` é
+  seguido na análise lexical. A restrição vale para o símbolo declarado, "sem seguir
+  cópias do endereço" (spec §4.2, item 15): copiar para um `T *` cru escapa.
+- **Custo no núcleo.** O açúcar acrescenta ao núcleo uma terceira sintaxe de
+  operador (o `*` unário e o `->`), ao lado do índice `[i, j]` e da região
+  `[a..b]`, que são as duas que restam na síntese acima. O `*` unário é ambíguo com
+  a multiplicação e com o declarador (`T *h`, com `T` um tipo C que keel não
+  resolve), e um molde não serve: ele tem a forma de chamada, e não reescreve
+  operador. Em contrapartida, o custo da comparação de geração fica escondido atrás
+  de um `*`, como o da verificação de limite atrás de um `x[i]`.
+- **Inclinação.** Não acrescentar o açúcar: `handle.ptr(h)` já dá o mesmo sem
+  ampliar o núcleo, e a síntese do núcleo reduzido diz que as duas sintaxes de
+  operador que restam são o índice e a região. Só reavaliar se o uso mostrar que o
+  verbo é pesado demais.
+
 **A estudar.** Se o ganho compensa o esforço: o handle só cobre o uso pelos verbos
 dele, em troca de três palavras por ponteiro, e a cultura de DOD de keel já
 prefere índices a ponteiros. Um índice geracional (um `u32` e uma geração em

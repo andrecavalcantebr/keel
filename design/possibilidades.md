@@ -608,85 +608,88 @@ troca de nomes.
 
 **Status: proposta para discussão, não normativa.** Responde ao primeiro ponto
 de "Ainda a fechar": como um módulo declara a origem e o produto de uma
-construção, sem que o núcleo reconheça funções pelo nome. As grafias `out`,
-`from` e `invalidates` são provisórias.
+construção, sem que o núcleo reconheça funções pelo nome. As grafias `child`,
+`parent` e `invalidates` são provisórias. (Uma versão anterior deste texto usava
+`out` e `from`; `out` sugeria parâmetro de saída, que é uma questão de passagem,
+e não da relação.)
 
 A assinatura já carrega marcas lidas pela resolução: `type T` (§4.4) e `byref`
 (§4.3). Os papéis são da mesma família: **a assinatura declara, e o núcleo
-verifica os pontos de uso.**
+verifica os pontos de uso.** Os papéis nomeiam a relação que existe entre o que
+a chamada recebe e o que ela produz: uma dependência de pai para filho.
 
 ```keel
 module keel.arena;
 
-pub bool from_array (out arena *a, from array u8 v);
-pub bool from_parent(out arena *a, from arena *parent, size_t n);
-pub bool from_memory(out arena *a, u8 *p, size_t n);   // no `from`
-pub T   *alloc      (from arena *a, type T, size_t n);
+pub bool from_array (child arena *a, parent array u8 v);
+pub bool from_parent(child arena *a, parent arena *p, size_t n);
+pub bool from_memory(child arena *a, u8 *p, size_t n);   // no `parent`
+pub child T *alloc  (parent arena *a, type T, size_t n);
 pub void reset      (invalidates arena *a);
 pub void restore    (invalidates arena *a, size_t m);
 ```
 
-1. **Produto.** É o retorno, ou o parâmetro marcado `out`. Um verbo tem no
-   máximo um produto.
-2. **`from`.** O produto depende do argumento: sua memória vive na origem e
-   ele morre quando a origem é invalidada. Numa chamada com símbolo conhecido
-   nessa posição, o núcleo registra a procedência do argumento no produto e uma
-   aresta de dependência do produto para a origem. Vários `from` unem as
-   procedências.
+1. **Filha.** É o parâmetro marcado `child`, ou o retorno marcado `child`. Um
+   verbo pode ter várias filhas (`split(parent a, child b, child c)`), e cada
+   uma depende de todos os pais.
+2. **Pai.** A filha depende do argumento marcado `parent`: sua memória vive nele
+   e ela morre quando ele é invalidado. Numa chamada com símbolo conhecido nessa
+   posição, o núcleo registra a procedência do pai na filha e uma aresta de
+   dependência da filha para o pai. Vários pais unem as procedências.
 3. **Raiz.** A única raiz é o `array` do núcleo. Ele é local se a duração é
    automática, e a duração vem da declaração. Todo o resto vem por transmissão
-   pelo `from`. Um molde de `construct` que expande `array u8 tmp[N]` e chama
-   `from_array` recebe a procedência local por esta regra, sem regra própria:
-   é assim que o `from_stack` adiado poderia voltar como biblioteca.
+   pelo `parent`. Um verbo inline que declara `array u8 tmp[N]` e chama
+   `from_array` recebe a procedência local por esta regra, sem regra própria: é
+   assim que o `from_stack` adiado poderia voltar como biblioteca.
 4. **`invalidates`.** A operação invalida o argumento e, transitivamente, tudo
-   o que depende dele pelas arestas. O uso posterior de um dependente
-   conhecido, no mesmo escopo, produz `child-region-after-invalidation`. Para
-   `restore`, vale a política conservadora da proposta acima.
+   o que depende dele pelas arestas. O uso posterior de uma filha conhecida, no
+   mesmo escopo, produz `child-region-after-invalidation`. Para `restore`, vale
+   a política conservadora da proposta acima.
 5. **Estados da procedência.** Dois: *local conhecida* e *sem garantia*. Só o
-   primeiro produz `region-escape` no retorno. O segundo cobre a origem
-   externa (verbo com `out` e sem `from`, como `from_memory`), a reatribuição
-   sem procedência, o argumento que não é símbolo conhecido e a expressão C.
-   Sem garantia não equivale a válida. Distinguir a origem externa declarada
-   da perdida só teria consumidor num modo estrito ("avise quando a origem for
-   desconhecida"), e fica como extensão.
+   primeiro produz `region-escape` no retorno. O segundo cobre a filha sem pai
+   declarado (como em `from_memory`), a reatribuição sem procedência, o
+   argumento que não é símbolo conhecido e a expressão C. Sem garantia não
+   equivale a válida. Distinguir a origem externa declarada da perdida só teria
+   consumidor num modo estrito ("avise quando a origem for desconhecida"), e
+   fica como extensão.
 6. **Confiança.** Os papéis são declaração do autor do módulo. Corpo C opaco
    não é verificado: uma assinatura que mente não é detectada. A garantia vale
    só para o que a declaração afirma.
 
 **Protocolos definidos pelos papéis.** Hierarquizável é o módulo com um verbo
-`out T` + `from T` do mesmo tipo e um `invalidates T`. Alocável é o módulo com
-um verbo de retorno `from T` e um `invalidates T`. O núcleo deixa de casar
-`alloc` e `reset` pelo nome. Isso substitui, nesta proposta, a definição por
-lista de verbos da tabela dos protocolos.
+`child T` + `parent T` do mesmo tipo e um `invalidates T`. Alocável é o módulo
+com um verbo de retorno `child` cujo pai é `T` e um `invalidates T`. O núcleo
+deixa de casar `alloc` e `reset` pelo nome. Isso substitui, nesta proposta, a
+definição por lista de verbos da tabela dos protocolos.
 
 **Efeitos sobre o catálogo.** `arena-from-array-not-u8` vira a checagem
-comum do tipo do parâmetro `array u8`. `buffer.clone(from arena *a, …)`
+comum do tipo do parâmetro `array u8`. `buffer.clone(parent arena *a, …)`
 declara o papel na assinatura, sem depender do `bound`; generalizar o tipo de
 `a` segue dependendo dele. Alias, struct, retorno indireto e efeito
 interprocedural continuam fora do alcance.
 
-**`from` único, ou um papel por espécie.** O `from` reúne dois fatos: o
+**`parent` único, ou um papel por espécie.** O `parent` reúne dois fatos: o
 armazenamento (a localidade que alimenta o escape) e a validade (a aresta que
 alimenta a invalidação). Para a arena, os dois coincidem. Divergem quando há
 dependência sem memória emprestada, como uma sessão filha sem `alloc`, e
 quando há memória emprestada sem invalidação, como um `slice` sobre `static`.
-Ficou o `from` único: o primeiro caso é hipotético hoje, e um papel só de
-validade (`under`, nome provisório) entra depois sem quebrar assinaturas, com
-`from` continuando a valer pelos dois.
+Ficou o `parent` único: o primeiro caso é hipotético hoje, e um papel só de
+validade (nome provisório) entra depois sem quebrar assinaturas, com `parent`
+continuando a valer pelos dois.
 
 Abertos:
 
-- **`from_stack` como molde.** Precisa declarar `tmp` no escopo do uso, e não
-  num bloco próprio, como o `for` do `foreach`. Além disso, `arena.from_stack(a,
-  N)` é chamada qualificada, e a forma fixa do `construct`
-  (`palavra ( binders : expressões ) { bloco }`) não a cobre.
-- **Grafias.** `out`, `from` e `invalidates` são contextuais: valem só na lista
-  de parâmetros de um verbo, e precisam ser conferidos contra o mar de C
-  (spec §1.4).
-- **Verbos sem produto** que só invalidam, mas cujo argumento não é o receptor
-  (por exemplo, `clear(b)` sobre um `buffer` com `slice` derivados): entram
-  pelo mesmo `invalidates`, e o caso das visões sobre `buffer` fica registrado
-  como vizinho, sem estar incluído.
+- **`from_stack`.** Como verbo inline, na seção seguinte.
+- **Palavras contextuais.** `child`, `parent` e `invalidates` valem só na lista
+  de parâmetros de um verbo, mas `parent` e `child` são identificadores comuns em
+  C de árvore e lista. A spec dá erro para `#define` de palavra contextual
+  (`define-over-keel-name`, §2.5): é preciso decidir se as palavras de papel
+  entram nessa regra, e dizer que o programa perde esses nomes de macro se
+  entrarem. Conferir também contra o mar de C (spec §1.4).
+- **Verbos que só invalidam**, mas cujo argumento não é o receptor (por
+  exemplo, `clear(b)` sobre um `buffer` com `slice` derivados): entram pelo
+  mesmo `invalidates`, e o caso das visões sobre `buffer` fica registrado como
+  vizinho, sem estar incluído.
 
 #### Verificação em execução da invalidação: campos explícitos (2026-09-30)
 
@@ -698,21 +701,32 @@ interprocedural), pelos verbos do descritor.
 Não exige mecanismo no núcleo. `alloc`, `reset` e os construtores já são
 código do módulo, e o módulo faz a checagem no corpo, com `KEEL_CHECK`, como
 faz com `alloc-overflow`. O modelo é o do `extent`: o módulo **declara** numa
-lista os campos de controle (ponteiro para o pai, época) e escreve as
-atualizações no corpo dos verbos. Nada é gerado por conta própria. No máximo, o
-núcleo confere que os campos citados pelos papéis existem.
+lista os campos de controle e escreve as atualizações no corpo dos verbos. Nada
+é gerado por conta própria. No máximo, o núcleo confere que os campos citados
+existem.
+
+A lista seria ordenada, pai primeiro e filha depois, separando o que cada lado
+guarda. Uma leitura, a confirmar:
+
+```keel
+control (parent: epoch; child: link, stamp);
+```
+
+O pai tem a `epoch`, incrementada pelas operações `invalidates`. A filha tem o
+ponteiro `link` para o pai e o `stamp` com a época dele na construção. Na arena,
+pai e filha são o mesmo tipo, e os três campos moram no mesmo `struct`:
 
 ```c
 /* arena descriptor with the optional control fields */
 typedef struct keel_arena {
     size_t top, cap;
     u8    *ptr;
-    struct keel_arena *parent;   /* optional */
-    size_t epoch;                /* optional: reset and restore increment it */
-    size_t parent_epoch;         /* optional: parent's epoch at construction */
+    struct keel_arena *link;     /* optional (child) */
+    size_t epoch;                /* optional (parent): reset and restore increment it */
+    size_t stamp;                /* optional (child): parent's epoch at construction */
 } keel_arena;
 /* every verb of the child: */
-KEEL_CHECK(a->parent == NULL || a->parent->epoch == a->parent_epoch,
+KEEL_CHECK(a->link == NULL || a->link->epoch == a->stamp,
            "child-region-after-invalidation");
 ```
 
@@ -732,10 +746,10 @@ KEEL_CHECK(a->parent == NULL || a->parent->epoch == a->parent_epoch,
   correto, o que é pior que o erro de tradução conservador. A versão precisa
   compara o fim da filha com o topo do pai, e não está desenhada.
 
-Abertos: a sintaxe da lista de campos de controle; se os papéis (`from`,
-`invalidates`) devem citá-los; a política de `restore` em execução.
+Abertos: a sintaxe da lista de campos de controle e se a leitura acima é a
+pretendida; se os papéis devem citá-los; a política de `restore` em execução.
 
-#### Verbos inline e o marcador `code` (2026-09-30)
+#### Verbos inline e o marcador `keel_code` (2026-09-30)
 
 **Status: proposta para discussão, não normativa.** Nasce da pergunta de como
 a biblioteca escreve o que hoje o cgen faz à mão, como o vetor `keel__st<N>`
@@ -753,14 +767,18 @@ tipo, e de `array`, marcador do núcleo.
 **Verbo inline.** Mantém a chamada `m.f(args)` e a resolução normal (§4.4):
 
 ```keel
-pub inline bool from_stack(out arena *a, constexpr size_t N) {
+pub inline bool from_stack(child arena *a, keel_const size_t N) {
     array u8 tmp[N];               // keel `array`, not pasted C
     return from_array(a, tmp);
 }
 ```
 
-- O corpo é keel. `constexpr size_t N` é um parâmetro de valor conhecido na
-  tradução, como `type T` é um de tipo (grafia provisória).
+- O corpo é keel. `keel_const size_t N` é um parâmetro de valor conhecido na
+  tradução, como `type T` é um de tipo. A grafia é provisória. Não pode ser o
+  `constexpr` de C23, que só vale para objetos e é erro em parâmetro de função.
+  A alternativa é reaproveitar o contrato do `dim` (literal decimal, ou
+  `constexpr` de inicializador decimal conhecido; a spec diz que keel não
+  calcula expressões, §4.2 e §4.3).
 - A injeção tem a forma **prelúdio + expressão**: as declarações sobem para o
   escopo do chamador, antes do statement que contém a chamada, e a expressão
   substitui a chamada.
@@ -769,26 +787,30 @@ pub inline bool from_stack(out arena *a, constexpr size_t N) {
   (`size_t n = length(c)`) quebraria a ordem de avaliação em `a && f()`:
   proponho valer só em posição de statement, com diagnóstico em posição de
   expressão.
-- **Procedência.** O `array` injetado é uma raiz local pelo núcleo, e o `from`
-  do `from_array` a transmite: o escape sai da regra geral, sem regra própria
-  do `from_stack`.
+- **Procedência.** O `array` injetado é uma raiz local pelo núcleo, e o
+  `parent` do `from_array` a transmite: o escape sai da regra geral, sem regra
+  própria do `from_stack`.
 - **Recursão.** Inline chamando inline precisa ser acíclico, como o
   `circular-generic`.
 - Os diagnósticos do código expandido apontam para o ponto de uso (backend §6).
   A emissão tem de reproduzir a do golden, como `keel__st0` hoje.
 
-**Marcador `code`.** Seria um parâmetro cujo argumento é um **fragmento keel**
-(um bloco ou uma expressão), no molde de `type T`. Só faz falta na forma com
-bloco (`foreach`, `walk`, `apply`), que pede a sintaxe fixa
+**Marcador `keel_code`.** É um parâmetro cujo argumento é um **fragmento keel**
+(um bloco ou uma expressão), no molde de `type T` e de `array`: o terceiro
+marcador de parâmetro. O nome diz que **não é código C**, e o prefixo `keel_`
+já é reservado (backend §3, item 3): o programa não declara identificadores com
+ele, e `#define keel_code` já é `define-over-keel-name`, então o marcador não
+colide com nome de usuário nem de macro. Só faz falta na forma com bloco
+(`foreach`, `walk`, `apply`), que pede a sintaxe fixa
 `palavra ( binders : expressões ) { bloco }` da seção seguinte. Fica para depois
 do verbo inline, porque é onde o `construct` completo começa.
 
 Ordem sugerida: papéis de procedência, depois o verbo inline, depois o
-marcador `code` e a forma com bloco. Enquanto isso, o `from_stack` continua
-como está na v0.
+marcador `keel_code` e a forma com bloco. Enquanto isso, o `from_stack`
+continua como está na v0.
 
-Abertos: a grafia de `inline` e de `constexpr` em parâmetro; se o prelúdio
-admite statements além de declarações (e onde); como o argumento `code` é
+Abertos: a grafia de `inline` e de `keel_const`; se o prelúdio admite
+statements além de declarações (e onde); como o argumento `keel_code` é
 delimitado no ponto de uso.
 
 ### Construções definidas por módulo (`construct`)

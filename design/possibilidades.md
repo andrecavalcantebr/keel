@@ -530,6 +530,64 @@ Abertos:
   incomodar, o `type T` do protocolo poderia aparecer no uso (`Indexable i32 b`),
   ao custo de um argumento a mais em cada uso.
 
+**As construções do núcleo consomem os protocolos (2026-09-30).** A spec §5.1 já
+define sete protocolos, cada um como o conjunto de verbos que uma construção do
+núcleo exige. Declarados como protocolos nominais, eles passam a ser o contrato
+das construções, e o módulo que os declara tem de estar na base (`base/keel/
+protocols.k`, módulo `keel.protocols`):
+
+| Protocolo (spec) | Nome proposto | Verbos | Construção | Declarado por |
+| --- | --- | --- | --- | --- |
+| Indexável | `Indexable` | `length`, `ptr(x, i)` (`get` no `foreach` de binder por valor) | `x[i]`, `foreach` de dois binders | `buffer`, `slice` |
+| Fatiável | `Sliceable` | `length`, `as_slice(x, a, b)` | `x[a..b]` | `array`, `buffer`, `slice` |
+| Percorrível | `Traversable` | `begin`, `has_next`, `next` | `walk` | `buffer`, `slice` |
+| Particionável | `Partitionable` | `partition` | `parallel` | `buffer`, `slice`, `range` |
+| Contável | `Countable` | `first`, `limit` | `foreach` de um binder | `range` |
+| Etiquetado | `Taggable` | `tag` | `match` | `tagged`, `corot` |
+| Falível | `Failable` | `failed`, `win` | `else` | `outcome` |
+
+`length` está em `Indexable` e em `Sliceable`: o losango da composição vale, com a
+mesma assinatura. Os nomes em inglês são propostas; `Taggable` evita a confusão
+com o módulo `keel.tagged`.
+
+**Por que isso importa.** A regra 6 (só os verbos do protocolo sobre `b`) só é
+coerente se os verbos que uma construção usa estão **dentro** do protocolo dela:
+`foreach (T x : b)` sobre `b: Indexable` vale porque `length` e `ptr` são de
+`Indexable`. Definir a construção pelo protocolo é o que faz as duas coisas
+coincidirem, e substitui os diagnósticos escritos à mão de cada construção por
+`protocol-not-satisfied`.
+
+**Conflito com a spec §5.1, regra 1.** Hoje: "Declarar os verbos de um
+protocolo basta para participar da construção correspondente. Não há registro,
+marcação nem permissão." A cláusula `protocol` é um registro. Duas saídas:
+
+- **Híbrida (inclinação).** As construções continuam resolvendo pelos verbos, como
+  hoje, e a regra 1 não muda. A cláusula só é exigida para o tipo ser passado como
+  argumento de protocolo. Nada quebra. Custo: um tipo com os verbos e sem a
+  cláusula serve ao `foreach` direto e não serve a `fn(Indexable b)`.
+- **Nominal em tudo.** As construções também exigem a cláusula. O diagnóstico é
+  melhor ("`Foo` não é `Traversable`"), mas quebra: os módulos do programa que
+  implementam por estrutura precisam da cláusula. No golden, `019-walk/lst.k`,
+  `022-linux-list-import-c/tasks.k`, `023-linux-list-extern-c/tasks.k` e
+  `024-linux-list-module/tasks.k` declaram `begin`, `has_next` e `next` sem ela.
+
+**Tipos que o usuário escreve.** `walk` exige que o usuário escreva o tipo do
+cursor, que "é o produto declarado de `begin`" (spec §4.7: `walk (i32 *p,
+buffer.cursor c : xs)`), e o binder de `parallel` escreve o tipo da partição.
+Num corpo genérico, `fn(Traversable b)`, o tipo do cursor depende do argumento e
+não pode ser escrito. É um **tipo associado** (o `Item` do Rust). `foreach` sobre
+`Indexable` não tem o problema, porque o tipo do elemento é escrito pelo corpo
+(`f64 *x`). Saídas: recusar `walk` e `parallel` sobre parâmetro de protocolo na
+primeira versão; ou declarar o tipo no protocolo e nomeá-lo no corpo; ou permitir
+omitir o tipo do cursor quando o contêiner é de protocolo.
+
+**O que o núcleo conhece pelo nome (§5.1).** A lista ganha `keel.protocols`: as
+construções consultam os seus protocolos por nome, como `x[a..b]` consulta o
+`as_slice` de `keel.array`. Troca-se um contrato que estava só na documentação por
+um declarado. `array` participa de `Indexable` pelo núcleo, sem módulo de verbos, e
+não tem descritor (a extensão é um `dim` em tempo de tradução): não deve ser
+argumento de parâmetro de protocolo na primeira versão.
+
 ### Protocolos de alocação e de hierarquia: Alocável e Hierarquizável
 
 Hoje o núcleo trata a arena pelo nome: registra a procedência (spec §5.2, regra

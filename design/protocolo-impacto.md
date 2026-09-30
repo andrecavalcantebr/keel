@@ -22,7 +22,8 @@ O protocolo nominal tem quatro partes, com dependências diferentes:
 3. **O parâmetro de função tipado por protocolo**, e a verificação no uso.
 4. **A instância da função**, por tipo concreto do argumento.
 
-As partes 1 e 2 **não precisam de instâncias**. Só as partes 3 e 4 dependem da
+Há ainda o efeito sobre as **construções do núcleo** (§7), que muda o que a
+spec §5.1 diz. As partes 1 e 2 **não precisam de instâncias**. Só as partes 3 e 4 dependem da
 análise de corpo por instância, que ainda não existe. Isso dá uma ordem natural:
 1 e 2 podem ser feitas antes do M5, e 3 e 4 depois.
 
@@ -45,7 +46,8 @@ Cada linha é uma mudança **proposta**; nenhuma está feita.
 | | §2.3 | a chamada a uma função com parâmetro de protocolo é ilha |
 | | §4.3 | a cláusula `protocol` **não é binder**: não entra na aridade dos modificadores (l. 758); a regra 7 (o `T` opaco, l. 773) continua para o módulo genérico |
 | | §4.4 | a resolução do verbo pelo tipo do contêiner passa a considerar o tipo protocolo no corpo da função (só os verbos do protocolo) |
-| | §5.1 | os protocolos deixam de ser só estruturais e de documentação: declaração, módulo da base (`keel.protocols`), quais módulos os implementam |
+| | §5.1 | os sete protocolos (tabela "Verbos exigidos por construção") passam a ser declarados em `keel.protocols`, com a coluna "Declarado na base por" virando a cláusula das linhas `module`; a regra 1 ("Declarar os verbos basta... Não há registro, marcação nem permissão") muda ou não conforme a saída (§7); a lista "O que o núcleo conhece pelo nome" ganha `keel.protocols` |
+| | §§4.5 a 4.9, 5.3 a 5.7 | as construções (`x[i]`, `x[a..b]`, `foreach`, `walk`, `parallel`, `match`, `else`) passam a citar o protocolo; os diagnósticos de conformidade escritos à mão viram `protocol-not-satisfied` |
 | | §5.2 | os protocolos de alocação e hierarquia definidos por papéis de procedência |
 | | §6.2 | catálogo: `protocol-not-satisfied`, `protocol-verb-missing`, `verb-not-in-protocol`, `protocol-verb-conflict`, `circular-protocol`, `instance-depth`; o `protocol-on-parameter` continua para o parâmetro de tipo do módulo genérico |
 | `keel-rationale.md` | nova seção "Protocolos" | nominal, sem `bound`, regra da orientação a objetos, exaustividade sem tipos C, sem transitividade, por que não é o molde |
@@ -182,3 +184,66 @@ As fases 0 a 2 vêm antes do M5. As fases 3 e 4 vêm depois.
   atrasa.
 - **O que a verificação não cobre:** tipos C e de retorno dos verbos, e a
   existência do corpo: isso é do compilador C.
+
+## 7. As construções do núcleo consomem os protocolos
+
+A spec §5.1 já define sete protocolos (Indexável, Fatiável, Percorrível,
+Particionável, Contável, Etiquetado, Falível). Declará-los como protocolos
+nominais, em `base/keel/protocols.k`, torna-os o contrato das construções. A
+tabela de nomes e os verbos estão em `possibilidades.md`, na entrada "Protocolo
+nominal".
+
+**Por que entra no mesmo estudo.** A regra "só os verbos do protocolo sobre `b`"
+só é coerente se os verbos de uma construção estão dentro do protocolo dela. Sem
+isso, `foreach (T x : b)` sobre um parâmetro `Indexable` não teria como ser
+verificado na declaração.
+
+**Módulos da base que passam a declarar** (a coluna "Declarado na base por" da
+spec §5.1 vira a cláusula `protocol` da linha `module`):
+
+| Módulo | Cláusula proposta |
+| --- | --- |
+| `keel.buffer`, `keel.slice` | `protocol Indexable, Sliceable, Traversable, Partitionable` |
+| `keel.range` | `protocol Partitionable, Countable` |
+| `keel.array` | `protocol Sliceable` (e `Indexable` pelo núcleo) |
+| `keel.tagged`, `keel.corot` | `protocol Taggable` |
+| `keel.outcome` | `protocol Failable` |
+
+**Dois efeitos que precisam de decisão.**
+
+1. **A regra 1 da §5.1.** "Declarar os verbos basta; não há registro, marcação nem
+   permissão." A cláusula `protocol` é um registro. Na saída **híbrida** (a que eu
+   prefiro), as construções continuam resolvendo pelos verbos e a regra 1 não
+   muda; a cláusula só é exigida para passar o tipo como argumento de protocolo. Na
+   saída **nominal em tudo**, as construções também a exigem, e quebram quatro
+   fontes do golden que implementam `begin`, `has_next` e `next` por estrutura:
+   `019-walk/lst.k`, `022-linux-list-import-c/tasks.k`,
+   `023-linux-list-extern-c/tasks.k`, `024-linux-list-module/tasks.k`. O esperado
+   dessas não muda de nome nem de conteúdo: só o `.k` ganha a cláusula. Como o golden
+   é normativo, isso é uma decisão do André.
+2. **Tipo associado.** O `walk` exige que o usuário escreva o tipo do cursor, "o
+   produto declarado de `begin`" (spec §4.7), e o binder de `parallel` escreve o
+   tipo da partição. Num corpo genérico sobre `Traversable` ou `Partitionable`,
+   esse tipo depende do argumento e não pode ser escrito. `foreach` sobre
+   `Indexable` não tem o problema. Saídas: recusar `walk` e `parallel` sobre
+   parâmetro de protocolo na primeira versão; declarar o tipo no protocolo e
+   nomeá-lo no corpo; ou permitir omitir o tipo do cursor quando o contêiner é de
+   protocolo.
+
+**Código.** Nada novo em relação às partes 1 a 4: as construções já procuram os
+verbos por nome e aridade (`find_verb`, `parser_islands.c:377`). Muda de onde vem a
+lista de verbos exigidos, que deixa de estar escrita no código de cada
+construção e passa a ser lida do protocolo. A base ganha `keel/protocols.k`, e as
+linhas `module` de `buffer`, `slice`, `range`, `array`, `tagged`, `corot` e
+`outcome` ganham a cláusula. O `lex_dump` e o parse de toda a `/base` têm de
+continuar limpos.
+
+**`array`.** Participa de `Indexable` pelo núcleo, sem módulo de verbos, e não tem
+descritor: a extensão é um `dim` em tempo de tradução. Não deve ser argumento de
+parâmetro de protocolo na primeira versão.
+
+**Fases.** A declaração dos sete protocolos e as cláusulas da base entram na
+fase 2 (antes do M5), no modo híbrido. A migração das construções para a leitura
+dos verbos a partir do protocolo, e o tratamento de `walk` e `parallel` sobre
+parâmetro de protocolo, ficam com as fases 3 e 4 (depois do M5).
+

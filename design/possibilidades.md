@@ -622,15 +622,27 @@ arena). São independentes: um módulo pode querer ser hierarquizável sem aloca
 
 | Protocolo | Verbos | Papel |
 | --- | --- | --- |
-| Alocável | `alloc(a, n, sz, al)` e `reset(a)`; opcionais `mark` e `restore` | entrega memória em lote e a recolhe em lote |
+| Alocável em grupo | `alloc(a, n, sz, al)` e `reset(a)` | entrega memória e a recolhe toda de uma vez |
+| Alocável individualmente | `alloc` e `free` | entrega e devolve um elemento por vez |
 | Hierarquizável | `from_parent(filho, pai, …)` | uma região feita de outra: invalidar o pai invalida as filhas |
 
-Um verbo pode estar nos dois protocolos: `reset` é o recolhimento em Alocável, e
-é o que se propaga às filhas em Hierarquizável. O papel de cada verbo vem da
-pertença ao conjunto, e não de uma marca nele: um módulo que só tem `reset`,
-sem `alloc`, não é alocador, e o `reset` dele não conta. A arena é os dois
-protocolos juntos; um pool sem filhas é só Alocável; uma sessão com sessões
-filhas, sem `alloc`, é só Hierarquizável.
+(Nomes em inglês provisórios: `GroupAllocatable` e `SingleAllocatable`.)
+
+Um verbo pode estar em mais de um protocolo: `reset` é o recolhimento em Alocável em
+grupo, e é o que se propaga às filhas em Hierarquizável. O papel de cada verbo vem da
+pertença ao conjunto, e não de uma marca nele: um módulo que só tem `reset`, sem
+`alloc`, não é alocador, e o `reset` dele não conta. A arena é Alocável em grupo e
+Hierarquizável; um pool de slots é Alocável individualmente e, por ter `reset`,
+também em grupo; uma sessão com sessões filhas, sem `alloc`, é só Hierarquizável.
+
+**Protocolo e papel são coisas diferentes (2026-09-30).** Ter papéis
+(`child`, `parent`, `invalidates`) é um comportamento **analisado pelo parser
+semântico**, e vale para o verbo de qualquer módulo. Fazer parte de um protocolo é
+ser **usado obrigatoriamente em outro lugar**: por uma construção do núcleo ou por
+um código genérico que recebe o protocolo como tipo. Daí: `mark` e `restore` da arena
+são verbos necessários nela, com papéis (`invalidates`), mas **não fazem parte de
+nenhum protocolo**, porque nada os exige em outro lugar. Não são "opcionais" de um
+protocolo. O `realloc` fica de fora, por enquanto, de todos.
 
 **A filosofia é a de muitos.** Alocar um e liberar um (`malloc` e `free`) é a
 filosofia oposta, e o núcleo não a distingue: keel escolheu o lote por causa do
@@ -694,8 +706,12 @@ O núcleo reconhece os contratos pelas declarações, sem depender do nome
 
 | Protocolo | Verbos | Papel |
 | --- | --- | --- |
-| Alocável | `alloc(a, n, sz, al)` e `reset(a)`; opcionais `mark` e `restore` | reservar armazenamento e invalidar alocações em lote |
-| Hierarquizável | `from_parent(child, parent, …)` e `reset(region)`; opcional `restore` | estabelecer dependência entre regiões e invalidar derivadas |
+| Alocável em grupo | `alloc(a, n, sz, al)` e `reset(a)` | reservar armazenamento e invalidar alocações em lote |
+| Alocável individualmente | `alloc` e `free` | reservar e devolver um elemento por vez |
+| Hierarquizável | `from_parent(child, parent, …)` e `reset(region)` | estabelecer dependência entre regiões e invalidar derivadas |
+
+`mark` e `restore` são verbos da arena com o papel `invalidates`, e não fazem
+parte de protocolo: nada os exige em outro lugar (2026-09-30).
 
 A presença isolada de um nome não estabelece um protocolo. Os verbos exigidos
 devem operar sobre o mesmo tipo receptor. Uma região pode ser Hierarquizável
@@ -930,11 +946,13 @@ pub void restore    (invalidates arena *a, size_t m);
    não é verificado: uma assinatura que mente não é detectada. A garantia vale
    só para o que a declaração afirma.
 
-**Protocolos definidos pelos papéis.** Hierarquizável é o módulo com um verbo
-`child T` + `parent T` do mesmo tipo e um `invalidates T`. Alocável é o módulo
-com um verbo de retorno `child` cujo pai é `T` e um `invalidates T`. O núcleo
-deixa de casar `alloc` e `reset` pelo nome. Isso substitui, nesta proposta, a
-definição por lista de verbos da tabela dos protocolos.
+**Papéis e protocolos.** Os protótipos de um protocolo levam os papéis, e a
+conformidade exige os mesmos papéis: quem chama o verbo pelo protocolo depende
+deles na análise. A **pertença** a um protocolo, porém, não se deduz dos papéis: um
+protocolo é o conjunto de verbos que alguém exige (por exemplo, `alloc` e `reset` para o
+Alocável em grupo), e um verbo com papéis pode não estar em nenhum. O núcleo deixa de
+casar `alloc` e `reset` pelo nome da arena: os papéis dão a análise, e o protocolo
+dá o contrato.
 
 **Efeitos sobre o catálogo.** `arena-from-array-not-u8` vira a checagem
 comum do tipo do parâmetro `array u8`. `buffer.clone(parent arena *a, …)`
@@ -1146,11 +1164,12 @@ pub T *ref ptr(parent pool *p, entity e);                 // checks the generati
   cópia depois do `free`, o que a análise lexical não alcança. É a mesma divisão
   em duas camadas do resto. A detecção é exata por elemento, e não grossa por
   época da região.
-- **Protocolos.** O `pool` é um Alocável (`alloc` e `reset`) com um `free` a mais.
-  Em vez de ampliar o Alocável, um protocolo composto, pela lista entre colchetes:
-  `protocol Freeable [Allocatable] { pub void free(parent T *p, invalidates
-  Entity e); }`. Falta decidir o nome e como o protocolo nomeia o tipo da entidade
-  (tipo associado).
+- **Protocolos.** O `pool` é Alocável individualmente (`alloc` e `free`) e, por ter
+  `reset`, também Alocável em grupo. Os dois protocolos não se compõem: cada um é o
+  que algum lugar exige. Não há `realloc`, por enquanto. O `alloc` do pool devolve a
+  entidade, um tipo **do implementador**; o protocolo só precisaria nomeá-lo se
+  algum código genérico tivesse de escrevê-lo (tipo associado, ver a entrada de
+  protocolo nominal).
 - **Custo, especificado por módulo.** Alocar e liberar em tempo constante com lista
   livre; uma comparação por `ptr`; `reset` em tempo constante com uma época do pool
   junto da geração do slot, ou linear, subindo a geração de cada slot. A geração de

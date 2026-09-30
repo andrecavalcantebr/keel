@@ -638,7 +638,7 @@ pub void restore    (invalidates arena *a, size_t m);
    dependência da filha para o pai. Vários pais unem as procedências.
 3. **Raiz.** A única raiz é o `array` do núcleo. Ele é local se a duração é
    automática, e a duração vem da declaração. Todo o resto vem por transmissão
-   pelo `parent`. Um molde (`keel_code`) que declara `array u8 tmp[N]` e chama
+   pelo `parent`. Um molde (`keel_code`) que declara `array unsigned char st[N]` e chama
    `from_array` recebe a procedência local por esta regra, sem regra própria: é
    assim que o `from_stack` adiado poderia voltar como biblioteca.
 4. **`invalidates`.** A operação invalida o argumento e, transitivamente, tudo
@@ -777,14 +777,14 @@ ilhas e papéis de procedência.
 
 ```keel
 keel_code bool from_stack(child arena *a, dim N) {
-    alignas(alignof(max_align_t)) array u8 tmp[N];
-    return from_array(a, tmp);
+    alignas(alignof(max_align_t)) array unsigned char st[N];
+    return from_array(a, st);
 }
 
 keel_code void greet(dim N, char *name) {
     array char buf[N] = {0};
-    size_t n = snprintf(buf, N, "%s %s", "Hello", name);
-    return n;
+    size_t len = snprintf(buf, N, "%s %s", "Hello", name);
+    return len;
 }
 ```
 
@@ -814,8 +814,10 @@ ordem:
    identificador são substituídas: strings e comentários são fichas inteiras e
    ficam intactos, e o identificador logo depois de `.` ou `->` nunca é
    substituído.
-4. Renomear os locais declarados no corpo, de forma única e igual em todo o
-   corpo (backend §2.3). Duas chamadas ao mesmo molde no mesmo bloco não colidem.
+4. Renomear os locais declarados no corpo para `keel__<local><N>`, de forma
+   igual em todo o corpo, com o contador `N` das demais construções (backend
+   §2.3). Duas chamadas ao mesmo molde no mesmo bloco não colidem. O local `st`
+   do `from_stack` dá `keel__st0`, como o golden 001 já tem.
 5. Marcar cada ficha com a **origem**: `corpo` (vem do molde) ou `argumento`
    (vem do chamador). Fichas de corpo resolvem seus nomes no módulo do molde, e
    fichas de argumento resolvem no chamador. Assim o molde funciona mesmo que o
@@ -832,17 +834,17 @@ ordem:
 `greet(30, name);` dentro de `fn` fica:
 
 ```keel
-char *keel__greet0_name = name;            // value parameter, bound once
-array char keel__greet0_buf[30] = {0};     // N := 30, local renamed
-size_t keel__greet0_n = snprintf(keel__greet0_buf, 30, "%s %s", "Hello", keel__greet0_name);
-(void)(keel__greet0_n);                    // statement position: the value is discarded
+char *keel__name0 = name;                  // value parameter, bound once
+array char keel__buf0[30] = {0};           // N := 30, local renamed
+size_t keel__len0 = snprintf(keel__buf0, 30, "%s %s", "Hello", keel__name0);
+(void)(keel__len0);                        // statement position: the value is discarded
 ```
 
 E `if (!arena.from_stack(t, 4096)) return fail;` fica:
 
 ```keel
-alignas(alignof(max_align_t)) array u8 keel__from_stack0_tmp[4096];
-if (!arena.from_array(t, keel__from_stack0_tmp)) return fail;
+alignas(alignof(max_align_t)) array unsigned char keel__st0[4096];
+if (!arena.from_array(t, keel__st0)) return fail;
 ```
 
 Depois da expansão, o `from_array` tem os papéis `child` e `parent`: o `array`
@@ -909,8 +911,9 @@ onde o `construct` completo começa; o molde com fragmento é o mecanismo que o
 `construct` usaria para `foreach`, `walk` e `apply`.
 
 Ordem sugerida: papéis de procedência, depois o molde com prelúdio de expressão
-(o `from_stack`), depois o fragmento `keel_code` e a forma com bloco. Enquanto
-isso, o `from_stack` continua como está na v0.
+(o `from_stack`), depois o fragmento `keel_code` e a forma com bloco. Decidido em
+2026-09-30: o molde vem **antes do M5**, e o corpo executável em posição de
+expressão é **recusado** (sem função auxiliar).
 
 Abertos:
 
@@ -918,14 +921,22 @@ Abertos:
   parâmetro (a mesma palavra nos dois usos).
 - **Categoria do fragmento** (expressão ou statements), inferida pela posição de
   uso no corpo, com erro se houver usos conflitantes, ou escrita.
-- **Corpo executável em posição de expressão:** recusar, ou gerar uma função
-  `static inline` auxiliar chamada no ponto de uso (funciona em expressão, mas o
-  que o corpo lê do chamador vira parâmetro dela, e isso muda a semântica).
-  Recusar é a inclinação atual.
+- **Nome dos locais.** `keel__<local><N>` reproduz o `keel__st0` do golden 001,
+  mas divide o espaço de nomes com as construções que já usam `keel__c<N>`,
+  `keel__n<N>`, `keel__f<N>`, `keel__l<N>`, `keel__e<N>`, `keel__m<N>` e
+  `keel__rv<N>` (backend §2.3): um local de molde com um desses nomes colide.
+  A proposta é diagnosticar o local de molde com nome reservado
+  (`mold-reserved-name`) e redistribuir o `st` da tabela, hoje só do
+  `from_stack`, para "local `st` de molde". Falta conferir o escopo do
+  contador `N` (por função, ou por unidade).
+- **`from_array` sobre `unsigned char`.** O `from_stack` emite `unsigned char`
+  de propósito (armazenamento de tipo-caractere, backend §5.4, item 2), e o
+  `from_array` exige `array u8` (`arena-from-array-not-u8`). Como molde, o
+  `from_stack` chamaria `from_array` sobre `array unsigned char`. Ou o
+  `from_array` aceita tipo-caractere, ou o molde usa um verbo interno sem essa
+  checagem; hoje o tratamento especial do parser contorna isso.
 - **Ordem entre prelúdios** de vários moldes no mesmo statement: proposta,
   da esquerda para a direita, na ordem textual.
-- **Nome dos locais renomeados.** O esquema `keel__<molde><n>_<local>` muda o
-  esperado do golden 001, hoje `keel__st0`.
 
 ### Construções definidas por módulo (`construct`)
 

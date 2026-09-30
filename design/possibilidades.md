@@ -338,16 +338,27 @@ estar visível, então o implementador importa `keel.protocols` de qualquer form
 protocolo é importado e usado como um tipo, e não há cláusula na linha `module`
 do genérico, nem na definição do protocolo, nem no uso.
 
-**Verificação.** É nominal e simples. Ao importar `buffer`, keel lê na linha
-`module` quais protocolos ele implementa. No uso, como `fn(x, b)`, já sabe que
-`buffer` implementa `Indexable`, e recusa o tipo que não o declara
-(`protocol-not-satisfied`). A existência dos verbos não é conferida por keel: a
-cláusula é uma declaração do autor do módulo, como os papéis de procedência, e
-se ela mentir o compilador C recusa a chamada. A mensagem, então, nomeia o
-símbolo manglado, e o `#line` leva ao `.k` da chamada. Conferir no implementador
-que os protótipos existem é barato (o módulo já está lido) e fica como reforço
-opcional; o backend desaconselha usar a falta de definição como mecanismo de
-diagnóstico (§5, "Não usar protótipos sem definição como mecanismo de erro").
+**Verificação no uso.** É nominal. Ao importar `buffer`, keel lê na linha `module`
+quais protocolos ele implementa. No uso, como `fn(x, b)`, já sabe que `buffer`
+implementa `Indexable`, e recusa o tipo que não o declara
+(`protocol-not-satisfied`).
+
+**Verificação no implementador (exaustividade).** Keel varre as funções
+declaradas no módulo e as compara com os protótipos de cada protocolo da
+cláusula. O que falta é diagnosticado na cláusula, com **todos** os verbos
+ausentes listados (`protocol-verb-missing`), e não no uso, com o símbolo manglado
+de uma chamada C. A comparação é por **nome, aridade (contada sintaticamente,
+backend §2.1.1), posição do receptor e papéis de procedência**. Não compara
+tipos C nem tipos de retorno, porque keel não resolve tipos C (spec §1.3): uma
+divergência aí cai no compilador C.
+
+**Sem transitividade.** Só contam os verbos declarados no **próprio** módulo. O
+verbo de um módulo importado não conta, porque a resolução pelo tipo do contêiner
+(§4.4, passo 1) procura o verbo no módulo do contêiner. Para reaproveitar um
+verbo de outro módulo, o implementador escreve uma função de repasse, que é
+código comum. A cláusula está na linha `module`, então vale para todos os
+modificadores do módulo, e cada um precisa ter os verbos; para tipos diferentes,
+módulos diferentes.
 
 **Uso.** O protocolo se usa como um tipo, depois de `import keel.protocols
 types;`. Não é preciso outra marca: o `types` já significa "traga os tipos".
@@ -415,16 +426,23 @@ void my_fn_keel_slice_i32 (my_i32 x, keel_slice_i32  b) { ... keel_slice_i32_len
    `keel_buffer_i32 *b` e a chamada emite `&b`; para `fn(x, s)` com `s` um `slice`
    a instância recebe o valor e a chamada não leva `&`. Vale para a emissão da
    instância e para o ponto de uso.
-6. **Verbos do corpo** (a decidir). Se, na declaração de `fn`, só os verbos do
-   protocolo valessem sobre `b`, um `push(b, 1)` seria erro na declaração. Sem
-   essa regra, o erro aparece na instância em que o verbo não existe, com a nota
-   de instanciação (backend §6.1).
+6. **Só os verbos do protocolo.** Vale a regra da orientação a objetos: onde se
+   espera a interface `List`, o uso interno é só dos métodos de `List`, mesmo que
+   se passe um `ArrayList`. Na declaração de `fn`, `b` tem o tipo `Indexable`, e
+   só os verbos do protocolo valem sobre ele. `push(b, 1)` é erro na declaração
+   (`verb-not-in-protocol`), e não na instância. Consequências: `b` pode ser
+   passado a outra função que espera `Indexable` (ou um protocolo que ele
+   satisfaz), mas não a uma que espera `buffer i32 *` (não há conversão no
+   sentido contrário); o qualificador de outro módulo (`buffer.push(b, 1)`) cai
+   no `wrong-qualifier` existente; e `walk` sobre `b` exige um `b` do protocolo
+   `Traversable`.
 7. **Terminação.** Uma função que se chama com um tipo novo a cada volta
    instanciaria sem fim: precisa de um limite de profundidade.
 
 **Diagnósticos propostos:** `protocol-not-satisfied` (o tipo do argumento não
-declara o protocolo), `instance-depth` e, se a regra 6 valer,
-`verb-not-in-protocol`. O `protocol-on-parameter` da v0 continua valendo para
+declara o protocolo), `protocol-verb-missing` (o implementador declara o
+protocolo e não tem os verbos), `verb-not-in-protocol` (verbo fora do protocolo,
+no corpo) e `instance-depth`. O `protocol-on-parameter` da v0 continua valendo para
 o parâmetro de tipo de módulo genérico, que segue opaco.
 
 **Protocolos definidos por papéis.** Os protótipos podem levar os papéis de
@@ -459,11 +477,17 @@ Abertos:
   convenção da spec (§5.1) é da base e não é regra léxica: o conflito é só de
   leitura, e o uso (parâmetro de função, símbolo de outra espécie) desfaz a
   ambiguidade. A tabela da convenção ganharia uma linha.
-- **Verbos do corpo** (regra 6).
+- **Vários protocolos num parâmetro.** Se `fn` precisa de `length` e de `walk`,
+  `Indexable b` não basta. Em vez de uma sintaxe de parâmetro com dois protocolos,
+  um protocolo composto, que declara quais inclui (`protocol IndexTraverse :
+  Indexable, Traversable {}`), como a interface que estende outras. Falta decidir
+  a sintaxe.
+- **Granularidade da cláusula.** Na linha `module`, vale para todos os
+  modificadores. Se um módulo tiver dois modificadores que conformam de formas
+  diferentes, a cláusula teria de ir para a linha do modificador.
 - **Tipo do elemento.** Sem tipo associado, o corpo não o nomeia. Se a falta
   incomodar, o `type T` do protocolo poderia aparecer no uso (`Indexable i32 b`),
   ao custo de um argumento a mais em cada uso.
-- **Vários protocolos por parâmetro** (`Indexable + Traversable`).
 
 ### Protocolos de alocação e de hierarquia: Alocável e Hierarquizável
 

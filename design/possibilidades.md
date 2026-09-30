@@ -509,6 +509,12 @@ procedência (`child`, `parent`, `invalidates`), e a conformidade exige as mesma
 assinaturas, papéis incluídos. Assim os protocolos de alocação e de hierarquia
 saem definidos por assinatura, sem lista de verbos casada pelo nome.
 
+**Orientação a objetos, de outra forma.** Qualquer coisa que implemente o protocolo
+serve: se, em vez de um ponteiro, o tipo guardasse um índice, o código genérico
+continuaria igual. O que se respeita é o contrato. É uma orientação a objetos
+**estática**, sem tabela de funções virtuais, porque a decisão é tomada na tradução,
+num plano mais abstrato: a chamada se resolve para o verbo do tipo concreto.
+
 **O que se ganha.**
 
 1. **Algoritmo genérico escrito pelo usuário sobre um protocolo**, com uma
@@ -595,9 +601,24 @@ buffer.cursor c : xs)`), e o binder de `parallel` escreve o tipo da partição.
 Num corpo genérico, `fn(Traversable b)`, o tipo do cursor depende do argumento e
 não pode ser escrito. É um **tipo associado** (o `Item` do Rust). `foreach` sobre
 `Indexable` não tem o problema, porque o tipo do elemento é escrito pelo corpo
-(`f64 *x`). Saídas: recusar `walk` e `parallel` sobre parâmetro de protocolo na
-primeira versão; ou declarar o tipo no protocolo e nomeá-lo no corpo; ou permitir
-omitir o tipo do cursor quando o contêiner é de protocolo.
+(`f64 *x`). A raiz é que não há um protocolo de **visão**: cada módulo tem a sua
+(`keel_buffer_cursor`, `keel_slice_cursor`). Saídas:
+
+1. **Recusar** `walk` e `parallel` sobre parâmetro de protocolo na primeira versão.
+2. **Um tipo definido no módulo, com nome fixo** (`cursor`). O protocolo declara que
+   exige um tipo com esse nome, o implementador o define, e o corpo genérico o
+   escreve qualificado pelo protocolo (`Traversable.cursor`), que na instância vira
+   `buffer.cursor` ou `slice.cursor`. Amarra algo a um nome, o que por ora é aceito.
+   Um verbo que devolva o cursor não resolve, porque o tipo de retorno depende da
+   instância e, sem o `auto` do C23, não se escreve.
+3. **Omitir o tipo do binder** e deixar keel preencher. O tipo do cursor "é o
+   produto declarado de `begin`" (spec §4.7), e o do elemento, o de `next`: são
+   tipos **declarados** em assinaturas de keel, que a §1.3 permite consultar. Na
+   instância, keel conhece o módulo concreto e escreve o tipo no C (`keel_buffer_cursor
+   c = ...`), sem depender do `auto`, e portanto também no perfil C11. Não amarra
+   nome nenhum. Custa uma marca no binder para "tipo a preencher", e há um `ret_type`
+   em `parser_islands.c:656` que já calcula o retorno declarado de um verbo numa
+   instância; não verifiquei se serve para o cursor.
 
 **Protocolos da base e o núcleo.** Cada construção do núcleo estabelece o protocolo
 que consome (a tabela acima), e o protocolo é declarado na base, em

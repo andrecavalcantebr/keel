@@ -688,6 +688,109 @@ Abertos:
   pelo mesmo `invalidates`, e o caso das visões sobre `buffer` fica registrado
   como vizinho, sem estar incluído.
 
+#### Verificação em execução da invalidação: campos explícitos (2026-09-30)
+
+**Status: proposta para discussão, não normativa.** Segunda camada, ao lado da
+verificação de tradução dos papéis: a tradução pega o caso lexical, e a
+verificação em execução pega o que a análise não alcança (alias, struct,
+interprocedural), pelos verbos do descritor.
+
+Não exige mecanismo no núcleo. `alloc`, `reset` e os construtores já são
+código do módulo, e o módulo faz a checagem no corpo, com `KEEL_CHECK`, como
+faz com `alloc-overflow`. O modelo é o do `extent`: o módulo **declara** numa
+lista os campos de controle (ponteiro para o pai, época) e escreve as
+atualizações no corpo dos verbos. Nada é gerado por conta própria. No máximo, o
+núcleo confere que os campos citados pelos papéis existem.
+
+```c
+/* arena descriptor with the optional control fields */
+typedef struct keel_arena {
+    size_t top, cap;
+    u8    *ptr;
+    struct keel_arena *parent;   /* optional */
+    size_t epoch;                /* optional: reset and restore increment it */
+    size_t parent_epoch;         /* optional: parent's epoch at construction */
+} keel_arena;
+/* every verb of the child: */
+KEEL_CHECK(a->parent == NULL || a->parent->epoch == a->parent_epoch,
+           "child-region-after-invalidation");
+```
+
+- **Campo opcional por módulo.** O módulo escolhe presença sempre, só em debug
+  ou nenhuma. Para a arena filha, o custo (um ponteiro e dois contadores num
+  descritor raro) é baixo, mesmo em release. Para `slice` e `buffer`, que são
+  descritores por valor, ubíquos e quentes, dois campos a mais dobram o
+  tamanho: em visões, o campo fica em debug ou desligado.
+- **Layout.** Um campo só em debug muda o layout entre debug e release, e
+  objetos misturados quebram. É uma decisão do módulo, e vale registrá-la na
+  documentação dele.
+- **Limites.** Só o uso pelos verbos do descritor é coberto. O `T *` devolvido
+  por `alloc` é ponteiro cru de C, e nenhum descritor o cobre. O ponteiro do
+  pai fica pendurado se as arenas moram num vetor que realoca.
+- **`restore`.** Incrementar a época em todo `restore` dá falso positivo em
+  filha que foi preservada, e em execução isso é um `abort` num programa
+  correto, o que é pior que o erro de tradução conservador. A versão precisa
+  compara o fim da filha com o topo do pai, e não está desenhada.
+
+Abertos: a sintaxe da lista de campos de controle; se os papéis (`from`,
+`invalidates`) devem citá-los; a política de `restore` em execução.
+
+#### Verbos inline e o marcador `code` (2026-09-30)
+
+**Status: proposta para discussão, não normativa.** Nasce da pergunta de como
+a biblioteca escreve o que hoje o cgen faz à mão, como o vetor `keel__st<N>`
+do `from_stack` (backend §5.4), sem que o programador recorra a macros. A
+spec não expande macros e exige que as construções existam antes da expansão
+(§1.2): uma macro parametrizada com `arena.alloc(...)` dentro **não é
+traduzida**, e o seu resultado escapa da análise. Restringir a injeção a
+declarações de `array` empurraria as pessoas para as macros.
+
+A ideia é injetar **código keel**, e não texto C: o corpo é analisado como keel
+na declaração do módulo, com símbolos e ilhas reconhecidos, e substituído
+estaticamente no ponto de uso. É o mesmo espírito de `type T`, que injeta um
+tipo, e de `array`, marcador do núcleo.
+
+**Verbo inline.** Mantém a chamada `m.f(args)` e a resolução normal (§4.4):
+
+```keel
+pub inline bool from_stack(out arena *a, constexpr size_t N) {
+    array u8 tmp[N];               // keel `array`, not pasted C
+    return from_array(a, tmp);
+}
+```
+
+- O corpo é keel. `constexpr size_t N` é um parâmetro de valor conhecido na
+  tradução, como `type T` é um de tipo (grafia provisória).
+- A injeção tem a forma **prelúdio + expressão**: as declarações sobem para o
+  escopo do chamador, antes do statement que contém a chamada, e a expressão
+  substitui a chamada.
+- **Posição de uso.** Prelúdio só de declarações de `array` sem inicializador
+  sobe em qualquer posição, porque não executa nada. Prelúdio com código
+  (`size_t n = length(c)`) quebraria a ordem de avaliação em `a && f()`:
+  proponho valer só em posição de statement, com diagnóstico em posição de
+  expressão.
+- **Procedência.** O `array` injetado é uma raiz local pelo núcleo, e o `from`
+  do `from_array` a transmite: o escape sai da regra geral, sem regra própria
+  do `from_stack`.
+- **Recursão.** Inline chamando inline precisa ser acíclico, como o
+  `circular-generic`.
+- Os diagnósticos do código expandido apontam para o ponto de uso (backend §6).
+  A emissão tem de reproduzir a do golden, como `keel__st0` hoje.
+
+**Marcador `code`.** Seria um parâmetro cujo argumento é um **fragmento keel**
+(um bloco ou uma expressão), no molde de `type T`. Só faz falta na forma com
+bloco (`foreach`, `walk`, `apply`), que pede a sintaxe fixa
+`palavra ( binders : expressões ) { bloco }` da seção seguinte. Fica para depois
+do verbo inline, porque é onde o `construct` completo começa.
+
+Ordem sugerida: papéis de procedência, depois o verbo inline, depois o
+marcador `code` e a forma com bloco. Enquanto isso, o `from_stack` continua
+como está na v0.
+
+Abertos: a grafia de `inline` e de `constexpr` em parâmetro; se o prelúdio
+admite statements além de declarações (e onde); como o argumento `code` é
+delimitado no ponto de uso.
+
 ### Construções definidas por módulo (`construct`)
 
 Hoje `foreach`, `walk`, `parallel`, `match` e `else` são do núcleo, e

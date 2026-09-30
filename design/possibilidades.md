@@ -298,6 +298,8 @@ A estudar:
 ### Protocolo nominal
 
 **Status: proposta para discussão, não normativa (reelaborada em 2026-09-30).**
+O estudo do que mudaria na documentação e no código está em
+[`protocolo-impacto.md`](protocolo-impacto.md).
 Os protocolos da spec §5.1 são estruturais: quem declara `begin`/`has_next`/
 `next` participa de `walk`, e o contrato está só na documentação. Dar-lhes nome
 e usá-los como **tipo de parâmetro** de função é o que esta entrada propõe. Não
@@ -514,9 +516,16 @@ Abertos:
   convenção da spec (§5.1) é da base e não é regra léxica: o conflito é só de
   leitura, e o uso (parâmetro de função, símbolo de outra espécie) desfaz a
   ambiguidade. A tabela da convenção ganharia uma linha.
-- **Granularidade da cláusula.** Na linha `module`, vale para todos os
-  modificadores. Se um módulo tiver dois modificadores que conformam de formas
-  diferentes, a cláusula teria de ir para a linha do modificador.
+- **Granularidade da cláusula.** Decidido: fica na linha `module` e vale para todos
+  os modificadores do módulo. Um módulo que precise de conjuntos diferentes por
+  modificador se divide; a base tem um por módulo.
+- **Onde ficam os binders.** Na versão acima, no módulo (`module keel.protocols
+  type T;`), e então todos os protocolos do módulo dividem a mesma lista (a spec
+  fixa a aridade de tudo o que o módulo declara). A alternativa é cada protocolo
+  declarar os seus, como um verbo declara o seu `type T`: `protocol Indexable type
+  T { ... }`, `protocol Keyed type K, type V { ... }`. Protocolos não têm
+  instâncias nem nomes manglados, então a regra que justifica a lista única do
+  módulo não se aplica. Inclino-me pela segunda. A decidir.
 - **Tipo do elemento.** Sem tipo associado, o corpo não o nomeia. Se a falta
   incomodar, o `type T` do protocolo poderia aparecer no uso (`Indexable i32 b`),
   ao custo de um argumento a mais em cada uso.

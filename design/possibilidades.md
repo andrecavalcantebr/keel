@@ -323,6 +323,35 @@ protocol Traversable {
 
 O protocolo não emite nada em C: os símbolos são os do implementador.
 
+**Composição.** Um protocolo pode compor outros, com a **lista que a linguagem já
+usa** (a de `tags`, `tags-list`, spec §2.2); só muda o significado da lista: aqui
+ela diz quais protocolos o novo inclui. As chaves são opcionais e servem só para
+acrescentar protótipos próprios, além dos importados:
+
+```keel
+protocol IndexTraverse [Indexable, Traversable];          // composition only, no braces
+
+protocol Resizable [Indexable] {                          // includes Indexable, adds its own
+    pub bool resize(Resizable *c, size_t n);
+}
+```
+
+- A gramática é `decl-protocol ::= 'protocol' IDENT [ '[' IDENT { ',' IDENT } ']' ]
+  ( ';' | '{' { prototype } '}' )`. Sem lista e sem chaves, o protocolo é vazio, e
+  isso é erro.
+- Os protótipos do protocolo composto são a **união** dos incluídos e dos
+  próprios, por (nome, aridade). O mesmo verbo vindo de dois incluídos (o losango)
+  vale se as assinaturas e os papéis são iguais; se diferem, é
+  `protocol-verb-conflict`.
+- Quem declara `IndexTraverse` na linha `module` **implementa também** `Indexable`
+  e `Traversable`: `fn(Indexable b)` aceita esse tipo. Keel calcula o fecho dos
+  protocolos declarados ao ler a linha `module`.
+- A lista de binders (`type T`, `dim`, `tags`) dos protocolos incluídos é a do
+  protocolo que os inclui, por espécie e ordem (regra 1 abaixo).
+- Ciclo (`A [B]`, `B [A]`) é `circular-protocol`, no molde do `circular-generic`.
+- O parâmetro de função continua com **um** protocolo: para precisar de dois,
+  declara-se o composto.
+
 **Implementação.** O módulo que implementa declara os verbos, como hoje, e pode
 declarar a conformidade:
 
@@ -442,7 +471,8 @@ void my_fn_keel_slice_i32 (my_i32 x, keel_slice_i32  b) { ... keel_slice_i32_len
 **Diagnósticos propostos:** `protocol-not-satisfied` (o tipo do argumento não
 declara o protocolo), `protocol-verb-missing` (o implementador declara o
 protocolo e não tem os verbos), `verb-not-in-protocol` (verbo fora do protocolo,
-no corpo) e `instance-depth`. O `protocol-on-parameter` da v0 continua valendo para
+no corpo), `protocol-verb-conflict` e `circular-protocol` (composição) e
+`instance-depth`. O `protocol-on-parameter` da v0 continua valendo para
 o parâmetro de tipo de módulo genérico, que segue opaco.
 
 **Protocolos definidos por papéis.** Os protótipos podem levar os papéis de
@@ -477,11 +507,11 @@ Abertos:
   convenção da spec (§5.1) é da base e não é regra léxica: o conflito é só de
   leitura, e o uso (parâmetro de função, símbolo de outra espécie) desfaz a
   ambiguidade. A tabela da convenção ganharia uma linha.
-- **Vários protocolos num parâmetro.** Se `fn` precisa de `length` e de `walk`,
-  `Indexable b` não basta. Em vez de uma sintaxe de parâmetro com dois protocolos,
-  um protocolo composto, que declara quais inclui (`protocol IndexTraverse :
-  Indexable, Traversable {}`), como a interface que estende outras. Falta decidir
-  a sintaxe.
+- **Duas listas de protocolos com pontuação diferente.** A linha `module` usa a
+  lista por vírgulas (`protocol Indexable, Traversable`), como `dim`, `tags` e
+  `type` dali, e a declaração do protocolo composto usa a lista entre colchetes,
+  como `tags`. Cada uma segue o costume do seu contexto. Falta decidir se vale
+  unificar.
 - **Granularidade da cláusula.** Na linha `module`, vale para todos os
   modificadores. Se um módulo tiver dois modificadores que conformam de formas
   diferentes, a cláusula teria de ir para a linha do modificador.

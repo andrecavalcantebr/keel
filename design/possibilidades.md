@@ -668,6 +668,13 @@ declara o papel na assinatura, sem depender do `bound`; generalizar o tipo de
 `a` segue dependendo dele. Alias, struct, retorno indireto e efeito
 interprocedural continuam fora do alcance.
 
+**Palavras de papel e o mar de C.** `child`, `parent` e `invalidates` ficam na
+posição de modificador da assinatura de um verbo, e o cgen as apaga na emissão.
+Não há modificador com esses nomes em C, e uma macro homônima não altera o que
+keel lê (keel não expande macros) nem o C que sai (o compilador nunca vê a
+palavra). Por isso as palavras de papel **não** entram na regra
+`define-over-keel-name`, e o programa não perde esses nomes.
+
 **`parent` único, ou um papel por espécie.** O `parent` reúne dois fatos: o
 armazenamento (a localidade que alimenta o escape) e a validade (a aresta que
 alimenta a invalidação). Para a arena, os dois coincidem. Divergem quando há
@@ -680,12 +687,6 @@ continuando a valer pelos dois.
 Abertos:
 
 - **`from_stack`.** Como verbo inline, na seção seguinte.
-- **Palavras contextuais.** `child`, `parent` e `invalidates` valem só na lista
-  de parâmetros de um verbo, mas `parent` e `child` são identificadores comuns em
-  C de árvore e lista. A spec dá erro para `#define` de palavra contextual
-  (`define-over-keel-name`, §2.5): é preciso decidir se as palavras de papel
-  entram nessa regra, e dizer que o programa perde esses nomes de macro se
-  entrarem. Conferir também contra o mar de C (spec §1.4).
 - **Verbos que só invalidam**, mas cujo argumento não é o receptor (por
   exemplo, `clear(b)` sobre um `buffer` com `slice` derivados): entram pelo
   mesmo `invalidates`, e o caso das visões sobre `buffer` fica registrado como
@@ -705,8 +706,8 @@ lista os campos de controle e escreve as atualizações no corpo dos verbos. Nad
 é gerado por conta própria. No máximo, o núcleo confere que os campos citados
 existem.
 
-A lista seria ordenada, pai primeiro e filha depois, separando o que cada lado
-guarda. Uma leitura, a confirmar:
+A lista é ordenada, pai primeiro e filha depois, e separa o que cada lado
+guarda (leitura confirmada em 2026-09-30):
 
 ```keel
 control (parent: epoch; child: link, stamp);
@@ -746,8 +747,8 @@ KEEL_CHECK(a->link == NULL || a->link->epoch == a->stamp,
   correto, o que é pior que o erro de tradução conservador. A versão precisa
   compara o fim da filha com o topo do pai, e não está desenhada.
 
-Abertos: a sintaxe da lista de campos de controle e se a leitura acima é a
-pretendida; se os papéis devem citá-los; a política de `restore` em execução.
+Abertos: a sintaxe da lista de campos de controle; se os papéis devem citá-los;
+a política de `restore` em execução.
 
 #### Verbos inline e o marcador `keel_code` (2026-09-30)
 
@@ -773,8 +774,12 @@ pub inline bool from_stack(child arena *a, keel_const size_t N) {
 }
 ```
 
-- O corpo é keel. `keel_const size_t N` é um parâmetro de valor conhecido na
-  tradução, como `type T` é um de tipo. A grafia é provisória. Não pode ser o
+- O corpo é keel arbitrário: o que restringe é a posição de uso (abaixo), e não
+  o conteúdo. `keel_const size_t N` é um parâmetro de valor conhecido na
+  tradução, como `type T` é um de tipo; um parâmetro comum (`size_t n`) continua
+  sendo uma expressão em execução. O `N` do `from_stack` é constante por causa do
+  uso (o tamanho do `array` automático), e não por causa do mecanismo. A grafia
+  é provisória. Não pode ser o
   `constexpr` de C23, que só vale para objetos e é erro em parâmetro de função.
   A alternativa é reaproveitar o contrato do `dim` (literal decimal, ou
   `constexpr` de inicializador decimal conhecido; a spec diz que keel não
@@ -782,11 +787,11 @@ pub inline bool from_stack(child arena *a, keel_const size_t N) {
 - A injeção tem a forma **prelúdio + expressão**: as declarações sobem para o
   escopo do chamador, antes do statement que contém a chamada, e a expressão
   substitui a chamada.
-- **Posição de uso.** Prelúdio só de declarações de `array` sem inicializador
-  sobe em qualquer posição, porque não executa nada. Prelúdio com código
-  (`size_t n = length(c)`) quebraria a ordem de avaliação em `a && f()`:
-  proponho valer só em posição de statement, com diagnóstico em posição de
-  expressão.
+- **Posição de uso.** Em posição de statement, o corpo pode ser keel qualquer.
+  Em posição de expressão, só sobe o que não executa nada (declarações de
+  `array` sem inicializador): um prelúdio com código (`size_t n = length(c)`)
+  quebraria a ordem de avaliação em `a && f()`, porque `f()` deixaria de ser
+  condicional. O resto, em posição de expressão, é diagnóstico.
 - **Procedência.** O `array` injetado é uma raiz local pelo núcleo, e o
   `parent` do `from_array` a transmite: o escape sai da regra geral, sem regra
   própria do `from_stack`.
@@ -809,9 +814,11 @@ Ordem sugerida: papéis de procedência, depois o verbo inline, depois o
 marcador `keel_code` e a forma com bloco. Enquanto isso, o `from_stack`
 continua como está na v0.
 
-Abertos: a grafia de `inline` e de `keel_const`; se o prelúdio admite
-statements além de declarações (e onde); como o argumento `keel_code` é
-delimitado no ponto de uso.
+Abertos: a grafia de `inline` e de `keel_const`; como o argumento `keel_code` é
+delimitado no ponto de uso; e o que fazer com corpo executável em posição de
+expressão: recusar, ou gerar uma função `static inline` auxiliar chamada no
+ponto de uso (funciona em expressão, mas o que o corpo lê do chamador vira
+parâmetro dela, e isso muda a semântica).
 
 ### Construções definidas por módulo (`construct`)
 

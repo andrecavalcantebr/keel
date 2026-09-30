@@ -209,18 +209,18 @@ spec §5.1 vira a cláusula `protocol` da linha `module`):
 | `keel.tagged`, `keel.corot` | `protocol Taggable` |
 | `keel.outcome` | `protocol Failable` |
 
-**Dois efeitos que precisam de decisão.**
+**Dois efeitos (o primeiro já decidido).**
 
 1. **A regra 1 da §5.1.** "Declarar os verbos basta; não há registro, marcação nem
-   permissão." A cláusula `protocol` é um registro. Na saída **híbrida** (a que eu
-   prefiro), as construções continuam resolvendo pelos verbos e a regra 1 não
-   muda; a cláusula só é exigida para passar o tipo como argumento de protocolo. Na
-   saída **nominal em tudo**, as construções também a exigem, e quebram quatro
+   permissão." Decidido em 2026-09-30: **nominal em tudo**. A cláusula `protocol` é
+   o registro, as construções a exigem, e a regra 1 é reescrita. Quebra quatro
    fontes do golden que implementam `begin`, `has_next` e `next` por estrutura:
    `019-walk/lst.k`, `022-linux-list-import-c/tasks.k`,
    `023-linux-list-extern-c/tasks.k`, `024-linux-list-module/tasks.k`. O esperado
-   dessas não muda de nome nem de conteúdo: só o `.k` ganha a cláusula. Como o golden
-   é normativo, isso é uma decisão do André.
+   dessas não muda de nome nem de conteúdo: só o `.k` ganha a cláusula. A troca
+   nesses `.k` entra no mesmo commit do código que passa a ler a cláusula, porque o
+   parse atual da linha `module` a rejeitaria (`test/parse_dump.sh` roda o cgen sobre
+   esses fontes). Alterar agora custa menos do que descobrir adiante que tudo muda.
 2. **Tipo associado.** O `walk` exige que o usuário escreva o tipo do cursor, "o
    produto declarado de `begin`" (spec §4.7), e o binder de `parallel` escreve o
    tipo da partição. Num corpo genérico sobre `Traversable` ou `Partitionable`,
@@ -242,8 +242,8 @@ continuar limpos.
 descritor: a extensão é um `dim` em tempo de tradução. Não deve ser argumento de
 parâmetro de protocolo na primeira versão.
 
-**Fases.** A declaração dos sete protocolos e as cláusulas da base entram na
-fase 2 (antes do M5), no modo híbrido. A migração das construções para a leitura
+**Fases.** A declaração dos sete protocolos, as cláusulas da base e as quatro
+fontes do golden entram na fase 2 (antes do M5). A migração das construções para a leitura
 dos verbos a partir do protocolo, e o tratamento de `walk` e `parallel` sobre
 parâmetro de protocolo, ficam com as fases 3 e 4 (depois do M5).
 

@@ -270,6 +270,26 @@ acréscimo ao núcleo.
 
 ## 2. Linguagem e estruturas a estudar (v2+)
 
+### O núcleo reduzido (síntese, 2026-09-30)
+
+O que as entradas seguintes (papéis de procedência, moldes, protocolos) têm em
+comum é encolher o núcleo até o que a biblioteca não resolve. **Fica no núcleo:**
+
+- o `array` (só a parte que não se resolve por biblioteca: a sintaxe C de vetor);
+- as construções `defer`, `walk`, `parallel`, `foreach`, `match` e `else` (o
+  `apply` fica fora, por enquanto);
+- a sintaxe de índice `x[i, j]` e de região `x[a..b]`.
+
+Cada construção (salvo o `defer`) estabelece um protocolo da base. Todo o resto é
+**biblioteca**: módulos, modificadores, protocolos (em paridade com os
+modificadores) e moldes (`keel_code`). O núcleo dá **garantias**, que são as que
+vêm dos papéis de procedência e dos protocolos.
+
+Dois princípios delimitam a linguagem: **nada é escondido** (tudo se resolve por
+análise sintática e substituição simbólica, sem macro do pré-processador) e o
+**custo em execução é especificado**, de modo que o programador escolhe qual
+incorrer.
+
 ### Estruturas flat: árvore e lista encadeada por índice
 
 Nós num `buffer`, e os elos são índices (`u32`, por exemplo) em vez de
@@ -557,19 +577,17 @@ coerente se os verbos que uma construção usa estão **dentro** do protocolo de
 coincidirem, e substitui os diagnósticos escritos à mão de cada construção por
 `protocol-not-satisfied`.
 
-**Conflito com a spec §5.1, regra 1.** Hoje: "Declarar os verbos de um
-protocolo basta para participar da construção correspondente. Não há registro,
-marcação nem permissão." A cláusula `protocol` é um registro. Duas saídas:
-
-- **Híbrida (inclinação).** As construções continuam resolvendo pelos verbos, como
-  hoje, e a regra 1 não muda. A cláusula só é exigida para o tipo ser passado como
-  argumento de protocolo. Nada quebra. Custo: um tipo com os verbos e sem a
-  cláusula serve ao `foreach` direto e não serve a `fn(Indexable b)`.
-- **Nominal em tudo.** As construções também exigem a cláusula. O diagnóstico é
-  melhor ("`Foo` não é `Traversable`"), mas quebra: os módulos do programa que
-  implementam por estrutura precisam da cláusula. No golden, `019-walk/lst.k`,
-  `022-linux-list-import-c/tasks.k`, `023-linux-list-extern-c/tasks.k` e
-  `024-linux-list-module/tasks.k` declaram `begin`, `has_next` e `next` sem ela.
+**Decidido (2026-09-30): nominal em tudo.** Como o protocolo é uma estrutura da
+linguagem, as construções o usam: exigem a cláusula `protocol`, e o diagnóstico
+de conformidade delas passa a ser o `protocol-not-satisfied`. A regra 1 da spec
+§5.1 ("Declarar os verbos de um protocolo basta... Não há registro, marcação nem
+permissão") é reescrita: a cláusula é o registro. O custo é alterar agora os
+módulos do programa que implementam por estrutura; no golden, são
+`019-walk/lst.k` e os `tasks.k` dos casos 022, 023 e 024, que declaram `begin`,
+`has_next` e `next` sem cláusula. Alterar agora custa menos do que descobrir mais
+adiante que tudo precisa mudar. A mudança nesses `.k` vai junto com o código que
+passa a ler a cláusula (antes disso, o parse da linha `module` falharia); o
+`expected/` não muda.
 
 **Tipos que o usuário escreve.** `walk` exige que o usuário escreva o tipo do
 cursor, que "é o produto declarado de `begin`" (spec §4.7: `walk (i32 *p,
@@ -581,10 +599,16 @@ não pode ser escrito. É um **tipo associado** (o `Item` do Rust). `foreach` so
 primeira versão; ou declarar o tipo no protocolo e nomeá-lo no corpo; ou permitir
 omitir o tipo do cursor quando o contêiner é de protocolo.
 
-**O que o núcleo conhece pelo nome (§5.1).** A lista ganha `keel.protocols`: as
-construções consultam os seus protocolos por nome, como `x[a..b]` consulta o
-`as_slice` de `keel.array`. Troca-se um contrato que estava só na documentação por
-um declarado. `array` participa de `Indexable` pelo núcleo, sem módulo de verbos, e
+**Protocolos da base e o núcleo.** Cada construção do núcleo estabelece o protocolo
+que consome (a tabela acima), e o protocolo é declarado na base, em
+`keel.protocols`. O protocolo é o **contrato** da construção, como a gramática é o
+da sintaxe: a spec de cada construção o cita, e a biblioteca o fornece. O que o
+núcleo referencia, então, não é um módulo privilegiado com comportamento próprio
+(como a arena hoje), mas o contrato da construção. Continuam ligados a um módulo
+**por nome**, e não por protocolo: o `as_slice` de `keel.array` para `x[a..b]`
+sobre `array`, o `range` que o literal `a..b` produz, e o símbolo `parallel.control`
+do bloco `parallel`. Fica a decidir se esses três também se expressam por
+protocolo. `array` participa de `Indexable` pelo núcleo, sem módulo de verbos, e
 não tem descritor (a extensão é um `dim` em tempo de tradução): não deve ser
 argumento de parâmetro de protocolo na primeira versão.
 
@@ -999,6 +1023,55 @@ KEEL_CHECK(a->link == NULL || a->link->epoch == a->stamp,
 
 Abertos: a sintaxe da lista de campos de controle; se os papéis devem citá-los;
 a política de `restore` em execução.
+
+#### Referência com geração (2026-09-30)
+
+**Status: ideia para discussão, não normativa.** Fecha a lacuna que a verificação
+em execução deixava: o `T *` devolvido por `alloc` é ponteiro cru, e nenhum
+descritor o cobre. Um modificador que encapsula **um ponteiro mais a geração em
+que ele nasceu**, e que é **filho** da arena pelos papéis de procedência, passa a
+ser coberto pelos dois mecanismos que já temos:
+
+```keel
+module keel.reference type T;
+
+modifier reference { T *ptr; keel_arena *link; size_t stamp; }
+control (child: link, stamp);                       // same list as for a child arena
+
+pub child reference make(parent arena *a);          // allocates one T in `a`
+pub T get(reference r);                             // checks the generation
+```
+
+- **Estático.** Os papéis registram a `reference` como filha da arena. Um
+  `reset(a)` seguido do uso da `reference` no mesmo escopo é
+  `child-region-after-invalidation`, como para qualquer filha.
+- **Em execução.** A `reference` guarda o dono (`link`) e a época dele na criação
+  (`stamp`). `get` confere a época antes de desreferenciar, como na verificação
+  por campos explícitos. É por valor: copiar uma `reference` copia a geração, e a
+  validade não depende da cópia.
+- **Custo, escolhido pelo programador.** O ponteiro cru custa 8 bytes e não é
+  verificado. A `reference` custa três palavras e uma comparação por acesso, e os
+  campos de controle podem ser só de debug ou desligados por módulo.
+
+Limites:
+
+- **O ponteiro obtido da referência escapa.** Um `ptr(r)` que devolve `T *` volta a
+  ser ponteiro cru. Pelos papéis, esse `T *` pode ser declarado filho da `reference`
+  (`pub child T *ptr(parent reference r)`), e a cadeia é seguida na análise
+  lexical, mas não em execução.
+- **`restore`.** A época sobe no `reset`. No `restore(m)` o problema é o mesmo da
+  filha: sobe-se a época e há falso positivo nas referências anteriores à marca, ou
+  compara-se o offset com o topo e perde-se a referência obsoleta depois de novas
+  alocações. A versão precisa não está desenhada.
+- **Dono concreto.** O módulo de `reference` conhece o tipo da arena (`keel_arena
+  *link`). Generalizar o dono para qualquer alocador esbarra no parâmetro de tipo
+  opaco (spec §4.3, regra 7), e um campo não pode ser do tipo de um protocolo (seria
+  despacho dinâmico). Na primeira versão, `reference` é da arena.
+- **Nome.** `ref` já é um marcador de keel (`T *ref p`). Um modificador `reference`
+  ao lado dele confunde; `handle` é uma alternativa.
+- **Cooperação entre módulos.** `make` precisa ler a época da arena, e o acesso a
+  campo de instância de outro módulo é diagnosticado (`instance-field-access`). A
+  arena teria de expor a época por um verbo público.
 
 #### Moldes: a marca `keel_code` (2026-09-30)
 

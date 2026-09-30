@@ -638,7 +638,7 @@ pub void restore    (invalidates arena *a, size_t m);
    dependência da filha para o pai. Vários pais unem as procedências.
 3. **Raiz.** A única raiz é o `array` do núcleo. Ele é local se a duração é
    automática, e a duração vem da declaração. Todo o resto vem por transmissão
-   pelo `parent`. Um verbo inline que declara `array u8 tmp[N]` e chama
+   pelo `parent`. Um molde (`keel_code`) que declara `array u8 tmp[N]` e chama
    `from_array` recebe a procedência local por esta regra, sem regra própria: é
    assim que o `from_stack` adiado poderia voltar como biblioteca.
 4. **`invalidates`.** A operação invalida o argumento e, transitivamente, tudo
@@ -686,7 +686,7 @@ continuando a valer pelos dois.
 
 Abertos:
 
-- **`from_stack`.** Como verbo inline, na seção seguinte.
+- **`from_stack`.** Como molde (`keel_code`), na seção seguinte.
 - **Verbos que só invalidam**, mas cujo argumento não é o receptor (por
   exemplo, `clear(b)` sobre um `buffer` com `slice` derivados): entram pelo
   mesmo `invalidates`, e o caso das visões sobre `buffer` fica registrado como
@@ -750,75 +750,182 @@ KEEL_CHECK(a->link == NULL || a->link->epoch == a->stamp,
 Abertos: a sintaxe da lista de campos de controle; se os papéis devem citá-los;
 a política de `restore` em execução.
 
-#### Verbos inline e o marcador `keel_code` (2026-09-30)
+#### Moldes: a marca `keel_code` (2026-09-30)
 
-**Status: proposta para discussão, não normativa.** Nasce da pergunta de como
-a biblioteca escreve o que hoje o cgen faz à mão, como o vetor `keel__st<N>`
-do `from_stack` (backend §5.4), sem que o programador recorra a macros. A
-spec não expande macros e exige que as construções existam antes da expansão
-(§1.2): uma macro parametrizada com `arena.alloc(...)` dentro **não é
-traduzida**, e o seu resultado escapa da análise. Restringir a injeção a
-declarações de `array` empurraria as pessoas para as macros.
+**Status: proposta para discussão, não normativa.** O estudo do que mudaria na
+documentação e no código está em [`mold-impacto.md`](mold-impacto.md).
 
-A ideia é injetar **código keel**, e não texto C: o corpo é analisado como keel
-na declaração do módulo, com símbolos e ilhas reconhecidos, e substituído
-estaticamente no ponto de uso. É o mesmo espírito de `type T`, que injeta um
-tipo, e de `array`, marcador do núcleo.
+**Por quê.** A biblioteca precisa escrever o que hoje o cgen faz à mão, como o
+vetor `keel__st<N>` do `from_stack` (backend §5.4), sem que o programador
+recorra a macros. A spec não expande macros e exige que as construções existam
+antes da expansão (§1.2): uma macro parametrizada com `arena.alloc(...)` dentro
+**não é traduzida**, e o seu resultado escapa da análise. Restringir a injeção
+a declarações de `array` empurraria as pessoas para as macros.
 
-**Verbo inline.** Mantém a chamada `m.f(args)` e a resolução normal (§4.4):
+**Nome.** O conceito é o **molde** (`mold`, nos identificadores e nos
+diagnósticos), e a marca que o programador escreve é `keel_code`. "Template"
+já nomeia o módulo genérico no código do cgen (`islands.h`, `instances.c`), e
+"macro" já nomeia, na spec, a macro do pré-processador C. O prefixo `keel_` é
+reservado (backend §2.3, item 3): o programa não declara identificadores com
+ele, e `#define keel_code` já é `define-over-keel-name`.
+
+**O que é um molde.** Uma função marcada com `keel_code` não é uma função C: é
+um molde de **substituição em fichas** no ponto de chamada. Não gera função
+nem símbolo no C. O que o corpo contém é keel, e não C colado: depois da
+expansão, o chamador é analisado como qualquer outro código keel, com símbolos,
+ilhas e papéis de procedência.
 
 ```keel
-pub inline bool from_stack(child arena *a, keel_const size_t N) {
-    array u8 tmp[N];               // keel `array`, not pasted C
+keel_code bool from_stack(child arena *a, dim N) {
+    alignas(alignof(max_align_t)) array u8 tmp[N];
     return from_array(a, tmp);
+}
+
+keel_code void greet(dim N, char *name) {
+    array char buf[N] = {0};
+    size_t n = snprintf(buf, N, "%s %s", "Hello", name);
+    return n;
 }
 ```
 
-- O corpo é keel arbitrário: o que restringe é a posição de uso (abaixo), e não
-  o conteúdo. `keel_const size_t N` é um parâmetro de valor conhecido na
-  tradução, como `type T` é um de tipo; um parâmetro comum (`size_t n`) continua
-  sendo uma expressão em execução. O `N` do `from_stack` é constante por causa do
-  uso (o tamanho do `array` automático), e não por causa do mecanismo. A grafia
-  é provisória. Não pode ser o
-  `constexpr` de C23, que só vale para objetos e é erro em parâmetro de função.
-  A alternativa é reaproveitar o contrato do `dim` (literal decimal, ou
-  `constexpr` de inicializador decimal conhecido; a spec diz que keel não
-  calcula expressões, §4.2 e §4.3).
-- A injeção tem a forma **prelúdio + expressão**: as declarações sobem para o
-  escopo do chamador, antes do statement que contém a chamada, e a expressão
-  substitui a chamada.
-- **Posição de uso.** Em posição de statement, o corpo pode ser keel qualquer.
-  Em posição de expressão, só sobe o que não executa nada (declarações de
-  `array` sem inicializador): um prelúdio com código (`size_t n = length(c)`)
-  quebraria a ordem de avaliação em `a && f()`, porque `f()` deixaria de ser
-  condicional. O resto, em posição de expressão, é diagnóstico.
-- **Procedência.** O `array` injetado é uma raiz local pelo núcleo, e o
-  `parent` do `from_array` a transmite: o escape sai da regra geral, sem regra
-  própria do `from_stack`.
-- **Recursão.** Inline chamando inline precisa ser acíclico, como o
-  `circular-generic`.
-- Os diagnósticos do código expandido apontam para o ponto de uso (backend §6).
-  A emissão tem de reproduzir a do golden, como `keel__st0` hoje.
+Uma chamada `arena.from_stack(t, 4096)` ou `greet(30, name)` é uma ilha, e
+seu resultado é o corpo expandido.
 
-**Marcador `keel_code`.** É um parâmetro cujo argumento é um **fragmento keel**
-(um bloco ou uma expressão), no molde de `type T` e de `array`: o terceiro
-marcador de parâmetro. O nome diz que **não é código C**, e o prefixo `keel_`
-já é reservado (backend §2.3, item 3): o programa não declara identificadores com
-ele, e `#define keel_code` já é `define-over-keel-name`, então o marcador não
-colide com nome de usuário nem de macro. Só faz falta na forma com bloco
-(`foreach`, `walk`, `apply`), que pede a sintaxe fixa
-`palavra ( binders : expressões ) { bloco }` da seção seguinte. Fica para depois
-do verbo inline, porque é onde o `construct` completo começa.
+**Parâmetros.** Cada parâmetro é ligado conforme o seu tipo:
 
-Ordem sugerida: papéis de procedência, depois o verbo inline, depois o
-marcador `keel_code` e a forma com bloco. Enquanto isso, o `from_stack`
-continua como está na v0.
+| Parâmetro | Ligação na chamada |
+| --- | --- |
+| `type T` | as fichas do tipo, conferidas como tipo |
+| `dim N` | as fichas do argumento, conferidas como constante conhecida (`nonconstant-dim`); o mesmo contrato do `dim` de módulo |
+| `keel_code C` | as fichas do argumento, tal como estão: um fragmento keel |
+| com papel (`child`, `parent`) | só identificador, substituído como está, para a análise ver o símbolo do chamador |
+| valor comum | ligado **uma vez** a um local com o tipo declarado, na ordem dos parâmetros |
 
-Abertos: a grafia de `inline` e de `keel_const`; como o argumento `keel_code` é
-delimitado no ponto de uso; e o que fazer com corpo executável em posição de
-expressão: recusar, ou gerar uma função `static inline` auxiliar chamada no
-ponto de uso (funciona em expressão, mas o que o corpo lê do chamador vira
-parâmetro dela, e isso muda a semântica).
+`type`, `dim` e `keel_code` são substituídos porque só existem na tradução. O
+valor comum se comporta como o de uma função: é avaliado uma vez, e o corpo
+pode modificar a sua cópia.
+
+**Expansão.** A chamada `m.f(args)` que resolve para um molde é expandida nesta
+ordem:
+
+1. Dividir os argumentos nas vírgulas de topo e conferir a aridade.
+2. Ligar os parâmetros, como na tabela.
+3. Copiar as fichas do corpo e substituir os parâmetros. Só fichas
+   identificador são substituídas: strings e comentários são fichas inteiras e
+   ficam intactos, e o identificador logo depois de `.` ou `->` nunca é
+   substituído.
+4. Renomear os locais declarados no corpo, de forma única e igual em todo o
+   corpo (backend §2.3). Duas chamadas ao mesmo molde no mesmo bloco não colidem.
+5. Marcar cada ficha com a **origem**: `corpo` (vem do molde) ou `argumento`
+   (vem do chamador). Fichas de corpo resolvem seus nomes no módulo do molde, e
+   fichas de argumento resolvem no chamador. Assim o molde funciona mesmo que o
+   chamador tenha importado o módulo com outro apelido, ou não tenha importado
+   o que o corpo chama.
+6. Reescrever o `return`: as fichas do corpo antes dele formam o **prelúdio**, e
+   a expressão do `return` substitui a chamada.
+7. Inserir o prelúdio no início do statement que contém a chamada, no mesmo
+   bloco, respeitando a regra de posição abaixo.
+8. Analisar as fichas geradas no ponto de uso, como código keel comum. Os locais
+   viram símbolos (um `array` local vira símbolo `array`), os papéis registram
+   procedência, e uma chamada a outro molde se expande recursivamente.
+
+`greet(30, name);` dentro de `fn` fica:
+
+```keel
+char *keel__greet0_name = name;            // value parameter, bound once
+array char keel__greet0_buf[30] = {0};     // N := 30, local renamed
+size_t keel__greet0_n = snprintf(keel__greet0_buf, 30, "%s %s", "Hello", keel__greet0_name);
+(void)(keel__greet0_n);                    // statement position: the value is discarded
+```
+
+E `if (!arena.from_stack(t, 4096)) return fail;` fica:
+
+```keel
+alignas(alignof(max_align_t)) array u8 keel__from_stack0_tmp[4096];
+if (!arena.from_array(t, keel__from_stack0_tmp)) return fail;
+```
+
+Depois da expansão, o `from_array` tem os papéis `child` e `parent`: o `array`
+local é uma raiz local, e a procedência chega a `t`. O escape sai da regra
+geral, sem regra própria do `from_stack`.
+
+**O `return` do molde.** Só pode haver um, no fim e no nível de topo do corpo.
+Ele não retorna do chamador: é o valor da expansão. Em posição de statement o
+valor é descartado (`(void)(E);`). Um molde sem `return` só vale como
+statement. O `return`, `break` e `continue` escritos dentro de um fragmento
+`keel_code` continuam sendo do chamador, então o expansor reescreve o `return`
+do corpo **antes** de substituir os fragmentos.
+
+**Posição da chamada.** Içar o prelúdio antes do statement só é correto se a
+chamada é avaliada uma vez, sem condição:
+
+- **Prelúdio só de declarações de `array` sem inicializador:** não executa
+  nada, e pode subir em qualquer posição de um bloco, inclusive na condição de
+  um `if`, como no golden 001.
+- **Prelúdio executável:** só em statement de expressão, inicializador de
+  declaração, operando de `return` e condição de `if` ou `switch`. Não vale no
+  operando direito de `&&`, `||` ou `?:`, na condição ou no incremento de um
+  laço.
+- **Sub-statement sem chaves** (`if (c) ok = arena.from_stack(a, N);`): o
+  prelúdio exigiria um bloco sintético, e o `array` morreria no fim dele,
+  enquanto a arena guarda um ponteiro para ele. Se o prelúdio declara algo, é
+  diagnóstico (`mold-position`).
+- Fora de corpo de função (inicializador de arquivo) não há onde inserir o
+  prelúdio: só vale molde sem prelúdio.
+
+**Limites da expansão.**
+
+- **Ciclo.** Só entram na cadeia as chamadas vindas de fichas de **corpo**. `f`
+  chamando `g` e `g` chamando `f` é `circular-mold`, detectável na declaração.
+  Uma chamada escrita dentro de um **argumento** (`f(f(x))`) não conta: é
+  finita, escrita por quem chama.
+- **Profundidade.** Um limite fixo de aninhamento de fichas de corpo
+  (`mold-depth`).
+- **Tamanho.** Um limite do total de fichas que uma chamada gera (`mold-size`),
+  porque `f` chamando `g` duas vezes, e `g` chamando `h` duas vezes, cresce
+  exponencialmente sem ser cíclico.
+
+**Diagnósticos.** Os erros apontam para a chamada, com o traço "na expansão de
+`m.f`", e o `#line` do código expandido leva ao ponto de uso (backend §6).
+Propostas: `circular-mold`, `mold-depth`, `mold-size`, `mold-position`,
+`mold-return` (mais de um `return`, `return` fora do fim, ou valor pedido de um
+molde sem `return`) e `mold-argument` (papel com argumento que não é
+identificador, ou tipo de argumento que não confere). O `nonconstant-dim`
+existente cobre o `dim`, e o `nonconstant-arena-stack` sai com o `from_stack`
+especial.
+
+**Consistência com a rationale.** A rationale ("Macros e sintaxe de keel") diz
+que keel evita colagem de fichas, avaliação duplicada de argumentos e outras
+técnicas de macro. O molde respeita isso: não há `##` nem `#`, o valor comum é
+avaliado uma vez, e o nome local e a resolução são higiênicos. O que pode
+duplicar código é o parâmetro `keel_code` usado mais de uma vez, e isso deve ser
+dito na documentação.
+
+**Fragmentos e a forma com bloco.** O argumento de expressão de um parâmetro
+`keel_code` cabe na posição normal de argumento (`f(a, x + 1)`). Um fragmento
+de statements pede a forma fixa `f(a) { bloco }`, que ainda está aberta na
+seção seguinte (`construct`). Ela vem depois do molde de expressão, porque é
+onde o `construct` completo começa; o molde com fragmento é o mecanismo que o
+`construct` usaria para `foreach`, `walk` e `apply`.
+
+Ordem sugerida: papéis de procedência, depois o molde com prelúdio de expressão
+(o `from_stack`), depois o fragmento `keel_code` e a forma com bloco. Enquanto
+isso, o `from_stack` continua como está na v0.
+
+Abertos:
+
+- **Grafia** da marca `keel_code` como qualificador da função e como tipo de
+  parâmetro (a mesma palavra nos dois usos).
+- **Categoria do fragmento** (expressão ou statements), inferida pela posição de
+  uso no corpo, com erro se houver usos conflitantes, ou escrita.
+- **Corpo executável em posição de expressão:** recusar, ou gerar uma função
+  `static inline` auxiliar chamada no ponto de uso (funciona em expressão, mas o
+  que o corpo lê do chamador vira parâmetro dela, e isso muda a semântica).
+  Recusar é a inclinação atual.
+- **Ordem entre prelúdios** de vários moldes no mesmo statement: proposta,
+  da esquerda para a direita, na ordem textual.
+- **Nome dos locais renomeados.** O esquema `keel__<molde><n>_<local>` muda o
+  esperado do golden 001, hoje `keel__st0`.
 
 ### Construções definidas por módulo (`construct`)
 

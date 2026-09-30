@@ -798,7 +798,7 @@ pub inline bool from_stack(child arena *a, keel_const size_t N) {
 **Marcador `keel_code`.** É um parâmetro cujo argumento é um **fragmento keel**
 (um bloco ou uma expressão), no molde de `type T` e de `array`: o terceiro
 marcador de parâmetro. O nome diz que **não é código C**, e o prefixo `keel_`
-já é reservado (backend §3, item 3): o programa não declara identificadores com
+já é reservado (backend §2.3, item 3): o programa não declara identificadores com
 ele, e `#define keel_code` já é `define-over-keel-name`, então o marcador não
 colide com nome de usuário nem de macro. Só faz falta na forma com bloco
 (`foreach`, `walk`, `apply`), que pede a sintaxe fixa

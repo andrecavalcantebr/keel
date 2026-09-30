@@ -1024,54 +1024,71 @@ KEEL_CHECK(a->link == NULL || a->link->epoch == a->stamp,
 Abertos: a sintaxe da lista de campos de controle; se os papéis devem citá-los;
 a política de `restore` em execução.
 
-#### Referência com geração (2026-09-30)
+#### Handle: ponteiro com geração (2026-09-30)
 
-**Status: ideia para discussão, não normativa.** Fecha a lacuna que a verificação
-em execução deixava: o `T *` devolvido por `alloc` é ponteiro cru, e nenhum
-descritor o cobre. Um modificador que encapsula **um ponteiro mais a geração em
-que ele nasceu**, e que é **filho** da arena pelos papéis de procedência, passa a
-ser coberto pelos dois mecanismos que já temos:
+**Status: ideia a estudar, não normativa. Não está decidido que valha o esforço.**
+Fecha a lacuna que a verificação em execução deixava: o `T *` devolvido por
+`alloc` é ponteiro cru, e nenhum descritor o cobre. Um modificador `handle`
+encapsula **um ponteiro mais a geração em que ele nasceu**, e é **filho** da arena
+pelos papéis de procedência. Com isso, passa a ser coberto pelos dois mecanismos
+que já temos:
 
 ```keel
-module keel.reference type T;
+module keel.handle type T;
 
-modifier reference { T *ptr; keel_arena *link; size_t stamp; }
+modifier handle { T *ptr; keel_arena *link; size_t stamp; }
 control (child: link, stamp);                       // same list as for a child arena
 
-pub child reference make(parent arena *a);          // allocates one T in `a`
-pub T get(reference r);                             // checks the generation
+pub child handle make(parent arena *a);             // allocates one T in `a`
+pub T get(handle h);                                // checks the generation
 ```
 
-- **Estático.** Os papéis registram a `reference` como filha da arena. Um
-  `reset(a)` seguido do uso da `reference` no mesmo escopo é
-  `child-region-after-invalidation`, como para qualquer filha.
-- **Em execução.** A `reference` guarda o dono (`link`) e a época dele na criação
-  (`stamp`). `get` confere a época antes de desreferenciar, como na verificação
-  por campos explícitos. É por valor: copiar uma `reference` copia a geração, e a
-  validade não depende da cópia.
+**Características.**
+
+- **É um struct, e não um ponteiro.** Não admite aritmética de ponteiros: não há
+  `h + 1`, e isso vem da própria forma, sem regra extra.
+- **Sem operadores.** Não há `*h` nem `&x` sobre o handle. Tratar a referência com
+  os operadores de ponteiro repetiria o que se fez com `[]` (a sobrecarga de
+  `x[i]` por protocolo), só que com `*` e `&`, e faria o handle parecer um ponteiro
+  ou uma referência de C++, o que ele não é. O acesso é por verbos (`get`, `set`,
+  `ptr`). Por isso o nome é `handle`, e não `reference`.
+- **Por valor.** Copiar um handle copia a geração, e a validade não depende da
+  cópia.
+
+**Cobertura.**
+
+- **Estático.** Os papéis registram o handle como filho da arena. Um `reset(a)`
+  seguido do uso do handle no mesmo escopo é `child-region-after-invalidation`,
+  como para qualquer filha.
+- **Em execução.** O handle guarda o dono (`link`) e a época dele na criação
+  (`stamp`). `get` confere a época antes de desreferenciar, como na verificação por
+  campos explícitos.
 - **Custo, escolhido pelo programador.** O ponteiro cru custa 8 bytes e não é
-  verificado. A `reference` custa três palavras e uma comparação por acesso, e os
-  campos de controle podem ser só de debug ou desligados por módulo.
+  verificado. O handle custa três palavras e uma comparação por acesso, e os campos
+  de controle podem ser só de debug ou desligados por módulo.
 
-Limites:
+**Limites.**
 
-- **O ponteiro obtido da referência escapa.** Um `ptr(r)` que devolve `T *` volta a
-  ser ponteiro cru. Pelos papéis, esse `T *` pode ser declarado filho da `reference`
-  (`pub child T *ptr(parent reference r)`), e a cadeia é seguida na análise
-  lexical, mas não em execução.
+- **O ponteiro obtido do handle escapa.** Um `ptr(h)` que devolve `T *` volta a ser
+  ponteiro cru. Pelos papéis, esse `T *` pode ser declarado filho do handle (`pub
+  child T *ptr(parent handle h)`), e a cadeia é seguida na análise lexical, mas não
+  em execução.
 - **`restore`.** A época sobe no `reset`. No `restore(m)` o problema é o mesmo da
-  filha: sobe-se a época e há falso positivo nas referências anteriores à marca, ou
-  compara-se o offset com o topo e perde-se a referência obsoleta depois de novas
+  filha: sobe-se a época e há falso positivo nos handles anteriores à marca, ou
+  compara-se o offset com o topo e perde-se o handle obsoleto depois de novas
   alocações. A versão precisa não está desenhada.
-- **Dono concreto.** O módulo de `reference` conhece o tipo da arena (`keel_arena
+- **Dono concreto.** O módulo do handle conhece o tipo da arena (`keel_arena
   *link`). Generalizar o dono para qualquer alocador esbarra no parâmetro de tipo
   opaco (spec §4.3, regra 7), e um campo não pode ser do tipo de um protocolo (seria
-  despacho dinâmico). Na primeira versão, `reference` é da arena.
-- **Nome.** `ref` já é um marcador de keel (`T *ref p`). Um modificador `reference`
-  ao lado dele confunde; `handle` é uma alternativa.
+  despacho dinâmico). Na primeira versão, o handle é da arena.
 - **Cooperação entre módulos.** `make` precisa ler a época da arena, e o acesso a
   campo de instância de outro módulo é diagnosticado (`instance-field-access`). A
   arena teria de expor a época por um verbo público.
+
+**A estudar.** Se o ganho compensa o esforço: o handle só cobre o uso pelos verbos
+dele, em troca de três palavras por ponteiro, e a cultura de DOD de keel já
+prefere índices a ponteiros. Um índice geracional (um `u32` e uma geração em
+tabela) é a alternativa, e custa menos por referência.
 
 #### Moldes: a marca `keel_code` (2026-09-30)
 

@@ -323,10 +323,17 @@ protocol Traversable {
 
 O protocolo não emite nada em C: os símbolos são os do implementador.
 
-**Composição.** Um protocolo pode compor outros, com a **lista que a linguagem já
-usa** (a de `tags`, `tags-list`, spec §2.2); só muda o significado da lista: aqui
-ela diz quais protocolos o novo inclui. As chaves são opcionais e servem só para
-acrescentar protótipos próprios, além dos importados:
+**Composição.** Um protocolo pode compor outros, com a **lista entre colchetes que
+a linguagem já usa** (a de `tags`, `tags-list`, spec §2.2); só muda o significado
+da lista, que depende da declaração em que ela aparece: em `tags Tipo [lista]` é
+a lista de enums do tipo; em `extent nome [len, cap]` são os campos de controle;
+em `extern_c [type_h]` é onde colocar os símbolos; em `protocol Nome [lista]` são
+os protocolos que compõem o novo. Na linha `module`, a lista é outra coisa, e não
+usa colchetes: `dim`, `tags` e `type` dali definem os tokens de substituição, e
+`protocol Indexable, Traversable` diz **o que o módulo implementa**. A cláusula
+`protocol` vai depois de `type` e **não é um binder**: não entra na aridade dos
+modificadores (§4.3). As chaves são opcionais e servem só para acrescentar
+protótipos próprios, além dos importados:
 
 ```keel
 protocol IndexTraverse [Indexable, Traversable];          // composition only, no braces
@@ -507,11 +514,6 @@ Abertos:
   convenção da spec (§5.1) é da base e não é regra léxica: o conflito é só de
   leitura, e o uso (parâmetro de função, símbolo de outra espécie) desfaz a
   ambiguidade. A tabela da convenção ganharia uma linha.
-- **Duas listas de protocolos com pontuação diferente.** A linha `module` usa a
-  lista por vírgulas (`protocol Indexable, Traversable`), como `dim`, `tags` e
-  `type` dali, e a declaração do protocolo composto usa a lista entre colchetes,
-  como `tags`. Cada uma segue o costume do seu contexto. Falta decidir se vale
-  unificar.
 - **Granularidade da cláusula.** Na linha `module`, vale para todos os
   modificadores. Se um módulo tiver dois modificadores que conformam de formas
   diferentes, a cláusula teria de ir para a linha do modificador.

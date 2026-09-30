@@ -297,46 +297,156 @@ A estudar:
 
 ### Protocolo nominal
 
+**Status: proposta para discussão, não normativa (reelaborada em 2026-09-30).**
 Os protocolos da spec §5.1 são estruturais: quem declara `begin`/`has_next`/
 `next` participa de `walk`, e o contrato está só na documentação. Dar-lhes nome
-quase não pede peça nova:
+e usá-los como **tipo de parâmetro** de função é o que esta entrada propõe. Não
+depende do molde (`keel_code`): é uma função genérica **instanciada pelo tipo
+concreto do argumento**, e não uma expansão de código.
+
+**Declaração.** Um protocolo é um conjunto de assinaturas, declarado num módulo
+como um irmão do `modifier`: um módulo pode declarar vários protocolos, e a
+lista de binders (`type T`, `dim`, `tags`) é a do módulo.
 
 ```keel
-module Traversable type T;          // prototypes over T only: that is the contract
+module keel.protocols type T;
 
-module keel.buffer type T protocol Traversable;   // the module declares that it complies
+protocol Indexable {
+    pub size_t length(Indexable *c);
+    pub T      *ptr(Indexable *c, size_t i);
+}
 
-module stats type C bound Traversable;         // the generic requires it (bound)
-pub f64 media(C *c) {
-    f64 s = 0; size_t n = 0;
-    walk (f64 *x, cursor k : c) { s += *x; n++; }
-    return n ? s / n : 0;
+protocol Traversable {
+    /* ... */
 }
 ```
 
-O que se ganha:
+O protocolo não emite nada em C: os símbolos são os do implementador.
 
-1. **Algoritmo genérico escrito pelo usuário sobre um protocolo** — o único
-   ganho de expressividade. Hoje o parâmetro de tipo é opaco (spec §4.3,
-   `protocol-on-parameter`), então `media` teria de ser escrita uma vez por
-   contêiner. Com o bound, o `walk` sobre `C` se resolve na instanciação: o
-   bound garante que os verbos existem, e o nome canônico da instância
-   (`keel.buffer.buffer f64`) diz em que módulo moram — sem import novo.
-2. **Conformidade verificada no implementador**: o cgen confere, em
-   `keel.buffer`, que os protótipos do contrato estão lá. Hoje a falta só
-   aparece no uso, no código de outra pessoa.
+**Implementação.** O módulo que implementa declara os verbos, como hoje, e pode
+declarar a conformidade:
 
-O que não se ganha: bound na construção (`walk(Traversable ...)`) é
-redundante — a construção já é o protocolo; o bound só tem lugar na linha
-`module`. Despacho dinâmico e sobrecarga por protocolo ficam fora.
+```keel
+module keel.buffer type T protocol Indexable, Traversable;
+```
 
-A coerência — em que módulo mora a implementação, o problema que a *orphan
-rule* do Rust resolve — já está dada: os verbos moram no módulo do
-modificador.
+A cláusula `protocol` **não é um import**. O import traz nomes visíveis, e a
+cláusula declara que os protótipos existem, com as mesmas assinaturas (papéis de
+procedência incluídos), conferido no implementador. O nome do protocolo precisa
+estar visível, então o implementador importa `keel.protocols` de qualquer forma.
+A cláusula é opcional: a conformidade também é conferida na chamada, e a cláusula
+só antecipa a verificação para o implementador.
 
-Motivo de ficar para depois: complexidade no núcleo para um ganho que a base e
-as construções (`walk`, `foreach`, `parallel`) não pedem, e que a
-documentação cobre enquanto o usuário não escreve algoritmos genéricos.
+**Uso.** O protocolo se usa como um tipo, depois de `import keel.protocols
+types;`. Não é preciso outra marca: o `types` já significa "traga os tipos".
+
+```keel
+void fn(my i32 x, Indexable b) {
+    size_t n = length(b);       // resolved by b's concrete type (spec §4.4, step 1)
+    /* ... */
+}
+
+buffer i32 b;
+slice i32 s;
+my i32 x;
+fn(x, b);        // instance with Indexable := buffer i32
+fn(x, s);        // instance with Indexable := slice i32
+```
+
+**Instância da função.** O parser já descobre instâncias por uso reconhecido e
+fecha o conjunto sobre os verbos (parser-design §5). A instância de `fn` é o
+mesmo mecanismo, com outra identidade: (função, tipos concretos dos parâmetros
+de protocolo). Cada uma chama os verbos do tipo concreto:
+
+```c
+void my_fn_keel_buffer_i32(my_i32 x, keel_buffer_i32 *b) { ... keel_buffer_i32_length(b); ... }
+void my_fn_keel_slice_i32 (my_i32 x, keel_slice_i32  b) { ... keel_slice_i32_length(b); ... }
+```
+
+- **Nome.** `<módulo>_<função>_<tipos concretos manglados>`, com o sufixo de
+  aridade por último (backend §2.1.1). O argumento carrega a própria
+  qualificação (§2.1, regra 1), então `buffer i32` entra como `keel_buffer_i32`.
+  A normalização do §2.2 faz `buffer int32_t` e `buffer i32` darem a mesma
+  instância. O comprimento é limitado pelo `name-too-long` (§2.4), sem regra nova.
+  A colisão por concatenação com um nome do usuário cai no `symbol-collision`
+  existente.
+- **Emissão.** Vale a regra das instâncias de módulo genérico: o corpo é
+  `static inline` por padrão, e o corpo fora de linha só existe com um `instance`
+  explícito, que escolhe o `.c` (backend §4.4). Não há exigência nova de
+  `instance`, e nenhum diagnóstico especial para `static` local: a propriedade
+  vale para toda função `static inline` e é do autor do módulo. Onde exatamente
+  fica o corpo em linha, já que o módulo de `fn` não conhece `buffer i32`,
+  segue o mecanismo de instância existente; falta conferi-lo no backend §4.
+- **Sem símbolo C até instanciar.** Uma função com parâmetro de protocolo não
+  tem símbolo C próprio, como o módulo genérico: não é chamável do C, e o `.c` do
+  módulo não a contém.
+
+**Regras.**
+
+1. A lista de binders do protocolo é a mesma do implementador, por espécie e
+   ordem. `buffer` e `slice` (só `type T`) conformam com um protocolo `type T`;
+   um implementador com `dim` a mais precisa de outro protocolo.
+2. O uso não fornece binders (`Indexable b`, e não `Indexable i32 b`): o `type
+   T` do protocolo é o do implementador. O corpo de `fn` não nomeia o tipo do
+   elemento; fixa-o pelo que escreve, e uma divergência com o argumento real cai
+   no compilador C.
+3. O tipo do argumento vem do **símbolo**, e não de inferência sobre expressão
+   (§1.3): `fn(x, f())` é erro, e o argumento precisa ser um símbolo de tipo
+   conhecido.
+4. Cada ocorrência de protocolo é independente: `fn(Indexable a, Indexable b)`
+   liga dois tipos que podem diferir.
+5. **Passagem.** O parâmetro se escreve sem `*`, e o cgen decide pelo bit `byref`
+   da instância concreta (§5.1, item 2): ponteiro para `buffer`, valor para `slice`.
+   (A confirmar.)
+6. **Checagem no corpo.** Na declaração de `fn`, `b` tem o tipo `Indexable`: só os
+   verbos do protocolo valem sobre ele.
+7. **Terminação.** Uma função que se chama com um tipo novo a cada volta
+   instanciaria sem fim: precisa de um limite de profundidade.
+
+**Diagnósticos propostos:** `protocol-not-satisfied` (o argumento não conforma;
+nomeia o verbo que falta), `verb-not-in-protocol` (verbo fora do protocolo, no
+corpo) e `instance-depth`. O `protocol-on-parameter` da v0 continua valendo para
+o parâmetro de tipo de módulo genérico, que segue opaco.
+
+**Protocolos definidos por papéis.** Os protótipos podem levar os papéis de
+procedência (`child`, `parent`, `invalidates`), e a conformidade exige as mesmas
+assinaturas, papéis incluídos. Assim os protocolos de alocação e de hierarquia
+saem definidos por assinatura, sem lista de verbos casada pelo nome.
+
+**O que se ganha.**
+
+1. **Algoritmo genérico escrito pelo usuário sobre um protocolo**, com uma
+   instância por tipo, e não uma cópia do corpo por chamada (o que o molde faria).
+   Hoje o parâmetro de tipo é opaco (spec §4.3, `protocol-on-parameter`), então
+   `media` teria de ser escrita uma vez por contêiner.
+2. **Conformidade verificada no implementador e na chamada**, com o verbo que
+   falta nomeado, em vez de um erro dentro do corpo.
+
+**Relação com o molde.** São independentes. O molde expande código no chamador,
+serve para corpos pequenos e para injetar declarações no escopo dele. A função
+com protocolo instancia uma vez por tipo, serve para qualquer tamanho, e o corpo
+mora numa função. Um parâmetro de molde também pode ter tipo de protocolo, pelo
+mesmo mecanismo, sem trabalho à parte.
+
+**Quando.** Depois do M5: a instância de função depende da análise de corpo por
+instância, que ainda não existe (`islands.h`: o módulo genérico "não tem ilhas
+concretas"; o fecho transitivo é "uma passagem posterior"). O desenho fica no
+papel agora, e o molde (que não depende de instâncias) vem antes, como decidido.
+
+Abertos:
+
+- **Onde fica o corpo em linha** da instância de função (acima).
+- **Grafia dos nomes de protocolo.** A spec reserva a maiúscula inicial para
+  conjuntos de tags (`Status`): `Indexable` colidiria com a convenção. Escolher
+  entre minúscula (`indexable`) e uma classe nova de maiúscula.
+- **`bound` na linha `module`.** Com o protocolo como tipo de parâmetro, o `bound`
+  de módulo perde o uso principal (algoritmo genérico sobre um contêiner).
+  Sobra o algoritmo genérico sobre um **parâmetro de tipo** do módulo, e não há
+  caso pedindo isso hoje.
+- **Tipo do elemento.** Sem tipo associado, o corpo não o nomeia. Se a falta
+  incomodar, o `type T` do protocolo poderia aparecer no uso (`Indexable i32 b`),
+  ao custo de um argumento a mais em cada uso.
+- **Vários protocolos por parâmetro** (`Indexable + Traversable`).
 
 ### Protocolos de alocação e de hierarquia: Alocável e Hierarquizável
 
@@ -381,7 +491,7 @@ Abertos:
   nome que não diga `arena`, se o protocolo o generalizar.
 - **`clone` genérico.** `clone(arena *a, …)` de `buffer` e `slice` fixa o tipo.
   Aceitar qualquer Alocável exige parâmetro genérico com exigência sobre ele,
-  que é o `bound` do protocolo nominal (§2 acima).
+  que é o protocolo nominal como tipo de parâmetro (§2 acima).
 - **`restore` com marca.** `restore(pai, m)` invalida só o que foi derivado
   depois de `m`, e `reset` invalida tudo. A verificação precisa da ordem de
   derivação, ou fica conservadora e recusa todas as filhas.
@@ -940,6 +1050,13 @@ Abertos:
 
 ### Construções definidas por módulo (`construct`)
 
+**Nota (2026-09-30).** Com o molde (`keel_code`, acima), a **expansão** que esta
+seção propunha já existe. O que o molde não cobre é a **forma** de chamada:
+`foreach (T x, size_t i : c) { corpo }` não tem a forma `m.f(args)`, então
+`foreach` e `walk` continuam no núcleo, e já funcionam na v0. Esta seção fica
+como extensão futura do molde: a forma `f(args) { bloco }` para laços definidos
+pelo usuário. Não é um recurso separado do molde.
+
 Hoje `foreach`, `walk`, `parallel`, `match` e `else` são do núcleo, e
 cada uma tem os seus diagnósticos escritos à mão. A ideia: um módulo declara a
 construção como um molde de substituição de código, com parâmetros que exigem
@@ -1006,8 +1123,8 @@ Abertos:
   do `foreach` e do `walk` passariam a ser os da conformidade.
 - **Mapeamento de linhas.** O código expandido aponta para o uso da construção,
   e não para o molde (backend §6).
-- **Ordem de implementação.** Protocolo nominal primeiro, com `bound`; a
-  construção é o terceiro consumidor, depois do `bound` de módulo genérico.
+- **Ordem de implementação.** O molde primeiro (antes do M5), e o protocolo
+  nominal depois do M5; a forma com bloco vem por último, e só se fizer falta.
 - **Tipo do elemento.** Hoje o usuário escreve o tipo do binder. Inferi-lo pelo
   protocolo exigiria tipo associado (o `Item` do Rust), que é outro recurso, e
   fica fora enquanto o binder for tipado por quem escreve.

@@ -330,12 +330,24 @@ declarar a conformidade:
 module keel.buffer type T protocol Indexable, Traversable;
 ```
 
-A cláusula `protocol` **não é um import**. O import traz nomes visíveis, e a
-cláusula declara que os protótipos existem, com as mesmas assinaturas (papéis de
-procedência incluídos), conferido no implementador. O nome do protocolo precisa
+A cláusula `protocol` **não é um import**: o import traz nomes visíveis, e a
+cláusula só diz **o que aquele módulo implementa**. O nome do protocolo precisa
 estar visível, então o implementador importa `keel.protocols` de qualquer forma.
-A cláusula é opcional: a conformidade também é conferida na chamada, e a cláusula
-só antecipa a verificação para o implementador.
+
+**Não há `bound`.** Nenhuma palavra ou marca diz "agora vou usar protocolos": o
+protocolo é importado e usado como um tipo, e não há cláusula na linha `module`
+do genérico, nem na definição do protocolo, nem no uso.
+
+**Verificação.** É nominal e simples. Ao importar `buffer`, keel lê na linha
+`module` quais protocolos ele implementa. No uso, como `fn(x, b)`, já sabe que
+`buffer` implementa `Indexable`, e recusa o tipo que não o declara
+(`protocol-not-satisfied`). A existência dos verbos não é conferida por keel: a
+cláusula é uma declaração do autor do módulo, como os papéis de procedência, e
+se ela mentir o compilador C recusa a chamada. A mensagem, então, nomeia o
+símbolo manglado, e o `#line` leva ao `.k` da chamada. Conferir no implementador
+que os protótipos existem é barato (o módulo já está lido) e fica como reforço
+opcional; o backend desaconselha usar a falta de definição como mecanismo de
+diagnóstico (§5, "Não usar protótipos sem definição como mecanismo de erro").
 
 **Uso.** O protocolo se usa como um tipo, depois de `import keel.protocols
 types;`. Não é preciso outra marca: o `types` já significa "traga os tipos".
@@ -374,9 +386,11 @@ void my_fn_keel_slice_i32 (my_i32 x, keel_slice_i32  b) { ... keel_slice_i32_len
   `static inline` por padrão, e o corpo fora de linha só existe com um `instance`
   explícito, que escolhe o `.c` (backend §4.4). Não há exigência nova de
   `instance`, e nenhum diagnóstico especial para `static` local: a propriedade
-  vale para toda função `static inline` e é do autor do módulo. Onde exatamente
-  fica o corpo em linha, já que o módulo de `fn` não conhece `buffer i32`,
-  segue o mecanismo de instância existente; falta conferi-lo no backend §4.
+  vale para toda função `static inline` e é do autor do módulo. O corpo em linha
+  fica no **header da própria instância** (`my_fn_keel_buffer_i32.h`), como
+  qualquer instância de modificador: quem instancia é quem usa, e dois módulos
+  que usam o mesmo par geram o mesmo header, byte a byte (backend §4, regras 4
+  e 5).
 - **Sem símbolo C até instanciar.** Uma função com parâmetro de protocolo não
   tem símbolo C próprio, como o módulo genérico: não é chamável do C, e o `.c` do
   módulo não a contém.
@@ -395,17 +409,22 @@ void my_fn_keel_slice_i32 (my_i32 x, keel_slice_i32  b) { ... keel_slice_i32_len
    conhecido.
 4. Cada ocorrência de protocolo é independente: `fn(Indexable a, Indexable b)`
    liga dois tipos que podem diferir.
-5. **Passagem.** O parâmetro se escreve sem `*`, e o cgen decide pelo bit `byref`
-   da instância concreta (§5.1, item 2): ponteiro para `buffer`, valor para `slice`.
-   (A confirmar.)
-6. **Checagem no corpo.** Na declaração de `fn`, `b` tem o tipo `Indexable`: só os
-   verbos do protocolo valem sobre ele.
+5. **Passagem.** É definição do modificador, e keel a decide no uso, pelo bit
+   `byref` da instância concreta (§5.1, item 2). O parâmetro se escreve sem `*`:
+   para `fn(x, b)` com `b` um `buffer i32` (`byref`) a instância recebe
+   `keel_buffer_i32 *b` e a chamada emite `&b`; para `fn(x, s)` com `s` um `slice`
+   a instância recebe o valor e a chamada não leva `&`. Vale para a emissão da
+   instância e para o ponto de uso.
+6. **Verbos do corpo** (a decidir). Se, na declaração de `fn`, só os verbos do
+   protocolo valessem sobre `b`, um `push(b, 1)` seria erro na declaração. Sem
+   essa regra, o erro aparece na instância em que o verbo não existe, com a nota
+   de instanciação (backend §6.1).
 7. **Terminação.** Uma função que se chama com um tipo novo a cada volta
    instanciaria sem fim: precisa de um limite de profundidade.
 
-**Diagnósticos propostos:** `protocol-not-satisfied` (o argumento não conforma;
-nomeia o verbo que falta), `verb-not-in-protocol` (verbo fora do protocolo, no
-corpo) e `instance-depth`. O `protocol-on-parameter` da v0 continua valendo para
+**Diagnósticos propostos:** `protocol-not-satisfied` (o tipo do argumento não
+declara o protocolo), `instance-depth` e, se a regra 6 valer,
+`verb-not-in-protocol`. O `protocol-on-parameter` da v0 continua valendo para
 o parâmetro de tipo de módulo genérico, que segue opaco.
 
 **Protocolos definidos por papéis.** Os protótipos podem levar os papéis de
@@ -435,14 +454,12 @@ papel agora, e o molde (que não depende de instâncias) vem antes, como decidid
 
 Abertos:
 
-- **Onde fica o corpo em linha** da instância de função (acima).
-- **Grafia dos nomes de protocolo.** A spec reserva a maiúscula inicial para
-  conjuntos de tags (`Status`): `Indexable` colidiria com a convenção. Escolher
-  entre minúscula (`indexable`) e uma classe nova de maiúscula.
-- **`bound` na linha `module`.** Com o protocolo como tipo de parâmetro, o `bound`
-  de módulo perde o uso principal (algoritmo genérico sobre um contêiner).
-  Sobra o algoritmo genérico sobre um **parâmetro de tipo** do módulo, e não há
-  caso pedindo isso hoje.
+- **Grafia.** Os nomes de protocolo levam maiúscula inicial (`Indexable`), como
+  os conjuntos de tags (`Status`) e os tipos do usuário (`Vec2`, `Particle`). A
+  convenção da spec (§5.1) é da base e não é regra léxica: o conflito é só de
+  leitura, e o uso (parâmetro de função, símbolo de outra espécie) desfaz a
+  ambiguidade. A tabela da convenção ganharia uma linha.
+- **Verbos do corpo** (regra 6).
 - **Tipo do elemento.** Sem tipo associado, o corpo não o nomeia. Se a falta
   incomodar, o `type T` do protocolo poderia aparecer no uso (`Indexable i32 b`),
   ao custo de um argumento a mais em cada uso.

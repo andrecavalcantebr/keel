@@ -554,9 +554,9 @@ região crua.
 
 Por isso `buffer` não é o VLA de verdade: ele é um descritor, retorna por valor, e
 a vida do dado é a da arena, não dele. E a `arena` também não é:
-`arena.from_stack` tem a forma de vida do VLA mas exige tamanho constante, e
+um `array` automático escrito pelo programa exige extensão constante, e
 `arena.from_parent` tem o tamanho de execução mas o armazenamento não volta
-sozinho. O que chega perto é a composição das duas, com a disciplina de pilha
+sozinho. O que chega perto é compor `array`, `from_array` e `from_parent`, com a disciplina de pilha
 **explícita** em vez de implícita — e escrito assim funciona onde VLA não existe,
 o modo de falha é testável, e quem lê sabe de onde saiu a memória.
 
@@ -610,7 +610,9 @@ bound na assinatura, implementação com dono, verificação do corpo contra o
 bound. O genérico de keel sabe de `T` o que o header C genérico sabe do seu
 `#define T`, e nada mais. Uma instância que menciona `T`, como
 `outcome buffer T`, não é opaca: o modificador é conhecido, e é dele que vêm
-os verbos.
+os verbos. As funções sobre protocolo da v1 são um contrato separado:
+declaram o protocolo no parâmetro e ligam seus tipos associados (§4.14).
+Isso não abre automaticamente protocolos sobre o `T` opaco de módulo.
 
 **Por que o erro de verbo indisponível pertence ao parser.** Um `static_assert(false)` no corpo de uma função C falha ao traduzir a definição, mesmo quando ninguém chama a função. Isso impediria carregar uma instância apenas para usar seus verbos válidos. keel marca por instância as operações explícitas proibidas, propaga a indisponibilidade pelas chamadas conhecidas e diagnostica o uso na posição do chamador. O backend suprime os corpos marcados; não emite asserções falsas como substitutos.
 
@@ -1772,3 +1774,117 @@ escrita: `not-partitionable`, `not-cursor-iterable`,
 `match-without-tags` recusam um tipo que não declara a operação exigida.
 
 Referência: [spec §6.2](keel-spec.md#62-catálogo).
+
+## Papéis, protocolos e moldes
+
+### Papéis e núcleo mínimo
+
+O núcleo precisa conhecer a relação de procedência, não o nome do alocador.
+`parent` e `child` registram essa relação na assinatura; `invalidates` e
+`consumes` registram seus efeitos sobre símbolos conhecidos. Assim, arena,
+pool e bibliotecas do programa usam a mesma análise lexical. Os papéis não
+geram campos nem instruções e não provam corpos C. O programa responde pela
+veracidade do contrato declarado; cópias e aliases continuam fora da análise.
+
+A generalização não está completa apenas por trocar os diagnósticos: o `{0}`
+implícito da arena e sua restrição de passagem por valor permanecem
+privilégios explícitos até a decisão sobre inicialização e `byref` em `typedef`.
+
+### Por que invalidates e consumes são dois papéis
+
+Resetar uma arena descarta produtos, mas permite reutilizar o descritor.
+Liberar uma entidade de pool torna inválida também a entidade. `invalidates`
+expressa o primeiro caso; `consumes`, o segundo. A distinção é declarada e não
+deduzida do nome `reset` ou `free`. Uma arena filha já invalidada pelo pai
+não pode ser revalidada por seu próprio reset: essa chamada já usa um símbolo
+inválido. Uma nova construção substitui a relação anterior.
+
+### Por que não há from_stack
+
+Uma função C comum não pode devolver ao chamador armazenamento automático
+criado em seu próprio corpo. Manter `from_stack` exigiria expansão especial
+pelo núcleo. A v0 usa armazenamento escrito explicitamente:
+
+```keel
+array u8 storage[1024];
+arena.from_array(a, storage);
+```
+
+O molde v1 fornece expansão geral no chamador, mas esta revisão não reintroduz
+`from_stack` na Base. A duração e o custo do armazenamento continuam visíveis.
+
+### Macro higiênica
+
+`keel_code` marca um molde que só expande no chamador. Parâmetros de valor
+são avaliados uma vez; fragmentos executam nos lugares em que são usados.
+Nomes do corpo conservam sua origem e locais são renomeados por vínculo;
+nomes livres do fragmento conservam o escopo de escrita. Não há função C
+própria nem endereço do molde.
+
+Foi recusada a função comum especializada por fragmento. Ela exigiria
+identidade e mangling para código, política de captura e transporte de nomes
+privados para outra unidade. O molde resolve a substituição no contexto
+efetivo do uso. Por isso parâmetro `keel_code` fora de molde é erro.
+
+As posições restritas e o retorno final evitam içar statements através de
+curto-circuito, mudar a frequência de avaliação ou deixar um retorno do molde
+sair do chamador. Não criar bloco artificial preserva a duração do
+armazenamento introduzido; papéis e `defer` analisam a AST depois da expansão.
+
+### Por que o type T de função continua apagado
+
+Uma função comum que precisa só de tamanho, alinhamento e retorno tipado não
+precisa copiar seu algoritmo para cada tipo. Mantêm-se a seleção da instância
+de módulo e o apagamento da §4.4. O molde substitui tipos porque substitui o
+corpo inteiro; essa exceção não muda a ABI das funções comuns. A especialização
+de funções sobre protocolo é outro contrato, ligado ao tipo concreto e aos
+verbos do argumento, sem especialização por fragmento.
+
+### Conformidade estrutural com asserção opcional
+
+Nomear o contrato permite compartilhá-lo entre construções, verificar papéis
+e ligar tipos associados. Não exige que cada implementador peça permissão
+para participar: declarar os verbos suficientes continua bastando.
+`implement [lista]` antecipa a verificação para a declaração do tipo; sem a
+asserção, a verificação ocorre no uso. Cada modificador pode afirmar seu
+próprio conjunto, mesmo quando compartilha módulo com outros.
+
+Composição significa conjunção. A alternativa entre leitura por valor e por
+endereço pertence ao `foreach`, que aceita `IndexGet` ou `IndexPtr` para
+binder por valor. O mesmo princípio separa `Failable` e `Winnable`: tratamento
+sem default não exige um verbo que escreve valor.
+
+### Por que os parâmetros genéricos ficam na linha module
+
+A unidade instanciada é o módulo. Seus modificadores, tipos e funções
+compartilham os argumentos de `dim`, `tags` e `type`; movê-los para cada
+modificador criaria unidades de instanciação diferentes. Já `implement`
+qualifica um tipo e fica na declaração desse tipo.
+
+### Tipos associados em vez de consulta de tipo declarado
+
+`type cursor;`, `type elem;` e os demais tipos associados pertencem ao
+contrato. Sua ligação vem dos retornos declarados dos verbos, sem inferência
+de expressões C. O nome opcional do tipo concreto em `Traversable C items`
+permite escrever `C.cursor` e `C.elem` no corpo genérico. Isso substitui a
+proposta de consulta `keel_declared(...)`; não acrescenta um `typeof` de C.
+
+### Gerações e pool verificado como desenho de biblioteca
+
+O grafo lexical não detecta cópias arbitrárias de handles nem uso de ponteiro
+cru escapado. Uma biblioteca pode acrescentar época, geração de slot e vínculo
+ao dono, mantendo essas verificações em seus verbos. Campos, comparações,
+atualizações, concorrência, duração dos descritores, esgotamento do contador
+e política de `restore` são parte do custo e do contrato dessa biblioteca.
+Verificar só a geração do pai imediato não cobre invalidação pelo avô;
+percorrer a cadeia tem custo proporcional à profundidade.
+
+Desligar checks não apaga automaticamente os campos nem a manutenção das
+gerações. Uma representação sem geração é escolha distinta. Nenhum papel
+impõe esse custo ao layout de buffer, slice ou extent.
+
+Com capacidade fixa, `clear` e `pop` não liberam o armazenamento de buffer.
+Vistas podem observar dados antigos ou sobrescritos; a validade da memória
+depende de seu dono. Por isso os verbos desses contêineres não recebem
+`invalidates`; a restrição de mutação durante travessia continua separada.
+

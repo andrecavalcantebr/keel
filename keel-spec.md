@@ -17,6 +17,10 @@
 
 Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições de keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
 
+**Versões.** Construções marcadas **(v1)** são normativas nesta spec, mas não
+implementadas na v0: a implementação conforme v0 as reconhece e recusa com
+`not-in-v0`. Papéis (§4.12) e declarações de protocolo (§5.1) pertencem à v0.
+
 **Convenções de apresentação:**
 
 - Os pares keel/C mostram a semântica essencial da tradução. O C apresentado é uma representação lógica próxima da saída, sem compromisso com sua grafia exata; detalhes como `#line` e `[[nodiscard]]` podem ser omitidos.
@@ -56,6 +60,9 @@ Este documento especifica a sintaxe, o reconhecimento, as transformações e as 
   - [4.9 Conjuntos de tags e despacho](#49-conjuntos-de-tags-e-despacho)
   - [4.10 Tratamento de resultado](#410-tratamento-de-resultado)
   - [4.11 `extent`](#411-extent)
+  - [4.12 Procedência e invalidação](#412-procedência-e-invalidação)
+  - [4.13 Molde (v1)](#413-molde-v1)
+  - [4.14 Funções sobre protocolo (v1)](#414-funções-sobre-protocolo-v1)
 - [5. Protocolos e módulos da base](#5-protocolos-e-módulos-da-base)
   - [5.1 Protocolos](#51-protocolos)
   - [5.2 `keel.arena`](#52-keelarena)
@@ -122,6 +129,10 @@ fonte.k → cgen → fonte.c + fonte.h → pré-processador C → compilador C �
 
 **keel pode realizar:**
 
+- Registrar contratos de protocolo, tipos associados ligados por retornos
+  declarados e relações lexicais de procedência entre símbolos (§§4.12 e 5.1).
+- Na v1, expandir moldes com origem e vínculo de nomes preservados e reanalisar
+  a AST resultante antes de papéis e `defer` (§4.13).
 - Tokenização e varredura de sequências de tokens.
 - Reconhecimento de delimitadores, declarações, escopos e pontos de saída necessários à tradução de suas construções.
 - Registro e consulta de símbolos definidos em keel ou disponibilizados por módulos keel, com as informações explícitas de suas declarações.
@@ -203,6 +214,10 @@ As palavras abaixo têm função keel nas posições indicadas. Fora delas, apli
 
 | Palavra | Onde vale |
 | --- | --- |
+| `protocol` | declaração de arquivo, seguido do nome e de `type` ou `[` (§5.1) |
+| `implement` | depois do nome em `modifier`, e depois do declarador único de `typedef`, seguido de `[` (§5.1) |
+| `parent`, `child`, `invalidates`, `consumes` | antes do tipo de um parâmetro; `child` também antes do tipo de retorno (§4.12) |
+| `keel_code` | **(v1)** antes do tipo de retorno de função, e como espécie de parâmetro seguido de `IDENT` (§4.13) |
 | `module` | primeira construção do arquivo (§4.1) |
 | `import`, `import_c`, `extern_c` | nível de arquivo (§4.1) |
 | `type_h` | dentro do `[ ]` depois de `extern_c` (§4.1) |
@@ -211,8 +226,8 @@ As palavras abaixo têm função keel nas posições indicadas. Fora delas, apli
 | `array` | antes do tipo, em declaração de vetor, campo, parâmetro e coluna de `extent` (§4.2, §4.11). Seguido de `.`, é nome qualificado: o alias usual de `keel.array` (§5.3) |
 | `constexpr` | declaração de arquivo ou de bloco (§4.2); é também palavra C |
 | `ref` | qualificador depois de `*` no declarador (§4.2) |
-| `dim`, `tags`, `type` | na linha `module`, parâmetros do módulo (§4.3). `tags` também inicia declaração de conjunto, seguido do nome e de `[` (§4.9); `type` também declara parâmetro de função, seguido de `IDENT` e de `,` ou `)` (§4.4) |
-| `modifier`, `byref` | declaração de modificador em módulo genérico; `byref` segue o nome (§4.3) |
+| `dim`, `tags`, `type` | na linha `module`, parâmetros do módulo (§4.3). `tags` também inicia declaração de conjunto, seguido do nome e de `[` (§4.9); `type` também declara parâmetro de função (§4.4), implementador ou tipo associado em protocolo (§5.1); `dim` também declara parâmetro de molde (v1, §4.13) |
+| `modifier`, `byref` | declaração de modificador em módulo genérico; `byref` segue o nome (§4.3). A posição em `typedef` é reservada pela gramática abaixo, sem generalização semântica nesta revisão |
 | `instance` | declaração de arquivo (§4.3); nenhum modificador pode ter esse nome. [Justificativa da reserva](keel-rationale.md#por-que-instance-é-a-única-ressalva-do-documento) |
 | `extent` | declaração de arquivo, seguido de `struct`, do nome e de `[` (§4.11) |
 | `defer`, `now`, `later` | statement de corpo de função; `now` e `later` dentro do `[ ]` do `defer` (§4.6) |
@@ -236,7 +251,7 @@ buffer i32 xs;          // modifier buffer, type i32, declarator xs
 tagged Cycle i16 fsm;   // modifier tagged, tag set Cycle, type i16, declarator fsm
 ```
 
-**Declarações próprias:** `module`, `import`, `import_c`, `extern_c`, `tags`, `modifier`, `instance`, `extent`, `constexpr`, os marcadores `array` e `ref`, e o parâmetro `type` de função:
+**Declarações próprias:** `module`, `import`, `import_c`, `extern_c`, `tags`, `modifier`, `instance`, `extent`, `constexpr`, os marcadores `array` e `ref`, os papéis e `protocol`, e os parâmetros de tradução de função (incluindo molde **(v1)**):
 
 ```keel
 pub T *alloc(arena *a, type T, size_t n);   // arena is a type; type T receives a type at the call
@@ -289,10 +304,16 @@ extern-c     ::= [ 'pub' | 'priv' ] 'extern_c' [ '[' 'type_h' ']' ] '{' <opaque>
 
 top-decl    ::= [ 'pub' | 'priv' ]
                  ( decl-modifier | decl-instance | decl-tags | decl-extent
+                 | decl-protocol
                  | decl-typedef | decl-struct | decl-function | decl-keel
                  | <opaque> )
 
-decl-modifier ::= 'modifier' IDENT [ 'byref' ] '{' <opaque> '}'
+decl-modifier ::= 'modifier' IDENT [ 'byref' ] [ implement ] '{' <opaque> '}'
+implement     ::= 'implement' '[' qualified-name { ',' qualified-name } ']'
+decl-protocol ::= 'protocol' IDENT 'type' IDENT '{' { proto-item } '}'
+                | 'protocol' IDENT '[' qualified-name { ',' qualified-name } ']' ';'
+proto-item    ::= 'type' IDENT ';'
+                | return-type fn-declarator ';'
 decl-instance ::= 'instance' known-type ';'
 decl-tags     ::= 'tags' IDENT tags-list ';'
 tags-list     ::= '[' tag-item { ',' tag-item } ']'
@@ -300,7 +321,8 @@ tag-item      ::= IDENT [ '=' tag-value ]
 tag-value     ::= [ '-' ] ( NUM | qualified-name )
 
 decl-typedef  ::= 'typedef' ( specifier | struct-spec | <opaque-no-parens> )
-                  declarator { ',' declarator } ';'
+                  ( declarator [ 'byref' ] [ implement ]
+                  | declarator { ',' declarator } ) ';'
 decl-struct   ::= struct-spec [ declarator { ',' declarator } ] ';'
 struct-spec   ::= ( 'struct' | 'union' ) [ IDENT ] '{' { field } '}'
 field         ::= decl-keel | decl-array | <opaque> ';'
@@ -312,12 +334,12 @@ extent-field  ::= extent-column | <opaque> ';'
 extent-column ::= 'array' argument column-decl { ',' column-decl } ';'
 column-decl   ::= { '*' } IDENT dimensions | '*' { '*' } IDENT
 
-decl-function ::= return-type fn-declarator ( block | ';' )
-return-type   ::= { spec-c } ( specifier | <opaque-no-parens> )
+decl-function ::= [ 'keel_code' ] return-type fn-declarator ( block | ';' )
+return-type   ::= { spec-c } [ 'child' ] ( specifier | <opaque-no-parens> )
 fn-declarator ::= { '*' { qual-c } } IDENT '(' [ params ] ')'
 params        ::= 'void' | param { ',' param } [ ',' '...' ]
-param         ::= param-array | param-type
-                | { qual-arg } ( specifier | <opaque-no-parens> )
+param         ::= param-array | param-type | param-code | param-proto | param-dim
+                | { role } { qual-arg } ( specifier | <opaque-no-parens> )
                   [ declarator | abstract-declarator ]
 abstract-declarator ::= { '*' { qual-c } } [ '(' abstract-declarator ')' ]
                         { suffix }
@@ -325,13 +347,24 @@ spec-c        ::= 'inline' | 'static' | 'extern' | '_Noreturn'
                 | '_Thread_local' | 'thread_local'
                 | ( 'alignas' | '_Alignas' ) '(' <opaque> ')'
                 | '[[' <opaque> ']]' | qual-c
-param-array   ::= { spec-c } 'array' argument { '*' } IDENT param-dims
+param-array   ::= { spec-c } { role } 'array' argument { '*' } IDENT param-dims
 param-dims    ::= '[' dim-binder { ',' <opaque> } ']'
                 | '[' dim-binder ']' { '[' <opaque> ']' }
                 | dimensions
 dim-binder    ::= 'size_t' IDENT
 param-type    ::= 'type' IDENT
+role          ::= 'parent' | 'child' | 'invalidates' | 'consumes'
+param-code    ::= 'keel_code' IDENT                       (* v1 *)
+param-proto   ::= qualified-name [ IDENT ] IDENT          (* v1 *)
+param-dim     ::= 'dim' IDENT                             (* v1, mold only *)
 ```
+
+`byref` e `implement` em `decl-typedef` exigem um único declarador.
+A produção reserva a posição de `byref` em `typedef`; esta revisão não
+generaliza sua semântica, e a restrição específica da arena permanece (§5.2).
+Em `param-proto`, o primeiro nome é protocolo conhecido; o `IDENT` opcional
+nomeia o tipo concreto ligado ao argumento; o último é o parâmetro. A
+contagem distingue as duas formas. `param-dim` só é admitido num molde (§4.13).
 
 `system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome de cada um de seus declaradores, inclusive quando o declarador é ponteiro a função. O especificador é comum, e cada declarador deriva dele o seu próprio tipo: em `typedef int a[4], *b;`, `a` é vetor de `int` e `b` é ponteiro para `int`. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). Os declaradores de `decl-struct`, quando escritos, declaram objetos do tipo do `struct-spec`, um por declarador: em `struct Foo { i32 x; } a, *b;`, o tag `Foo` é registrado como tipo e `a` e `b` são objetos declarados. Sem declarador, a forma só declara o tipo. `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `dim-binder` liga um nome à dimensão 0 do vetor recebido (§4.2); só a dimensão 0 o admite. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
 
@@ -594,7 +627,7 @@ Organizar declarações em módulos e integrar interfaces e implementações C.
 3. Declarações públicas compõem a interface; declarações privadas e corpos fora de linha compõem a implementação, conforme o backend.
 4. `priv` não muda por si só o linkage C. `static` conserva seu significado C.
 5. Um alias muda a escrita usada pelo importador e preserva a identidade de origem.
-6. `types` disponibiliza sem qualificador os nomes de tipos e modificadores do módulo importado. Não injeta funções, variáveis nem constantes de enum. A forma qualificada continua disponível, e a injeção não se propaga por imports.
+6. `types` disponibiliza sem qualificador os nomes de tipos, modificadores e protocolos do módulo importado. Não injeta funções, variáveis nem constantes de enum. A forma qualificada continua disponível, e a injeção não se propaga por imports.
 7. O módulo e o modificador que ele declara têm identidades distintas. Em `import keel.outcome as outcome types;`, `outcome` é o alias do módulo e `outcome.outcome` é o modificador; `types` permite escrever o modificador como `outcome` em posição de tipo, e em `outcome.ok(r)` o prefixo qualifica um verbo do módulo.
 8. A resolução alcança símbolos públicos de imports transitivos. O uso sem import direto é `indirect-import`.
 9. Colisões são verificadas entre os símbolos exportados do módulo e os do fecho transitivo de seus imports, pelos nomes canônicos efetivos, inclusive tags, typedefs e constantes de enum (§4.2).
@@ -603,7 +636,7 @@ Organizar declarações em módulos e integrar interfaces e implementações C.
 12. Sem `priv`, o conteúdo de `extern_c` compõe a interface: com `[type_h]`, a camada de tipos (`.type.h`); sem `[type_h]`, o `.h`. Com `priv`, compõe a implementação (`.c`). `priv extern_c [type_h]` é recusado.
 13. Diretivas de pré-processamento no nível de arquivo vão para o `.h`; dentro de um construto, acompanham o destino dele.
 14. `main` é uma função pública do módulo e recebe seu prefixo. A seleção do módulo de entrada pela ferramenta gera o wrapper C `main`, que chama essa função. Cada módulo pode declarar a sua `main`.
-15. O único import implícito é `import keel types;`. Os módulos da base — `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7) — exigem import explícito. [R: prelúdio e base mínima](keel-rationale.md#prelúdio-e-base-mínima)
+15. O único import implícito é `import keel types;`. Os módulos da base — `keel.protocols` (§5.1), `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7) — exigem import explícito. As construções do núcleo consultam `keel.protocols` sem import; o import só é exigido quando o fonte escreve nomes de protocolo. [R: prelúdio e base mínima](keel-rationale.md#prelúdio-e-base-mínima)
 
 Referências: [Rationale: módulos e identidade](keel-rationale.md#módulos-e-identidade); [Rationale: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos); [Backend: artefatos](keel-c-backend.md#4-artefatos) e [ponto de entrada](keel-c-backend.md#58-ponto-de-entrada).
 
@@ -648,7 +681,7 @@ A aplicação de um modificador ao tipo forma o especificador que precede o decl
 | `keel.capacity(v)` | `size_t` | total de elementos |
 | `keel.dim(v, k)` | `size_t` | dimensão de índice `k`, a partir de zero; `k` é decimal conhecido |
 
-As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice (`x[i]`, `x[i,j]`) e `foreach` sobre `array` são do núcleo e não pedem import: o C tem a sintaxe. `x[a..b]` não tem, e é o `as_slice` de `keel.array` (§5.3), que precisa estar importado. Protocolos (§5.1): Indexável, pela tradução do núcleo; Fatiável, por `keel.array`; `begin` e `partition` não existem sobre `array`.
+As três são qualificadas pelo módulo `keel`, mas não declaradas nele: o lowering é do backend. O acesso a elementos por chamada — `get`, `set`, `ptr` e `at` — é do módulo `keel.array` (§5.3). Índice (`x[i]`, `x[i,j]`) e `foreach` sobre `array` são do núcleo e não pedem import: o C tem a sintaxe. `x[a..b]` não tem, e é o `as_slice` de `keel.array` (§5.3), que precisa estar importado. Protocolos (§5.1): IndexPtr/IndexGet, pela tradução do núcleo; Sliceable, por `keel.array`; `begin` e `partition` não existem sobre `array`.
 
 Um parâmetro `array` pode ligar um nome à sua dimensão 0, o **binder**:
 
@@ -751,6 +784,11 @@ pub inline void fill(block *b, T values[static N]) { /* ... */ }
 module marked tags E type T;
 pub modifier mark { i32 tag; T value; }
 ```
+
+Os parâmetros ficam na linha `module`, e não no `modifier`, porque a unidade
+instanciada é o módulo: todos os seus modificadores e funções compartilham os
+argumentos. `implement [lista]`, depois do nome do modificador (e de `byref`,
+quando escrito), declara os protocolos que ele implementa (§5.1).
 
 Os parâmetros pertencem à linha `module`, nesta ordem: `dim`, `tags`, `type`. Cada um admite lista separada por vírgulas. O uso espelha a assinatura: `blocos.bloco(3) i32`, `marked.mark Kind i32`. `modifier` e `instance` são declarações de arquivo; `byref` segue o nome do modificador. Um módulo pode declarar mais de um modificador, e o nome do módulo não precisa coincidir com o de nenhum deles.
 
@@ -860,6 +898,10 @@ De keel, na tradução; condições no [catálogo](#62-catálogo): `byref-assign
 - O programa garante que os corpos fora de linha estão colocados, sem definições conflitantes. A validação final é do build e do linker C.
 
 ### 4.4 Resolução de operações
+
+As regras de seleção e apagamento de `type` nesta seção continuam valendo para
+funções comuns. A substituição de `type`, `dim` e código em molde pertence
+à §4.13 (v1); especialização sobre protocolo pertence à §4.14 (v1).
 
 #### 1. Sintaxe
 
@@ -1098,10 +1140,10 @@ São statements de corpo de função. Em `foreach`, dois binders antes de `:` pe
 **Reconhecimento**
 
 - A quantidade de binders distingue as formas de `foreach`, sem consultar tipos C.
-- Dois binders exigem `length` e `get`, para valor, ou `length` e `ptr`, para ponteiro. Um binder exige `first` e `limit`, ou um literal `a..b`.
+- Dois binders exigem `IndexGet` ou `IndexPtr` para valor, e `IndexPtr` para ponteiro (§5.1). Um binder exige `first` e `limit`, ou um literal `a..b`.
 - `walk` tem uma forma só, de dois binders. A forma de um binder é reconhecida e recusada por `walk-without-cursor`.
 - `walk` exige `begin`, `has_next` e `next`. O tipo do cursor escrito é o produto declarado de `begin`; o tipo do elemento é o produto declarado de `next`. A compatibilidade final é verificada pelo compilador C.
-- Indexável e Percorrível são capacidades independentes (§5.1): `foreach` e `walk` pedem cada um a sua.
+- IndexPtr/IndexGet e Traversable são capacidades independentes (§5.1): `foreach` e `walk` pedem cada um a sua.
 
 #### 2. Regras
 
@@ -1528,39 +1570,355 @@ Condições no [catálogo](#62-catálogo). De keel, na tradução: `extent-count
 - Aritmética sobre a coluna (`P.col + i`) e acesso fora da forma reconhecida não são verificados.
 - Sem índice, a coluna é o campo C, e não um `array` para a §4.2: `keel.length`, `keel.dim`, `buffer.of`, `slice.of`, os verbos de `keel.array` e os parâmetros com binder não a recebem. A extensão de uma coluna é a contagem, e o programa a escreve: `slice.from(f32, p->x, p->len)`.
 
+### 4.12 Procedência e invalidação
+
+#### 1. Sintaxe
+
+```keel
+pub bool from_array(child arena *a, parent array u8 storage[size_t n]);
+pub bool from_parent(child arena *a, parent arena *owner, size_t bytes);
+pub child T *alloc(parent arena *a, type T, size_t count);
+pub void reset(invalidates arena *a);
+pub void restore(invalidates arena *a, size_t mark);
+pub child entity alloc(parent pool *p);
+pub void free(parent pool *p, consumes entity e);
+```
+
+`parent`, `child`, `invalidates` e `consumes` são papéis. Precedem o tipo de
+um parâmetro; `child` também precede o tipo de retorno. São contextuais nessas
+posições e não aparecem no C emitido.
+
+**Reconhecimento**
+
+- O papel pertence à declaração da função; na chamada, aplica-se aos
+  argumentos que são símbolos conhecidos (§2.3) nas posições correspondentes.
+- Argumento que não é símbolo conhecido não estabelece nem recebe relação.
+- Um símbolo pode ser produto de uma chamada e origem de outra: o papel é da
+  posição, não do símbolo.
+
+#### 2. Regras
+
+Registrar a origem do armazenamento de um símbolo e as operações que o invalidam.
+
+1. Cada símbolo conhecido guarda o conjunto dos símbolos de que depende e dois
+   estados: origem local e inválido.
+2. Uma chamada reconhecida torna cada produto `child` dependente de todos os
+   argumentos `parent` da chamada. Produto é o argumento na posição `child`, ou
+   o símbolo que recebe o retorno `child` em declaração ou atribuição simples.
+3. Um `array` automático é origem local, com a duração do seu bloco. `array`
+   estático ou de arquivo não é origem local.
+4. Dependências e origem local se propagam transitivamente.
+5. Retornar símbolo cuja procedência inclui origem local da função é
+   `region-escape`.
+6. `invalidates` torna inválidos os produtos do argumento e seus descendentes;
+   o argumento permanece válido.
+7. `consumes` torna inválidos o argumento, seus produtos e seus descendentes.
+8. Uso reconhecido de símbolo inválido é `child-region-after-invalidation`.
+9. Uma nova construção que tenha o símbolo como produto substitui suas
+   dependências e o torna válido.
+10. Atribuição sem papel descarta as dependências e os estados do símbolo:
+    ele fica sem garantia, e não válido.
+11. O resultado da chamada não é considerado: a relação vale mesmo que a
+    operação falhe.
+12. Papéis de assinaturas de outros módulos valem no ponto de chamada. keel não
+    confere o corpo da função contra os papéis declarados.
+13. Papéis não acrescentam campos, parâmetros nem código ao C emitido.
+
+Referências: [Rationale: papéis e núcleo mínimo](keel-rationale.md#papéis-e-núcleo-mínimo).
+
+#### 3. Exemplo
+
+```keel
+//keel
+array u8 storage[1024];
+arena a;
+arena.from_array(a, storage);        // a depends on local storage
+i32 *p = arena.alloc(a, i32, 10);    // p depends on a
+arena.reset(a);                      // p invalid; a valid
+use(p);                              // child-region-after-invalidation
+```
+
+O C emitido é o da chamada comum; os papéis não deixam traço.
+
+#### 4. Erros
+
+`region-escape`, `child-region-after-invalidation`, `role-position`.
+
+#### 5. Casos especiais
+
+- O programa garante que os papéis declarados descrevem o comportamento da função.
+- Cópias, campos, aliases e ponteiros crus não são seguidos: depois de
+  `f = e;`, invalidar `e` não invalida `f`. Ausência de diagnóstico não prova
+  validade.
+- A análise é lexical e não segue o fluxo C nem chamadas opacas.
+- Verificação de validade em execução, por geração ou época, é contrato do
+  módulo que a implementa, não do papel.
+
+### 4.13 Molde (v1)
+
+#### 1. Sintaxe
+
+```keel
+pub keel_code void twice(keel_code C) { C; C; }
+pub keel_code T clamp(type T, T v, T lo, T hi) {
+    T r = v < lo ? lo : (v > hi ? hi : v);
+    return r;
+}
+```
+
+`keel_code` antes do tipo de retorno marca a função como **molde**. Num molde,
+`keel_code C` declara um parâmetro de código, `type T` um parâmetro de tipo e
+`dim N` um parâmetro numérico; os demais são parâmetros de valor.
+
+**Reconhecimento**
+
+- A chamada a um molde é reconhecida pelo símbolo conhecido, como qualquer
+  função keel.
+- O argumento de um parâmetro de código é uma expressão de tokens balanceados.
+
+#### 2. Regras
+
+Expandir o corpo de uma função no ponto de chamada, com higiene de nomes.
+
+1. Um molde não tem função nem endereço C próprios. Cada chamada é substituída
+   pelo corpo, depois de ligados os parâmetros.
+2. Parâmetros de valor são avaliados uma vez, em temporários do tipo declarado,
+   na ordem textual dos parâmetros.
+3. `type T` é substituído pelo tipo escrito na chamada; `dim N`, pelo valor
+   canônico. Num molde, `type T` não é de seleção nem apagado (§4.4).
+4. `keel_code C` é substituído pelo fragmento nas ocorrências de `C`. O
+   fragmento executa tantas vezes quantas `C` aparece no caminho executado.
+5. Os nomes livres do fragmento resolvem no escopo onde o argumento foi
+   escrito. Os nomes do corpo resolvem no módulo do molde.
+6. Locais declarados no corpo são renomeados por vínculo e escopo; nenhum nome
+   do corpo captura nome do fragmento, nem o contrário.
+7. Molde de valor tem um único `return expressão;`, final e no nível superior;
+   a expressão substitui o valor da chamada. Molde `void` termina naturalmente
+   ou com `return;` final.
+8. A chamada a molde com declarações ou statements só é admitida como statement
+   completo, inicializador completo de declaração simples ou lado direito
+   completo de atribuição a símbolo simples.
+9. Molde só de expressão, sem temporários, pode ser usado em qualquer posição
+   de expressão, entre parênteses.
+10. A expansão não cria bloco em torno do corpo: declarações do molde têm a
+    duração do bloco do chamador.
+11. A expansão ocorre antes da análise de papéis (§4.12) e de `defer` (§4.6);
+    o resultado é analisado como se tivesse sido escrito no chamador.
+12. `keel_code` como parâmetro de função que não é molde é `code-param-outside-mold`.
+
+Referências: [Rationale: macro higiênica](keel-rationale.md#macro-higiênica).
+O mapeamento de linhas segue o contrato geral do backend, com a origem e a
+cadeia de expansão exigidas abaixo; os detalhes de emissão da v1 pertencem ao backend.
+
+#### 3. Exemplo
+
+```keel
+twice(tick()); // tick executes twice at the call site
+```
+
+#### 4. Erros
+
+`mold-position`, `mold-return`, `mold-argument`, `circular-mold`,
+`mold-depth`, `mold-size`, `code-param-outside-mold`.
+
+#### 5. Casos especiais
+
+- Fragmentos não contêm `return`, `goto`, `break` nem `continue` que saiam do fragmento.
+- Expansões aninhadas finitas são permitidas; ciclos e crescimento acima dos
+  limites da implementação são recusados.
+- Diagnósticos apontam o uso, a declaração e a cadeia de expansões.
+
+### 4.14 Funções sobre protocolo (v1)
+
+#### 1. Sintaxe
+
+```keel
+size_t count(IndexPtr items) { return length(items); }
+
+void inspect(Traversable C items) {
+    walk (C.elem *v, C.cursor c : items) { use(*v); }
+}
+```
+
+Um parâmetro cujo tipo é um protocolo torna a função genérica sobre ele. O
+identificador opcional entre o protocolo e o parâmetro nomeia o tipo concreto
+do argumento, e dá acesso aos tipos associados por `C.nome`.
+
+#### 2. Regras
+
+1. Cada combinação de tipos concretos dos argumentos de protocolo produz uma
+   instância da função. A identidade é a da função mais os nomes canônicos
+   desses tipos, na ordem dos parâmetros.
+2. O argumento é símbolo conhecido de tipo conhecido; o tipo de expressão C
+   não é deduzido.
+3. Cada parâmetro de protocolo é independente: dois parâmetros do mesmo
+   protocolo podem receber tipos diferentes.
+4. O tipo concreto deve atender o protocolo pela regra de conformidade da §5.1.
+5. O corpo só chama verbos do protocolo sobre o parâmetro, ainda que o tipo
+   concreto tenha outros.
+6. `C.nome` designa o tipo associado ligado ao tipo concreto.
+7. Na assinatura C da instância, o parâmetro tem o tipo concreto, por valor ou
+   por ponteiro conforme `byref`. Não há teste em execução, vtable nem objeto
+   de interface.
+8. Emissão `inline` e fora de linha seguem a declaração e as regras 18 e 19 da §4.3.
+
+Referências: [Rationale: tipos associados](keel-rationale.md#tipos-associados-em-vez-de-consulta-de-tipo-declarado).
+
+#### 3. Exemplo
+
+Uma chamada `count(items)` com `items` declarado como `buffer i32` gera uma
+instância cuja assinatura C recebe esse buffer por ponteiro, conforme `byref`.
+
+#### 4. Erros
+
+`protocol-not-satisfied`, `verb-not-in-protocol`, `instance-depth`.
+
+
 ## 5. Protocolos e módulos da base
 
 Os módulos deste capítulo acompanham a distribuição de keel e são módulos
 comuns: declaram tipos, modificadores e verbos pelas regras dos §§4.1–4.4, e
-são importados explicitamente. Os contratos das §§5.2 a 5.7 seguem o formato
+são importados explicitamente quando seus nomes são escritos. As construções
+consultam os contratos de `keel.protocols` sem import (§5.1). Os contratos das §§5.2 a 5.7 seguem o formato
 de cinco itens do capítulo 4.
 
 ### 5.1 Protocolos
 
-#### Verbos exigidos por construção
+#### 1. Sintaxe
 
-Um protocolo é o conjunto de verbos que uma construção do núcleo exige do tipo sobre o qual opera. Toda construção procura seus verbos por nome e aridade, pela resolução da §4.4; nenhuma consulta uma lista de tipos privilegiados, e a verificação não se restringe aos módulos da base.
+```keel
+module keel.protocols;
 
-| Protocolo | Verbos exigidos | Construção que o consome | Declarado na base por |
-| --- | --- | --- | --- |
-| Indexável | `length` e `ptr(x, i)`; `get` no lugar de `ptr` no `foreach` de binder por valor | `x[i]` (sobrecarga de operador), `foreach` de dois binders | `buffer`, `slice`; `array` pelo núcleo |
-| Fatiável | `length` e `as_slice(x, a, b)` | `x[a..b]` e suas formas abertas (sobrecarga de operador) | `array` (`keel.array`), `buffer`, `slice` |
-| Percorrível | `begin`, `has_next`, `next` | `walk` | `buffer`, `slice` |
-| Particionável | `partition` | `parallel` | `buffer`, `slice`, `range` |
-| Contável | `first`, `limit` | `foreach` de um binder | `range` |
-| Etiquetado | `tag` | `match` | `tagged`, `corot` |
-| Falível | `failed`, mais `win` para a forma de default | `else` | `outcome` |
+pub protocol Countable type C {
+    type index;
+    index first(C *x);
+    index limit(C *x);
+}
+pub protocol IndexPtr type C {
+    type elem;
+    size_t length(C *x);
+    child elem *ptr(parent C *x, size_t i);
+}
+pub protocol IndexGet type C {
+    type elem;
+    size_t length(C *x);
+    elem get(C *x, size_t i);
+}
+pub protocol Sliceable type C {
+    type view;
+    size_t length(C *x);
+    child view as_slice(parent C *x, size_t a, size_t b);
+}
+pub protocol Traversable type C {
+    type cursor;
+    type elem;
+    child cursor begin(parent C *x);
+    bool has_next(C *x, cursor *c);
+    child elem *next(parent C *x, cursor *c);
+}
+pub protocol Partitionable type C {
+    type part;
+    child part partition(parent C *x, size_t k, size_t w);
+}
+pub protocol Taggable type C {
+    type tagset;
+    tagset tag(C *x);
+}
+pub protocol Failable type C {
+    bool failed(C *x);
+}
+```
 
-`length` faz parte de Indexável e de Fatiável, e é obrigação do módulo: a verificação de limite de `x[i]` e de `x[a..b]` depende dele. `x[i]` o exige, portanto, só indiretamente, porque o chamado é `ptr`.
+`Winnable` exige a assinatura `win(resultado, default)` da §4.10: dois
+parâmetros, receptor na primeira posição e retorno do tipo do resultado.
+O parâmetro de default tem o tipo declarado pelo implementador; sua
+compatibilidade com o default escrito é validada pelo compilador C. Esse
+contrato não declara um tipo associado sem retorno que o produza.
+`Failable` exige somente `bool failed(resultado)`. Nenhum dos dois introduz
+papéis nessas operações.
 
-`array` participa de Indexável pelo núcleo: `x[i]` e `foreach` sobre `array` são traduzidos sem verbo, porque o C tem a sintaxe (§4.2, §4.5). `x[a..b]` não tem, e segue o protocolo como em qualquer módulo, pelo `as_slice` de `keel.array`. As chamadas explícitas de acesso e a de intervalo são de `keel.array` (§5.3). Um valor cujo tipo é um conjunto `tags` é operando de `match` sem verbo (§4.9).
+Implementador:
 
-#### O que um módulo do programa declara
+```keel
+import keel.protocols types;
+pub modifier buffer byref implement [IndexPtr, IndexGet, Sliceable, Traversable] { /* ... */ }
+```
 
-1. Declarar os verbos de um protocolo basta para participar da construção correspondente. Não há registro, marcação nem permissão; keel não distingue módulo da base de módulo do programa ao resolver.
-2. A forma dos argumentos vem do bit `byref` do modificador (§4.3), e não do protocolo.
-3. As aridades escritas nas assinaturas são as que valem: `ptr(x, i)` serve a `x[i]`, e `ptr(x, size_t idx[static N])`, com `N` o `dim` do modificador, serve a `x[i,j,…]`. A forma de vários índices é provisória (§4.5, observação).
-4. O nome do verbo de Fatiável é `as_slice`: como o dos demais protocolos, é do protocolo, e o módulo o declara. O módulo que o declara importa `slice` para devolvê-la, e nunca o contrário. [R: memória e visão](keel-rationale.md#memória-e-visão-a-direção-da-conversão)
+Composição:
+
+```keel
+pub protocol Sequence [IndexPtr, Sliceable, Traversable];
+```
+
+#### 2. Regras
+
+1. Um protocolo é um conjunto nomeado de verbos e tipos associados. `type C`
+   nomeia o implementador; `type nome;` nas chaves declara um tipo associado.
+2. A declaração de protocolo não emite C.
+3. A conformidade é estrutural: um tipo atende um protocolo quando seu módulo
+   declara os verbos exigidos, com o mesmo nome, a mesma aridade e o receptor
+   na mesma posição. O receptor casa pela adaptação da §4.4.
+4. `implement [lista]` é asserção: keel verifica a conformidade na declaração
+   do tipo e emite `protocol-verb-missing` ali. Sem a cláusula, a conformidade
+   é verificada no uso.
+5. Cada tipo associado aparece no retorno de pelo menos um verbo exigido. A
+   ligação vem do retorno declarado do implementador, descontados os níveis de
+   ponteiro escritos no protocolo. Tipo associado sem retorno é
+   `associated-type-unbound`.
+6. As demais ocorrências do tipo associado são substituídas sem verificação;
+   o compilador C valida o resultado.
+7. A composição exige a união dos verbos dos componentes. Tipo associado de
+   mesmo nome em componentes diferentes liga a um único tipo, sob pena de
+   `associated-type-conflict`. Ciclos de composição são `circular-protocol`;
+   verbos de mesmo nome e aridade com assinaturas diferentes são
+   `protocol-verb-conflict`.
+8. A composição é conjunção. Requisitos alternativos pertencem ao contrato da
+   construção que consome os protocolos.
+9. As construções consultam `keel.protocols` sem import.
+10. Papéis escritos num protótipo de protocolo (§4.12) fazem parte do
+    contrato. O verbo do implementador declara os mesmos papéis nas mesmas
+    posições, sob pena de `protocol-role-mismatch`. Na chamada, valem os papéis
+    da declaração do implementador.
+11. Todo verbo de protocolo que entrega vista, parte, cursor ou endereço de
+    elemento do receptor declara o receptor `parent` e o produto `child`.
+    Assim, invalidar o dono do armazenamento invalida as vistas e os ponteiros
+    derivados dele, transitivamente.
+
+Referências: [Rationale: conformidade estrutural com asserção opcional](keel-rationale.md#conformidade-estrutural-com-asserção-opcional).
+
+#### Uso pelas construções
+
+| Construção | Exige |
+| --- | --- |
+| `x[i]`, `x[i,j]` | `IndexPtr` |
+| `x[a..b]` | `Sliceable` |
+| `foreach` de dois binders, binder por ponteiro | `IndexPtr` |
+| `foreach` de dois binders, binder por valor | `IndexGet` ou `IndexPtr` |
+| `foreach` de um binder sobre objeto | `Countable` |
+| `walk` | `Traversable` |
+| `parallel` | `Partitionable` |
+| `match` | `Taggable`, ou conjunto `tags` direto |
+| `else`, forma sem `win` | `Failable` |
+| `else`, forma com `win` | `Failable` e `Winnable` |
+
+`length` faz parte de `IndexPtr`, `IndexGet` e `Sliceable`. A verificação de
+limite depende dele, mesmo quando o verbo chamado é `ptr`.
+
+`array` continua com participação própria do núcleo (§4.2): indexação e
+`foreach` não exigem verbo. O intervalo usa `keel.array.as_slice`, com import
+explícito de `keel.array`. Um conjunto `tags` direto dispensa `tag` (§4.9).
+
+A forma dos argumentos vem de `byref` e da adaptação da §4.4, não do protocolo.
+As aridades são as escritas: o acesso multidimensional conserva o contrato
+da §4.5 para `ptr(x, size_t idx[static N])`. `Sliceable` usa `as_slice`;
+o implementador importa o tipo da vista que devolve.
+
+#### 4. Erros
+
+`unknown-protocol`, `protocol-verb-missing`, `associated-type-unbound`,
+`associated-type-conflict`, `circular-protocol`, `protocol-verb-conflict`,
+`protocol-role-mismatch`.
+
 
 #### O que o núcleo conhece pelo nome
 
@@ -1568,7 +1926,8 @@ Fora dos protocolos, os pontos abaixo ligam uma construção a um módulo determ
 
 | Onde | O que o núcleo assume |
 | --- | --- |
-| `arena` | quatro verificações da tradução nomeiam este módulo: procedência do retorno, origem de `from_array`, constância de `from_stack` e uso de filha depois do reset do pai; e a definição sem inicializador recebe `= {0}` (§5.2) |
+| `arena` | definição sem inicializador recebe `= {0}` e parâmetro por valor é recusado (§5.2); procedência e invalidação seguem os papéis gerais (§4.12) |
+| protocolos | as construções consultam os contratos de `keel.protocols` (§5.1) |
 | `array` | o verbo de `x[a..b]` sobre `array` é o `as_slice` de `keel.array`, que precisa estar importado (§4.5, §5.3) |
 | `a..b` | o literal de intervalo produz um `range` (§5.3) |
 | `parallel` | o nome do bloco declara um símbolo de tipo `parallel.control` (§5.7) |
@@ -1589,6 +1948,7 @@ A convenção abaixo é a da base; um módulo do programa pode segui-la ou não.
 
 | Módulo | O que declara | Contrato |
 | --- | --- | --- |
+| `keel.protocols` | protocolos e tipos associados, sem emissão de C | §5.1 |
 | `keel.arena` | o tipo `arena`, seus construtores e verbos | §5.2 |
 | `keel.buffer`, `keel.slice`, `keel.range`, `keel.array` | as sequências, o trecho, o intervalo, o acesso a `array`, e os protocolos de acesso, cursor e partição | §5.3 |
 | `keel.tagged` | o modificador que associa etiqueta a valor | §5.4 |
@@ -1611,7 +1971,6 @@ i32 *dados = arena.alloc(a, i32, n);
 | Chamada | Devolve | O que faz |
 | --- | --- | --- |
 | `arena.from_array(a, v)` | `bool` | usa como região o `array u8` `v` |
-| `arena.from_stack(a, N)` | `bool` | cria no escopo corrente um vetor automático de `N` bytes e o usa como região |
 | `arena.from_parent(a, pai, n)` | `bool` | reserva `n` bytes em `pai` e os usa como região da filha |
 | `arena.from_memory(a, p, n)` | `bool` | usa como região os `n` bytes externos em `p` |
 | `arena.alloc(a, T, n)` | `T *` | reserva `n` objetos de `T`; `NULL` sem espaço |
@@ -1624,8 +1983,24 @@ i32 *dados = arena.alloc(a, i32, n);
 
 - `arena` é tipo, e não modificador: `typedef struct { … } arena;`, emitido como `keel_arena`.
 - Os verbos recebem o descritor por referência (§4.4).
-- `from_stack` só aparece em corpo de função, e `N` é literal ou `constexpr` conhecido.
-- `from_array` exige símbolo conhecido como `array u8`.
+- `from_array` recebe `parent array u8 storage[size_t n]`: a extensão segue o
+  binder da §4.2 e a compatibilidade de elemento segue suas regras 12 e 19–22
+  e a validação do compilador C.
+
+```keel
+pub bool from_array(child arena *a, parent array u8 storage[size_t n]);
+pub bool from_parent(child arena *a, parent arena *owner, size_t bytes);
+pub bool from_memory(child arena *a, u8 *memory, size_t bytes);
+pub child T *alloc(parent arena *a, type T, size_t count);
+pub child void *alloc(parent arena *a, size_t n, size_t sz, size_t al);
+pub void reset(invalidates arena *a);
+pub void restore(invalidates arena *a, size_t mark);
+pub size_t mark(arena *a);
+```
+
+`from_memory` não afirma procedência de ponteiro cru. `mark` só observa o topo.
+Os privilégios remanescentes são o `{0}` implícito e a recusa de parâmetro
+arena por valor, até a decisão sobre `byref` em `typedef`.
 
 #### 2. Regras
 
@@ -1640,7 +2015,7 @@ Armazenamento por região, que delimita a validade dos dados derivados.
 7. Resetar ou restaurar o pai invalida as filhas e os dados derivados. Resetar a filha depois não os revalida.
 8. Sair do escopo da filha não devolve espaço ao pai. A duração do descritor não determina a do armazenamento.
 9. `from_memory` não adquire nem libera a região externa.
-10. A procedência registra as construções conhecidas e as relações entre pai e filha. Uma reatribuição que a perde marca a origem como desconhecida.
+10. Procedência, escape de origem local e uso após invalidação seguem a §4.12. `restore` invalida conservadoramente todos os produtos conhecidos; a análise lexical não interpreta o valor da marca.
 11. keel não insere `defer` por reconhecer uma arena.
 
 Referências: [Rationale: memória por região](keel-rationale.md#memória-por-região); [Rationale: arena é um tipo](keel-rationale.md#arena-é-um-tipo); [Backend: arena](keel-c-backend.md#54-arena), inclusive o respaldo de tipo-caractere.
@@ -1650,32 +2025,34 @@ Referências: [Rationale: memória por região](keel-rationale.md#memória-por-r
 ```keel
 //keel
 arena a;
-arena.from_memory(a, memory, bytes);
+array u8 storage[1024];
+arena.from_array(a, storage);
 i32 *dados = arena.alloc(a, i32, n);
 ```
 
 ```c
 //C gerado
 keel_arena a = {0};
-keel_arena_from_memory(&a, memory, bytes);
+u8 storage[1024];
+keel_arena_from_array(&a, storage, sizeof storage);
 i32 *dados = (i32 *)keel_arena_alloc2(&a, sizeof(i32), _Alignof(i32), n);
 ```
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `nonconstant-arena-stack`, `arena-from-array-not-u8`, `arena-escape`, `child-arena-after-reset`, `byref-param`. Do backend, em execução debug: `alloc-overflow`.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `region-escape`, `child-region-after-invalidation`, `byref-param`. Do backend, em execução debug: `alloc-overflow`.
 
 #### 5. Casos especiais
 
 - Um inicializador escrito é preservado.
 - `extern` e campo de struct não recebem `= {0}`. Uma arena em campo, ou vinda por ponteiro de C, é responsabilidade de quem a contém.
-- `child-arena-after-reset` incide sobre o uso posterior da filha, inclusive `reset(filha)`, e não sobre a operação que reutiliza a memória do pai.
+- `child-region-after-invalidation` incide sobre o uso posterior da filha, inclusive `reset(filha)`, e não sobre a operação que reutiliza a memória do pai.
 - O programa garante que `al` é potência de dois, na forma crua.
 - O programa não entrega a `free` nem a `realloc` um endereço vindo de `alloc`.
 - O programa não usa objetos descartados por `reset` ou `restore`, e cada marca pertence à arena e a um topo ainda restaurável.
 - O programa mantém a região externa válida enquanto houver dado derivado dela; a liberação é da origem.
 - O alinhamento não resolve o tipo efetivo do C. Respaldo em armazenamento de tipo declarado segue a rota do backend; `from_memory` conserva as condições da memória recebida.
-- A análise de escape e de reset é lexical: chamadas C, parâmetros de saída e cópias escapam dela.
+- A análise da §4.12 é lexical: usa os papéis dos parâmetros nas chamadas reconhecidas, mas não deduz efeitos de corpos C nem acompanha cópias ou parâmetros de saída arbitrários.
 - A arena não sincroniza o topo. Antes de `parallel`, pode-se recortar uma arena por worker.
 
 ### 5.3 `keel.buffer`, `keel.slice`, `keel.range` e `keel.array`
@@ -1735,7 +2112,7 @@ outcome i32 r = array.at(v, 9);
 | --- | --- | --- |
 | `slice.from(T, p, n)` | `slice T` | vista dos `n` elementos afirmados em `p`; `type T` seleciona a instância (§4.4) |
 | `slice.as_slice(s, a, c)` | `slice T` | vista de `[a, c)` de `s`; é o verbo de `x[a..b]` sobre `slice` (§4.5) |
-| `slice.of(x)` | `slice T` | vista do comprimento atual de `x`, qualquer Fatiável: `buffer`, `slice`, `array` unidimensional ou tipo do programa |
+| `slice.of(x)` | `slice T` | vista do comprimento atual de `x`, qualquer Sliceable: `buffer`, `slice`, `array` unidimensional ou tipo do programa |
 | `slice.of(x, a, c)` | `slice T` | vista de `[a, c)` de `x`: é `x[a..c]` |
 | `slice.of(x, r)` | `slice T` | vista dos limites do `range` `r` |
 | `slice.length(s)` | `size_t` | elementos da vista |
@@ -1768,14 +2145,83 @@ outcome i32 r = array.at(v, 9);
 | `array.as_slice(v, a, b)` | `slice T` | vista de `[a, b)` do `array` unidimensional `v`; é o verbo de `x[a..b]` sobre `array` (§4.5) |
 | `array.at(v, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora da extensão, em toda build |
 
-Protocolos (§5.1): Indexável — `length`, `get`, `ptr`; Contável — `first`, `limit`; Percorrível — `begin`, `has_next`, `next`; Particionável — `partition`; Fatiável — `length` e `as_slice`. O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção.
+Protocolos (§5.1): IndexPtr/IndexGet — `length`, `get`, `ptr`; Countable — `first`, `limit`; Traversable — `begin`, `has_next`, `next`; Partitionable — `partition`; Sliceable — `length` e `as_slice`. O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção.
 
 **Reconhecimento**
 
 - A instância vem das declarações ou da origem indicada na §4.4.
-- `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of(x, …)` é a forma escrita do protocolo de intervalo: resolve pelo `as_slice` do tipo de `x` (§4.5), e exige um Fatiável de elemento compatível.
+- `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of(x, …)` é a forma escrita do protocolo de intervalo: resolve pelo `as_slice` do tipo de `x` (§4.5), e exige um Sliceable de elemento compatível.
 - `a..b` constrói um `range`. Os limites são expressões C; `..` é reconhecido fora de literais, comentários e diretivas.
 - Os verbos de `keel.array` recebem `array` unidimensional, pelo parâmetro `array T v[size_t N]`: a instância vem do tipo do elemento (§4.4), e a extensão, do binder (§4.2).
+
+#### Conformidade e procedência
+
+Os módulos que escrevem nomes de protocolo importam `keel.protocols types`.
+As declarações de `buffer` e `slice` acrescentam
+`implement [IndexPtr, IndexGet, Sliceable, Traversable, Partitionable]`;
+a de `range`, `implement [Countable, Partitionable]`. Layout e `byref`
+permanecem os declarados pelos respectivos tipos.
+
+Os verbos da Base têm os papéis abaixo. A tabela faz parte de suas assinaturas;
+os demais parâmetros e retornos conservam os tipos das tabelas de chamadas.
+
+| Verbo / família | Parâmetro `parent` | Produto `child` |
+| --- | --- | --- |
+| `buffer.ptr`, `slice.ptr` (ambas as aridades) | receptor | retorno |
+| `buffer.as_slice`, `slice.as_slice` | receptor | retorno |
+| `buffer.begin`, `slice.begin` | receptor | retorno cursor |
+| `buffer.next`, `slice.next` | receptor | retorno endereço |
+| `buffer.partition`, `slice.partition`, `range.partition` | receptor | retorno parte |
+| `slice.of` | origem | retorno vista |
+| `buffer.of(v)` sobre `array` | vetor | retorno buffer |
+| `buffer.clone`, `slice.clone` | arena de destino | retorno resultado |
+| `array.as_slice`, `array.ptr` | vetor | retorno |
+| `buffer.push`, `buffer.pop` | receptor | retorno endereço |
+
+Exemplos de assinatura no módulo correspondente:
+
+```keel
+pub child T *ptr(parent buffer T *b, size_t i);
+pub child slice T as_slice(parent buffer T *b, size_t a, size_t c);
+pub child cursor begin(parent buffer T *b);
+pub child T *next(parent buffer T *b, cursor *c);
+pub child slice T partition(parent buffer T *b, size_t k, size_t w);
+pub child outcome buffer T clone(parent arena *a, buffer T *b);
+```
+
+Um construtor sobre arena transmite a procedência dessa arena ao produto
+pelos mesmos papéis. Esta seção não declara `buffer.from_arena`: a operação
+existente que produz um novo buffer em arena é `buffer.clone`.
+
+`slice.from(T, p, n)` sobre ponteiro cru não tem `parent`: a procedência é
+afirmada pelo programa. As formas cruas `buffer.from(p, cap)` e `buffer.of(p, n)`
+também não deduzem a origem da expressão de ponteiro.
+
+**Nenhuma operação de `buffer` ou `slice` declara `invalidates`.** Com
+capacidade fixa, nenhuma delas libera ou move armazenamento; `clear`, `pop`
+e afins deixam vistas com dados velhos, não com memória liberada. A
+invalidação fica nos donos de armazenamento, como arena e pools de biblioteca.
+Mutação estrutural durante travessia continua com `mutation-during-traversal`.
+
+Exemplos de propagação pelas operações existentes:
+
+```keel
+array u8 storage[4096];
+arena a;
+array i32 values[64] = {0};
+buffer i32 b = buffer.of(values);  // b depends on values
+slice i32 s = b[0..10];          // s depends on b, transitively on values
+
+arena.from_array(a, storage);
+outcome buffer i32 copy = buffer.clone(a, b) else { return; }
+arena.reset(a);                  // copy depends on a and becomes invalid
+use(copy);                      // child-region-after-invalidation
+```
+
+Para qualquer buffer cuja dependência de arena seja conhecida, uma fatia
+`s = b[0..10]` herda essa dependência: `arena.reset(a)` invalida `b` e `s`;
+um uso reconhecido posterior de `s`, inclusive `s[0]`, é diagnosticado.
+
 
 #### 2. Regras
 
@@ -1829,17 +2275,18 @@ tagged Kind struct Node no = {0};
 
 ```keel
 module keel.tagged tags E type T;
-pub modifier tagged { i32 tag; T value; }
+import keel.protocols types;
+pub modifier tagged implement [Taggable] { i32 tag; T value; }
 ```
 
 | Chamada | Devolve | O que faz | Com `T` `void` |
 | --- | --- | --- | --- |
-| `tagged.tag(t)` | `i32` | etiqueta corrente | disponível |
+| `tagged.tag(t)` | `E` | etiqueta corrente | disponível |
 | `tagged.value(t)` | `T` | cópia do valor | omitido |
 | `tagged.mark(t, E)` | — | escreve a etiqueta, preservando o valor | disponível |
 | `tagged.set(t, E, v)` | — | escreve etiqueta e valor | omitido |
 
-Protocolos (§5.1): Etiquetado — `tag` → [`match`](#49-conjuntos-de-tags-e-despacho).
+Protocolos (§5.1): Taggable — `tag` → [`match`](#49-conjuntos-de-tags-e-despacho).
 
 **Reconhecimento**
 
@@ -1851,7 +2298,7 @@ Protocolos (§5.1): Etiquetado — `tag` → [`match`](#49-conjuntos-de-tags-e-d
 Etiqueta de um conjunto declarado associada a um valor.
 
 1. A instância contém a etiqueta, em `i32`, e o valor associado. Com `void`, o campo do valor e os verbos que o mencionam são omitidos (§4.3).
-2. A leitura devolve `i32`; a escrita recebe `E`, e uma constante de tag escrita pertence ao conjunto da instância (§4.3).
+2. A leitura `tag` devolve `E`, ligando `Taggable.tagset` ao conjunto; o campo continua `i32`. A escrita recebe `E`, e uma constante de tag escrita pertence ao conjunto da instância (§4.3).
 3. O valor associado tem um só tipo, comum a todas as tags.
 
 Referências: [Rationale: conjuntos fechados e exaustividade](keel-rationale.md#conjuntos-fechados-e-exaustividade); [Backend](keel-c-backend.md#52-containers-struct-e-funções-static-inline).
@@ -1884,14 +2331,20 @@ corot step;
 
 ```keel
 module keel.outcome type T;
-pub modifier outcome { i32 code; T value; }
+import keel.protocols types;
+pub modifier outcome implement [Failable] { i32 code; T value; }
 
 module keel.corot;
+import keel.protocols types;
 pub tags Status [SUCCESS = -1, ONGOING = 0, FAILED = 1];
-pub typedef struct { i32 code; } corot;
+pub typedef struct { i32 code; } corot implement [Taggable];
 ```
 
 **`outcome`** — resultado final, de dois estados, com valor associado.
+
+As instâncias com `T` diferente de `void` também atendem `Winnable`, pela
+forma `win(r, v)`. Essa conformidade é verificada no uso; `implement [Failable]`
+não exige de `outcome void` um verbo que a regra de omissão retira.
 
 | Chamada | Devolve | O que faz | Com `T` `void` |
 | --- | --- | --- | --- |
@@ -1914,9 +2367,9 @@ pub typedef struct { i32 code; } corot;
 | `corot.fault(r, c)` | `corot` | escreve o código de falha `c`, estritamente positivo |
 | `corot.ok(r)`, `corot.ongoing(r)`, `corot.faulted(r)` | `bool` | consulta sucesso, andamento ou falha |
 | `corot.code(r)` | `i32` | o código |
-| `corot.tag(r)` | `i32` | a tag de [`Status`](#49-conjuntos-de-tags-e-despacho) correspondente à região do código |
+| `corot.tag(r)` | `Status` | a tag de [`Status`](#49-conjuntos-de-tags-e-despacho) correspondente à região do código |
 
-Protocolos (§5.1): Falível — `outcome.failed` e `outcome.win` → [`else`](#410-tratamento-de-resultado); Etiquetado — `corot.tag` → [`match`](#49-conjuntos-de-tags-e-despacho).
+Protocolos (§5.1): Failable/Winnable — `outcome.failed` e `outcome.win` → [`else`](#410-tratamento-de-resultado); Taggable — `corot.tag` → [`match`](#49-conjuntos-de-tags-e-despacho).
 
 **Reconhecimento**
 
@@ -1940,7 +2393,7 @@ Resultados finais e retornos cooperativos.
 4. `corot` tem três estados. `!corot.faulted(r)` inclui sucesso e andamento, e não equivale a `corot.ok(r)`.
 5. `corot` é tipo, e não modificador: não há `corot T` nem `corot.value`. O que a passagem produziu viaja pelo contexto que o programa passa.
 6. `corot` é struct de um campo, `struct { i32 code; }`; não há conversão implícita para inteiro.
-7. `corot.tag` é leitura, e não armazenamento: dois códigos de falha diferentes devolvem a mesma tag.
+7. `corot.tag` devolve `Status`, ligando `Taggable.tagset`. É leitura, e não armazenamento: dois códigos de falha diferentes devolvem a mesma tag.
 8. `win`, `fail`, `none`, `again` e `fault` modificam o objeto recebido e devolvem uma cópia dele depois do ajuste. Não retornam da função: encerrar a função é `return corot.win(r);`, com o cleanup da §4.6.
 9. Os códigos de `fail` e `fault` são escritos sem conversão, troca de sinal ou normalização. O código é avaliado uma vez.
 10. As consultas não modificam o objeto.
@@ -2225,9 +2678,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `ref-without-initializer` | `ref` sem inicializador | `error` | keel | §4.2 |
 | `ref-arithmetic` | Operador aditivo binário, `+=`, `-=`, incremento, decremento ou índice aplicado a símbolo `ref`; inclui `q - p` com `p` `ref`, sem determinar o tipo de `q` | `error` | keel | §4.2 |
 | `slice-from-ref` | `slice.from` sobre `ref` | `error` | keel | §5.3 |
-| `nonconstant-arena-stack` | `arena.from_stack` com tamanho não constante; a mensagem indica `arena.from_parent` | `error` | keel | §5.2 |
-| `arena-from-array-not-u8` | `arena.from_array` sobre símbolo que não é `array u8` | `error` | keel | §5.2 |
-| `arena-escape` | Retorno de contêiner cuja procedência conhecida é armazenamento local | `error` | keel | §5.2 |
+| `region-escape` | Retorno de símbolo cuja procedência inclui origem automática local da função | `error` | keel | §4.12 |
 | `defer-without-braces` | `defer` como corpo de statement de controle sem chaves | `error` | keel | §4.6 |
 | `defer-at-file-scope` | `defer` em escopo de arquivo | `error` | keel | §4.6 |
 | `jump-over-defer` | Entrada externa em escopo por cima de registro de `defer`, inclusive `case`/`default` posterior no mesmo corpo de `switch` | `error` | keel | §4.6 |
@@ -2252,7 +2703,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `redundant-instance` | `instance` sobre genérico inteiramente `pub inline` | `warning` | keel | §4.3 |
 | `nonparametric-out-of-line` | Função fora de linha ou variável em declaração de genérico que não menciona parâmetro nem modificador | `error` | keel | §4.3 |
 | `byref-param` | Instância `byref` por valor em parâmetro — `arena`, `buffer` e todo modificador marcado | `error` | keel | §4.3 |
-| `child-arena-after-reset` | Uso de arena filha depois de `reset`/`restore` do pai, no mesmo escopo | `error` | keel | §5.2 |
+| `child-region-after-invalidation` | Uso reconhecido de símbolo inválido por `invalidates` ou `consumes`, inclusive descendentes | `error` | keel | §4.12 |
 | `unnamed-tags` | `tags` sem nome | `error` | keel | §4.9 |
 | `duplicate-tags-name` | Dois conjuntos de tags com o mesmo nome no módulo | `error` | keel | §4.9 |
 | `empty-tags` | Conjunto de tags sem nenhuma tag | `error` | keel | §4.9 |
@@ -2334,9 +2785,31 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `partial-instance-selection` | Verbo de seleção sem parâmetro `type` para algum parâmetro da linha `module` | `error` | keel | §4.4 |
 | `type-param-outside-size` | Parâmetro `type` apagado usado fora de `sizeof`, `alignof` e `X *` na assinatura, ou em dimensão de vetor | `error` | keel | §4.4 |
 | `type-param-shadows-type` | Parâmetro `type` apagado com nome de tipo conhecido no escopo | `error` | keel | §4.4 |
+| `role-position` | Papel fora de posição admitida | `error` | keel, na tradução | §4.12 |
+| `unknown-protocol` | Nome de protocolo desconhecido | `error` | keel, na tradução | §5.1 |
+| `protocol-verb-missing` | Verbo exigido ausente na asserção de conformidade | `error` | keel, na tradução | §5.1 |
+| `associated-type-unbound` | Tipo associado sem retorno que estabeleça sua ligação | `error` | keel, na tradução | §5.1 |
+| `associated-type-conflict` | Ligações incompatíveis para o mesmo tipo associado | `error` | keel, na tradução | §5.1 |
+| `circular-protocol` | Ciclo na composição de protocolos | `error` | keel, na tradução | §5.1 |
+| `protocol-verb-conflict` | Verbos de mesmo nome e aridade com assinaturas conflitantes | `error` | keel, na tradução | §5.1 |
+| `protocol-role-mismatch` | Papéis do implementador divergentes dos exigidos | `error` | keel, na tradução | §5.1 |
+| `not-in-v0` | Construção normativa v1 reconhecida por implementação v0 | `error` | keel, na tradução | §6.3 |
+| `mold-position` | (v1) Chamada a molde em posição não admitida | `error` | keel, na tradução | §4.13 |
+| `mold-return` | (v1) Retorno de molde fora da forma final permitida | `error` | keel, na tradução | §4.13 |
+| `mold-argument` | (v1) Argumento de molde fora da categoria permitida | `error` | keel, na tradução | §4.13 |
+| `circular-mold` | (v1) Ciclo de expansão de moldes | `error` | keel, na tradução | §4.13 |
+| `mold-depth` | (v1) Profundidade de expansão acima do limite | `error` | keel, na tradução | §4.13 |
+| `mold-size` | (v1) Quantidade de tokens expandidos acima do limite | `error` | keel, na tradução | §4.13 |
+| `code-param-outside-mold` | (v1) Parâmetro keel_code em função que não é molde | `error` | keel, na tradução | §4.13 |
+| `protocol-not-satisfied` | (v1) Tipo concreto não atende ao protocolo do parâmetro | `error` | keel, na tradução | §4.14 |
+| `verb-not-in-protocol` | (v1) Verbo fora do contrato do parâmetro de protocolo | `error` | keel, na tradução | §4.14 |
+| `instance-depth` | (v1) Profundidade de especialização acima do limite | `error` | keel, na tradução | §4.14 |
 
 ### 6.3 Implementação conforme
 
+- Uma implementação v0 reconhece e recusa as construções marcadas v1 com
+  `not-in-v0`; uma implementação v1 também as traduz. Os requisitos de
+  arquitetura da v0 estão em [design/requisitos-v0.md](design/requisitos-v0.md).
 - Uma implementação reconhece as construções e aplica as restrições descritas
   nesta especificação. Não pode recusar programas admitidos por acrescentar
   análise de tipos C ou restrições próprias às formas definidas.
@@ -2412,3 +2885,4 @@ constituem mudança da sintaxe ou do reconhecimento de keel, pois podem alterar 
 - [Rationale: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos) e [perfis](keel-rationale.md#perfis-e-exemplos-de-tradução).
 - [Backend: obrigações](keel-c-backend.md#1-obrigações-do-backend), [mapeamento de linhas](keel-c-backend.md#6-mapeamento-de-linhas) e [perfis](keel-c-backend.md#9-perfis-de-geração).
 - [Ferramenta](cgen-tool-spec.md): resolução de fontes, seleção de entrada, opções de build e apresentação dos diagnósticos.
+

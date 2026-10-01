@@ -1,6 +1,12 @@
 # Proposta de revisão da spec: papéis, protocolos e especialização de funções
 
-**Data:** 2026-10-01. **Status:** proposta para revisão; não normativa.
+**Data:** 2026-10-01. **Status:** proposta histórica superada pela revisão incorporada à spec.
+
+> A revisão aceita está em `keel-spec.md`, §§4.12–4.14 e §5.1, e em
+> [requisitos-v0.md](requisitos-v0.md). Ela acrescenta `consumes`, mantém a
+> conformidade estrutural com `implement` opcional e restringe parâmetros de
+> código a moldes. `type T` de função comum continua selecionado ou apagado.
+> O texto abaixo documenta a proposta anterior; não deve orientar novas alterações.
 Este documento não altera a spec, o backend, a Base nem o compilador.
 As regras candidatas abaixo precisam de aceite antes da incorporação.
 
@@ -883,3 +889,4 @@ esperar o conjunto mínimo completo. Protocolos, papéis e substituição são
 mecanismos gerais do núcleo; os contratos concretos e os algoritmos ficam na
 Base. A redução é de casos especiais, não a eliminação do trabalho de
 reconhecimento, instanciação e emissão do compilador.
+

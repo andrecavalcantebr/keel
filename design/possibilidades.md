@@ -1508,6 +1508,127 @@ Abertos:
 - **Custo no núcleo.** Substituir o que hoje é código de tradução por um
   expansor é trabalho grande, e a v0 já depende das construções como estão.
 
+### Composição de bibliotecas: `source` e `pub import` (2026-10-01)
+
+**Status: possibilidade para v2+, não normativa e sem implementação prevista
+agora.** Tensor está no horizonte v2+; exemplos reais da biblioteca devem
+demonstrar a necessidade antes de alterar o modelo de módulos.
+
+#### Motivação e modelo atual
+
+O objetivo principal é reduzir a quantidade de imports que o usuário final
+precisa escrever para acessar uma biblioteca grande, como Tensor. Hoje os
+imports são explícitos e não transitivos: importar `tensor` não disponibiliza
+automaticamente os símbolos dos módulos que ele importa internamente.
+
+A organização hierárquica já é possível: `tensor.k`,
+`tensor/operations.k`, `tensor/data.k`. A correspondência entre nome do
+módulo e caminho facilita a busca pelas raízes `-I`, a distribuição da árvore
+de fontes e a identificação dos artefatos gerados. Mover ou renomear um módulo
+exige refatorar sua declaração e referências.
+
+Aliases já encurtam a escrita do nome do módulo, sem alterar o nome manglado.
+A opção `types` do import já introduz tipos nus. Nenhuma das duas resolve,
+por si, a quantidade de imports necessários. Encurtar o mangling é uma questão
+separada desta proposta.
+
+#### Alternativa A: inclusão de fonte com `source`
+
+Incluir fragmentos de fonte como parte do módulo que os inclui. O nome
+`source` distingue a construção keel da diretiva `#include` do
+pré-processador C. Sintaxe apenas ilustrativa:
+
+```keel
+// tensor.k
+module tensor;
+source "tensor/operations.inc.k";
+source "tensor/data.inc.k";
+```
+
+Nesta alternativa, os fragmentos não declaram módulos próprios: suas
+declarações pertencem a `tensor`, respeitando a visibilidade de cada
+declaração. Uma operação pública `transpose` incluída assim seria uma
+operação de `tensor`, e não de `tensor.operations`. O usuário importa
+somente o módulo principal.
+
+A geração reúne os fragmentos na unidade do módulo, ou de sua instância
+genérica, seguindo a separação de artefatos do backend. Não gera um par
+independente por fragmento. O caminho físico do fragmento não entra na
+identidade pública de seus símbolos.
+
+Pontos a definir:
+
+- inclusão restrita ao nível superior, ausência de `module` no fragmento
+  e extensão/nomeação dos arquivos;
+- busca de caminhos relativos e por raízes, ordem, ciclos e repetição;
+- contexto compartilhado de imports, parâmetros genéricos e declarações;
+- interação com trechos C, diretivas do PPC e separação entre header e
+  implementação;
+- procedência dos diagnósticos e dependências do build, para que editar um
+  fragmento invalide os artefatos que dependem dele.
+
+O ganho é dividir fisicamente um módulo sem multiplicar os imports públicos.
+O custo é compartilhar contexto, compilação e instanciação: os fragmentos
+não são submódulos utilizáveis independentemente.
+
+#### Alternativa B: reexportação explícita com `pub import`
+
+Manter os módulos independentes e declarar quais importações integram a
+interface pública da biblioteca. Sintaxe apenas ilustrativa:
+
+```keel
+module tensor;
+pub import tensor.operations;
+pub import tensor.data;
+```
+
+Um consumidor de `tensor` teria acesso ao que fosse explicitamente
+republicado. Imports comuns continuariam internos ao módulo importador;
+uma grafia `priv import` também foi cogitada, sem decisão sobre sua
+necessidade. A transitividade seguiria apenas as arestas públicas.
+
+**A forma de acesso ainda está aberta.** É preciso decidir se o consumidor
+usa o módulo original, um alias republicado ou um nome oferecido pela fachada.
+Não se assume que `pub import` transforma automaticamente
+`tensor.operations.transpose` em `tensor.transpose`. Também é preciso
+definir a composição com `as` e `types`, colisões de nomes e caminhos
+múltiplos para o mesmo símbolo. A reexportação não deve tornar públicas
+declarações privadas do módulo de origem.
+
+**A saída precisa ser projetada junto com a entrada.** Uma opção é preservar
+o módulo proprietário, o mangling e os artefatos de cada símbolo, fazendo a
+fachada referenciar os headers necessários. Isso exige também propagar a
+visibilidade na resolução de nomes keel; um `#include` no C gerado não basta.
+
+Para genéricos, deve-se definir como os parâmetros da fachada determinam as
+instâncias republicadas, quem solicita e emite cada instância e como o build
+descobre todos os fontes C a compilar. Foi levantada a possibilidade de um
+`instances.k` mantido automaticamente pelo build para centralizar essas
+instanciações. É uma hipótese a avaliar, não uma exigência já demonstrada
+nem uma tarefa a impor manualmente ao usuário.
+
+A reutilização de instâncias idênticas já faz parte do modelo e deve ser
+preservada, inclusive quando alcançadas por imports diretos e públicos.
+Reexportar não deve duplicar implementações. O crescimento pelo número de
+instâncias distintas permanece uma questão separada.
+
+#### Critério para retomar
+
+| Alternativa | Composição | Pertencimento dos símbolos |
+| --- | --- | --- |
+| `source` | fragmentos formam um módulo | módulo que inclui o fonte |
+| `pub import` | módulos formam uma interface pública | pode preservar o módulo original; resolução pública a definir |
+
+Manter os imports explícitos por enquanto. Retomar se tarefas comuns em Tensor
+exigirem listas extensas e repetidas de imports, ou se mudanças internas da
+biblioteca impuserem alterações frequentes aos consumidores. Uma biblioteca
+grande, isoladamente, não demonstra esse problema.
+
+Antes de incorporar qualquer alternativa, fechar exemplos de uso e de saída
+C, incluindo genéricos, aliases, tipos nus, conflitos, dependências e emissão
+única. Esta entrada não altera a spec, o backend nem o escopo atual do
+compilador.
+
 ---
 
 ## 3. Leituras e digressões

@@ -1827,15 +1827,17 @@ pub protocol Taggable type C {
 pub protocol Failable type C {
     bool failed(C *x);
 }
+pub protocol Winnable type C {
+    type fallback;
+    C win(C *x, fallback d);
+}
 ```
 
-`Winnable` exige a assinatura `win(resultado, default)` da §4.10: dois
-parâmetros, receptor na primeira posição e retorno do tipo do resultado.
-O parâmetro de default tem o tipo declarado pelo implementador; sua
-compatibilidade com o default escrito é validada pelo compilador C. Esse
-contrato não declara um tipo associado sem retorno que o produza.
-`Failable` exige somente `bool failed(resultado)`. Nenhum dos dois introduz
-papéis nessas operações.
+`Winnable` é a forma `win(resultado, default)` da §4.10. O tipo associado
+`fallback` só ocorre em parâmetro: não é ligado, e a compatibilidade entre o
+default escrito e o parâmetro do implementador é validada pelo compilador C
+(regra 5). `Failable` exige somente `bool failed(resultado)`. Nenhum dos dois
+introduz papéis nessas operações.
 
 Implementador:
 
@@ -1861,9 +1863,11 @@ pub protocol Sequence [IndexPtr, Sliceable, Traversable];
 4. `implement [lista]` é asserção: keel verifica a conformidade na declaração
    do tipo e emite `protocol-verb-missing` ali. Sem a cláusula, a conformidade
    é verificada no uso.
-5. Cada tipo associado aparece no retorno de pelo menos um verbo exigido. A
-   ligação vem do retorno declarado do implementador, descontados os níveis de
-   ponteiro escritos no protocolo. Tipo associado sem retorno é
+5. Um tipo associado que aparece no retorno de um verbo exigido é ligado pelo
+   retorno declarado do implementador, descontados os níveis de ponteiro
+   escritos no protocolo. Um tipo associado que só aparece em parâmetros não é
+   ligado: não é designado por `C.nome` (§4.14), e o compilador C valida suas
+   ocorrências. Tipo associado que não aparece em nenhum verbo exigido é
    `associated-type-unbound`.
 6. As demais ocorrências do tipo associado são substituídas sem verificação;
    o compilador C valida o resultado.
@@ -2788,7 +2792,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `role-position` | Papel fora de posição admitida | `error` | keel, na tradução | §4.12 |
 | `unknown-protocol` | Nome de protocolo desconhecido | `error` | keel, na tradução | §5.1 |
 | `protocol-verb-missing` | Verbo exigido ausente na asserção de conformidade | `error` | keel, na tradução | §5.1 |
-| `associated-type-unbound` | Tipo associado sem retorno que estabeleça sua ligação | `error` | keel, na tradução | §5.1 |
+| `associated-type-unbound` | Tipo associado que não aparece em nenhum verbo exigido do protocolo | `error` | keel, na tradução | §5.1 |
 | `associated-type-conflict` | Ligações incompatíveis para o mesmo tipo associado | `error` | keel, na tradução | §5.1 |
 | `circular-protocol` | Ciclo na composição de protocolos | `error` | keel, na tradução | §5.1 |
 | `protocol-verb-conflict` | Verbos de mesmo nome e aridade com assinaturas conflitantes | `error` | keel, na tradução | §5.1 |
@@ -2872,7 +2876,7 @@ A representação dos tipos, a grafia e o limite dos nomes gerados, os artefatos
 o perfil, a disponibilidade de formatos estreitos, o mecanismo de execução de
 `parallel` e as condições do
 respaldo de arenas são documentados pelo backend. A ordem entre workers varia
-somente dentro das execuções permitidas pela §4.10.
+somente dentro das execuções permitidas pela §4.8.
 
 Módulos adicionais podem oferecer novos tipos e verbos pelos protocolos
 existentes. Uma implementação pode acrescentar avisos, informações e recursos

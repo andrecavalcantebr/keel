@@ -3,7 +3,7 @@ import keel.buffer as buffer types;
 import keel.outcome as outcome types;
 import keel.slice as slice types;
 
-pub i32 g(buffer i32 b, outcome i32 o) {
+pub i32 g(buffer i32 b, outcome i32 o) {  /* DIAG: byref-param */
     array i32 m[2,3];
     i32 a = b[1,2];                              /* DIAG: no-ptr-for-arity */
     i32 c = o[1];                                /* DIAG: no-ptr-for-arity */

@@ -140,6 +140,40 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s`, the C name of `%s`, is also a name exported by `%s`: rename one of them",
     [K_DIAG_ALIAS_TYPE_COLLISION] =
         "`%s` is the alias of a module and also a type from `%s`: choose another alias",
+    [K_DIAG_RESERVED_NAME] =
+        "`%s` is in the space of the generated C: names starting with `keel_` or `KEEL_` are reserved",
+    [K_DIAG_KEEL_NAME_SHADOWED] =
+        "`%s` is a keel word: declared as a name, it hides the construction where it would stand",
+    [K_DIAG_SHADOWED_INJECTED_NAME] =
+        "`%s` hides the type that `types` brought from `%s`: the bare name now means this declaration",
+    [K_DIAG_BYREF_PARAM] =
+        "the parameter `%s` takes `%s` by value, and that type is `byref`: take it by pointer",
+    [K_DIAG_NONCONSTANT_DIM] =
+        "the dimension `%s` of `%s` is not known at translation time: write a decimal literal or a `constexpr`",
+    [K_DIAG_DIM_BELOW_ONE] =
+        "the dimension `%s` of `%s` is below 1",
+    [K_DIAG_UNDECLARED_TAGS] =
+        "`%s` in `%s` names no set of tags: the `tags` parameter takes the name of a `tags` declaration",
+    [K_DIAG_PUB_STATIC] =
+        "`pub static` without `inline`: a public symbol cannot have internal linkage; drop `static` or make it `priv`",
+    [K_DIAG_INLINE_WITHOUT_VISIBILITY] =
+        "`static inline` at module level needs `pub` or `priv`: say whether it belongs to the interface",
+    [K_DIAG_STATIC_ON_TYPE] =
+        "`static` does not apply to a type",
+    [K_DIAG_UNNAMED_TAGS] =
+        "a set of tags needs a name: `tags NAME [ ... ];`",
+    [K_DIAG_EMPTY_TAGS] =
+        "the set `%s` has no tags",
+    [K_DIAG_PARTIAL_TAG_VALUES] =
+        "the set `%s` writes values for some tags and not for others: write all of them, or none",
+    [K_DIAG_NONCONSTANT_TAG_VALUE] =
+        "the value `%s` of `%s` is neither a decimal literal nor a known constant",
+    [K_DIAG_DUPLICATE_TAGS_NAME] =
+        "a second set of tags named `%s` in the module",
+    [K_DIAG_PARAMETER_NAME_REUSE] =
+        "`%s` is a parameter of the module: a declaration cannot reuse its name",
+    [K_DIAG_CANONICAL_NAME_COLLISION] =
+        "`%s` is the C name of both `%s` and `%s` in this module: rename one",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

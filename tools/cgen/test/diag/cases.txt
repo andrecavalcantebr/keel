@@ -29,3 +29,4 @@ imports-order o.k
 mains m.k
 mains2 n.k
 collide a.k
+decls d.k

@@ -29,6 +29,12 @@ static const char *const k_contextual_words[] = {
     "walk", "win"
 };
 
+bool k_token_is_keel_word(KToken t) {
+    for (size_t i = 0; i < sizeof k_contextual_words / sizeof *k_contextual_words; ++i)
+        if (k_token_spelled(t, k_contextual_words[i])) return true;
+    return false;
+}
+
 /* the identifier at pos in src, after spaces, tabs and comments */
 static KToken word_at(keel_slice_char src, size_t *pos) {
     size_t first = k_lexer_skip_trivia(src, *pos);

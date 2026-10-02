@@ -14,7 +14,7 @@ pub i32 f(void) {
     return a + b + c + d + ok;
 }
 
-pub size_t g(buffer i32 b) {
+pub size_t g(buffer i32 b) {  /* DIAG: byref-param */
     slice i32 s = b[5..2];                       /* DIAG: inverted-range-index */
     slice i32 t = b[2..5];
     slice i32 u = b[1][3..];                     /* DIAG: open-range-index-on-complex-path */

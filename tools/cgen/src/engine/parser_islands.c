@@ -1526,9 +1526,13 @@ static bool is_arena(const KAst *a, const KSpecifier *spec) {
 
 /* A keel type at token `i`: its `type` island, then what it declares. Returns
    the index of the last token of the specifier. */
+static void check_arguments(Ctx *c, const KSpecifier *spec, KToken at);
+static void check_name(Ctx *c, KToken name, bool top);
+
 static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, KToken next,
                           bool signature, bool declarators) {
     KAst *a = c->ast;
+    check_arguments(c, spec, tok(a, i));
     size_t end = index_at(a, i, spec->text.ptr + spec->text.len);
 
     bool primitive = spec->kind == K_SPEC_NAMED_TYPE && k_primitive_name(spec->type_name);
@@ -1560,6 +1564,7 @@ static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexe
         if (!k_scan_declarator(lexer, d, &decl, &after, &pp) || !decl.name.len) break;
         if (decl.has_function_suffix && !decl.parenthesized) break;   /* a prototype */
         size_t at = index_at(a, i, decl.name.ptr);
+        if (!signature && c->depth > 0) check_name(c, decl.name, false);
         add_local(c, (Local){ .name = decl.name, .spec = *spec, .decl_at = at,
                               .pointers = decl.pointer_depth + (decl.has_array_suffix ? 1 : 0) });
 
@@ -3266,6 +3271,7 @@ static void instance_decl(Ctx *c, const KAstNode *n) {
         diag3(c, K_DIAG_INSTANCE_NOT_MODIFIER, tok(a, n->name_first), text, none, none);
         return;
     }
+    check_arguments(c, &spec, tok(a, n->name_first));
     const KSymbol *m = k_symbol_resolve(a->symbols, spec.modifier_name);
     const KAst *home = m && m->origin ? ast_of(c, m->origin) : NULL;
     if (!home) return;
@@ -3326,7 +3332,7 @@ static bool module_generic(const KModule *m) {
 }
 
 /* the canonical names a symbol takes in C: its own, and each value of a set */
-static size_t canonical_names(const KSymbol *sym, char out[][K_SYMBOL_MAX], size_t cap) {
+static size_t canonical_names(const KSymbol *sym, const KAst *own, char out[][K_SYMBOL_MAX], size_t cap) {
     char buf[K_SYMBOL_MAX];
     size_t n = k_mangle_symbol(sym, (keel_slice_char){ sizeof buf, buf });
     if (n >= sizeof buf || !cap) return 0;
@@ -3334,7 +3340,8 @@ static size_t canonical_names(const KSymbol *sym, char out[][K_SYMBOL_MAX], size
     out[0][n] = 0;
     size_t count = 1;
     KTagsDecl tags;
-    if (sym->kind == K_SYM_TAGS && sym->origin && sym->origin->ast && tags_decl(sym->origin->ast, sym->name, &tags))
+    const KAst *home = sym->origin && sym->origin->ast ? sym->origin->ast : own;    /* the file's own: not retained yet */
+    if (sym->kind == K_SYM_TAGS && home && tags_decl(home, sym->name, &tags))
         for (size_t k = 0; k < tags.item_count && count < cap; k++) {
             if (n + 1 + tags.items[k].len >= K_SYMBOL_MAX) continue;
             memcpy(out[count], buf, n);
@@ -3379,7 +3386,7 @@ static void check_collisions(Ctx *c) {
             own->kind == K_SYM_MODIFIER || own->kind == K_SYM_PROTOCOL)
             continue;
         char mine[K_TAGS_MAX_ITEMS + 1][K_SYMBOL_MAX];
-        size_t nm = canonical_names(own, mine, K_TAGS_MAX_ITEMS + 1);
+        size_t nm = canonical_names(own, a, mine, K_TAGS_MAX_ITEMS + 1);
         for (size_t q = 0; q < ns; q++) {
             const KModule *m = seen[q];
             if (module_generic(m) || k_symtab_same_name(m->name, self)) continue;
@@ -3387,7 +3394,7 @@ static void check_collisions(Ctx *c) {
                 const KSymbol *other = &m->symbols[k];
                 if (other->kind == K_SYM_MODIFIER || other->kind == K_SYM_PROTOCOL) continue;
                 char theirs[K_TAGS_MAX_ITEMS + 1][K_SYMBOL_MAX];
-                size_t nt = canonical_names(other, theirs, K_TAGS_MAX_ITEMS + 1);
+                size_t nt = canonical_names(other, NULL, theirs, K_TAGS_MAX_ITEMS + 1);
                 for (size_t x = 0; x < nm; x++)
                     for (size_t y = 0; y < nt; y++)
                         if (!strcmp(mine[x], theirs[y])) {
@@ -3430,6 +3437,184 @@ static void check_alias_types(Ctx *c) {
                       m->origin ? m->origin->name : alias);
                 break;
             }
+        }
+    }
+}
+
+/* ---- declarations (passage 2: spec §2.5, §4.1, §4.2, §4.3, §4.9) ------- */
+
+/* a declared name: in the reserved spaces (reserved-name), or a contextual
+   word of keel (keel-name-shadowed; roles are not in the list, and the verbs
+   `win` and `fail` and the module names `array` and `parallel` are let
+   through, spec §6.2) */
+static void check_name(Ctx *c, KToken name, bool top) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    if (k_token_starts_with(name, "keel_") || k_token_starts_with(name, "KEEL_"))
+        diag3(c, K_DIAG_RESERVED_NAME, name, name, none, none);
+    if (k_token_is_keel_word(name) && !k_token_spelled(name, "win") && !k_token_spelled(name, "fail") &&
+        !k_token_spelled(name, "array") && !k_token_spelled(name, "parallel"))
+        diag3(c, K_DIAG_KEEL_NAME_SHADOWED, name, name, none, none);
+    (void)top;
+    /* shadowed-injected-name waits on the base: keel.buffer declares its own
+       `cursor` and imports keel.slice, which injects one (see the README) */
+}
+
+/* whether the type a specifier names is `byref`: a modifier declared
+   `modifier X byref`, a `typedef ... X byref;`, or `arena` (spec §4.3, rule 17) */
+static bool spec_byref(const KAst *a, const KSpecifier *spec) {
+    if (is_arena(a, spec)) return true;
+    keel_slice_char name = spec->kind == K_SPEC_MODIFIER ? spec->modifier_name : spec->type_name;
+    const KSymbol *sym = k_symbol_resolve(a->symbols, name);
+    const KAst *home = sym && sym->origin && sym->origin->ast ? sym->origin->ast : a;
+    if (!sym) return false;
+    for (size_t i = 0; i < home->nodes.len; i++) {
+        const KAstNode *n = node_at(home, i);
+        if (n->name_first == n->name_end || !k_symtab_same_name(tok(home, n->name_first), sym->name)) continue;
+        if (n->kind == K_AST_MODIFIER) return word(home, n->name_end, "byref");
+        if (n->kind == K_AST_TYPE)
+            for (size_t j = n->name_end; j < n->end; j++) if (word(home, j, "byref")) return true;
+    }
+    return false;
+}
+
+/* the dimensions and the `tags` arguments of a modifier written in `spec`
+   (spec §4.3, rules 4 and 5): a `dim` is a known decimal of at least 1
+   (nonconstant-dim, dim-below-one), and a `tags` argument names a set
+   (undeclared-tags) */
+static void check_arguments(Ctx *c, const KSpecifier *spec, KToken at) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    if (spec->kind != K_SPEC_MODIFIER) return;
+    for (size_t d = 0; d < spec->dim_count; d++) {
+        keel_slice_char t = spec->dims[d];
+        while (t.len && t.ptr[0] == ' ') { t.ptr++; t.len--; }
+        while (t.len && t.ptr[t.len - 1] == ' ') t.len--;
+        long v = -1;
+        bool known = digits(t, &v);
+        if (!known) {
+            const Local *l = find_local(c, t);
+            const KSymbol *sym = l ? NULL : k_symbol_resolve(a->symbols, t);
+            known = l ? l->is_constexpr && digits(l->value, &v) : sym && sym->kind == K_SYM_CONSTANT && digits(sym->value, &v);
+        }
+        if (!known) diag3(c, K_DIAG_NONCONSTANT_DIM, at, t, spec->text, none);
+        else if (v < 1) diag3(c, K_DIAG_DIM_BELOW_ONE, at, t, spec->text, none);
+    }
+    const KSymbol *m = k_symbol_resolve(a->symbols, spec->modifier_name);
+    const KAst *home = m && m->origin ? m->origin->ast : NULL;
+    if (!home) return;
+    const KAstNode *mn = module_node(home);
+    size_t tags = 0;
+    for (size_t j = mn->tags_first; j < mn->tags_end; j++) if (ident(home, j)) tags++;
+    for (size_t k = 0; k < tags && k < spec->arg_count; k++) {
+        const KSymbol *s = k_symbol_resolve(a->symbols, spec->args[k]);
+        if (!s || s->kind != K_SYM_TAGS) diag3(c, K_DIAG_UNDECLARED_TAGS, at, spec->args[k], spec->text, none);
+    }
+}
+
+static void check_declarations(Ctx *c) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    const KAstNode *mod = module_node(a);
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        bool named = n->name_first != n->name_end;
+        /* visibility and storage (spec §4.1) */
+        size_t name_at = named ? n->name_first : n->end;
+        bool has_static = false, has_inline = false, has_pub = word(a, n->first, "pub");
+        bool has_typedef = false;
+        for (size_t j = n->first; j < name_at && j < n->end; j++) {
+            if (word(a, j, "static")) has_static = true;
+            if (word(a, j, "inline")) has_inline = true;
+            if (word(a, j, "typedef")) has_typedef = true;
+        }
+        if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) {
+            if (has_pub && has_static && !has_inline) diag3(c, K_DIAG_PUB_STATIC, tok(a, n->first), none, none, none);
+            if (word(a, n->first, "static") && has_inline) diag3(c, K_DIAG_INLINE_WITHOUT_VISIBILITY, tok(a, n->first), none, none, none);
+        }
+        if ((n->kind == K_AST_TYPE || has_typedef) && has_static) diag3(c, K_DIAG_STATIC_ON_TYPE, tok(a, n->first), none, none, none);
+        /* sets of tags (spec §4.9) */
+        if (n->kind == K_AST_TAGS) {
+            if (!named) { diag3(c, K_DIAG_UNNAMED_TAGS, tok(a, n->first), none, none, none); continue; }
+            KTagsDecl t;
+            if (tags_decl(a, tok(a, n->name_first), &t)) {
+                if (!t.item_count) diag3(c, K_DIAG_EMPTY_TAGS, tok(a, n->name_first), tok(a, n->name_first), none, none);
+                if (t.has_values && !t.all_values)
+                    diag3(c, K_DIAG_PARTIAL_TAG_VALUES, tok(a, n->name_first), tok(a, n->name_first), none, none);
+                for (size_t k = 0; k < t.item_count; k++) {
+                    long v;
+                    keel_slice_char val = t.values[k];
+                    if (!val.len) continue;
+                    if (val.ptr[0] == '-') { val.ptr++; val.len--; while (val.len && val.ptr[0] == ' ') { val.ptr++; val.len--; } }
+                    const KSymbol *sym = digits(val, &v) ? NULL : k_symbol_resolve(a->symbols, val);
+                    if (!digits(val, &v) && !(sym && sym->kind == K_SYM_CONSTANT))
+                        diag3(c, K_DIAG_NONCONSTANT_TAG_VALUE, t.items[k], t.values[k], t.items[k], none);
+                }
+            }
+            for (size_t k = 0; k < i; k++) {
+                const KAstNode *o = node_at(a, k);
+                if (o->kind == K_AST_TAGS && o->name_first != o->name_end &&
+                    k_symtab_same_name(tok(a, o->name_first), tok(a, n->name_first))) {
+                    diag3(c, K_DIAG_DUPLICATE_TAGS_NAME, tok(a, n->name_first), tok(a, n->name_first), none, none);
+                    break;
+                }
+            }
+        }
+        if (!named || n->kind == K_AST_IMPORT || n->kind == K_AST_IMPORT_C || n->kind == K_AST_MODULE ||
+            n->kind == K_AST_INSTANCE)
+            continue;
+        KToken name = tok(a, n->name_first);
+        check_name(c, name, true);
+        /* the module's parameters are not redeclared (spec §4.3) */
+        for (size_t k = mod->dim_first; k < mod->type_end; k++)
+            if (ident(a, k) && k_symtab_same_name(tok(a, k), name))
+                diag3(c, K_DIAG_PARAMETER_NAME_REUSE, name, name, none, none);
+        if (n->kind != K_AST_FUNCTION) continue;
+        Param p[K_PARAMS_MAX];
+        size_t np = params_of(a, n, p, K_PARAMS_MAX);
+        for (size_t k = 0; np != SIZE_MAX && k < np; k++) {
+            if (p[k].end <= p[k].first) continue;
+            KToken pn = tok(a, p[k].end - 1);
+            if (ident(a, p[k].end - 1) && !p[k].is_type) {      /* `type T` selects the instance (§4.4) */
+                check_name(c, pn, false);
+                for (size_t m = mod->dim_first; m < mod->type_end; m++)
+                    if (ident(a, m) && k_symtab_same_name(tok(a, m), pn))
+                        diag3(c, K_DIAG_PARAMETER_NAME_REUSE, pn, pn, none, none);
+            }
+            /* a `byref` instance by value (spec §4.3, rule 17) */
+            Range r = param_type(a, &p[k]);
+            if (p[k].pointer || p[k].is_type || p[k].is_array || r.end <= r.first) continue;
+            KLexer lexer;
+            TKPpKind pp;
+            KSpecifier spec;
+            KToken next = {0};
+            KToken first = enter(a, r.first, &lexer, &pp);
+            if (k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind != K_SPEC_NONE &&
+                spec_byref(a, &spec))
+                diag3(c, K_DIAG_BYREF_PARAM, pn, pn, spec.text, none);
+        }
+    }
+    /* the canonical names of the module's own declarations (spec §4.2) */
+    keel_slice_char self = range_text(a, (Range){ mod->name_first, mod->name_end });
+    char names[96][K_SYMBOL_MAX];
+    keel_slice_char whose[96];
+    size_t nn = 0;
+    for (size_t i = 0; i < a->symbols->len && nn < 96; i++) {
+        const KSymbol *own = keel_buffer_KSymbol_ptr(a->symbols, i);
+        if (!own->origin || !k_symtab_same_name(own->origin->name, self) || own->kind == K_SYM_MODULE) continue;
+        char mine[K_TAGS_MAX_ITEMS + 1][K_SYMBOL_MAX];
+        size_t nm = canonical_names(own, a, mine, K_TAGS_MAX_ITEMS + 1);
+        bool told = false;
+        for (size_t x = 0; x < nm && nn < 96; x++) {
+            for (size_t y = 0; y < nn && !told; y++)
+                if (!strcmp(names[y], mine[x]) && !k_symtab_same_name(whose[y], own->name)) {
+                    Text t = { .ok = true };
+                    put_str(&t, mine[x]);
+                    diag3(c, K_DIAG_CANONICAL_NAME_COLLISION, own->name, keep(c, &t), whose[y], own->name);
+                    told = true;                        /* once per declaration */
+                }
+            memcpy(names[nn], mine[x], K_SYMBOL_MAX);
+            whose[nn++] = own->name;
         }
     }
 }
@@ -3514,6 +3699,7 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     static Surface surface[K_SURFACE_MAX];
     Ctx ctx = { .ast = a, .diag = diag, .surface = surface };
     check_modifiers(&ctx);
+    check_declarations(&ctx);
     if (generic(a)) {
         check_generic(&ctx);
         return true;

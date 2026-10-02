@@ -5,4 +5,4 @@ pub size_t put(box *b, T v);
 pub size_t counter(void);                   /* DIAG: nonparametric-out-of-line */
 pub int shared_flag;                        /* DIAG: nonparametric-out-of-line */
 
-pub modifier instance { T v; };            /* DIAG: modifier-named-instance */
+pub modifier instance { T v; };            /* DIAG: modifier-named-instance */ /* DIAG: keel-name-shadowed */

@@ -25,7 +25,7 @@ SOURCE = [
     'pub slice i32 view(i32 *p) {',                               # 10
     '    return slice.from(i32, p, N);',                          # 11
     '}',                                                          # 12
-    'pub size_t count(buffer i32 *b, buffer i32 c) {',            # 13
+    'pub size_t count(buffer i32 *b) { buffer i32 c = {0};',     # 13
     '    size_t n = buffer.length(b) + buffer.length(c);',        # 14
     '    n += twice((i32)n);',                                    # 15
     '    n += unknown(b);',                                       # 16
@@ -40,19 +40,19 @@ SOURCE = [
     '    return N;',                                              # 25
     '}',                                                          # 26
     'pub array i32 grid[2,3];',                                   # 27
-    'pub i32 pick(buffer i32 c, slice i32 s, array i32 m[2,2]) {',  # 28
+    'pub i32 pick(slice i32 s, array i32 m[2,2]) { buffer i32 c = {0};',  # 28
     '    grid[1,2] = c[3] + m[1,1];',                             # 29
     '    slice i32 t = s[1..];',                                  # 30
     '    return t[0] + unknown[1,2];',                            # 31
     '}',                                                          # 32
     'pub buffer i32 gbuf;',                                       # 33
-    'pub i32 more(arena *a, buffer i32 c) {',                     # 34
+    'pub i32 more(arena *a) { buffer i32 c = {0};',              # 34
     '    arena.reset_all(a);',                                    # 35
     '    slice i32 w = slice.of(c);',                             # 36
     '    return gbuf[0] + outcome.OK + (i32)buffer.length(c);',   # 37
     '}',                                                          # 38
     'pub typedef struct { buffer i32 items; array i32 tab[2,2]; } Box;',   # 39
-    'pub i32 pick(Box *w, Box v, buffer buffer i32 grid) {',      # 40
+    'pub i32 pick(Box *w, Box v) { buffer buffer i32 grid = {0};',  # 40
     '    i32 a = w->items[1];',                                   # 41
     '    i32 b = v.tab[1,1];',                                    # 42
     '    i32 d = grid[3][7];',                                    # 43
@@ -85,9 +85,9 @@ EXPECTED = [
     ('name', 'FAST → app_t_Mode_FAST', 21, 'FAST', 0),
     # stage 4b
     ('array', 'grid [2,3]', 27, 'array', 0),
-    ('type', 'buffer i32 → keel_buffer_i32', 28, 'buffer', 0),
     ('type', 'slice i32 → keel_slice_i32', 28, 'slice', 0),
     ('array', 'm [2,2]', 28, 'array', 0),
+    ('type', 'buffer i32 → keel_buffer_i32', 28, 'buffer', 0),
     ('array-index', 'grid rank 2', 29, 'grid', 0),
     ('index', 'c → keel_buffer_i32_ptr1 &1', 29, 'c[', 0),
     ('array-index', 'm rank 2', 29, 'm[', 0),

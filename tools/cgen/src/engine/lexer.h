@@ -59,6 +59,8 @@ bool k_token_is_punct(KToken t, const char *spelling);
 /* the logical spelling is exactly `s`, or begins with `prefix` */
 bool k_token_spelled(KToken t, const char *s);
 bool k_token_starts_with(KToken t, const char *prefix);
+/* a contextual word of keel (keel-spec §2.2), roles excluded */
+bool k_token_is_keel_word(KToken t);
 
 /* The engine's entry point. For now it runs up to `--stop-after=lex`: it
  * writes every token of `input` to `output`, one per line, as

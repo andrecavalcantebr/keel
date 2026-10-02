@@ -212,6 +212,13 @@ static bool parse(KAst *a,
             node.body_first = index_at(a, node.name_end, mdef.body.ptr);
             node.body_end = index_at(a, node.body_first, mdef.body.ptr + mdef.body.len);
             node.end = index_at(a, node.body_end, next.ptr);
+        } else if (named(a, i, "tags") && punct(a, i + 1, "[")) {
+            /* `tags [ ... ];` names no set: kept as an unnamed node, so the
+               collection can say unnamed-tags instead of failing the parse */
+            node.end = declaration_end(a, i, &node.body_first, &node.body_end);
+            if (node.end <= start || node.end > n) return false;
+            node.kind = K_AST_TAGS;
+            node.name_first = node.name_end = i + 1;
         } else if (named(a, i, "tags")) {
             KToken kw = reenter(a, i, &lexer, &pp);
             KTagsDecl tdef;

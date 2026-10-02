@@ -39,7 +39,7 @@ typedef struct {
     keel_slice_char value;      /* its initializer, as written */
 } Local;
 
-#define K_TYPES_MAX 64
+#define K_TYPES_MAX 256
 #define K_SYMBOL_MAX 256
 
 typedef enum { KT_NONE, KT_PRIM, KT_NAMED, KT_MODIFIER, KT_ARRAY } KTypeKind;
@@ -82,7 +82,19 @@ typedef struct {
     size_t cap_first, cap_end;  /* its capture list, tokens inside the parentheses */
     keel_slice_char par_names[16];  /* the `parallel`s of the function so far */
     size_t par_count;
+    struct Surface *surface;    /* what each instance's verbs are, computed on demand (stage 4i) */
+    size_t surface_count;
 } Ctx;
+
+/* Whether a verb survives in an instance (spec §4.3, rules 12 and 13; parser
+   §5): memoized by the instance's symbol and the verb's declaration. */
+#define K_SURFACE_MAX 192
+typedef struct Surface {
+    char inst[K_SYMBOL_MAX];
+    const KAstNode *fn;
+    signed char state;          /* 0 being computed, 1 available, 2 unavailable */
+    char cause[160];
+} Surface;
 
 typedef struct { char s[K_DETAIL_MAX]; size_t n; bool ok; } Text;
 
@@ -755,8 +767,25 @@ static int kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst
     KToken next = {0};
     KToken head = enter_text(body, &again, &pp);
     if (!k_token_is_ident(head) || !k_scan_known_type(&again, head, home->symbols, &spec, &next, &pp) ||
-        spec.kind != K_SPEC_MODIFIER)
+        spec.kind != K_SPEC_MODIFIER) {
+        /* `outcome buffer` in keel.buffer: a one-argument modifier over the
+           module's own modifier, written bare, which the scanner does not take */
+        const KSymbol *m = k_token_is_ident(head) ? k_symbol_resolve(home->symbols, head) : NULL;
+        if (m && m->kind == K_SYM_MODIFIER && m->origin && m->arity - m->dim_arity == 1) {
+            keel_slice_char rest = { (size_t)(body.ptr + body.len - after.ptr), after.ptr };
+            int arg = kt_from_home(c, home, rest, inst);
+            int t = arg >= 0 ? kt_new(c) : -1;
+            if (t >= 0 && *kt(c, arg)->symbol) {
+                kt(c, t)->kind = KT_MODIFIER;
+                kt(c, t)->module = m->origin;
+                kt(c, t)->name = m->name;
+                kt(c, t)->arg[kt(c, t)->argc++] = arg;
+                kt_compose(c, t, m);
+                return t;
+            }
+        }
         return kt_from_text(c, home->symbols, body);
+    }
     const KSymbol *m = k_symbol_resolve(home->symbols, spec.modifier_name);
     if (!m || !m->origin) return -1;
     int t = kt_new(c);
@@ -933,6 +962,7 @@ static bool first_arg(const KAst *a, size_t open, Range *out) {
 }
 
 static int type_of(Ctx *c, Range r);
+static bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause);
 static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KModule *module);
 
 /* How a call written at token `i` is dispatched: `alias.verb(`; `verb(x, …)`
@@ -1352,6 +1382,16 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             put_str(&t, kt(c, inst)->symbol);
         } else if (!module_instance_prefix(c, home, inst, &t)) {
             return -1;
+        }
+        /* a verb the instance does not keep (spec §4.3, rule 13) */
+        const char *cause = NULL;
+        if (!proto_of && sig.found && !c->quiet && !verb_available(c, home, sig.fn, inst, &cause)) {
+            Text written = { .ok = true };
+            put(&written, tok(a, callee).ptr, (size_t)(tok(a, verb).ptr + tok(a, verb).len - tok(a, callee).ptr));
+            Text where = { .ok = true }, why = { .ok = true };
+            put_str(&where, kt(c, inst)->symbol);
+            put_str(&why, cause);
+            diag3(c, K_DIAG_VERB_NOT_IN_INSTANCE, tok(a, callee), keep(c, &written), keep(c, &where), keep(c, &why));
         }
     } else if (proto_of) {
         /* a type of a module that is not generic: its canonical name is its symbol */
@@ -2815,6 +2855,376 @@ static void walk(Ctx *c, const KAstNode *n) {
     }
 }
 
+/* ---- the closure of the instances (stage 4i) --------------------------- */
+
+static bool qualified_const(const char *symbol) { return !strncmp(symbol, "const_", 6); }
+
+/* the type written for parameter `p`, without its name, role and stars */
+static Range param_type(const KAst *home, const Param *p) {
+    Range r = { p->first, p->end ? p->end - 1 : p->first };
+    if (p->role != K_ROLE_NONE) r.first++;
+    while (r.end > r.first && punct(home, r.end - 1, "*")) r.end--;
+    return r;
+}
+
+/* the type written for `name` where it is declared in `fn` — a parameter, or a
+   declaration in the body before token `before` */
+static bool declared_type(const KAst *home, const KAstNode *fn, KToken name, size_t before, keel_slice_char *out) {
+    Param p[K_PARAMS_MAX];
+    size_t n = params_of(home, fn, p, K_PARAMS_MAX);
+    for (size_t k = 0; n != SIZE_MAX && k < n; k++)
+        if (p[k].end > p[k].first && k_symtab_same_name(tok(home, p[k].end - 1), name)) {
+            Range r = param_type(home, &p[k]);
+            if (r.end <= r.first) return false;
+            *out = range_text(home, r);
+            return true;
+        }
+    for (size_t j = fn->body_first; j < before && j < fn->body_end; j++) {
+        if (!k_symtab_same_name(tok(home, j), name) || !(punct(home, j + 1, "=") || punct(home, j + 1, ";"))) continue;
+        size_t st = j;
+        while (st > fn->body_first && !punct(home, st - 1, ";") && !punct(home, st - 1, "{") && !punct(home, st - 1, "}"))
+            st--;
+        size_t e = j;
+        while (e > st && punct(home, e - 1, "*")) e--;
+        if (e <= st) return false;
+        *out = range_text(home, (Range){ st, e });
+        return true;
+    }
+    return false;
+}
+
+/* the fields of the modifiers of `home` whose type is binder `b`: by value
+   (`T value`) or as the pointee (`T *ptr`) */
+static bool binder_field(const KAst *home, keel_slice_char b, keel_slice_char field, bool *pointer) {
+    for (size_t i = 0; i < home->nodes.len; i++) {
+        const KAstNode *m = node_at(home, i);
+        if (m->kind != K_AST_MODIFIER || m->body_first == SIZE_MAX) continue;
+        for (size_t j = m->body_first; j + 2 < m->body_end; j++) {
+            if (!k_symtab_same_name(tok(home, j), b)) continue;
+            if (j > m->body_first && !punct(home, j - 1, ";") && !punct(home, j - 1, "{")) continue;
+            if (ident(home, j + 1) && k_symtab_same_name(tok(home, j + 1), field)) { *pointer = false; return true; }
+            if (punct(home, j + 1, "*") && ident(home, j + 2) && k_symtab_same_name(tok(home, j + 2), field)) {
+                *pointer = true;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause);
+
+/* the arguments of the call whose '(' is `open`, up to `close` */
+static size_t call_args(const KAst *a, size_t open, size_t close, Range *first) {
+    size_t n = 0, depth = 0, st = open + 1;
+    if (close == open + 1) return 0;
+    for (size_t j = open + 1; j <= close; j++) {
+        if (j < close && (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{"))) depth++;
+        else if (j < close && (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}"))) depth--;
+        else if (j == close || (!depth && punct(a, j, ","))) {
+            if (n == 0) *first = (Range){ st, j };
+            n++;
+            st = j + 1;
+        }
+    }
+    return n;
+}
+
+/* Spec §4.3, rules 11 to 13: a verb of an instance whose argument is `void`
+   loses the reads and writes of the omitted `T value` and the parameters of
+   type `T` by value; one whose argument is `const` loses the writes to the
+   constant value; and a verb that calls a lost verb is lost with it. */
+static bool compute_surface(Ctx *c, const KAst *home, const KAstNode *fn, int t, Text *why) {
+    const KType *k = kt(c, t);
+    keel_slice_char binders[8];
+    size_t nb = binders_of(home, binders);
+    bool is_void[8] = {0}, is_const[8] = {0};
+    for (size_t b = 0; b < nb && b < (size_t)k->argc; b++) {
+        const char *sym = kt_symbol(c, k->arg[b]);
+        is_void[b] = !strcmp(sym, "void");
+        is_const[b] = qualified_const(sym);
+    }
+    Param p[K_PARAMS_MAX];
+    size_t np = params_of(home, fn, p, K_PARAMS_MAX);
+    for (size_t q = 0; np != SIZE_MAX && q < np; q++) {
+        Range r = param_type(home, &p[q]);
+        if (r.end != r.first + 1 || p[q].pointer) continue;
+        for (size_t b = 0; b < nb; b++)
+            if (is_void[b] && k_symtab_same_name(tok(home, r.first), binders[b])) {
+                put_str(why, "void-param ");
+                put(why, tok(home, p[q].end - 1).ptr, tok(home, p[q].end - 1).len);
+                return false;
+            }
+    }
+    if (fn->body_first == SIZE_MAX) return true;
+    for (size_t j = fn->body_first; j < fn->body_end; j++) {
+        /* a field of the instance: `x->value`, `x.ptr[i] = v` */
+        if (ident(home, j) && j > fn->body_first && (punct(home, j - 1, "->") || punct(home, j - 1, ".")) &&
+            !punct(home, j + 1, "(")) {
+            for (size_t b = 0; b < nb; b++) {
+                bool pointer;
+                if ((!is_void[b] && !is_const[b]) || !binder_field(home, binders[b], tok(home, j), &pointer)) continue;
+                if (is_void[b] && !pointer) {
+                    put_str(why, "void-field ");
+                    put(why, tok(home, j).ptr, tok(home, j).len);
+                    return false;
+                }
+                if (!is_const[b]) continue;
+                size_t after = j + 1;
+                if (pointer) {
+                    if (!punct(home, after, "[")) continue;
+                    after = close_bracket(home, after, fn->body_end);
+                    if (after == SIZE_MAX) continue;
+                    after++;
+                }
+                if (assignment_op(home, after) || (j >= 3 && (punct(home, j - 3, "++") || punct(home, j - 3, "--")))) {
+                    put_str(why, "const-write ");
+                    put(why, tok(home, j).ptr, tok(home, j).len);
+                    return false;
+                }
+            }
+            continue;
+        }
+        /* a known keel call: `alias.verb(x, ...)` or `verb(x, ...)` of the module */
+        if (!ident(home, j) || !punct(home, j + 1, "(")) continue;
+        if (j > fn->body_first && punct(home, j - 1, "->")) continue;
+        const KAst *callee = home;
+        if (j > fn->body_first + 1 && punct(home, j - 1, ".")) {
+            if (!ident(home, j - 2)) continue;
+            const KModule *m = module_alias(home->symbols, tok(home, j - 2));
+            callee = m ? ast_of(c, m) : NULL;
+            if (!callee) continue;
+        }
+        size_t close = close_paren(home, j + 1, fn->body_end);
+        if (close == SIZE_MAX) continue;
+        Range first = {0, 0};
+        size_t arity = call_args(home, j + 1, close, &first);
+        if (!arity) continue;
+        while (first.first < first.end && (punct(home, first.first, "&") || punct(home, first.first, "*"))) first.first++;
+        if (first.end != first.first + 1 || !ident(home, first.first)) continue;
+        keel_slice_char text;
+        if (!declared_type(home, fn, tok(home, first.first), j, &text)) continue;
+        int saved = c->type_count;
+        int obj = kt_from_home(c, home, text, t);
+        if (obj >= 0 && kt(c, obj)->kind == KT_MODIFIER && kt(c, obj)->module && ast_of(c, kt(c, obj)->module) == callee) {
+            Sig sig = find_verb(callee, tok(home, j), arity);
+            const char *inner = NULL;
+            if (sig.found && !sig.p[0].is_protocol && !verb_available(c, callee, sig.fn, obj, &inner)) {
+                put_str(why, "calls ");
+                put_str(why, kt(c, obj)->symbol);
+                put_str(why, ".");
+                put(why, tok(home, j).ptr, tok(home, j).len);
+                put_str(why, "/");
+                put_uint(why, arity);
+                c->type_count = saved;
+                return false;
+            }
+        }
+        c->type_count = saved;
+    }
+    return true;
+}
+
+static bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause) {
+    const char *inst = kt_symbol(c, t);
+    if (!*inst) return true;
+    for (size_t i = 0; i < c->surface_count; i++) {
+        Surface *s = &c->surface[i];
+        if (s->fn != fn || strcmp(s->inst, inst)) continue;
+        *cause = s->cause;
+        return s->state != 2;               /* a verb still being computed is a cycle: no cause on it */
+    }
+    if (c->surface_count == K_SURFACE_MAX) return true;
+    size_t at = c->surface_count++;
+    Surface *s = &c->surface[at];
+    memset(s, 0, sizeof *s);
+    strncpy(s->inst, inst, sizeof s->inst - 1);
+    s->fn = fn;
+    Text why = { .ok = true };
+    bool ok = compute_surface(c, home, fn, t, &why);
+    s = &c->surface[at];
+    s->state = ok ? 1 : 2;
+    size_t n = why.n < sizeof s->cause - 1 ? why.n : sizeof s->cause - 1;
+    memcpy(s->cause, why.s, n);
+    s->cause[n] = 0;
+    *cause = s->cause;
+    return ok;
+}
+
+/* the instances inside type `t`: itself and its arguments, at any depth */
+static size_t instances_in(Ctx *c, int t, int *out, size_t n, size_t cap, int depth) {
+    if (t < 0 || depth > 8) return n;
+    const KType *k = kt(c, t);
+    if (k->kind == KT_MODIFIER && *k->symbol && n < cap) out[n++] = t;
+    if (k->kind == KT_MODIFIER)
+        for (int i = 0; i < k->argc; i++) n = instances_in(c, k->arg[i], out, n, cap, depth + 1);
+    return n;
+}
+
+/* a copy of the type tree `t` at the top of the pool */
+static int kt_deep(Ctx *c, const KType *nodes, int t) {
+    int copy = kt_new(c);
+    if (copy < 0) return -1;
+    c->types[copy] = nodes[t];
+    if (nodes[t].kind == KT_MODIFIER)
+        for (int i = 0; i < nodes[t].argc; i++) {
+            int arg = kt_deep(c, nodes, nodes[t].arg[i]);
+            if (arg < 0) return -1;
+            c->types[copy].arg[i] = arg;
+        }
+    if (nodes[t].kind == KT_ARRAY && nodes[t].elem >= 0) c->types[copy].elem = kt_deep(c, nodes, nodes[t].elem);
+    return copy;
+}
+
+#define K_CLOSURE_MAX 64
+
+static void put_line(Ctx *c, const Text *t) {
+    KAst *a = c->ast;
+    if (!t->ok || t->n + 1 > a->closure_text.cap - a->closure_text.len) {
+        if (!c->failed) {
+            KToken at = tok(a, a->module);
+            k_diag_emit(c->diag, K_DIAG_CAPACITY, at, (KDiagArgs){{at}});
+            c->failed = true;
+        }
+        return;
+    }
+    memcpy(a->closure_text.ptr + a->closure_text.len, t->s, t->n);
+    a->closure_text.len += t->n;
+    a->closure_text.ptr[a->closure_text.len++] = '\n';
+}
+
+/* Parser §5, codegen §7.3: an instance comes out whole, so the instances its
+   available verbs mention come with it, until nothing new appears. The seeds
+   are the instances the module writes (`inst`); the dump prints the ones the
+   closure adds, sorted by symbol (codegen §9), and the verbs each instance
+   loses, with the cause (cgen-tool §5.2). */
+static void close_instances(Ctx *c) {
+    KAst *a = c->ast;
+    c->type_count = 0;
+    c->nest = 1;                            /* no resolution resets the pool under the closure */
+    int inst[K_CLOSURE_MAX];
+    char origin[K_CLOSURE_MAX][K_SYMBOL_MAX + 64];
+    size_t count = 0, direct = 0;
+    for (size_t i = 0; i < a->instances.len && count < K_CLOSURE_MAX; i++) {
+        const KInstanceUse *u = keel_buffer_KInstanceUse_ptr(&a->instances, i);
+        int t = kt_from_text(c, a->symbols, range_text(a, (Range){ u->first, u->end }));
+        if (t < 0 || kt(c, t)->kind != KT_MODIFIER || !*kt(c, t)->symbol) continue;
+        inst[count] = t;
+        origin[count++][0] = 0;
+    }
+    direct = count;
+    for (size_t q = 0; q < count && !c->failed; q++) {
+        const KType *k = kt(c, inst[q]);
+        const KAst *home = k->module ? ast_of(c, k->module) : NULL;
+        if (!home || home == a) continue;
+        for (size_t i = 0; i < home->nodes.len; i++) {
+            const KAstNode *fn = node_at(home, i);
+            if (fn->kind != K_AST_FUNCTION) continue;
+            Param p[K_PARAMS_MAX];
+            size_t np = params_of(home, fn, p, K_PARAMS_MAX);
+            if (np == SIZE_MAX || (np && p[0].is_protocol)) continue;     /* of the module, not of an instance */
+            const char *cause = NULL;
+            if (!verb_available(c, home, fn, inst[q], &cause)) continue;
+            int pinned = c->type_count;
+            int found[16];
+            size_t nf = instances_in(c, ret_type(c, home, fn, inst[q]), found, 0, 16, 0);
+            for (size_t m = 0; m < np; m++) {
+                if (p[m].is_type || p[m].is_array) continue;
+                Range r = param_type(home, &p[m]);
+                if (r.end > r.first) nf = instances_in(c, kt_from_home(c, home, range_text(home, r), inst[q]), found, nf, 16, 0);
+            }
+            KType scratch[64];
+            int roots[16];
+            size_t ns = 0, nr = 0;
+            for (size_t f = 0; f < nf; f++) {
+                bool known = false;
+                for (size_t e = 0; e < count; e++) if (!strcmp(kt(c, inst[e])->symbol, kt(c, found[f])->symbol)) known = true;
+                for (size_t e = 0; e < nr; e++) if (!strcmp(scratch[roots[e]].symbol, kt(c, found[f])->symbol)) known = true;
+                if (known || count + nr >= K_CLOSURE_MAX) continue;
+                /* flatten the tree into scratch, re-indexed */
+                int stack[64], map[64];
+                size_t sn = 0, base = ns;
+                stack[sn++] = found[f];
+                size_t visited = 0;
+                int order[64];
+                while (sn && ns < 64) {
+                    int x = stack[--sn];
+                    order[visited] = x;
+                    map[visited++] = (int)ns;
+                    scratch[ns++] = c->types[x];
+                    if (c->types[x].kind == KT_MODIFIER)
+                        for (int g = c->types[x].argc; g-- > 0; ) if (c->types[x].arg[g] >= 0 && sn < 64) stack[sn++] = c->types[x].arg[g];
+                }
+                for (size_t v = base; v < ns; v++)
+                    if (scratch[v].kind == KT_MODIFIER)
+                        for (int g = 0; g < scratch[v].argc; g++)
+                            for (size_t o = 0; o < visited; o++)
+                                if (order[o] == scratch[v].arg[g]) { scratch[v].arg[g] = map[o]; break; }
+                roots[nr++] = (int)base;
+            }
+            c->type_count = pinned;
+            for (size_t e = 0; e < nr; e++) {
+                int t = kt_deep(c, scratch, roots[e]);
+                if (t < 0) break;
+                Text o = { .ok = true };
+                put_str(&o, k->symbol);
+                put_str(&o, ".");
+                put(&o, tok(home, fn->name_first).ptr, tok(home, fn->name_first).len);
+                put_str(&o, "/");
+                put_uint(&o, np);
+                size_t len = o.n < sizeof origin[0] - 1 ? o.n : sizeof origin[0] - 1;
+                memcpy(origin[count], o.s, len);
+                origin[count][len] = 0;
+                inst[count++] = t;
+            }
+        }
+    }
+    /* closure lines, by symbol */
+    size_t order[K_CLOSURE_MAX], n = 0;
+    for (size_t q = direct; q < count; q++) order[n++] = q;
+    for (size_t x = 1; x < n; x++)
+        for (size_t y = x; y > 0 && strcmp(kt(c, inst[order[y - 1]])->symbol, kt(c, inst[order[y]])->symbol) > 0; y--) {
+            size_t tmp = order[y]; order[y] = order[y - 1]; order[y - 1] = tmp;
+        }
+    for (size_t x = 0; x < n; x++) {
+        Text line = { .ok = true };
+        put_str(&line, "closure\t");
+        put_str(&line, kt(c, inst[order[x]])->symbol);
+        put_str(&line, "\t");
+        put_str(&line, origin[order[x]]);
+        put_line(c, &line);
+    }
+    /* the verbs each instance loses: the written ones first, then the closure */
+    size_t all[K_CLOSURE_MAX], na = 0;
+    for (size_t q = 0; q < direct; q++) all[na++] = q;
+    for (size_t x = 0; x < n; x++) all[na++] = order[x];
+    for (size_t x = 0; x < na; x++) {
+        const KType *k = kt(c, inst[all[x]]);
+        const KAst *home = k->module ? ast_of(c, k->module) : NULL;
+        if (!home || home == a) continue;
+        for (size_t i = 0; i < home->nodes.len; i++) {
+            const KAstNode *fn = node_at(home, i);
+            if (fn->kind != K_AST_FUNCTION) continue;
+            Param p[K_PARAMS_MAX];
+            size_t np = params_of(home, fn, p, K_PARAMS_MAX);
+            if (np == SIZE_MAX || (np && p[0].is_protocol)) continue;
+            const char *cause = NULL;
+            if (verb_available(c, home, fn, inst[all[x]], &cause)) continue;
+            Text line = { .ok = true };
+            put_str(&line, "unavailable\t");
+            put_str(&line, k->symbol);
+            put_str(&line, "\t");
+            put(&line, tok(home, fn->name_first).ptr, tok(home, fn->name_first).len);
+            put_str(&line, "/");
+            put_uint(&line, np);
+            put_str(&line, "\t");
+            put_str(&line, cause ? cause : "");
+            put_line(c, &line);
+        }
+    }
+    c->nest = 0;
+}
+
 /* What the v0 grammar recognizes in a signature only to refuse or place it:
    `keel_code` and the mold's `dim` parameter are v1 (spec §4.13), and a role
    stands before a parameter's type, or `child` before the return type
@@ -2841,8 +3251,10 @@ static void check_signature(Ctx *c, const KAstNode *fn) {
 bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     a->islands.len = 0;
     a->island_text.len = 0;
+    a->closure_text.len = 0;
     if (!a->symbols || generic(a)) return true;
-    Ctx ctx = { .ast = a, .diag = diag };
+    static Surface surface[K_SURFACE_MAX];
+    Ctx ctx = { .ast = a, .diag = diag, .surface = surface };
     /* what the file declares at file scope is known to every function, wherever
        it stands in the file: read those declarations first, printing nothing */
     ctx.quiet = true;
@@ -2875,5 +3287,6 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
         covered = n->end;
         walk(&ctx, n);
     }
+    if (!ctx.failed) close_instances(&ctx);
     return !ctx.failed;
 }

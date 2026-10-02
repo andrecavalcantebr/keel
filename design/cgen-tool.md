@@ -460,6 +460,8 @@ import	<módulo> [as <alias>] [types]	<pos>
 import_c	<cabeçalho>	<pos>
 decl	<pub|priv> [inline] <espécie>	<nome keel>	<símbolo C>	<pos>
 inst	<modificador> <argumentos>	<símbolo C>	<pos do primeiro uso>
+closure	<símbolo C>	<instância>.<verbo>/<aridade>
+unavailable	<símbolo C>	<verbo>/<aridade>	<causa>
 ilha	<espécie>	<detalhe>	<pos>
 ```
 
@@ -469,7 +471,9 @@ ilha	<espécie>	<detalhe>	<pos>
 | `import` | do fonte | a palavra `import` | o módulo, e `as` e `types` quando escritos |
 | `import_c` | do fonte | a palavra `import_c` | as tokens entre `import_c` e `;`, concatenadas: `<stdio.h>` |
 | `decl` | do fonte | a primeira token da declaração | espécie `func`, `var`, `constexpr`, `type`, `modifier`, `tags` ou `protocol`; o símbolo de backend §2, ou `-` para `protocol`, que não emite C |
-| `inst` | do primeiro uso | a palavra do modificador, no primeiro uso | o modificador e os argumentos como escritos, separados por um espaço. Só as instâncias que o módulo usa: o fecho sobre os verbos do genérico (parser §5) é dos módulos carregados, que não são impressos |
+| `inst` | do primeiro uso | a palavra do modificador, no primeiro uso | o modificador e os argumentos como escritos, separados por um espaço. Só as instâncias que o módulo escreve; as que o fecho acrescenta saem em `closure` |
+| `closure` | pelo símbolo (codegen §9) | — | cada instância que o fecho sobre os verbos do genérico acrescenta às de `inst` (parser §5, codegen §7.3), e o verbo disponível que a mencionou primeiro, na instância que o declara |
+| `unavailable` | as de `inst`, depois as de `closure`; os verbos na ordem do genérico | — | cada verbo que a instância não mantém (spec §4.3, regras 11 a 13), com a causa: `void-param <parâmetro>`, `void-field <campo>`, `const-write <campo>`, ou `calls <instância>.<verbo>/<aridade>` quando a indisponibilidade veio por chamada |
 | `ilha` | do fonte, pela posição | ver abaixo | ver abaixo |
 
 `ilha` lista toda construção keel reconhecida depois do cabeçalho, em

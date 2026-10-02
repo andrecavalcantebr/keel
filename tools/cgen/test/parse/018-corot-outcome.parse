@@ -8,6 +8,9 @@ decl	pub func	repair	results_repair	results.k:23:1
 decl	pub func	evaluate_cleanup	results_evaluate_cleanup	results.k:32:1
 inst	outcome void	keel_outcome_void	results.k:17:5
 inst	outcome i32	keel_outcome_i32	results.k:24:5
+unavailable	keel_outcome_void	value/1	void-field value
+unavailable	keel_outcome_void	value/2	void-param v
+unavailable	keel_outcome_void	win/2	void-param v
 ilha	type	corot → keel_corot	results.k:5:5
 ilha	type	corot → keel_corot	results.k:6:5
 ilha	call	corot.fault/2 → keel_corot_fault &1	results.k:7:26

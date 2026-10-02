@@ -10,7 +10,8 @@
 #   header   module, import, import_c              (pass 1)
 #   decl     + decl                                (pass 2, M2 acceptance)
 #   inst     + inst                                (pass 3: instances)
-#   ilha     + ilha — everything                   (pass 3: islands)
+#   ilha     + closure, unavailable, ilha — everything (pass 3: the closure
+#            of the instances and the islands)
 #
 # A case may name, as a third field in cases.txt, the last level its .parse
 # file covers. Asked for a level beyond it, the case reports `wip` and is
@@ -44,7 +45,7 @@ case $LEVEL in
     header) KINDS='module|import|import_c' ;;
     decl)   KINDS='module|import|import_c|decl' ;;
     inst)   KINDS='module|import|import_c|decl|inst' ;;
-    ilha)   KINDS='module|import|import_c|decl|inst|ilha' ;;
+    ilha)   KINDS='module|import|import_c|decl|inst|closure|unavailable|ilha' ;;
     *) echo "usage: $0 [header|decl|inst|ilha[:<island kinds>]]"; exit 2 ;;
 esac
 WANT=$(rank "$LEVEL")

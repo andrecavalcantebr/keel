@@ -8,6 +8,9 @@ decl	pub func	sum	app_cfg_sum	app/cfg.k:11:1
 decl	pub func	sum_scratch	app_cfg_sum_scratch	app/cfg.k:30:1
 inst	outcome i32	keel_outcome_i32	app/cfg.k:11:5
 inst	buffer i32	keel_buffer_i32	app/cfg.k:17:5
+closure	keel_outcome_keel_buffer_i32	keel_buffer_i32.clone/2
+closure	keel_outcome_keel_slice_i32	keel_slice_i32.clone/2
+closure	keel_slice_i32	keel_buffer_i32.as_slice/1
 ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:11:5
 ilha	type	arena → keel_arena	app/cfg.k:11:21
 ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:12:5

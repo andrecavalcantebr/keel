@@ -102,6 +102,7 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
         for(size_t j=0;j<use->symbol_len;j++)put_c(&o,use->symbol[j]);
         put_c(&o,'\t');put_pos(&o,a,path,use->first);
     }
+    for(size_t i=0;i<a->closure_text.len;i++)put_c(&o,a->closure_text.ptr[i]);
     static const char *const island_names[]={"type","name","call","ref","defer",
         "implicit-init","foreach","match","index","range-index","array","array-index","walk",
         "parallel","worker-exit","else","extent","column"};

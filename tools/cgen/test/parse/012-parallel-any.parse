@@ -6,6 +6,13 @@ decl	pub func	found_any	app_bs_found_any	app/bs.k:9:1
 inst	buffer i32	keel_buffer_i32	app/bs.k:9:20
 inst	buffer size_t	keel_buffer_size_t	app/bs.k:9:48
 inst	slice i32	keel_slice_i32	app/bs.k:10:43
+closure	keel_outcome_i32	keel_buffer_i32.at/2
+closure	keel_outcome_keel_buffer_i32	keel_buffer_i32.clone/2
+closure	keel_outcome_keel_buffer_size_t	keel_buffer_size_t.clone/2
+closure	keel_outcome_keel_slice_i32	keel_slice_i32.clone/2
+closure	keel_outcome_keel_slice_size_t	keel_slice_size_t.clone/2
+closure	keel_outcome_size_t	keel_buffer_size_t.at/2
+closure	keel_slice_size_t	keel_buffer_size_t.as_slice/1
 ilha	type	buffer i32 → keel_buffer_i32	app/bs.k:9:20
 ilha	type	buffer size_t → keel_buffer_size_t	app/bs.k:9:48
 ilha	parallel	search ANY (w : 0..4; part : xs (buffer i32); (target, where)) → keel_buffer_i32_partition	app/bs.k:10:5

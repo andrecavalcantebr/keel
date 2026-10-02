@@ -303,3 +303,29 @@ que o montou já retornou.
 
 Os oráculos de dump cobrem agora os golden 004, 011, 012, 018, 020 e 021
 inteiros, e `run.sh` compara o nível `ilha` sem filtro de espécie.
+
+## Etapa 4i: o fecho das instâncias (2026-10-02)
+
+Depois das ilhas, `close_instances` (`parser_islands.c`) fecha o conjunto: as
+sementes são as instâncias que o módulo escreve (`inst`), e cada verbo
+disponível de uma instância acrescenta as instâncias que o seu retorno e os
+seus parâmetros mencionam, com os argumentos substituídos (codegen §7.3), até
+nada de novo aparecer. A função sobre protocolo é do módulo e não entra.
+
+A superfície vem antes do fecho (parser §5): `verb_available` decide, por
+instância e por verbo, com memória, se o verbo fica. Perde-o um parâmetro `T`
+por valor com `T = void`, um acesso ao campo `T value` omitido, uma escrita no
+valor constante (`r->value = v`, `s.ptr[i] = v`) com `T = const X`, ou uma
+chamada keel conhecida a verbo perdido — `slice.at` de `slice const char` cai
+porque chama `outcome.win` de `outcome const char`, que escreve o campo
+constante. Uma chamada C opaca (`memcpy`) não é causa. Um ciclo de chamadas não
+marca nada por si.
+
+No dump, `closure` lista as instâncias acrescentadas, com o verbo que as trouxe,
+e `unavailable` os verbos perdidos, com a causa. Uma chamada reconhecida a verbo
+perdido é `verb-not-in-instance`, com a causa na mensagem.
+
+Ainda não: o conjunto fechado fica só no texto do dump (`closure_text`); o
+emissor vai precisar dele como dado. As instâncias de `keel.array` e as de
+função sobre protocolo (`keel_slice_of_keel_array_i32`) nascem das chamadas, e
+não de `inst`: não são sementes do fecho ainda.

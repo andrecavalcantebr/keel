@@ -21,6 +21,8 @@ decl	pub func	load	app_reg_load	app/reg.k:46:1
 inst	slice const char	keel_slice_const_char	app/reg.k:9:5
 inst	outcome slice const char	keel_outcome_keel_slice_const_char	app/reg.k:23:6
 inst	outcome f64	keel_outcome_f64	app/reg.k:35:6
+unavailable	keel_slice_const_char	set/3	const-write ptr
+unavailable	keel_slice_const_char	at/2	calls keel_outcome_const_char.win/2
 ilha	array	people [4]	app/reg.k:14:5
 ilha	type	Person → app_reg_Person	app/reg.k:14:11
 ilha	type	outcome slice const char → keel_outcome_keel_slice_const_char	app/reg.k:23:6

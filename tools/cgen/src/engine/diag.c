@@ -102,6 +102,8 @@ static const char *const messages[K_DIAG_COUNT] = {
         "index `%s` is at or above the capacity `%s` of its group",
     [K_DIAG_EXTENT_PATH_WITH_CALL] =
         "the column access `%s` goes through a call: store the struct, or a pointer to it, in a local first",
+    [K_DIAG_VERB_NOT_IN_INSTANCE] =
+        "`%s` is not in the instance `%s`: its argument removes it (%s)",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

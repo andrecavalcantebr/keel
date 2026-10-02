@@ -13,6 +13,10 @@
 #ifndef CGEN_ISLAND_TEXT_PER_TOKEN
 #define CGEN_ISLAND_TEXT_PER_TOKEN 32
 #endif
+/* the closure's dump lines: one per added instance and per lost verb */
+#ifndef CGEN_CLOSURE_TEXT
+#define CGEN_CLOSURE_TEXT 65536
+#endif
 #ifndef CGEN_ISLAND_TEXT_BASE
 #define CGEN_ISLAND_TEXT_BASE 1024
 #endif

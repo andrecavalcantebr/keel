@@ -7,6 +7,8 @@ decl	pub type	Agent	ag_Agent	ag.k:8:1
 decl	priv func	fn1	ag_fn1	ag.k:10:1
 decl	pub func	step	ag_step	ag.k:18:1
 inst	tagged Cycle void	keel_tagged_ag_Cycle_void	ag.k:18:24
+unavailable	keel_tagged_ag_Cycle_void	value/1	void-field value
+unavailable	keel_tagged_ag_Cycle_void	set/3	void-param v
 ilha	type	corot → keel_corot	ag.k:10:6
 ilha	type	corot → keel_corot	ag.k:11:5
 ilha	call	corot.again/1 → keel_corot_again &1	ag.k:12:34

@@ -21,6 +21,7 @@ typedef struct KAst {
     keel_buffer_KInstanceUse instances;
     keel_buffer_KIsland islands;   /* pass 3, sorted by anchor */
     keel_buffer_char island_text;  /* the islands' detail columns */
+    keel_buffer_char closure_text; /* the closure's dump lines (stage 4i) */
 } KAst;
 
 /* Both passes return the required count. A NULL/zero output only counts. */

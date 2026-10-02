@@ -8,6 +8,9 @@ decl	pub func	cube	app_ac_cube	app/ac.k:19:1
 decl	pub func	cut	app_ac_cut	app/ac.k:26:1
 inst	buffer i32	keel_buffer_i32	app/ac.k:8:14
 inst	slice i32	keel_slice_i32	app/ac.k:27:5
+closure	keel_outcome_i32	keel_buffer_i32.at/2
+closure	keel_outcome_keel_buffer_i32	keel_buffer_i32.clone/2
+closure	keel_outcome_keel_slice_i32	keel_slice_i32.clone/2
 ilha	type	buffer i32 → keel_buffer_i32	app/ac.k:8:14
 ilha	index	b → keel_buffer_i32_ptr1	app/ac.k:9:5
 ilha	index	b → keel_buffer_i32_ptr1	app/ac.k:9:12

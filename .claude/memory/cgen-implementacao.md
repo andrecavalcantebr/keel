@@ -1,6 +1,6 @@
 ---
 name: cgen-implementacao
-description: cgen — os 5 designs fechados em 2026-09-20; M0 e M1 fechados, parser (M2) até as ilhas 4a–4h; tool/ e engine/ no fonte
+description: cgen — os 5 designs fechados em 2026-09-20; M0 e M1 fechados, parser (M2) até a etapa 4i; tool/ e engine/ no fonte
 metadata: 
   node_type: memory
   type: project
@@ -25,8 +25,8 @@ Os cinco designs em `design/`, um por peça de `cgen-tool.md` §3.1:
 
 **Estado em 2026-10-02:** o M0 (driver) e o M1 (lexer) estão fechados. O M2
 (parser) reconhece módulos, imports, declarações (inclusive `decl-protocol`,
-papéis e `typedef … byref`) e as ilhas das etapas 4a–4h
-(`--stop-after=parse`, com `-o` no sentido do gcc). Há 20 casos de falha em
+papéis e `typedef … byref`) e as ilhas das etapas 4a–4i (com o fecho de instâncias e a superfície degenerada)
+(`--stop-after=parse`, com `-o` no sentido do gcc). Há 21 casos de falha em
 `tools/cgen/test/diag/`, e o catálogo de diagnósticos é gerado da spec §6.2
 (`gen-diags.py`), com as mensagens escritas em `diag.c` à medida que o motor
 passa a emitir cada id. Ainda não há emissão de C. O detalhe por etapa está em
@@ -49,10 +49,11 @@ os contadores de linha (decisão E4).
 
 ## O que falta, na ordem
 
-1. **Etapa 4i do parser** (`parser-design.md` §3.2): o fecho de instâncias.
-   As 4e, 4g e 4h saíram em 2026-10-02, com as espécies `parallel`,
-   `worker-exit`, `else`, `extent` e `column` (formato em `cgen-tool.md` §5.2,
-   a revisar com o André).
+1. **O que a 4i deixou** (`engine/README.md`): o fecho como dado para o emissor,
+   e as sementes vindas de chamada (`keel.array`, função sobre protocolo). As
+   espécies `parallel`, `worker-exit`, `else`, `extent`, `column` e as linhas
+   `closure`/`unavailable` (`cgen-tool.md` §5.2) esperam a revisão do André.
+   C2: `keel_slice_const_char.h` do golden omite `clone`, que pelo contrato fica.
 2. **Análise de papéis** (spec §4.12: `region-escape`,
    `child-region-after-invalidation`) e o parâmetro de protocolo fora da
    primeira posição.

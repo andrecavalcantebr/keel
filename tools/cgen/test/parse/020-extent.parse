@@ -14,6 +14,8 @@ decl	pub func	grid_fill	app_pos_grid_fill	app/pos.k:65:1
 decl	pub func	grid_at	app_pos_grid_at	app/pos.k:73:1
 decl	pub func	paint	app_pos_paint	app/pos.k:77:1
 inst	slice f32	keel_slice_f32	app/pos.k:50:5
+closure	keel_outcome_f32	keel_slice_f32.at/2
+closure	keel_outcome_keel_slice_f32	keel_slice_f32.clone/2
 ilha	extent	position [len, cap] pointer: x y	app/pos.k:11:5
 ilha	extent	grid [rows, rcap] [cols, ccap] pointer: v	app/pos.k:19:5
 ilha	extent	image [h, H] [w, W] embedded: r g	app/pos.k:25:5

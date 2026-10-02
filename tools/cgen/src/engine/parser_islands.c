@@ -92,6 +92,7 @@ typedef struct {
         bool told;
     } later[16];
     size_t later_count;
+    const KAstNode *fn;         /* the declaration being walked */
 } Ctx;
 
 /* Whether a verb survives in an instance (spec §4.3, rules 12 and 13; parser
@@ -1451,9 +1452,36 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             inst = kt_from_text(c, a->symbols, c->target.text);
             if (inst < 0 || kt(c, inst)->module != module) return -1;
         } else {
-            /* from-without-target waits for the targets of an assignment and of
-               a return: refusing now would refuse valid programs */
-            return -1;
+            /* a verb that takes its instance from the target (spec §4.4, item 4):
+               an assignment to a known symbol, or a return, gives one */
+            KSpecifier spec;
+            bool target = false;
+            if (callee >= 2 && punct(a, callee - 1, "=") && ident(a, callee - 2)) {
+                const Local *l = find_local(c, tok(a, callee - 2));
+                if (l && l->spec.kind == K_SPEC_MODIFIER) { spec = l->spec; target = true; }
+            } else if (callee >= 1 && word(a, callee - 1, "return") && c->fn) {
+                size_t s0 = c->fn->first;
+                while (s0 < c->fn->name_first && (word(a, s0, "pub") || word(a, s0, "priv") || word(a, s0, "inline") ||
+                                                   word(a, s0, "static") || k_token_role(tok(a, s0)) != K_ROLE_NONE))
+                    s0++;
+                KLexer lexer;
+                TKPpKind pp;
+                KToken next = {0};
+                KToken first = enter(a, s0, &lexer, &pp);
+                target = s0 < c->fn->name_first && k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) &&
+                         spec.kind == K_SPEC_MODIFIER;
+            }
+            if (!target) {
+                if (sig.found) {
+                    Text written = { .ok = true };
+                    put(&written, tok(a, callee).ptr, (size_t)(tok(a, verb).ptr + tok(a, verb).len - tok(a, callee).ptr));
+                    diag3(c, K_DIAG_FROM_WITHOUT_TARGET, tok(a, callee), keep(c, &written), (keel_slice_char){0},
+                          (keel_slice_char){0});
+                }
+                return -1;
+            }
+            inst = kt_from_text(c, a->symbols, spec.text);
+            if (inst < 0 || kt(c, inst)->module != module) return -1;
         }
         if (inst < 0 || kt(c, inst)->kind != KT_MODIFIER) return -1;
         if (proto_of) {
@@ -1627,6 +1655,14 @@ static void qualified_name(Ctx *c, size_t i, const KModule *module) {
         if (n > sizeof sym) return;
         put(&t, sym, n);
     } else if (module->ast) {
+        /* a value of a set of the module, written without the level of the set:
+           from outside, `M.Set.VALUE` (spec §4.2, item 9) */
+        if (tag_of_some_set(module->ast, member)) {
+            Text written = { .ok = true };
+            put_glued(&written, a, i, i + 3);
+            diag3(c, K_DIAG_ENUM_CONSTANT_WITHOUT_TYPE, tok(a, i), keep(c, &written), member, (keel_slice_char){0});
+            return;
+        }
         put_module_prefix(&t, module->ast);
         put_str(&t, "_");
         put(&t, member.ptr, member.len);
@@ -2129,6 +2165,21 @@ static void defer_island(Ctx *c, const KAstNode *n, size_t at) {
         if (close == SIZE_MAX) return;
         if (word(a, at + 2, "later") && close > at + 3)
             diag3(c, K_DIAG_LATER_WITH_CAPTURE, tok(a, at + 3), range_text(a, (Range){ at + 3, close }), none, none);
+        /* each entry of `[now ...]` ends in its name: keel rebuilds the copy
+           from the tokens before it (spec §4.6, hidden-declarator) */
+        if (word(a, at + 2, "now"))
+            for (size_t j = at + 3, st = at + 3, depth = 0; j <= close; j++) {
+                if (j < close && (punct(a, j, "(") || punct(a, j, "["))) depth++;
+                else if (j < close && (punct(a, j, ")") || punct(a, j, "]"))) depth--;
+                else if (j == close || (!depth && punct(a, j, ","))) {
+                    if (j > st && !ident(a, j - 1)) {
+                        size_t nm = j - 1;
+                        while (nm > st && !ident(a, nm)) nm--;
+                        diag3(c, K_DIAG_HIDDEN_DECLARATOR, tok(a, nm), tok(a, nm), none, none);
+                    }
+                    st = j + 1;
+                }
+            }
         put_range(&d, a, at + 2, close);
     } else {
         put_str(&d, "later");
@@ -2967,6 +3018,7 @@ static void walk(Ctx *c, const KAstNode *n) {
     c->par_open = c->par_close = 0;
     c->par_count = 0;
     c->later_count = 0;
+    c->fn = n;
     c->cap_first = c->cap_end = 0;
     for (size_t i = n->first; i < n->end && !c->failed; i++) {
         if (!live(a, i)) continue;
@@ -3894,6 +3946,18 @@ static void check_declarations(Ctx *c) {
         for (size_t k = mod->dim_first; k < mod->type_end; k++)
             if (ident(a, k) && k_symtab_same_name(tok(a, k), name))
                 diag3(c, K_DIAG_PARAMETER_NAME_REUSE, name, name, none, none);
+        /* a function with a `defer` returns through a temporary of the written
+           return type, which the tokens before the name have to spell: not so
+           when the name sits inside the declarator, `int (*f(void))[10]` */
+        if (n->body_first != SIZE_MAX &&
+            (punct(a, n->name_first - 1, "(") || (punct(a, n->name_first - 1, "*") && punct(a, n->name_first - 2, "(")))) {
+            bool deferred = false, valued = false;
+            for (size_t j = n->body_first; j < n->body_end; j++) {
+                if (word(a, j, "defer")) deferred = true;
+                if (word(a, j, "return") && !punct(a, j + 1, ";")) valued = true;
+            }
+            if (deferred && valued) diag3(c, K_DIAG_HIDDEN_DECLARATOR, tok(a, n->name_first), tok(a, n->name_first), none, none);
+        }
         if (n->kind != K_AST_FUNCTION) continue;
         check_type_params(c, n);
         /* a binder of dimension 0 is not a dimension of a vector (spec §4.2, rule 20) */

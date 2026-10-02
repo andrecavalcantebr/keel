@@ -232,6 +232,12 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`types` brings from `%s`, unqualified: %s",
     [K_DIAG_INSTANCE_FIELD_ACCESS] =
         "`%s` is a field of `%s`, an instance of `%s`: the fields belong to its module; use its verbs",
+    [K_DIAG_FROM_WITHOUT_TARGET] =
+        "`%s` takes its type from the target, and here there is none: use it to initialize, to assign a known symbol, or in a `return`",
+    [K_DIAG_ENUM_CONSTANT_WITHOUT_TYPE] =
+        "`%s` skips the level of the set: from outside the module, write `M.Set.%s`",
+    [K_DIAG_HIDDEN_DECLARATOR] =
+        "the name `%s` is not the last token of its declarator, and keel has to rebuild the declaration here: name the type with a `typedef`",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

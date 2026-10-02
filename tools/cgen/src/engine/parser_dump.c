@@ -19,6 +19,21 @@ static void put_uint(KOut *o, size_t n) {
 static void put_name(KOut *o, const KAst *a, size_t first, size_t end) {
     for (size_t i = first; i < end; i++) put_token(o, keel_buffer_KLexeme_ptr(&a->tokens, i)->token);
 }
+/* a type as written, a space between words, none around `.` or the
+   parentheses of a `dim` argument: `blk.blk(4) Color i32` */
+static void put_spelled(KOut *o, const KAst *a, size_t first, size_t end) {
+    for (size_t j = first; j < end; j++) {
+        KToken token = keel_buffer_KLexeme_ptr(&a->tokens, j)->token;
+        if (j > first) {
+            KToken previous = keel_buffer_KLexeme_ptr(&a->tokens, j - 1)->token;
+            bool dot = k_token_is_punct(token, ".") || k_token_is_punct(previous, ".");
+            bool bracket = k_token_is_punct(token, "(") || k_token_is_punct(token, ")") ||
+                           k_token_is_punct(token, ",") || k_token_is_punct(previous, "(");
+            if (!dot && !bracket) put_c(o, ' ');
+        }
+        put_token(o, token);
+    }
+}
 static void put_symbol(KOut *o, const KAst *a, const KAstNode *node) {
     const KAstNode *module = keel_buffer_KAstNode_ptr(&a->nodes, a->module);
     for (size_t i = module->name_first; i < module->name_end; i++) {
@@ -60,6 +75,21 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
             case K_AST_IMPORT_C:
                 put_s(&o, "import_c\t"); put_name(&o, a, n->name_first, n->name_end);
                 break;
+            case K_AST_INSTANCE: {
+                /* names no symbol (spec §4.3, rule 19): the type as written and
+                   the instance whose bodies this module holds */
+                put_s(&o, "decl\tinstance\t"); put_spelled(&o, a, n->name_first, n->name_end);
+                put_c(&o, '\t');
+                keel_slice_char text = { (size_t)(keel_buffer_KLexeme_ptr(&a->tokens, n->name_end - 1)->token.ptr +
+                                                   keel_buffer_KLexeme_ptr(&a->tokens, n->name_end - 1)->token.len -
+                                                   keel_buffer_KLexeme_ptr(&a->tokens, n->name_first)->token.ptr),
+                                          (char *)keel_buffer_KLexeme_ptr(&a->tokens, n->name_first)->token.ptr };
+                char sym[256];
+                size_t len = a->symbols ? k_spec_symbol(text, a->symbols, sym, sizeof sym) : SIZE_MAX;
+                if (len == SIZE_MAX) put_c(&o, '-');
+                else for (size_t j = 0; j < len; j++) put_c(&o, sym[j]);
+                break;
+            }
             case K_AST_MODIFIER: case K_AST_TAGS: case K_AST_TYPE:
             case K_AST_CONSTEXPR: case K_AST_FUNCTION: case K_AST_VARIABLE:
             case K_AST_PROTOCOL:

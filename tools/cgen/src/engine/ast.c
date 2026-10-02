@@ -300,6 +300,16 @@ static bool parse(KAst *a,
             node.name_first = index_at(a, i, pdef.name.ptr);
             node.name_end = index_at(a, node.name_first, pdef.name.ptr + pdef.name.len);
             node.end = index_at(a, node.name_end, next.ptr);
+        } else if (named(a, i, "instance") && i + 1 < n &&
+                   k_token_is_ident(keel_buffer_KLexeme_ptr(&a->tokens, i + 1)->token)) {
+            /* decl-instance (keel-spec §2.2, §4.3): `instance known-type ;`
+               names no symbol; the span of the type is what the node keeps */
+            node.end = declaration_end(a, i, &node.body_first, &node.body_end);
+            if (node.end <= start || node.end > n) return false;
+            node.kind = K_AST_INSTANCE;
+            node.name_first = i + 1;
+            node.name_end = node.end;
+            while (node.name_end > node.name_first && punct(a, node.name_end - 1, ";")) node.name_end--;
         } else if (named(a, i, "typedef")) {
             KToken kw = reenter(a, i, &lexer, &pp);
             KTypedefDecl tdef;

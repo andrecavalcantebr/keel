@@ -104,6 +104,18 @@ static const char *const messages[K_DIAG_COUNT] = {
         "the column access `%s` goes through a call: store the struct, or a pointer to it, in a local first",
     [K_DIAG_VERB_NOT_IN_INSTANCE] =
         "`%s` is not in the instance `%s`: its argument removes it (%s)",
+    [K_DIAG_INSTANCE_NOT_MODIFIER] =
+        "`instance %s`: `instance` takes a modifier of a generic module with all its arguments, as a declaration writes it",
+    [K_DIAG_REDUNDANT_INSTANCE] =
+        "`instance %s` places no body: every function of the generic is `inline`, and comes out where it is used",
+    [K_DIAG_INSTANCE_OUTSIDE_FILE_SCOPE] =
+        "`instance %s` stands in a function: `instance` is a file-scope declaration",
+    [K_DIAG_NONPARAMETRIC_OUT_OF_LINE] =
+        "`%s` mentions no parameter and no modifier of the generic, so it belongs to the module, which is emitted once: make it `inline`, a type or a `constexpr`",
+    [K_DIAG_MODIFIER_NAMED_INSTANCE] =
+        "a modifier cannot be named `instance`: the word opens the declaration that places an instance's bodies",
+    [K_DIAG_MODIFIER_OUTSIDE_GENERIC] =
+        "modifier `%s` in a module with no parameters: a modifier belongs to a generic module (`module M type T;`)",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

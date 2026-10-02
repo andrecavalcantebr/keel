@@ -2779,6 +2779,16 @@ static void walk(Ctx *c, const KAstNode *n) {
         KToken t = tok(a, i);
         bool signature = signature_of(n, i);
         if (!signature && word(a, i, "defer")) { defer_island(c, n, i); continue; }
+        if (!signature && word(a, i, "instance") && ident(a, i + 1) && !punct(a, i + 1, "=")) {
+            size_t e = i + 1;
+            while (e < n->end && !punct(a, e, ";") && !punct(a, e, "=") && !punct(a, e, "{")) e++;
+            if (punct(a, e, ";")) {
+                diag3(c, K_DIAG_INSTANCE_OUTSIDE_FILE_SCOPE, tok(a, i), range_text(a, (Range){ i + 1, e }),
+                      (keel_slice_char){0}, (keel_slice_char){0});
+                i = e;
+                continue;
+            }
+        }
         if (!signature && punct(a, i + 1, "(") && (word(a, i, "foreach") || word(a, i, "walk"))) {
             resolution_begin(c);
             traversal(c, n, i, word(a, i, "walk"));
@@ -3225,6 +3235,76 @@ static void close_instances(Ctx *c) {
     c->nest = 0;
 }
 
+/* ---- instance (spec §4.3) ---------------------------------------------- */
+
+/* `instance M.mod args;`: the type is a modifier of a generic module
+   (instance-not-modifier), and that module has a body to place: a generic
+   that is `inline` all through needs none (redundant-instance). */
+static void instance_decl(Ctx *c, const KAstNode *n) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    keel_slice_char text = range_text(a, (Range){ n->name_first, n->name_end });
+    KLexer lexer;
+    TKPpKind pp;
+    KSpecifier spec;
+    KToken next = {0};
+    KToken first = enter(a, n->name_first, &lexer, &pp);
+    if (!k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) || spec.kind != K_SPEC_MODIFIER ||
+        (next.len && next.ptr < text.ptr + text.len)) {
+        diag3(c, K_DIAG_INSTANCE_NOT_MODIFIER, tok(a, n->name_first), text, none, none);
+        return;
+    }
+    const KSymbol *m = k_symbol_resolve(a->symbols, spec.modifier_name);
+    const KAst *home = m && m->origin ? ast_of(c, m->origin) : NULL;
+    if (!home) return;
+    for (size_t i = 0; i < home->nodes.len; i++) {
+        const KAstNode *fn = node_at(home, i);
+        if ((fn->kind == K_AST_FUNCTION && !fn->is_inline) || fn->kind == K_AST_VARIABLE) return;
+    }
+    diag3(c, K_DIAG_REDUNDANT_INSTANCE, tok(a, n->first), text, none, none);
+}
+
+/* Spec §4.3, rule 20: in a generic module, a declaration that mentions no
+   parameter and no modifier belongs to the module and is emitted once, so it
+   is a type, a `constexpr` or an `inline` function — never one out of line
+   nor a variable (nonparametric-out-of-line). */
+static void check_generic(Ctx *c) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    const KAstNode *m = module_node(a);
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (!((n->kind == K_AST_FUNCTION && !n->is_inline) || n->kind == K_AST_VARIABLE)) continue;
+        bool mentions = false;
+        size_t end = n->body_first != SIZE_MAX ? n->body_first : n->end;
+        for (size_t j = n->first; j < end && !mentions; j++) {
+            if (!ident(a, j)) continue;
+            for (size_t k = m->dim_first; k < m->type_end; k++)
+                if (ident(a, k) && k_symtab_same_name(tok(a, j), tok(a, k))) mentions = true;
+            for (size_t k = 0; k < a->nodes.len && !mentions; k++) {
+                const KAstNode *d = node_at(a, k);
+                if (d->kind == K_AST_MODIFIER && k_symtab_same_name(tok(a, j), tok(a, d->name_first))) mentions = true;
+            }
+        }
+        if (!mentions)
+            diag3(c, K_DIAG_NONPARAMETRIC_OUT_OF_LINE, tok(a, n->name_first), tok(a, n->name_first), none, none);
+    }
+}
+
+/* a modifier is named `instance` (modifier-named-instance), or stands in a
+   module with no parameters (modifier-outside-generic) */
+static void check_modifiers(Ctx *c) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (n->kind != K_AST_MODIFIER) continue;
+        KToken name = tok(a, n->name_first);
+        if (k_token_spelled(name, "instance")) diag3(c, K_DIAG_MODIFIER_NAMED_INSTANCE, name, name, none, none);
+        if (!generic(a)) diag3(c, K_DIAG_MODIFIER_OUTSIDE_GENERIC, name, name, none, none);
+    }
+}
+
 /* What the v0 grammar recognizes in a signature only to refuse or place it:
    `keel_code` and the mold's `dim` parameter are v1 (spec §4.13), and a role
    stands before a parameter's type, or `child` before the return type
@@ -3252,9 +3332,16 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     a->islands.len = 0;
     a->island_text.len = 0;
     a->closure_text.len = 0;
-    if (!a->symbols || generic(a)) return true;
+    if (!a->symbols) return true;
     static Surface surface[K_SURFACE_MAX];
     Ctx ctx = { .ast = a, .diag = diag, .surface = surface };
+    check_modifiers(&ctx);
+    if (generic(a)) {
+        check_generic(&ctx);
+        return true;
+    }
+    for (size_t i = 0; i < a->nodes.len; i++)
+        if (node_at(a, i)->kind == K_AST_INSTANCE) instance_decl(&ctx, node_at(a, i));
     /* what the file declares at file scope is known to every function, wherever
        it stands in the file: read those declarations first, printing nothing */
     ctx.quiet = true;

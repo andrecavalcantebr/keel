@@ -20,3 +20,6 @@ parallel w.k
 results e.k
 extents x.k
 surface s.k
+instances use.k
+generic gen.k
+plainmod p.k

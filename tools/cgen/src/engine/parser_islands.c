@@ -3002,10 +3002,6 @@ static void walk(Ctx *c, const KAstNode *n) {
                           (keel_slice_char){0}, (keel_slice_char){0});
             }
         }
-        /* a binder of dimension 0 is not a dimension of a vector (spec §4.2, rule 20) */
-        if (!signature_of(n, i) && punct(a, i - 1, "[") && punct(a, i + 1, "]") && i >= 2 && ident(a, i - 2) &&
-            c_declares(a, i - 2, n->body_first) && binder_of(a, n, tok(a, i)))
-            diag3(c, K_DIAG_BINDER_AS_DIMENSION, tok(a, i), tok(a, i), (keel_slice_char){0}, (keel_slice_char){0});
         if (c->later_count && !signature_of(n, i) && c_declares(a, i, n->first)) note_shadow(c, tok(a, i));
         if (i > n->first && (punct(a, i - 1, ".") || punct(a, i - 1, "->"))) continue;
 
@@ -3767,6 +3763,8 @@ static void check_arguments(Ctx *c, const KSpecifier *spec, KToken at) {
 
 static void check_type_params(Ctx *c, const KAstNode *fn);
 static void check_protocol_body(Ctx *c, const KAstNode *fn);
+static bool c_declares(const KAst *a, size_t i, size_t from);
+static bool binder_of(const KAst *a, const KAstNode *fn, KToken name);
 
 static void check_declarations(Ctx *c) {
     KAst *a = c->ast;
@@ -3827,6 +3825,11 @@ static void check_declarations(Ctx *c) {
                 diag3(c, K_DIAG_PARAMETER_NAME_REUSE, name, name, none, none);
         if (n->kind != K_AST_FUNCTION) continue;
         check_type_params(c, n);
+        /* a binder of dimension 0 is not a dimension of a vector (spec §4.2, rule 20) */
+        for (size_t j = n->body_first; n->body_first != SIZE_MAX && j + 1 < n->body_end; j++)
+            if (ident(a, j) && punct(a, j - 1, "[") && punct(a, j + 1, "]") && ident(a, j - 2) &&
+                c_declares(a, j - 2, n->body_first - 1) && binder_of(a, n, tok(a, j)))
+                diag3(c, K_DIAG_BINDER_AS_DIMENSION, tok(a, j), tok(a, j), none, none);
         check_protocol_body(c, n);
         Param p[K_PARAMS_MAX];
         size_t np = params_of(a, n, p, K_PARAMS_MAX);

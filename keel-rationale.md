@@ -610,7 +610,7 @@ bound na assinatura, implementação com dono, verificação do corpo contra o
 bound. O genérico de keel sabe de `T` o que o header C genérico sabe do seu
 `#define T`, e nada mais. Uma instância que menciona `T`, como
 `outcome buffer T`, não é opaca: o modificador é conhecido, e é dele que vêm
-os verbos. As funções sobre protocolo da v1 são um contrato separado:
+os verbos. As funções sobre protocolo são um contrato separado:
 declaram o protocolo no parâmetro e ligam seus tipos associados (§4.14).
 Isso não abre automaticamente protocolos sobre o `T` opaco de módulo.
 

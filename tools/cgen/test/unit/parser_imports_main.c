@@ -34,9 +34,6 @@ static KSymbol coll_syms[] = {
 };
 static KModule mod_keel = { { 4, (char *)"keel" }, keel_syms, 2, 0 };
 static KModule mod_coll = { { 4, (char *)"coll" }, coll_syms, 4, 0 };
-/* loaded for the constructions, without an import and without injecting its
-   names (keel-spec §5.1, rule 9) */
-static KModule mod_protocols = { { 14, (char *)"keel.protocols" }, NULL, 0, 0 };
 
 typedef struct { int calls; } FakeTool;
 
@@ -44,7 +41,6 @@ static KLoadResult fake_load(void *tool, keel_slice_char name, KModule **out) {
     ((FakeTool *)tool)->calls++;
     if (k_symtab_same_name(name, S("keel"))) { *out = &mod_keel; return K_LOAD_OK; }
     if (k_symtab_same_name(name, S("coll"))) { *out = &mod_coll; return K_LOAD_OK; }
-    if (k_symtab_same_name(name, S("keel.protocols"))) { *out = &mod_protocols; return K_LOAD_OK; }
     if (k_symtab_same_name(name, S("spin"))) { *out = NULL; return K_LOAD_CYCLE; }
     *out = NULL;
     return K_LOAD_NOT_FOUND;
@@ -110,7 +106,7 @@ int main(void) {
     /* K_SYM_TYPE = 0, K_SYM_MODIFIER = 1, K_SYM_MODULE = 6 */
 
     /* no import at all still gets the implicit `import keel types;` */
-    run("implicit prelude", "module app;\n", true, "i32:0:0|f64:0:0|keel:6:0|keel.protocols:6:0", 0);
+    run("implicit prelude", "module app;\n", true, "i32:0:0|f64:0:0|keel:6:0", 0);
 
     /* the prelude itself must not import itself */
     run("keel does not", "module keel;\n", true, "", 0);
@@ -118,26 +114,26 @@ int main(void) {
     /* `types` injects types and modifiers, with arity, and nothing else:
        `push` (function) and `COUNT` (constant) must not appear */
     run("types injects", "module app;\nimport coll types;\n", true,
-        "i32:0:0|f64:0:0|keel:6:0|keel.protocols:6:0|stack:1:1|Node:0:0|coll:6:0", 0);
+        "i32:0:0|f64:0:0|keel:6:0|stack:1:1|Node:0:0|coll:6:0", 0);
 
     /* the alias is a module symbol; without `types` nothing is injected */
     run("alias only", "module app;\nimport coll as c;\n", true,
-        "i32:0:0|f64:0:0|keel:6:0|keel.protocols:6:0|coll:6:0|c:6:0", 0);
+        "i32:0:0|f64:0:0|keel:6:0|coll:6:0|c:6:0", 0);
 
     /* both together, in the order the file writes them */
     run("alias and types", "module app;\nimport coll as c types;\n", true,
-        "i32:0:0|f64:0:0|keel:6:0|keel.protocols:6:0|stack:1:1|Node:0:0|coll:6:0|c:6:0", 0);
+        "i32:0:0|f64:0:0|keel:6:0|stack:1:1|Node:0:0|coll:6:0|c:6:0", 0);
 
     /* A module no root has is diagnosed here, at the import site. */
     run("not found", "module app;\nimport nope types;\n", false,
-        "i32:0:0|f64:0:0|keel:6:0|keel.protocols:6:0", 1);
+        "i32:0:0|f64:0:0|keel:6:0", 1);
 
     /* pending in the tool: this half knows the position, so it reports */
-    run("cycle", "module app;\nimport spin;\n", false, "i32:0:0|f64:0:0|keel:6:0|keel.protocols:6:0", 1);
+    run("cycle", "module app;\nimport spin;\n", false, "i32:0:0|f64:0:0|keel:6:0", 1);
 
     /* one bad import does not stop the others */
     run("bad then good", "module app;\nimport nope;\nimport coll types;\n", false,
-        "i32:0:0|f64:0:0|keel:6:0|keel.protocols:6:0|stack:1:1|Node:0:0|coll:6:0", 1);
+        "i32:0:0|f64:0:0|keel:6:0|stack:1:1|Node:0:0|coll:6:0", 1);
 
     if (failures == 0) { puts("ok"); return 0; }
     fprintf(stderr, "%d failure(s)\n", failures);

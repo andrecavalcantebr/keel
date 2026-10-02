@@ -10,7 +10,7 @@ cat > "$d/app/lst.k" <<'K'
 module app.lst;
 import keel.buffer as buffer types;
 import keel.slice as slice types;
-import keel.protocols types;
+// the protocols come with the prelude (spec §5.1)
 
 pub protocol Seq [IndexPtr, Sliceable];
 pub protocol Sized type C { size_t length(C *x); }

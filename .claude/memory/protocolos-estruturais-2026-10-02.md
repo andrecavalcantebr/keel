@@ -10,8 +10,8 @@ metadata:
 Revisão de 2026-10-02, sobre a revisão de 01/10 (papéis, protocolos e moldes).
 Tudo está na `master` (commits até `e565a5e`).
 
-**Conformidade estrutural, sem `implement`.** Os protocolos são nomeados em
-`keel.protocols` (`IndexPtr`, `IndexGet`, `Countable`, `Traversable`,
+**Conformidade estrutural, sem `implement`.** Os protocolos são nomeados no
+prelúdio `keel` (`IndexPtr`, `IndexGet`, `Countable`, `Traversable`,
 `Partitionable`, `Sliceable`, `Taggable`, `Failable`, `Winnable`) e servem às
 construções e como tipo de parâmetro (§4.14, como uma interface Java). Um tipo
 atende quando o seu módulo declara os verbos; não há declaração de
@@ -51,6 +51,13 @@ emitido como a instância da §5.19 (ainda por caso particular, pelo nome; vira
 regra geral quando a §4.14 for implementada), `from_stack` fora. Ainda não
 implementados: emissão de C, análise de papéis, registro de protocolos e
 verificação de conformidade fora de `Sliceable`.
+
+**Protocolos no prelúdio (decisão do André, 2026-10-02).** Começaram num
+módulo `keel.protocols`, que o cgen passou a carregar implicitamente para as
+construções. O André notou que, sem a obrigação nominal, não havia razão para
+um módulo à parte: os contratos são do núcleo, e o prelúdio `keel` é o módulo
+do núcleo que todo arquivo já recebe. Foram movidos para `base/keel.k`, e os
+nomes chegam a todo módulo pelo `import keel types;`.
 
 Ver [[base-real-keel-em-progresso]], [[cgen-implementacao]],
 [[discutir-antes-de-editar-spec]].

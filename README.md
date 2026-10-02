@@ -164,18 +164,18 @@ seu módulo participa.
 Não há registro a fazer, marcação a escrever nem permissão a pedir. keel não
 distingue um módulo da base de um módulo seu ao resolver.
 
-Os contratos têm nome, em `keel.protocols`: `IndexPtr`, `IndexGet`, `Countable`,
+Os contratos têm nome, no prelúdio `keel`: `IndexPtr`, `IndexGet`, `Countable`,
 `Traversable`, `Partitionable`, `Sliceable`, `Taggable`, `Failable` e
-`Winnable`. Com `import keel.protocols types;`, um nome desses serve de tipo de
-parâmetro, como uma interface: `size_t count(IndexPtr xs)` ganha uma instância
-por tipo concreto, resolvida na tradução.
+`Winnable`. Sem import nenhum, um nome desses serve de tipo de parâmetro, como
+uma interface: `size_t count(IndexPtr xs)` ganha uma instância por tipo
+concreto, resolvida na tradução.
 
 ## A base
 
-Onze módulos, escritos em keel, com uma exceção de licença para que o C gerado
+Dez módulos, escritos em keel, com uma exceção de licença para que o C gerado
 do seu programa não seja arrastado ao copyleft (veja abaixo). Todos exigem
-import explícito — o único implícito é `import keel types;`, que traz só os
-nomes de tipo primitivos.
+import explícito — o único implícito é `import keel types;`, que traz os nomes
+de tipo primitivos e os protocolos.
 
 | Módulo | O que traz |
 | --- | --- |
@@ -186,7 +186,6 @@ nomes de tipo primitivos.
 | `keel.tagged` | valor com etiqueta |
 | `keel.routine` | composição cooperativa, `seq` e `par` |
 | `keel.parallel` | o símbolo de controle de um bloco `parallel` |
-| `keel.protocols` | os nomes dos contratos que as construções consomem; não emite C |
 
 Os tipos primitivos são `i8`…`i64`, `u8`…`u64`, `f16`, `f32`, `f64` e `bf16`,
 com largura e representação fixadas — não aliases de `int`.

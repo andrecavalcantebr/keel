@@ -232,8 +232,8 @@ posição, e as etapas 4e (`parallel`), 4g (`else`) e 4h (`extent`).
   `while`, `for`, `switch` ou `do`; `defer-in-control-block` (aviso) no bloco
   de `if`, `else` ou `switch`; `later-with-capture`.
 - **`foreach` e `walk`** (spec §4.7): ilhas com os binders, o contêiner e o seu
-  tipo keel. O protocolo vem da tabela de `keel.protocols`, que todo módulo
-  carrega sem import (spec §5.1, regra 9): `walk` pede `Traversable`;
+  tipo keel. O protocolo vem da tabela de protocolos do prelúdio `keel`, que
+  todo módulo recebe pelo import implícito (spec §5.1, regra 9): `walk` pede `Traversable`;
   `foreach` de dois binders, `IndexPtr` (ponteiro) ou `IndexGet`/`IndexPtr`
   (valor); de um binder, `Countable`. Sobre `array`, o `foreach` é do núcleo, e
   os protocolos são os de `keel.array`. Também `walk-without-cursor`,

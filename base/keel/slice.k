@@ -10,7 +10,7 @@ module keel.slice type T;
 import keel.arena   as arena   types;
 import keel.outcome as outcome types;
 import keel.range   as range   types;
-import keel.protocols types;
+
 #include <string.h>
 
 // NOT `byref` — passed by copy (spec §4.3: `slice T` may be passed by

@@ -61,3 +61,52 @@ static inline size_t keel_index(size_t i, size_t d) {
 // are generic over the element and read the extent from the declaration, which
 // no keel declaration can express. Their lowering is the backend's (backend
 // §5.2); get, set and ptr(v, i) go through keel_index above.
+
+// The protocols of the base (spec §5.1): the named contracts the core
+// constructions consume, here in the prelude so every module sees them.
+// A protocol emits no C. Conformance is structural: a type meets a protocol
+// when its module declares the verbs (spec §5.1). Roles written here are
+// inherited by an implementer that writes none.
+
+pub protocol Countable type C {
+    type index;
+    index first(C *x);
+    index limit(C *x);
+}
+pub protocol IndexPtr type C {
+    type elem;
+    size_t length(C *x);
+    child elem *ptr(parent C *x, size_t i);
+}
+pub protocol IndexGet type C {
+    type elem;
+    size_t length(C *x);
+    elem get(C *x, size_t i);
+}
+pub protocol Sliceable type C {
+    type view;
+    size_t length(C *x);
+    child view as_slice(parent C *x, size_t a, size_t b);
+}
+pub protocol Traversable type C {
+    type cursor;
+    type elem;
+    child cursor begin(parent C *x);
+    bool has_next(C *x, cursor *c);
+    child elem *next(parent C *x, cursor *c);
+}
+pub protocol Partitionable type C {
+    type part;
+    child part partition(parent C *x, size_t k, size_t w);
+}
+pub protocol Taggable type C {
+    type tagset;
+    tagset tag(C *x);
+}
+pub protocol Failable type C {
+    bool failed(C *x);
+}
+pub protocol Winnable type C {
+    type fallback;
+    C win(C *x, fallback d);
+}

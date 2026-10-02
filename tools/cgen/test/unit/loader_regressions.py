@@ -40,9 +40,6 @@ with tempfile.TemporaryDirectory() as directory:
              'many':'module many;\n'+'\n'.join(f'constexpr int C{i}={i};' for i in range(300))}
     for name,text in modules.items():
         f=root/(name+'.k');f.write_text(text);os.utime(f,(1000,1000))
-    # loaded by every module for the constructions (keel-spec §5.1, rule 9)
-    (root/'keel').mkdir()
-    f=root/'keel'/'protocols.k';f.write_text('module keel.protocols;');os.utime(f,(1000,1000))
     os.utime(root/'new.k',(2000,2000))
     env=dict(os.environ,ASAN_OPTIONS='detect_leaks=0')
     result=subprocess.run([str(binary),str(root),'new','old','parent','wrong','bad','bad','missing','many'],

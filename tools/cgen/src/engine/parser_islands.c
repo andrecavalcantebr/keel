@@ -1912,8 +1912,9 @@ static void defer_island(Ctx *c, const KAstNode *n, size_t at) {
     emit(c, K_ISLAND_DEFER, at, &d);
 }
 
+/* the protocols of the base live in the prelude (spec §5.1, rule 9) */
 static const KAst *protocols_ast(const Ctx *c) {
-    const KModule *m = module_by_name(c->ast->symbols, "keel.protocols");
+    const KModule *m = module_by_name(c->ast->symbols, "keel");
     return m && m->ast ? m->ast : NULL;
 }
 

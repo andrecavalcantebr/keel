@@ -12,10 +12,10 @@ metadata:
 futuro `cgen` processa. **Não confundir** com `tools/codegen/base` nem com
 `tools/cgen/gen`, que são do bootstrap `$T`. Ver [[keel-quatro-documentos]].
 
-11 arquivos: `keel.k` e `keel/{arena,array,buffer,slice,outcome,corot,range,
-tagged,parallel,routine,protocols}.k`. Cobre as §§5.1–5.7 da spec. O cgen (M2)
+11 arquivos: `keel.k` (com os protocolos da base) e `keel/{arena,array,buffer,
+slice,outcome,corot,range,tagged,parallel,routine}.k`. Cobre as §§5.1–5.7 da spec. O cgen (M2)
 já a lê e parseia; a emissão ainda é verificada à mão contra
-`golden/c{11,23}/keel/*.h`. Em 2026-10-02 a base ganhou `protocols.k`, os papéis
+`golden/c{11,23}/keel/*.h`. Em 2026-10-02 a base ganhou os protocolos (no prelúdio), os papéis
 nos verbos, `slice.of` sobre `Sliceable`, `array.length` e `tag` tipado — ver
 [[protocolos-estruturais-2026-10-02]].
 

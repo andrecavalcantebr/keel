@@ -636,7 +636,7 @@ Organizar declarações em módulos e integrar interfaces e implementações C.
 12. Sem `priv`, o conteúdo de `extern_c` compõe a interface: com `[type_h]`, a camada de tipos (`.type.h`); sem `[type_h]`, o `.h`. Com `priv`, compõe a implementação (`.c`). `priv extern_c [type_h]` é recusado.
 13. Diretivas de pré-processamento no nível de arquivo vão para o `.h`; dentro de um construto, acompanham o destino dele.
 14. `main` é uma função pública do módulo e recebe seu prefixo. A seleção do módulo de entrada pela ferramenta gera o wrapper C `main`, que chama essa função. Cada módulo pode declarar a sua `main`.
-15. O único import implícito é `import keel types;`. Os módulos da base — `keel.protocols` (§5.1), `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7) — exigem import explícito. As construções do núcleo consultam `keel.protocols` sem import; o import só é exigido quando o fonte escreve nomes de protocolo. [R: prelúdio e base mínima](keel-rationale.md#prelúdio-e-base-mínima)
+15. O único import implícito é `import keel types;`, que traz também os protocolos da base (§5.1). Os módulos da base — `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7) — exigem import explícito. [R: prelúdio e base mínima](keel-rationale.md#prelúdio-e-base-mínima)
 
 Referências: [Rationale: módulos e identidade](keel-rationale.md#módulos-e-identidade); [Rationale: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos); [Backend: artefatos](keel-c-backend.md#4-artefatos) e [ponto de entrada](keel-c-backend.md#58-ponto-de-entrada).
 
@@ -1795,7 +1795,7 @@ instância cuja assinatura C recebe esse buffer por ponteiro, conforme `byref`.
 Os módulos deste capítulo acompanham a distribuição de keel e são módulos
 comuns: declaram tipos, modificadores e verbos pelas regras dos §§4.1–4.4, e
 são importados explicitamente quando seus nomes são escritos. As construções
-consultam os contratos de `keel.protocols` sem import (§5.1). Os contratos das §§5.2 a 5.7 seguem o formato
+consultam os protocolos do prelúdio `keel` (§5.1). Os contratos das §§5.2 a 5.7 seguem o formato
 de cinco itens do capítulo 4.
 
 ### 5.1 Protocolos
@@ -1803,7 +1803,7 @@ de cinco itens do capítulo 4.
 #### 1. Sintaxe
 
 ```keel
-module keel.protocols;
+module keel;
 
 pub protocol Countable type C {
     type index;
@@ -1906,7 +1906,7 @@ pub protocol Sequence [IndexPtr, Sliceable, Traversable];
    `protocol-verb-conflict`.
 8. A composição é conjunção. Requisitos alternativos pertencem ao contrato da
    construção que consome os protocolos.
-9. As construções consultam `keel.protocols` sem import.
+9. Os protocolos da base são do prelúdio `keel`: todo módulo os vê pelo import implícito (§4.1), e as construções os consultam ali.
 10. Papéis escritos num protótipo de protocolo (§4.12) fazem parte do
     contrato. Se o verbo do implementador não declara papéis, valem os do
     protótipo; se declara, são os mesmos nas mesmas posições, sob pena de
@@ -1961,12 +1961,12 @@ Fora dos protocolos, os pontos abaixo ligam uma construção a um módulo determ
 | Onde | O que o núcleo assume |
 | --- | --- |
 | `arena` | definição sem inicializador recebe `= {0}` e parâmetro por valor é recusado (§5.2); procedência e invalidação seguem os papéis gerais (§4.12) |
-| protocolos | as construções consultam os contratos de `keel.protocols` (§5.1) |
+| protocolos | as construções consultam os contratos do prelúdio `keel` (§5.1) |
 | `array` | o verbo de `x[a..b]` sobre `array` é o `as_slice` de `keel.array`, que precisa estar importado (§4.5, §5.3) |
 | `a..b` | o literal de intervalo produz um `range` (§5.3) |
 | `parallel` | o nome do bloco declara um símbolo de tipo `parallel.control` (§5.7) |
 
-O módulo `keel`, do prelúdio, não declara operação: declara os nomes de tipo primitivos, cuja grafia participa das regras da §4.2.
+O módulo `keel`, do prelúdio, não declara operação: declara os nomes de tipo primitivos, cuja grafia participa das regras da §4.2, e os protocolos da base.
 
 #### Convenção de grafia
 
@@ -1982,7 +1982,6 @@ A convenção abaixo é a da base; um módulo do programa pode segui-la ou não.
 
 | Módulo | O que declara | Contrato |
 | --- | --- | --- |
-| `keel.protocols` | protocolos e tipos associados, sem emissão de C | §5.1 |
 | `keel.arena` | o tipo `arena`, seus construtores e verbos | §5.2 |
 | `keel.buffer`, `keel.slice`, `keel.range`, `keel.array` | as sequências, o trecho, o intervalo, o acesso a `array`, e os protocolos de acesso, cursor e partição | §5.3 |
 | `keel.tagged` | o modificador que associa etiqueta a valor | §5.4 |

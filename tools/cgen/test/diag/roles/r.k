@@ -1,5 +1,5 @@
 module r;
-import keel.protocols types;
+// the protocols come with the prelude (spec §5.1)
 
 pub typedef struct { i32 *at; size_t len; } Ring;
 pub typedef struct { size_t i; } cursor;

@@ -3767,6 +3767,92 @@ static void check_constexpr(Ctx *c, size_t kw, size_t end) {
     if (!ident(a, eq - 1)) diag3(c, K_DIAG_CONSTEXPR_NAME_MISSING, tok(a, eq - 1), tok(a, eq - 1), none, none);
 }
 
+/* ---- protocol declarations (spec §5.1, rules 5 and 7) ------------------ */
+
+/* the protocol declared as `name` where `home` sees it, and the AST it is in */
+static const KAstNode *protocol_node(const KAst *home, keel_slice_char name, const KAst **where) {
+    *where = home;
+    const KSymbol *s = home->symbols ? k_symtab_lookup(home->symbols, name) : NULL;
+    if (s && s->origin && s->origin->ast) *where = s->origin->ast;
+    for (size_t i = 0; i < (*where)->nodes.len; i++) {
+        const KAstNode *n = node_at(*where, i);
+        if (n->kind == K_AST_PROTOCOL && k_symtab_same_name(tok(*where, n->name_first), name)) return n;
+    }
+    return NULL;
+}
+
+static bool raw_protocol(const KAst *where, const KAstNode *n, KProtocolDecl *out) {
+    size_t kw = n->first;
+    while (kw < n->name_first && !word(where, kw, "protocol")) kw++;
+    KToken t = tok(where, kw);
+    KLexer lexer;
+    TKPpKind pp;
+    k_lexer_init(&lexer, (keel_slice_char){ (size_t)(where->source.ptr + where->source.len - t.ptr), (char *)t.ptr }, NULL);
+    KToken first = k_lexer_next(&lexer, &pp), next;
+    KSymbol scratch[2];
+    KSymbolTable none;
+    k_symtab_init(&none, scratch, 2);
+    return k_scan_decl_protocol(&lexer, first, &none, out, &next, &pp);
+}
+
+/* whether the composition under `name` reaches `target` again */
+static bool reaches(const KAst *home, keel_slice_char name, keel_slice_char target, int depth) {
+    if (depth > 8) return true;
+    const KAst *where;
+    const KAstNode *n = protocol_node(home, name, &where);
+    KProtocolDecl pd;
+    if (!n || !raw_protocol(where, n, &pd)) return false;
+    for (size_t k = 0; k < pd.component_count; k++)
+        if (k_symtab_same_name(pd.components[k], target) || reaches(where, pd.components[k], target, depth + 1)) return true;
+    return false;
+}
+
+static void check_protocols(Ctx *c) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (n->kind != K_AST_PROTOCOL) continue;
+        KProtocolDecl pd;
+        if (!raw_protocol(a, n, &pd)) continue;
+        bool sound = true;
+        for (size_t k = 0; k < pd.component_count; k++) {
+            const KAst *where;
+            if (!protocol_node(a, pd.components[k], &where)) {
+                diag3(c, K_DIAG_UNKNOWN_PROTOCOL, pd.components[k], pd.components[k], none, none);
+                sound = false;
+            } else if (reaches(a, pd.components[k], pd.name, 0) || k_symtab_same_name(pd.components[k], pd.name)) {
+                diag3(c, K_DIAG_CIRCULAR_PROTOCOL, pd.components[k], pd.name, pd.components[k], none);
+                sound = false;
+            }
+        }
+        /* an associated type that no verb mentions binds nothing (rule 5) */
+        for (size_t k = 0; k < pd.assoc_count; k++) {
+            size_t uses = 0;
+            for (size_t j = n->name_end; j < n->end; j++)
+                if (ident(a, j) && k_symtab_same_name(tok(a, j), pd.assoc[k]) && !word(a, j - 1, "type")) uses++;
+            if (!uses) diag3(c, K_DIAG_ASSOCIATED_TYPE_UNBOUND, pd.assoc[k], pd.assoc[k], pd.name, none);
+        }
+        if (!sound) continue;
+        KProtocolDecl all;
+        if (!protocol_decl(c, a, pd.name, &all, 0)) continue;
+        /* the union of the components: one signature per name and arity (rule 7) */
+        for (size_t x = 0; x < all.verb_count; x++)
+            for (size_t y = x + 1; y < all.verb_count; y++) {
+                const KProtocolVerb *p = &all.verbs[x], *q = &all.verbs[y];
+                if (!k_symtab_same_name(p->name, q->name) || p->arity != q->arity) continue;
+                bool differ = p->receiver != q->receiver || p->result_role != q->result_role ||
+                              !k_symtab_same_name(p->returns, q->returns);
+                for (size_t r = 0; r < p->arity && r < K_PROTOCOL_MAX_PARAMS; r++) if (p->roles[r] != q->roles[r]) differ = true;
+                if (differ) {
+                    diag3(c, K_DIAG_PROTOCOL_VERB_CONFLICT, tok(a, n->name_first), p->name, pd.name, none);
+                    x = all.verb_count;
+                    break;
+                }
+            }
+    }
+}
+
 /* the '}' that closes the block opened at `open` */
 static size_t block_end(const KAst *a, size_t open, size_t end) {
     for (size_t j = open, depth = 0; j < end; j++) {
@@ -3886,6 +3972,7 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     Ctx ctx = { .ast = a, .diag = diag, .surface = surface };
     check_modifiers(&ctx);
     check_declarations(&ctx);
+    check_protocols(&ctx);
     if (generic(a)) {
         check_generic(&ctx);
         return true;

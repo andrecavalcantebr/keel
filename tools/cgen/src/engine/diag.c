@@ -196,6 +196,14 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` enters a block past a `defer` registered in it: the cleanup would run for a registration that never happened; give the case its own block, or move the label",
     [K_DIAG_DEFER_LATER_SHADOWED] =
         "`%s` is declared again inside the scope of a `defer` that reads it at the exit, and `%s` leaves from here: the cleanup would read the inner one; write `defer [now ...]` or leave by `goto`",
+    [K_DIAG_UNKNOWN_PROTOCOL] =
+        "`%s` names no protocol here: declare it, or import the module that does",
+    [K_DIAG_CIRCULAR_PROTOCOL] =
+        "the composition of `%s` comes back to itself through `%s`",
+    [K_DIAG_ASSOCIATED_TYPE_UNBOUND] =
+        "the associated type `%s` of `%s` appears in no verb, so nothing binds it",
+    [K_DIAG_PROTOCOL_VERB_CONFLICT] =
+        "the protocol requires `%s` twice with the same arity and different signatures (in `%s`)",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

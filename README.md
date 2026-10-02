@@ -201,7 +201,9 @@ cgen -I src --profile=c23 src/app/main.k -o app
 ```
 
 As opções próprias são poucas e fechadas; tudo o mais atravessa verbatim para o
-compilador C. `-o` é dele, não do cgen.
+compilador C. `-o` tem o significado do gcc: nomeia o arquivo da última fase. É
+do compilador C quando ele roda, e do cgen quando a invocação para antes, como
+em `cgen -o app.parse --stop-after=parse app.k`.
 
 ## keel por exemplos
 

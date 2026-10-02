@@ -433,7 +433,7 @@ as usam mudam junto.
 
 ### 5.1 `--stop-after=lex`
 
-Uma token por linha, em `stdout`:
+Uma token por linha, em `stdout`, ou no arquivo de `-o` (ferramenta §4.2):
 
 ```plain
 <arquivo>:<linha>:<coluna>: <classe> "<grafia>"
@@ -450,7 +450,7 @@ código de saída segue a §4.
 
 ### 5.2 `--stop-after=parse`
 
-Em `stdout`, o módulo pedido, em blocos fixos e nesta ordem. Campos separados
+Em `stdout`, ou no arquivo de `-o` (ferramenta §4.2), o módulo pedido, em blocos fixos e nesta ordem. Campos separados
 por um TAB; a última coluna é sempre a posição no fonte, `<arquivo>:<linha>:<coluna>`,
 como no §5.1.
 

@@ -13,7 +13,10 @@ static bool absolute(const char *path,char *out,size_t cap) {
     int n=snprintf(joined,sizeof joined,"%s/%s",cwd,path);
     return n>=0&&(size_t)n<sizeof joined&&cgen_path_normalize(joined,out,cap);
 }
-int cgen_stop_after_parse(keel_arena *arena,const char *path,const char *const *roots,int n,const char *base) {
+int cgen_write_output(const char *path, const char *data, size_t n);
+
+/* `out` is the file of `-o`, or NULL for stdout (cgen-tool-spec §4.2) */
+int cgen_stop_after_parse(keel_arena *arena,const char *path,const char *const *roots,int n,const char *base,const char *out) {
     if (n < 0 || n > CGEN_CLI_ROOTS_CAP) {
         fprintf(stderr,"cgen: error: search roots exceed configured limit %d; adjust CGEN_CLI_ROOTS_CAP [implementation-limit]\n", CGEN_CLI_ROOTS_CAP);
         return 2;
@@ -41,7 +44,7 @@ int cgen_stop_after_parse(keel_arena *arena,const char *path,const char *const *
         size_t need=k_dump_ast(module->ast,path,(keel_slice_char){0});
         char *dump=cgen_alloc(arena,need?need:1,1,1,false,"AST dump");
         if(dump){k_dump_ast(module->ast,path,(keel_slice_char){need,dump});
-            rc=fwrite(dump,1,need,stdout)==need?0:2;}
+            rc=cgen_write_output(out,dump,need);}
         else rc=2;
     }
     cgen_loader_destroy(tool);return rc;

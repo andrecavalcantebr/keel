@@ -112,7 +112,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `-f` | força regeração, ignorando timestamp | desligado |
 | `--cgen-version`, `--cgen-help` | | |
 
-`-o` **não** pertence ao cgen: é do compilador C e mantém o significado de sempre. Foi por isso que a saída gerada ganhou `--dest-dir`.
+`-o` mantém o significado do gcc: nomeia o arquivo da última fase que a invocação executa. Quando essa fase é do compilador C — compilar, ligar —, o `-o` é dele e atravessa verbatim. Quando a invocação para numa fase do cgen (§4.2), não há compilador C a quem repassá-lo, e o cgen o lê, como o gcc lê o `-o` de `-E`. Foi por isso que a saída gerada ganhou `--dest-dir`: `gen` escreve vários arquivos, e `-o` nomeia um.
 
 > **Nota — `-fno-strict-aliasing` é repasse, e é deliberado que seja.** O respaldo
 > de tipo-caractere da arena é uma guarda nomeada da linguagem §6.3, e quem a
@@ -146,7 +146,11 @@ Sem arquivo de configuração e sem variável de ambiente: o que afeta a saída 
 
 ### 4.2 Parada por fase
 
-O análogo de `-E`, `-S` e `-c`. Cada fase escreve em `stdout` e não invoca o compilador C.
+O análogo de `-E`, `-S` e `-c`. Nenhuma fase invoca o compilador C, e a saída segue o `-o` como no gcc:
+
+- `lex` e `parse` escrevem em `stdout`; com `-o <arquivo>`, escrevem no arquivo, e `-o -` é `stdout`.
+- `gen` escreve os `.c` e `.h` sob `--dest-dir`. São vários arquivos, e `-o` com `--stop-after=gen` é recusado, como o gcc recusa `-o` com `-S` sobre vários fontes.
+- O arquivo de `-o` segue a escrita da §6: com erro, ele não é criado nem truncado.
 
 | Valor | Interrompe após | Saída |
 | --- | --- | --- |
@@ -592,6 +596,7 @@ fonte. Restam os que dependem da invocação, e eles são da ferramenta:
 | `missing-entry-point` | `--main` sobre módulo sem função de entrada pública (§4.7) |
 | `lowering-unavailable` | `--parallel-lowering=openmp` sem `-fopenmp` na linha (§4.8) |
 | `invalid-option` | opção do cgen com valor fora do enumerado |
+| `output-with-gen` | `-o` com `--stop-after=gen`: a fase escreve vários arquivos; a mensagem indica `--dest-dir` (§4.2) |
 | `write-failure` | E/S falhou ao escrever sob o `--dest-dir` (§6) |
 | `implementation-limit` | Capacidade configurada da implementação atingida; a mensagem informa qual limite, seu valor, a demanda quando conhecida e a configuração a ajustar. Não implica erro de sintaxe do programa. |
 

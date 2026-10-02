@@ -10,8 +10,8 @@ bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, 
 bool cgen_source_under_root(const char *source, const char *root);
 bool cgen_source_in_multiple_roots(const char *source, const char *const *roots, int root_count);
 extern char *cgen_resolve_base_dir(keel_arena *, const char *explicit_base_dir);
-int cgen_stop_after_lex(keel_arena *, const char *path);
-int cgen_stop_after_parse(keel_arena *, const char *path,const char *const *roots,int n,const char *base);
+int cgen_stop_after_lex(keel_arena *, const char *path, const char *out);
+int cgen_stop_after_parse(keel_arena *, const char *path,const char *const *roots,int n,const char *base,const char *out);
 
 static void fatal(const char *diagnostic_id, const char *message) {
     fprintf(stderr, "cgen: error: %s [%s]\n", message, diagnostic_id);
@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
     const char *main_module = NULL;
     const char *profile = NULL;
     const char *parallel_lowering = NULL;
+    const char *output = NULL;   /* `-o`: the C compiler's, or the file of a stopping phase (§4.1, §4.2) */
     bool pedantic_names = false;
     bool f_flag = false;
 
@@ -93,6 +94,7 @@ int main(int argc, char *argv[]) {
             ARG_ROOM(2);
             passthrough[passthrough_count++] = w;
             passthrough[passthrough_count++] = argv[++i];
+            if (strcmp(w, "-o") == 0) output = argv[i];
         } else {
             bool has_value;
             const char *value;
@@ -206,6 +208,8 @@ int main(int argc, char *argv[]) {
         fatal("invalid-option", "invalid value for --parallel-lowering");
     if (stop_after && strcmp(stop_after, "lex") != 0 && strcmp(stop_after, "parse") != 0 && strcmp(stop_after, "gen") != 0)
         fatal("invalid-option", "invalid value for --stop-after");
+    if (stop_after && strcmp(stop_after, "gen") == 0 && output)
+        fatal("output-with-gen", "-o names one file, and --stop-after=gen writes several: use --dest-dir");
 
     if (k_file_count == 0 && instance == NULL) {
         // Transparent link
@@ -234,12 +238,12 @@ int main(int argc, char *argv[]) {
     if (!cgen_memory_init(&arena)) return 2;
     int result=1;
     if (k_file_count == 1 && stop_after && strcmp(stop_after,"lex") == 0) {
-        result=cgen_stop_after_lex(&arena,k_file);
+        result=cgen_stop_after_lex(&arena,k_file,output);
     } else if (k_file_count == 1) {
         char *base=cgen_resolve_base_dir(&arena,base_dir);
         if (!base) result=2;
         else if (stop_after && strcmp(stop_after,"parse") == 0)
-            result=cgen_stop_after_parse(&arena,k_file,roots,root_count,base);
+            result=cgen_stop_after_parse(&arena,k_file,roots,root_count,base,output);
         else fprintf(stderr,"cgen: not yet implemented\n");
     } else fprintf(stderr,"cgen: not yet implemented\n");
     cgen_memory_destroy(&arena);

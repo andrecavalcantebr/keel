@@ -5,7 +5,6 @@
 #include "keel/keel_slice.type.h"
 #include "keel/keel_outcome_keel_routine_slot_ag2_Ag.type.h"
 #include "keel/keel_outcome_keel_slice_keel_routine_slot_ag2_Ag.type.h"
-#include "keel/keel_range.type.h"
 
 typedef struct keel_arena keel_arena;
 
@@ -25,12 +24,6 @@ static inline keel_routine_slot_ag2_Ag   *keel_slice_keel_routine_slot_ag2_Ag_pt
 static inline keel_outcome_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_at(keel_slice_keel_routine_slot_ag2_Ag s, size_t i);
 #line 45 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_as_slice(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b);
-#line 54 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of(keel_slice_keel_routine_slot_ag2_Ag s);
-#line 55 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of1(keel_slice_keel_routine_slot_ag2_Ag s, keel_range r);
-#line 56 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of2(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b);
 #line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_clone(keel_arena *a, keel_slice_keel_routine_slot_ag2_Ag s);
 #line 68 "keel/slice.k"
@@ -71,12 +64,6 @@ static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_a
     if (a > b) a = b;
     return (keel_slice_keel_routine_slot_ag2_Ag){ b - a, s.ptr + a };
 }
-#line 54 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of(keel_slice_keel_routine_slot_ag2_Ag s) { return s; }
-#line 55 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of1(keel_slice_keel_routine_slot_ag2_Ag s, keel_range r) { return keel_slice_keel_routine_slot_ag2_Ag_as_slice(s, r.first, r.limit); }
-#line 56 "keel/slice.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_of2(keel_slice_keel_routine_slot_ag2_Ag s, size_t a, size_t b) { return keel_slice_keel_routine_slot_ag2_Ag_as_slice(s, a, b); }
 #line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_clone(keel_arena *a, keel_slice_keel_routine_slot_ag2_Ag s) {
     keel_outcome_keel_slice_keel_routine_slot_ag2_Ag r = {0};

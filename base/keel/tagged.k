@@ -11,11 +11,11 @@ module keel.tagged tags E type T;
 // `tagged Cycle void` is the label alone, with no special handling here.
 pub modifier tagged { i32 tag; T value; }
 
-// reading gives `i32` and writing takes `E`, and the asymmetry is the
-// contract (spec §5.4): the stored label may not belong to the set — that is
-// what the debug check observes — so `tag` hands over what is there, while
-// the typed parameter is what demands membership on the way in.
-pub inline i32  tag  (const tagged *t) { return t->tag; }
+// the field is `i32` and `tag` reads it as `E`, which binds `Taggable.tagset`
+// (spec §5.4): the stored label may not belong to the set — that is what the
+// debug check observes — so `tag` hands over what is there, while the typed
+// parameter of `mark` and `set` is what demands membership on the way in.
+pub inline E    tag  (const tagged *t) { return (E)t->tag; }
 pub inline T    value(const tagged *t) { return t->value; }
 
 pub inline void mark (tagged *t, E e) { t->tag = e; }

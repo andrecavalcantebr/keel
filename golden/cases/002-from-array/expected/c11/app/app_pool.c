@@ -11,5 +11,5 @@
 static _Alignas(64) u8 app_pool_memo[65536];
 
 bool app_pool_start(keel_arena *a) {
-    return keel_arena_from_array(a, app_pool_memo, sizeof app_pool_memo);
+    return keel_arena_from_array(a, app_pool_memo, 65536);
 }

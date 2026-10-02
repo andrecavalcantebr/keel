@@ -3,7 +3,6 @@
 #define KEEL_KEEL_SLICE_CONST_CHAR_H
 #include "keel/keel_slice_const_char.type.h"
 #include "keel/keel_slice.type.h"
-#include "keel/keel_range.type.h"
 
 #line 26 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_from(const char *p, size_t n);
@@ -17,12 +16,6 @@ static inline const char   *keel_slice_const_char_ptr (keel_slice_const_char s);
 static inline const char   *keel_slice_const_char_ptr1(keel_slice_const_char s, size_t i);
 #line 45 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_as_slice(keel_slice_const_char s, size_t a, size_t b);
-#line 54 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of(keel_slice_const_char s);
-#line 55 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of1(keel_slice_const_char s, keel_range r);
-#line 56 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of2(keel_slice_const_char s, size_t a, size_t b);
 #line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_const_char_begin(keel_slice_const_char s);
 #line 69 "keel/slice.k"
@@ -51,12 +44,6 @@ static inline keel_slice_const_char keel_slice_const_char_as_slice(keel_slice_co
     if (a > b) a = b;
     return (keel_slice_const_char){ b - a, s.ptr + a };
 }
-#line 54 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of(keel_slice_const_char s) { return s; }
-#line 55 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of1(keel_slice_const_char s, keel_range r) { return keel_slice_const_char_as_slice(s, r.first, r.limit); }
-#line 56 "keel/slice.k"
-static inline keel_slice_const_char keel_slice_const_char_of2(keel_slice_const_char s, size_t a, size_t b) { return keel_slice_const_char_as_slice(s, a, b); }
 #line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_const_char_begin(keel_slice_const_char s) { (void)s; return (keel_slice_cursor){0}; }
 #line 69 "keel/slice.k"

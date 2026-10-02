@@ -1,5 +1,5 @@
 # Hand-written from app/align.k and expected/. `arena a;` is a value, so the calls take &1;
-# the raw form of from_array (three arguments) has no dim mark: the extent is written.
+# from_memory takes a raw pointer and a written extent: no dim mark, and no provenance.
 # `Vec8` as the `type` argument of alloc is a keel type in argument position (spec §2.2).
 module	app.align	app/align.k:1:1
 import	keel.arena as arena types	app/align.k:2:1
@@ -10,7 +10,7 @@ decl	pub func	main	app_align_main	app/align.k:10:1
 ilha	array	raw [8192]	app/align.k:11:5
 ilha	type	arena → keel_arena	app/align.k:13:9
 ilha	implicit-init	a	app/align.k:13:15
-ilha	call	arena.from_array/3 → keel_arena_from_array &1	app/align.k:14:14
+ilha	call	arena.from_memory/3 → keel_arena_from_memory &1	app/align.k:14:14
 ilha	call	arena.alloc/3 → keel_arena_alloc2 &1 type:2	app/align.k:15:19
 ilha	call	arena.alloc/3 → keel_arena_alloc2 &1 type:2	app/align.k:16:19
 ilha	type	Vec8 → app_align_Vec8	app/align.k:17:9

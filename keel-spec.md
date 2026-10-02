@@ -19,7 +19,8 @@ Este documento especifica a sintaxe, o reconhecimento, as transformações e as 
 
 **Versões.** Construções marcadas **(v1)** são normativas nesta spec, mas não
 implementadas na v0: a implementação conforme v0 as reconhece e recusa com
-`not-in-v0`. Papéis (§4.12) e declarações de protocolo (§5.1) pertencem à v0.
+`not-in-v0`. Papéis (§4.12), funções sobre protocolo (§4.14) e declarações de
+protocolo (§5.1) pertencem à v0.
 
 **Convenções de apresentação:**
 
@@ -62,7 +63,7 @@ implementadas na v0: a implementação conforme v0 as reconhece e recusa com
   - [4.11 `extent`](#411-extent)
   - [4.12 Procedência e invalidação](#412-procedência-e-invalidação)
   - [4.13 Molde (v1)](#413-molde-v1)
-  - [4.14 Funções sobre protocolo (v1)](#414-funções-sobre-protocolo-v1)
+  - [4.14 Funções sobre protocolo](#414-funções-sobre-protocolo)
 - [5. Protocolos e módulos da base](#5-protocolos-e-módulos-da-base)
   - [5.1 Protocolos](#51-protocolos)
   - [5.2 `keel.arena`](#52-keelarena)
@@ -353,7 +354,7 @@ size-binder   ::= 'size_t' IDENT
 param-type    ::= 'type' IDENT
 role          ::= 'parent' | 'child' | 'invalidates' | 'consumes'
 param-code    ::= 'keel_code' IDENT                       (* v1 *)
-param-proto   ::= qualified-name [ IDENT ] IDENT          (* v1 *)
+param-proto   ::= qualified-name [ IDENT ] IDENT
 param-dim     ::= 'dim' IDENT                             (* v1, mold only *)
 ```
 
@@ -899,7 +900,7 @@ De keel, na tradução; condições no [catálogo](#62-catálogo): `byref-assign
 
 As regras de seleção e apagamento de `type` nesta seção continuam valendo para
 funções comuns. A substituição de `type`, `dim` e código em molde pertence
-à §4.13 (v1); especialização sobre protocolo pertence à §4.14 (v1).
+à §4.13 (v1); especialização sobre protocolo pertence à §4.14.
 
 #### 1. Sintaxe
 
@@ -1737,7 +1738,7 @@ twice(tick()); // tick executes twice at the call site
   limites da implementação são recusados.
 - Diagnósticos apontam o uso, a declaração e a cadeia de expansões.
 
-### 4.14 Funções sobre protocolo (v1)
+### 4.14 Funções sobre protocolo
 
 #### 1. Sintaxe
 
@@ -1770,6 +1771,12 @@ do argumento, e dá acesso aos tipos associados por `C.nome`.
    por ponteiro conforme `byref`. Não há teste em execução, vtable nem objeto
    de interface.
 8. Emissão `inline` e fora de linha seguem a declaração e as regras 18 e 19 da §4.3.
+9. Um argumento `array` é recebido como num parâmetro com binder (§4.2): o vetor
+   e a dimensão 0. O tipo concreto é o `array` do tipo do elemento, e os verbos
+   do protocolo são os de `keel.array` (§5.3).
+10. Num módulo genérico, a função sobre protocolo que não menciona os
+    parâmetros da linha `module` pertence ao módulo, e não à instância (§4.3,
+    regra 20); cada tipo concreto lhe dá uma instância.
 
 Referências: [Rationale: tipos associados](keel-rationale.md#tipos-associados-em-vez-de-consulta-de-tipo-declarado).
 
@@ -2061,7 +2068,7 @@ i32 *dados = arena.alloc(a, i32, n);
 //C gerado
 keel_arena a = {0};
 u8 storage[1024];
-keel_arena_from_array(&a, storage, sizeof storage);
+keel_arena_from_array(&a, storage, 1024);
 i32 *dados = (i32 *)keel_arena_alloc2(&a, sizeof(i32), _Alignof(i32), n);
 ```
 
@@ -2178,7 +2185,7 @@ O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama
 **Reconhecimento**
 
 - A instância vem das declarações ou da origem indicada na §4.4.
-- `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of(x, …)` é a forma escrita do protocolo de intervalo: resolve pelo `as_slice` do tipo de `x` (§4.5), e exige um Sliceable de elemento compatível.
+- `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of(x, …)` é função sobre protocolo de `keel.slice` (§4.14): `C.view of(Sliceable C x)`, nas três aridades, chama o `length` e o `as_slice` do tipo de `x`.
 - `a..b` constrói um `range`. Os limites são expressões C; `..` é reconhecido fora de literais, comentários e diretivas.
 - Os verbos de `keel.array` recebem `array` unidimensional, pelo parâmetro `array T v[size_t N]`: a instância vem do tipo do elemento (§4.4), e a extensão, do binder (§4.2).
 
@@ -2815,8 +2822,8 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `mold-size` | (v1) Quantidade de tokens expandidos acima do limite | `error` | keel, na tradução | §4.13 |
 | `code-param-outside-mold` | (v1) Parâmetro keel_code em função que não é molde | `error` | keel, na tradução | §4.13 |
 | `protocol-not-satisfied` | Tipo que não atende o protocolo exigido pela construção ou pelo parâmetro de função: o módulo não declara os verbos, ou a instância os perdeu. A mensagem nomeia a construção, o protocolo e os verbos ausentes; sobre `array`, indica o import de `keel.array` | `error` | keel, na tradução | §5.1 |
-| `verb-not-in-protocol` | (v1) Verbo fora do contrato do parâmetro de protocolo | `error` | keel, na tradução | §4.14 |
-| `instance-depth` | (v1) Profundidade de especialização acima do limite | `error` | keel, na tradução | §4.14 |
+| `verb-not-in-protocol` | Verbo fora do contrato do parâmetro de protocolo | `error` | keel, na tradução | §4.14 |
+| `instance-depth` | Profundidade de especialização acima do limite | `error` | keel, na tradução | §4.14 |
 
 ### 6.3 Implementação conforme
 

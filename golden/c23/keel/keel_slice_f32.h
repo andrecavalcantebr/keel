@@ -5,7 +5,6 @@
 #include "keel/keel_slice.type.h"
 #include "keel/keel_outcome_f32.type.h"
 #include "keel/keel_outcome_keel_slice_f32.type.h"
-#include "keel/keel_range.type.h"
 
 typedef struct keel_arena keel_arena;
 
@@ -25,12 +24,6 @@ static inline f32   *keel_slice_f32_ptr1(keel_slice_f32 s, size_t i);
 static inline keel_outcome_f32 keel_slice_f32_at(keel_slice_f32 s, size_t i);
 #line 45 "keel/slice.k"
 static inline keel_slice_f32 keel_slice_f32_as_slice(keel_slice_f32 s, size_t a, size_t b);
-#line 54 "keel/slice.k"
-static inline keel_slice_f32 keel_slice_f32_of(keel_slice_f32 s);
-#line 55 "keel/slice.k"
-static inline keel_slice_f32 keel_slice_f32_of1(keel_slice_f32 s, keel_range r);
-#line 56 "keel/slice.k"
-static inline keel_slice_f32 keel_slice_f32_of2(keel_slice_f32 s, size_t a, size_t b);
 #line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_f32 keel_slice_f32_clone(keel_arena *a, keel_slice_f32 s);
 #line 68 "keel/slice.k"
@@ -71,12 +64,6 @@ static inline keel_slice_f32 keel_slice_f32_as_slice(keel_slice_f32 s, size_t a,
     if (a > b) a = b;
     return (keel_slice_f32){ b - a, s.ptr + a };
 }
-#line 54 "keel/slice.k"
-static inline keel_slice_f32 keel_slice_f32_of(keel_slice_f32 s) { return s; }
-#line 55 "keel/slice.k"
-static inline keel_slice_f32 keel_slice_f32_of1(keel_slice_f32 s, keel_range r) { return keel_slice_f32_as_slice(s, r.first, r.limit); }
-#line 56 "keel/slice.k"
-static inline keel_slice_f32 keel_slice_f32_of2(keel_slice_f32 s, size_t a, size_t b) { return keel_slice_f32_as_slice(s, a, b); }
 #line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_f32 keel_slice_f32_clone(keel_arena *a, keel_slice_f32 s) {
     keel_outcome_keel_slice_f32 r = {0};

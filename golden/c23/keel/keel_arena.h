@@ -4,11 +4,11 @@
 #include "keel/keel_arena.type.h"
 
 #line 19 "keel/arena.k"
-static inline bool keel_arena_from_array(keel_arena *a, u8 arr[], size_t len);
+static inline bool keel_arena_from_array(keel_arena *a, u8 storage[], size_t keel__n);
 #line 28 "keel/arena.k"
 static inline bool keel_arena_from_memory(keel_arena *a, u8 *ptr, size_t len);
 #line 37 "keel/arena.k"
-static inline bool keel_arena_from_parent(keel_arena *a, keel_arena *parent, size_t n);
+static inline bool keel_arena_from_parent(keel_arena *a, keel_arena *owner, size_t n);
 #line 51 "keel/arena.k"
 [[nodiscard]] static inline void *keel_arena_alloc3(keel_arena *a, size_t n, size_t sz, size_t align);
 #line 66 "keel/arena.k"
@@ -25,11 +25,11 @@ static inline size_t keel_arena_length(const keel_arena *a);
 static inline size_t keel_arena_capacity(const keel_arena *a);
 
 #line 19 "keel/arena.k"
-static inline bool keel_arena_from_array(keel_arena *a, u8 arr[], size_t len) {
+static inline bool keel_arena_from_array(keel_arena *a, u8 storage[], size_t keel__n) {
     *a = (keel_arena){0};
-    if (arr && len > 0) {
-        a->cap = len;
-        a->ptr = arr;
+    if (storage && keel__n > 0) {
+        a->cap = keel__n;
+        a->ptr = storage;
     }
     return a->cap > 0;
 }
@@ -43,9 +43,9 @@ static inline bool keel_arena_from_memory(keel_arena *a, u8 *ptr, size_t len) {
     return a->cap > 0;
 }
 #line 37 "keel/arena.k"
-static inline bool keel_arena_from_parent(keel_arena *a, keel_arena *parent, size_t n) {
+static inline bool keel_arena_from_parent(keel_arena *a, keel_arena *owner, size_t n) {
     *a = (keel_arena){0};
-    u8 *base = (u8 *)keel_arena_alloc2(parent, sizeof(u8), alignof(u8), n);
+    u8 *base = (u8 *)keel_arena_alloc2(owner, sizeof(u8), alignof(u8), n);
     if (base) {
         a->cap = n;
         a->ptr = base;

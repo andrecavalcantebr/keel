@@ -5,6 +5,9 @@
 #include "keel/keel_outcome_i32.h"
 #include "keel/keel_range.h"
 #include "keel/keel_slice_i32.h"
+#include "keel/keel_slice_of_keel_array_i32.h"
+#include "keel/keel_slice_of_keel_buffer_i32.h"
+#include "keel/keel_slice_of_keel_slice_i32.h"
 #line 1 "app/ofr.k"
 
 
@@ -18,16 +21,16 @@ i32 app_ofr_v[6] = {10, 11, 12, 13, 14, 15};
 
 
 
-keel_slice_i32 app_ofr_whole(void) { return keel_array_i32_as_slice(app_ofr_v, 6); }
-keel_slice_i32 app_ofr_middle(size_t a, size_t b) { return keel_array_i32_as_slice2(app_ofr_v, 6, a, b); }
-keel_slice_i32 app_ofr_by_range(keel_range r) { return keel_array_i32_as_slice1(app_ofr_v, 6, r); }
+keel_slice_i32 app_ofr_whole(void) { return keel_slice_of_keel_array_i32(app_ofr_v, 6); }
+keel_slice_i32 app_ofr_middle(size_t a, size_t b) { return keel_slice_of2_keel_array_i32(app_ofr_v, 6, a, b); }
+keel_slice_i32 app_ofr_by_range(keel_range r) { return keel_slice_of1_keel_array_i32(app_ofr_v, 6, r); }
 
 
-keel_slice_i32 app_ofr_same(keel_slice_i32 s) { return keel_slice_i32_of(s); }
-keel_slice_i32 app_ofr_sub(keel_slice_i32 s, keel_range r) { return keel_slice_i32_of1(s, r); }
+keel_slice_i32 app_ofr_same(keel_slice_i32 s) { return keel_slice_of_keel_slice_i32(s); }
+keel_slice_i32 app_ofr_sub(keel_slice_i32 s, keel_range r) { return keel_slice_of1_keel_slice_i32(s, r); }
 keel_slice_i32 app_ofr_from_buffer(keel_range r) {
     keel_buffer_i32 b = keel_buffer_i32_of(app_ofr_v, 6);
-    return keel_buffer_i32_as_slice1(&b, r);
+    return keel_slice_of1_keel_buffer_i32(&b, r);
 }
 
 

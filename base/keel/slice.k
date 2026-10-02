@@ -10,7 +10,7 @@ module keel.slice type T;
 import keel.arena   as arena   types;
 import keel.outcome as outcome types;
 import keel.range   as range   types;
-
+import keel.protocols types;
 #include <string.h>
 
 // NOT `byref` — passed by copy (spec §4.3: `slice T` may be passed by
@@ -48,15 +48,15 @@ pub inline slice as_slice(slice s, size_t a, size_t b) {
     return (slice){ b - a, s.ptr + a };
 }
 
-// `slice.of` over a slice is the declared `of` (spec §5.3): the whole view,
-// the limits of a `range`, and the two limits. The arity tells them apart
-// (backend §2.1).
-pub inline slice of(slice s) { return s; }
-pub inline slice of(slice s, range r) { return as_slice(s, r.first, r.limit); }
-pub inline slice of(slice s, size_t a, size_t b) { return as_slice(s, a, b); }
+// `slice.of` is a function over `Sliceable` (spec §4.14, §5.3): one instance
+// per concrete type. It mentions neither `T` nor `slice`, so it belongs to the
+// module, not to an instance (spec §4.3, rule 20).
+pub inline C.view of(Sliceable C x) { return as_slice(x, 0, length(x)); }
+pub inline C.view of(Sliceable C x, range r) { return as_slice(x, r.first, r.limit); }
+pub inline C.view of(Sliceable C x, size_t a, size_t b) { return as_slice(x, a, b); }
 
 // allocates in `a`, copies the source's length (spec §5.3).
-pub inline outcome slice clone(arena *a, slice s) {
+pub inline child outcome slice clone(parent arena *a, slice s) {
     outcome slice r = {0};
     T *data = arena.alloc(a, T, s.len);
     if (!data) return outcome.none(r);

@@ -39,18 +39,18 @@ pub inline void   set(buffer *b, size_t i, T v) { KEEL_CHECK(i < b->len, "set-ou
 pub inline T     *ptr(buffer *b) { return b->ptr; }
 pub inline T     *ptr(buffer *b, size_t i) { KEEL_CHECK(i < b->len, "index-out-of-length"); return &b->ptr[i]; }
 
-pub inline T *push(buffer *b) {
+pub inline child T *push(parent buffer *b) {
     if (b->len == b->cap) return NULL;
     return &b->ptr[b->len++];
 }
 
-pub inline T *push(buffer *b, T v) {
+pub inline child T *push(parent buffer *b, T v) {
     if (b->len == b->cap) return NULL;
     b->ptr[b->len] = v;
     return &b->ptr[b->len++];
 }
 
-pub inline T *pop(buffer *b) {
+pub inline child T *pop(parent buffer *b) {
     if (b->len == 0) return NULL;
     return &b->ptr[--b->len];
 }
@@ -79,7 +79,7 @@ pub inline slice as_slice(buffer *b, size_t a, size_t c) {
 pub inline slice as_slice(buffer *b, range r) { return as_slice(b, r.first, r.limit); }
 
 // allocates in `a`, copies the source's length (spec §5.3).
-pub inline outcome buffer clone(arena *a, buffer *b) {
+pub inline child outcome buffer clone(parent arena *a, buffer *b) {
     outcome buffer r = {0};
     T *data = arena.alloc(a, T, b->cap);
     if (!data) return outcome.none(r);

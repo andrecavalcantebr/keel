@@ -43,3 +43,7 @@ pub inline slice as_slice(array T v[size_t N], size_t a, size_t b) {
 }
 
 pub inline slice as_slice(array T v[size_t N], range r) { return as_slice(v, r.first, r.limit); }
+
+// the `length` of the protocols (spec §5.1, §5.3): the extent that arrived by
+// the binder. `keel.length(v)` stays the core's constant (spec §4.2).
+pub inline size_t length(array T v[size_t N]) { (void)v; return N; }

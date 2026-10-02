@@ -10,14 +10,14 @@ Comentários dos esperados
 
 **`app/app_ofr.c`** (c23, c11)
 
-- `slice.of` é a forma escrita do protocolo de intervalo (spec §5.1, §5.3), e o
-  verbo é escolhido pela aridade (backend §2.1). Sobre `array`, é o `as_slice`
-  de `keel.array` (o núcleo não emite `of` nem `from`): `_as_slice` com um
-  argumento, `_as_slice1` com o `range`, `_as_slice2` com os dois limites, e a
-  dimensão declarada, `6`, logo depois do vetor (backend §5.18). Sobre `slice`,
-  é o `of` declarado pelo `slice` (`_of`, `_of1`, `_of2`), que delega ao
-  `as_slice` do próprio `slice`. Sobre `buffer`, é o `as_slice` do buffer
-  (`_as_slice1` com o `range`). O `as_slice` de três parâmetros recebe do
+- `slice.of` é função sobre `Sliceable` (spec §4.14, §5.3): uma instância por
+  tipo concreto, `keel_slice_of<aridade>_<tipo>` (backend §5.19), e a aridade
+  escolhe `_of`, `_of1` (o `range`) ou `_of2` (os dois limites). Sobre `array`,
+  a instância recebe o vetor e a dimensão declarada, `6` (backend §5.18), e
+  chama o `as_slice2` e o `length` de `keel.array`; sobre `slice`, os do
+  `slice`, por cópia; sobre `buffer`, os do buffer, por ponteiro (`&b`). As
+  instâncias estão na base esperada, `keel/keel_slice_of_*.h`. O `as_slice` de
+  três parâmetros recebe do
   backend, no início, o `KEEL_CHECK(a <= b && b <= length, ...)` (backend §5.17,
   regra 7a); a saturação de release está no corpo.
 - `buffer.of(v)` é o `of(p, n)` do buffer com `n` vindo da tabela.

@@ -42,7 +42,7 @@ A divisão vale nos três documentos, e é um critério só:
 - [5. Lowering das construções](#5-lowering-das-construções)
   - [5.1 Declarações: substituição local de nome](#51-declarações-substituição-local-de-nome)
   - [5.2 Containers: struct e funções `static inline`](#52-containers-struct-e-funções-static-inline)
-    - [5.2.1 Verbos indisponíveis e diagnóstico no chamador](#521-verbos-indisponíveis-e-diagnóstico-no-chamador)
+  - [5.2.1 Verbos indisponíveis e diagnóstico no chamador](#521-verbos-indisponíveis-e-diagnóstico-no-chamador)
   - [5.3 Açúcar de indexação](#53-açúcar-de-indexação)
   - [5.4 `arena`](#54-arena)
   - [5.5 `defer`](#55-defer)
@@ -59,6 +59,7 @@ A divisão vale nos três documentos, e é um critério só:
   - [5.16 Parâmetro `type`](#516-parâmetro-type)
   - [5.17 Verificações de debug](#517-verificações-de-debug)
   - [5.18 Binder de dimensão](#518-binder-de-dimensão)
+  - [5.19 Função sobre protocolo](#519-função-sobre-protocolo)
 - [6. Mapeamento de linhas](#6-mapeamento-de-linhas)
   - [6.1 Diagnóstico dentro de instância](#61-diagnóstico-dentro-de-instância)
 - [7. Propriedades exigidas do conteúdo gerado](#7-propriedades-exigidas-do-conteúdo-gerado)
@@ -830,8 +831,8 @@ i32 x = keel_array_i32_get(v, 8, 3);
 
 1. Cada instância é uma struct e funções `static inline`, uma por verbo e aridade (§2.1.1). `push(x)` e `push(x,v)` são `_push` e `_push1`, e não uma variádica. [D36](#10-decisões-de-emissão)
 2. A chamada é reescrita para a função manglada. A forma do parâmetro é o bit `byref` (linguagem §4.3): instância `byref` recebe o endereço do contêiner, e a que não é — `slice`, `range` — recebe cópia, pela adaptação da linguagem §4.4.
-3. `slice.of` sobre `slice` é o `of` que a própria slice declara. Sobre qualquer outro Fatiável, é o `as_slice` do módulo do tipo do objeto (linguagem §4.5), escolhido pela aridade: `_as_slice`, `_as_slice1` e `_as_slice2` no `buffer`.
-4. `slice.of` e `x[a..b]` sobre `array` são o `as_slice` de `keel.array`, com a dimensão 0 da tabela logo depois do vetor (§5.18): `keel_array_i32_as_slice2(v, 6, a, b)`. As formas abertas passam a ponta que falta, `length(x)`, no ponto de chamada. `buffer.of(v)` é o `of(p, n)` do buffer, com `n` da tabela. Cada argumento é avaliado uma vez.
+3. `slice.of` é função sobre protocolo (§5.19): `keel_slice_of<aridade>_<tipo>`, que chama o `length` e o `as_slice` de três parâmetros do tipo do objeto.
+4. `x[a..b]` sobre `array` é o `as_slice` de `keel.array`, com a dimensão 0 da tabela logo depois do vetor (§5.18): `keel_array_i32_as_slice2(v, 6, a, b)`. As formas abertas passam a ponta que falta, `length(x)`, no ponto de chamada. `buffer.of(v)` é o `of(p, n)` do buffer, com `n` da tabela. Cada argumento é avaliado uma vez.
 5. Todo verbo que pode falhar sai com `[[nodiscard]]`: ignorar o retorno de `push` ou de `alloc` vira warning do compilador C.
 6. A verificação de limites de `get`, `set` e `ptr(x, i)` está no corpo do verbo, ligada por `KEEL_CHECKS` (§5.17).
 7. Sobre `array`, `keel.length` e `keel.capacity` saem `sizeof(v)/sizeof(<elem>)`, com o tipo do elemento vindo da tabela, e não de `*(v)`; `keel.dim(v, k)` sai literal. Em parâmetro multidimensional, onde `sizeof` não serve, `length` sai o produto literal das dimensões, com o binder no lugar da dimensão 0 quando há (§5.18).
@@ -1005,10 +1006,10 @@ arena h;  arena.from_memory(h, mem, cap);
 
 ```c
 alignas(64) u8 memo[65536];
-keel_arena a = {0};  keel_arena_from_array(&a, memo, sizeof memo);
+keel_arena a = {0};  keel_arena_from_array(&a, memo, 65536);
 keel_arena s = {0};  keel_arena_from_parent(&s, &a, 4096);
 u8 scratch[4096];
-keel_arena t = {0};  keel_arena_from_array(&t, scratch, sizeof scratch);
+keel_arena t = {0};  keel_arena_from_array(&t, scratch, 4096);
 keel_arena h = {0};  keel_arena_from_memory(&h, mem, cap);
 ```
 
@@ -1583,7 +1584,7 @@ static inline bool keel_corot_ongoing(keel_corot r) { return r.code == 0; }
 static inline bool keel_corot_faulted(keel_corot r) { return r.code >  0; }
 static inline i32  keel_corot_code(keel_corot r)    { return r.code; }
 
-static inline i32 keel_corot_tag(keel_corot r) {
+static inline keel_corot_Status keel_corot_tag(keel_corot r) {
     return r.code < 0 ? keel_corot_Status_SUCCESS
          : r.code > 0 ? keel_corot_Status_FAILED
                       : keel_corot_Status_ONGOING;
@@ -1826,6 +1827,32 @@ f32 app_first_col(f32 m[][4], size_t keel__r) { … }
 6. O binder não é argumento escrito, e não conta no sufixo de aridade (§2.1.1).
 
 **Verificações:** `array-index-out-of-bounds` (§5.17). **Perfis:** iguais.
+
+### 5.19 Função sobre protocolo
+
+**Forma:** parâmetro cujo tipo é um protocolo (linguagem §4.14).
+
+**Emissão**
+
+```keel
+//keel, em keel/slice.k
+pub inline C.view of(Sliceable C x, range r) { return as_slice(x, r.first, r.limit); }
+```
+
+```c
+//C gerado, instância sobre buffer i32
+static inline keel_slice_i32 keel_slice_of1_keel_buffer_i32(keel_buffer_i32 *x, keel_range r) { return keel_buffer_i32_as_slice2(x, r.first, r.limit); }
+```
+
+**Regras**
+
+1. Cada combinação de tipos concretos é uma função C, `<prefixo>_<nome><aridade>_<tipo>`, com o nome canônico de cada tipo concreto, na ordem dos parâmetros, e o sufixo de aridade do §2.1.1. O prefixo é o do módulo, sem instância, quando a função pertence ao módulo (linguagem §4.14, regra 10).
+2. O parâmetro sai com o tipo concreto: por ponteiro quando `byref`, por cópia nos demais (§5.2). Um `array` sai como no binder (§5.18), `T x[]` seguido de `size_t keel__N`, e o seu nome canônico é `keel_array_<T>`.
+3. No corpo, cada verbo do protocolo é reescrito para o verbo do tipo concreto, com a adaptação da linguagem §4.4, e `C.nome` é o tipo associado ligado.
+4. As instâncias sobre um tipo concreto, em todas as aridades, ficam num par de headers próprio, `keel/<prefixo>_<nome>_<tipo>.type.h` e `.h`, como os de instância (§4.3.2). O `.type.h` não define tipo; o `.h` inclui o `.h` do tipo concreto, cujos verbos o corpo chama.
+5. A chamada é reescrita para a instância. O argumento recebe a adaptação da linguagem §4.4, e um `array` recebe a dimensão 0 pela tabela do §5.18.
+
+**Verificações:** as dos verbos chamados. **Perfis:** iguais.
 
 ## 6. Mapeamento de linhas
 

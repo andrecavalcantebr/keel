@@ -15,11 +15,11 @@ pub typedef struct { size_t top, cap; u8 *ptr; } arena;
 // There is no `from_stack`: storage in the frame is an `array u8` the program
 // declares and hands to `from_array` (spec §5.2, backend §5.4).
 
-pub inline bool from_array(arena *a, u8 arr[], size_t len) {
+pub inline bool from_array(child arena *a, parent array u8 storage[size_t n]) {
     *a = (arena){0};
-    if (arr && len > 0) {
-        a->cap = len;
-        a->ptr = arr;
+    if (storage && n > 0) {
+        a->cap = n;
+        a->ptr = storage;
     }
     return a->cap > 0;
 }
@@ -33,9 +33,9 @@ pub inline bool from_memory(arena *a, u8 *ptr, size_t len) {
     return a->cap > 0;
 }
 
-pub inline bool from_parent(arena *a, arena *parent, size_t n) {
+pub inline bool from_parent(child arena *a, parent arena *owner, size_t n) {
     *a = (arena){0};
-    u8 *base = alloc(parent, u8, n);
+    u8 *base = alloc(owner, u8, n);
     if (base) {
         a->cap = n;
         a->ptr = base;
@@ -47,7 +47,7 @@ pub inline bool from_parent(arena *a, arena *parent, size_t n) {
 // made here — an `n * sz` that overflows returns NULL, and that is the
 // `alloc-overflow` diagnostic. Aligns the ADDRESS, not the offset: the region
 // may start anywhere.
-pub inline void *alloc(arena *a, size_t n, size_t sz, size_t align) {
+pub inline child void *alloc(parent arena *a, size_t n, size_t sz, size_t align) {
     KEEL_CHECK(sz == 0 || n <= SIZE_MAX / sz, "alloc-overflow");
     if (sz == 0 || n > SIZE_MAX / sz) return NULL;
     size_t need = n * sz;
@@ -62,12 +62,12 @@ pub inline void *alloc(arena *a, size_t n, size_t sz, size_t align) {
 // `type T` is erased (spec §4.4): it becomes size and alignment, and the call
 // site writes `sizeof`, `alignof` and the cast (backend §5.16). The arity
 // tells the two forms apart.
-pub inline T *alloc(arena *a, type T, size_t n) {
+pub inline child T *alloc(parent arena *a, type T, size_t n) {
     return alloc(a, n, sizeof(T), alignof(T));
 }
 
 pub inline size_t mark(const arena *a) { return a->top; }
-pub inline void   restore(arena *a, size_t m) { if (m <= a->top) a->top = m; }
-pub inline void   reset(arena *a) { a->top = 0; }
+pub inline void   restore(invalidates arena *a, size_t m) { if (m <= a->top) a->top = m; }
+pub inline void   reset(invalidates arena *a) { a->top = 0; }
 pub inline size_t length(const arena *a) { return a->top; }
 pub inline size_t capacity(const arena *a) { return a->cap; }

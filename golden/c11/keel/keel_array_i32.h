@@ -22,6 +22,8 @@ static inline keel_slice_i32 keel_array_i32_as_slice (i32 v[], size_t keel__N);
 static inline keel_slice_i32 keel_array_i32_as_slice2(i32 v[], size_t keel__N, size_t a, size_t b);
 #line 45 "keel/array.k"
 static inline keel_slice_i32 keel_array_i32_as_slice1(i32 v[], size_t keel__N, keel_range r);
+#line 49 "keel/array.k"
+static inline size_t keel_array_i32_length(i32 v[], size_t keel__N);
 #include "keel/keel_outcome_i32.h"
 
 #line 21 "keel/array.k"
@@ -48,4 +50,6 @@ static inline keel_slice_i32 keel_array_i32_as_slice2(i32 v[], size_t keel__N, s
 }
 #line 45 "keel/array.k"
 static inline keel_slice_i32 keel_array_i32_as_slice1(i32 v[], size_t keel__N, keel_range r) { return keel_array_i32_as_slice2(v, keel__N, r.first, r.limit); }
+#line 49 "keel/array.k"
+static inline size_t keel_array_i32_length(i32 v[], size_t keel__N) { (void)v; return keel__N; }
 #endif /* KEEL_KEEL_ARRAY_I32_H */

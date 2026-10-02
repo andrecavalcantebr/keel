@@ -24,10 +24,10 @@ pub inline i32  code   (corot r) { return r.code; }
 
 // reads the tag out of the code — the representation stays a single `i32`,
 // and the failure code stays whole (spec §5.5).
-pub inline i32  tag    (corot r) {
-    return r.code < 0 ? (i32)Status.SUCCESS
-         : r.code > 0 ? (i32)Status.FAILED
-                      : (i32)Status.ONGOING;
+pub inline Status tag (corot r) {
+    return r.code < 0 ? Status.SUCCESS
+         : r.code > 0 ? Status.FAILED
+                      : Status.ONGOING;
 }
 
 // producers are verbs: they adjust the object and return the adjusted copy.

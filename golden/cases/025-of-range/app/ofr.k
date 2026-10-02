@@ -7,9 +7,9 @@ import keel.outcome as outcome types;
 import keel.array   as array;
 pub array i32 v[6] = {10, 11, 12, 13, 14, 15};
 
-/* slice.of over an array: the core supplies the extent from the table
-   (backend §5.2); the three-argument and range forms go through the slice's
-   own `of`, so every argument is evaluated once. */
+/* slice.of is a function over Sliceable (spec §4.14): one instance per
+   concrete type; over an array, the extent comes from the table by the
+   binder, and every argument is evaluated once. */
 pub slice i32 whole(void) { return slice.of(v); }
 pub slice i32 middle(size_t a, size_t b) { return slice.of(v, a, b); }
 pub slice i32 by_range(range r) { return slice.of(v, r); }

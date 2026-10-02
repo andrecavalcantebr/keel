@@ -37,6 +37,6 @@ keel_outcome_i32 app_cfg_sum_scratch(const char *path) {
     keel_outcome_i32 result = {0};
     u8 storage[4096];
     keel_arena t = {0};
-    if (!keel_arena_from_array(&t, storage, sizeof storage)) return keel_outcome_i32_fail(&result, 4);
+    if (!keel_arena_from_array(&t, storage, 4096)) return keel_outcome_i32_fail(&result, 4);
     return app_cfg_sum(&t, path);
 }

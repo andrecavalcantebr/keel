@@ -1,9 +1,9 @@
 /* ag2.c — generated from ag2.k by cgen, C23 profile. */
 #include "ag2.h"
-#include "keel/keel_array_keel_routine_slot_ag2_Ag.h"
 #include "keel/keel_corot.h"
 #include "keel/keel_outcome_u32.h"
 #include "keel/keel_routine_ag2_Ag.h"
+#include "keel/keel_slice_of_keel_array_keel_routine_slot_ag2_Ag.h"
 #line 1 "ag2.k"
 
 
@@ -27,7 +27,7 @@ keel_outcome_u32 ag2_chain(ag2_Ag *g) {
         { .f = ag2_authenticate, .ctx = g },
         { .f = ag2_ready,    .ctx = g },
     };
-    return keel_routine_ag2_Ag_seq(keel_array_keel_routine_slot_ag2_Ag_as_slice(steps, 3));
+    return keel_routine_ag2_Ag_seq(keel_slice_of_keel_array_keel_routine_slot_ag2_Ag(steps, 3));
 }
 
 
@@ -38,7 +38,7 @@ keel_outcome_u32 ag2_broken_chain(ag2_Ag *g, i32 *third_state) {
         { .f = ag2_faults, .ctx = g },
         { .f = ag2_ready, .ctx = g },
     };
-    keel_outcome_u32 r = keel_routine_ag2_Ag_seq(keel_array_keel_routine_slot_ag2_Ag_as_slice(steps, 3));
+    keel_outcome_u32 r = keel_routine_ag2_Ag_seq(keel_slice_of_keel_array_keel_routine_slot_ag2_Ag(steps, 3));
     *third_state = keel_routine_slot_ag2_Ag_code(&steps[2]);
     return r;
 }
@@ -50,7 +50,7 @@ keel_outcome_u32 ag2_together(ag2_Ag *g) {
         { .f = ag2_hello,       .ctx = g },
         { .f = ag2_authenticate, .ctx = g },
     };
-    return keel_routine_ag2_Ag_par(keel_array_keel_routine_slot_ag2_Ag_as_slice(steps, 2), 1);
+    return keel_routine_ag2_Ag_par(keel_slice_of_keel_array_keel_routine_slot_ag2_Ag(steps, 2), 1);
 }
 
 
@@ -60,7 +60,7 @@ keel_outcome_u32 ag2_two(ag2_Ag *g) {
         { .f = ag2_hello,       .ctx = g },
         { .f = ag2_authenticate, .ctx = g },
     };
-    return keel_routine_ag2_Ag_par(keel_array_keel_routine_slot_ag2_Ag_as_slice(steps, 3), 2);
+    return keel_routine_ag2_Ag_par(keel_slice_of_keel_array_keel_routine_slot_ag2_Ag(steps, 3), 2);
 }
 
 
@@ -70,5 +70,5 @@ keel_outcome_u32 ag2_impossible(ag2_Ag *g) {
         { .f = ag2_faults, .ctx = g },
         { .f = ag2_ready, .ctx = g },
     };
-    return keel_routine_ag2_Ag_par(keel_array_keel_routine_slot_ag2_Ag_as_slice(steps, 3), 2);
+    return keel_routine_ag2_Ag_par(keel_slice_of_keel_array_keel_routine_slot_ag2_Ag(steps, 3), 2);
 }

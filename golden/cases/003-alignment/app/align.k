@@ -11,7 +11,7 @@ pub int main(int argc, char **argv) {
     array u8 raw[8192];
     for (size_t d = 0; d < 8; d++) {
         arena a;
-        if (!arena.from_array(a, raw + d, sizeof raw - 8)) return 1;
+        if (!arena.from_memory(a, raw + d, sizeof raw - 8)) return 1;
         i32  *p = arena.alloc(a, i32,  3);
         f64  *q = arena.alloc(a, f64,  2);
         Vec8 *v = arena.alloc(a, Vec8, 1);

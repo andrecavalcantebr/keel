@@ -5,7 +5,6 @@
 #include "keel/keel_slice.type.h"
 #include "keel/keel_outcome_size_t.type.h"
 #include "keel/keel_outcome_keel_slice_size_t.type.h"
-#include "keel/keel_range.type.h"
 
 typedef struct keel_arena keel_arena;
 
@@ -25,12 +24,6 @@ static inline size_t   *keel_slice_size_t_ptr1(keel_slice_size_t s, size_t i);
 static inline keel_outcome_size_t keel_slice_size_t_at(keel_slice_size_t s, size_t i);
 #line 45 "keel/slice.k"
 static inline keel_slice_size_t keel_slice_size_t_as_slice(keel_slice_size_t s, size_t a, size_t b);
-#line 54 "keel/slice.k"
-static inline keel_slice_size_t keel_slice_size_t_of(keel_slice_size_t s);
-#line 55 "keel/slice.k"
-static inline keel_slice_size_t keel_slice_size_t_of1(keel_slice_size_t s, keel_range r);
-#line 56 "keel/slice.k"
-static inline keel_slice_size_t keel_slice_size_t_of2(keel_slice_size_t s, size_t a, size_t b);
 #line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_size_t keel_slice_size_t_clone(keel_arena *a, keel_slice_size_t s);
 #line 68 "keel/slice.k"
@@ -71,12 +64,6 @@ static inline keel_slice_size_t keel_slice_size_t_as_slice(keel_slice_size_t s, 
     if (a > b) a = b;
     return (keel_slice_size_t){ b - a, s.ptr + a };
 }
-#line 54 "keel/slice.k"
-static inline keel_slice_size_t keel_slice_size_t_of(keel_slice_size_t s) { return s; }
-#line 55 "keel/slice.k"
-static inline keel_slice_size_t keel_slice_size_t_of1(keel_slice_size_t s, keel_range r) { return keel_slice_size_t_as_slice(s, r.first, r.limit); }
-#line 56 "keel/slice.k"
-static inline keel_slice_size_t keel_slice_size_t_of2(keel_slice_size_t s, size_t a, size_t b) { return keel_slice_size_t_as_slice(s, a, b); }
 #line 59 "keel/slice.k"
 static inline keel_outcome_keel_slice_size_t keel_slice_size_t_clone(keel_arena *a, keel_slice_size_t s) {
     keel_outcome_keel_slice_size_t r = {0};

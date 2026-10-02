@@ -73,9 +73,15 @@ Arrastada pela instanciação de `keel.routine` (backend §4.3).
 
 **`keel/keel_array_keel_routine_slot_ag2_Ag.h`** (c23, c11)
 
-instância de `keel.array` sobre o `slot`. `slice.of(steps)` sobre o `array` é o
-`as_slice` de `keel.array` (spec §5.3), e o fonte importa `keel.array` para isso:
-`_as_slice(steps, 3)`, com a dimensão da tabela logo depois do vetor.
+instância de `keel.array` sobre o `slot`. `slice.of(steps)` é função sobre
+`Sliceable` (spec §4.14, §5.3): a instância `keel_slice_of_keel_array_…` recebe o
+vetor e a dimensão da tabela (backend §5.18, §5.19) e chama o `as_slice2` e o
+`length` desta instância. O fonte importa `keel.array` para isso.
+
+**`keel/keel_slice_of_keel_array_keel_routine_slot_ag2_Ag.h`** (c23, c11)
+
+instância de `slice.of` sobre o `array` de `slot` (backend §5.19), com as três
+aridades; o `.type.h` não define tipo.
 
 **`keel/keel_array_keel_routine_slot_ag2_Ag.type.h`** (c23, c11)
 

@@ -329,3 +329,39 @@ Ainda não: o conjunto fechado fica só no texto do dump (`closure_text`); o
 emissor vai precisar dele como dado. As instâncias de `keel.array` e as de
 função sobre protocolo (`keel_slice_of_keel_array_i32`) nascem das chamadas, e
 não de `inst`: não são sementes do fecho ainda.
+
+## Diagnósticos das passagens 1 a 3 (2026-10-02)
+
+O catálogo emitido foi de 64 para 123 dos 148 identificadores, cada um com caso
+de falha em `test/diag/` (ou, para `case-ambiguous-stem`, em `cli/modules.py`,
+que cria os arquivos em tempo de execução).
+
+- **Sintaxe**: `decl-instance` (`K_AST_INSTANCE`, linha `decl instance` no dump),
+  `tags [...]` sem nome e `constexpr` sem nome viram nós, para que a coleta diga
+  o porquê. Os delimitadores são pareados por alternativa de `#if`
+  (`parser_delimiters.c`, na carga, antes do parse).
+- **Passagem 1** (ferramenta e `parser_imports.c`): `missing-module`,
+  `invalid-stem`, `case-ambiguous-stem`, `import-clause-order`,
+  `duplicate-alias`; e, já com a tabela completa, `symbol-collision`,
+  `alias-type-collision`, `extern_c` aninhado ou `priv [type_h]`, e `main`.
+- **Passagem 2** (`check_declarations` e afins): visibilidade, `tags`,
+  `constexpr`, nomes reservados e contextuais, `parameter-name-reuse`,
+  `canonical-name-collision`, `dim`, `undeclared-tags`, `byref-param`,
+  modificador fora de genérico ou chamado `instance`, `instance-*`,
+  `nonparametric-out-of-line`.
+- **Passagem 3**: `defer` (escopo de arquivo, salto por cima, `later`
+  sombreado), declarações de protocolo, parâmetros `type`, `verb-not-in-protocol`,
+  argumentos `array` e binders, binders de travessia e cursor, faixa aberta fora
+  de índice, código de falha, `tag-from-other-set`, `symbol-redeclaration`,
+  `byref-assignment`.
+
+Pendentes: `duplicate-injected-name` e `shadowed-injected-name` esperam decisão
+(`keel.buffer` e `keel.slice` exportam ambos `cursor`, e os golden 004, 012 e 025
+importam os dois com `types`); `injected-names` e `indirect-import` são `info`,
+e a R1 (se `info` sai por padrão) está aberta; `instance-field-access` é aviso,
+e o golden 007 escreve `s.cap = 4` de propósito; a análise de papéis
+(`region-escape`, `child-region-after-invalidation`); `circular-generic`,
+`layout-cycle`, `protocol-on-parameter`, `dim-generates-declaration`,
+`enum-constant-without-type`, `hidden-declarator`, `from-without-target`,
+`associated-type-conflict`, `instance-depth`; os sete de molde são v1
+(`not-in-v0` já recusa); `specific-format-unavailable` é do backend.

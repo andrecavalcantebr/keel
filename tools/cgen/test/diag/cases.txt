@@ -34,3 +34,5 @@ delims d.k
 eof e.k
 defers f.k
 protos p.k
+typeparams t.k
+typeparams2 sel.k

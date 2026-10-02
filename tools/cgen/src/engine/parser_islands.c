@@ -3640,6 +3640,9 @@ static void check_arguments(Ctx *c, const KSpecifier *spec, KToken at) {
     }
 }
 
+static void check_type_params(Ctx *c, const KAstNode *fn);
+static void check_protocol_body(Ctx *c, const KAstNode *fn);
+
 static void check_declarations(Ctx *c) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
@@ -3698,6 +3701,8 @@ static void check_declarations(Ctx *c) {
             if (ident(a, k) && k_symtab_same_name(tok(a, k), name))
                 diag3(c, K_DIAG_PARAMETER_NAME_REUSE, name, name, none, none);
         if (n->kind != K_AST_FUNCTION) continue;
+        check_type_params(c, n);
+        check_protocol_body(c, n);
         Param p[K_PARAMS_MAX];
         size_t np = params_of(a, n, p, K_PARAMS_MAX);
         for (size_t k = 0; np != SIZE_MAX && k < np; k++) {
@@ -3850,6 +3855,92 @@ static void check_protocols(Ctx *c) {
                     break;
                 }
             }
+    }
+}
+
+/* ---- parameters `type` and over a protocol (spec §4.4, §4.14) --------- */
+
+/* Spec §4.4, rules 10 to 18. A `type X` that names a `type` parameter of the
+   module selects the instance, and then every one of them is named
+   (partial-instance-selection); any other is erased: its name is no known
+   type (type-param-shadows-type), and it only stands as `X *` in the
+   signature and in `sizeof(X)` or `alignof(X)` in the body
+   (type-param-outside-size). */
+static void check_type_params(Ctx *c, const KAstNode *fn) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    const KAstNode *mod = module_node(a);
+    Param p[K_PARAMS_MAX];
+    size_t np = params_of(a, fn, p, K_PARAMS_MAX);
+    if (np == SIZE_MAX) return;
+    bool selects = false, covered[8] = {0};
+    for (size_t k = 0; k < np; k++) {
+        if (!p[k].is_type) continue;
+        KToken x = tok(a, p[k].end - 1);
+        size_t b = 0;
+        bool binder = false;
+        for (size_t j = mod->type_first; j < mod->type_end; j++) {
+            if (!ident(a, j)) continue;
+            if (k_symtab_same_name(tok(a, j), x)) { binder = true; if (b < 8) covered[b] = true; }
+            b++;
+        }
+        if (binder) { selects = true; continue; }
+        const KSymbol *s = k_symbol_resolve(a->symbols, x);
+        if (k_primitive_name(x) || (s && (s->kind == K_SYM_TYPE || s->kind == K_SYM_MODIFIER || s->kind == K_SYM_TAGS))) {
+            diag3(c, K_DIAG_TYPE_PARAM_SHADOWS_TYPE, x, x, none, none);
+            continue;
+        }
+        size_t end = fn->body_end != SIZE_MAX ? fn->body_end : fn->end;
+        for (size_t j = fn->first; j < end; j++) {
+            if (j == p[k].end - 1 || !ident(a, j) || !k_symtab_same_name(tok(a, j), x)) continue;
+            bool body = fn->body_first != SIZE_MAX && j > fn->body_first;
+            bool ok = body ? (punct(a, j - 1, "(") && punct(a, j + 1, ")") &&
+                              (word(a, j - 2, "sizeof") || word(a, j - 2, "alignof") || word(a, j - 2, "_Alignof")))
+                           : punct(a, j + 1, "*");
+            if (ok && body) {
+                size_t open = j;
+                for (size_t depth = 0; open > fn->body_first; open--) {
+                    if (punct(a, open, "]")) depth++;
+                    else if (punct(a, open, "[")) { if (!depth) { ok = false; break; } depth--; }
+                    else if (punct(a, open, ";") || punct(a, open, "{")) break;
+                }
+            }
+            if (!ok) { diag3(c, K_DIAG_TYPE_PARAM_OUTSIDE_SIZE, tok(a, j), x, x, x); break; }
+        }
+    }
+    if (!selects) return;
+    size_t b = 0;
+    bool partial = mod->dim_first != mod->dim_end || mod->tags_first != mod->tags_end;
+    for (size_t j = mod->type_first; j < mod->type_end; j++)
+        if (ident(a, j)) { if (b < 8 && !covered[b]) partial = true; b++; }
+    if (partial) diag3(c, K_DIAG_PARTIAL_INSTANCE_SELECTION, tok(a, fn->name_first), tok(a, fn->name_first), none, none);
+}
+
+/* Spec §4.14: in a function over a protocol, a verb called on the parameter
+   is one the protocol requires (verb-not-in-protocol). */
+static void check_protocol_body(Ctx *c, const KAstNode *fn) {
+    KAst *a = c->ast;
+    Param p[K_PARAMS_MAX];
+    size_t np = params_of(a, fn, p, K_PARAMS_MAX);
+    if (np == SIZE_MAX || fn->body_first == SIZE_MAX) return;
+    for (size_t k = 0; k < np; k++) {
+        if (!p[k].is_protocol) continue;
+        KProtocolDecl pd;
+        if (!protocol_decl(c, a, p[k].base, &pd, 0)) continue;
+        KToken x = tok(a, p[k].end - 1);
+        for (size_t j = fn->body_first; j < fn->body_end; j++) {
+            if (!ident(a, j) || !punct(a, j + 1, "(") || punct(a, j - 1, ".") || punct(a, j - 1, "->")) continue;
+            size_t arg = j + 2;
+            while (punct(a, arg, "&") || punct(a, arg, "*")) arg++;
+            if (!k_symtab_same_name(tok(a, arg), x) || !(punct(a, arg + 1, ",") || punct(a, arg + 1, ")"))) continue;
+            size_t close = close_paren(a, j + 1, fn->body_end);
+            Range first;
+            size_t arity = close == SIZE_MAX ? 0 : call_args(a, j + 1, close, &first);
+            bool known = false;
+            for (size_t v = 0; v < pd.verb_count; v++)
+                if (k_symtab_same_name(pd.verbs[v].name, tok(a, j)) && pd.verbs[v].arity == arity) known = true;
+            if (!known) diag3(c, K_DIAG_VERB_NOT_IN_PROTOCOL, tok(a, j), tok(a, j), p[k].base, (keel_slice_char){0});
+        }
     }
 }
 

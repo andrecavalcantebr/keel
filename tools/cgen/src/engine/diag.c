@@ -204,6 +204,14 @@ static const char *const messages[K_DIAG_COUNT] = {
         "the associated type `%s` of `%s` appears in no verb, so nothing binds it",
     [K_DIAG_PROTOCOL_VERB_CONFLICT] =
         "the protocol requires `%s` twice with the same arity and different signatures (in `%s`)",
+    [K_DIAG_TYPE_PARAM_SHADOWS_TYPE] =
+        "the erased type parameter `%s` has the name of a known type: choose another name",
+    [K_DIAG_TYPE_PARAM_OUTSIDE_SIZE] =
+        "the erased type parameter `%s` stands only in `sizeof(%s)` and `alignof(%s)` in the body, and as a pointee in the signature",
+    [K_DIAG_PARTIAL_INSTANCE_SELECTION] =
+        "`%s` selects the instance, and so names a `type` parameter for every `type` of the module line (and the module has no `dim` or `tags`)",
+    [K_DIAG_VERB_NOT_IN_PROTOCOL] =
+        "`%s` is not a verb of `%s`: a function over a protocol calls on its parameter only the verbs the protocol requires",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

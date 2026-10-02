@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory() as directory:
                     str(source),*map(str,files),'-o',str(binary)],check=True)
     modules={'keel':'module keel;', 'new':'module new;', 'old':'module old;',
              'parent':'module parent; import old;', 'wrong':'module other;',
-             'bad':'module bad;\n#define foreach 1\n',
+             'bad':'module bad;\n#define keel_bad 1\n',
              'missing':'module missing; import absent;',
              'many':'module many;\n'+'\n'.join(f'constexpr int C{i}={i};' for i in range(300))}
     for name,text in modules.items():

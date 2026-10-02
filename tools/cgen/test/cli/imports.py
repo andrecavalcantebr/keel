@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory() as directory:
     write('a', 'module a; import b;')
     write('b', 'module b; import a;')
     run(root, 'a', 1, 'circular-import')
-    write('bad', 'module bad;\n#define foreach 1\n')
+    write('bad', 'module bad;\n#define keel_bad 1\n')
     write('usebad', 'module usebad; import bad;')
     r = run(root, 'usebad', 1, 'define-over-keel-name')
     assert r.stderr.count('[define-over-keel-name]') == 1, r.stderr

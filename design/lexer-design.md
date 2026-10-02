@@ -105,7 +105,7 @@ token preserva a linha inteira, então uma mensagem ainda pode distinguir a
 grafia concreta, como `#ifdef`, sem acrescentar classes ao fluxo.
 
 Em `define` e `undef`, o lexer lê o identificador alvo. Se começa por `keel_`
-ou `KEEL_`, ou pertence à lista contextual, emite `define-over-keel-name`. Não examina nem
+ou `KEEL_`, emite `define-over-keel-name` (`error`); se pertence à lista contextual, `define-over-keel-word` (`warning`). Não examina nem
 expande o corpo:
 
 ```c
@@ -238,7 +238,7 @@ usam `buffer Open` e arena do parser, não o lexer.
 | `/*x*/ # if 1` | Diretiva `if`, pois comentário é espaço. |
 | `#define keel_x 1` | Diretiva preservada e `define-over-keel-name`. |
 | `#define KEEL_CHECKS 0` | Diretiva preservada e `define-over-keel-name`. |
-| `#undef constexpr` | O mesmo diagnóstico, embora seja palavra C. |
+| `#undef constexpr` | `define-over-keel-word` (`warning`), embora seja palavra C. |
 | `#define F(x) match(x)` | Sem diagnóstico; corpo da macro opaco. |
 | `#if X ( #else [ #endif` | `delimiter-mismatch-across-branches`. |
 

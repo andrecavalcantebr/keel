@@ -431,7 +431,7 @@ que a implementação precisa saber:
 
 | Passagem | Diagnósticos |
 | --- | --- |
-| lexer | `literal-with-newline`, `unmatched-delimiter`, `delimiter-mismatch-across-branches`, `define-over-keel-name` |
+| lexer | `literal-with-newline`, `unmatched-delimiter`, `delimiter-mismatch-across-branches`, `define-over-keel-name`, `define-over-keel-word` |
 | 1 cabeçalho | `missing-module`, `module-path-mismatch`, `invalid-stem`, `circular-import`, `symbol-collision`, `duplicate-alias`, `import-clause-order`, `duplicate-injected-name`, `nested-extern-c`, `alias-type-collision` |
 | 2 coleta | `modifier-outside-generic`, `parameter-name-reuse`, `modifier-named-instance`, `pub-static`, `inline-without-visibility`, `static-on-type`, `canonical-name-collision`, `undeclared-tags`, `duplicate-tag`, `unnamed-tags`, `nonconstant-dim`, `dim-below-one` |
 | 3 resolução | todo o resto: contêiner, aridade, protocolo, `else`, `match`, `parallel`, `array`, `ref`, `constexpr`, `verb-not-in-instance` |

@@ -27,7 +27,9 @@ As construções valem como as chamadas que traduzem (§4.12, regras 14 e 15):
 `x[a..b]`, `foreach` por ponteiro, `walk` e `parallel` fazem do binder, do
 cursor, da parte ou do símbolo que recebe `x[a..b]` um `child` do contêiner.
 O André aceitou o custo: "símbolo é chamada". As palavras de papel ficam fora
-de `define-over-keel-name` e de `keel-name-shadowed`, porque não chegam ao C.
+de `define-over-keel-word` e de `keel-name-shadowed`, porque não chegam ao C.
+`#define`/`#undef` de palavra contextual é `define-over-keel-word` (warning,
+pega bug); de nome `keel_`/`KEEL_` segue `define-over-keel-name` (error).
 
 **Diagnósticos unificados.** `protocol-not-satisfied` substitui `not-iterable`,
 `not-cursor-iterable`, `not-partitionable`, `not-countable`,

@@ -51,18 +51,22 @@ static void check_define(KLexer *lexer, KToken directive) {
     KToken name = word_at(directive, &pos);
     if (name.len == 0) return;
 
-    const char *why = NULL;
+    /* `keel_`/`KEEL_` is the generated C's namespace: an error. A keel word
+       never reaches the C and keel does not expand macros, so it is a warning:
+       a macro named like a construction is read by keel as the construction
+       where it stands (keel-spec §2.5). */
     if (k_token_starts_with(name, "keel_") || k_token_starts_with(name, "KEEL_")) {
-        why = "names starting with `keel_` or `KEEL_` are reserved to keel";
-    } else {
-        size_t n = sizeof(k_contextual_words) / sizeof(k_contextual_words[0]);
-        for (size_t i = 0; i < n && why == NULL; ++i) {
-            if (k_token_spelled(name, k_contextual_words[i])) why = "it is a keel word";
-        }
+        KDiagArgs args = { { verb, name, k_diag_text("names starting with `keel_` or `KEEL_` are reserved to keel") } };
+        k_diag_emit(lexer->diagnostics, K_DIAG_DEFINE_OVER_KEEL_NAME, name, args);
+        return;
     }
-    if (why == NULL) return;
-    KDiagArgs args = { { verb, name, k_diag_text(why) } };
-    k_diag_emit(lexer->diagnostics, K_DIAG_DEFINE_OVER_KEEL_NAME, name, args);
+    size_t n = sizeof(k_contextual_words) / sizeof(k_contextual_words[0]);
+    for (size_t i = 0; i < n; ++i) {
+        if (!k_token_spelled(name, k_contextual_words[i])) continue;
+        KDiagArgs args = { { verb, name } };
+        k_diag_emit(lexer->diagnostics, K_DIAG_DEFINE_OVER_KEEL_WORD, name, args);
+        return;
+    }
 }
 
 /* `module keel` or `module keel.<name>` as the first two tokens */

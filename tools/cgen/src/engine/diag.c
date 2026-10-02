@@ -95,6 +95,8 @@ static const char *const messages[K_DIAG_COUNT] = {
     [K_DIAG_SLICE_FROM_REF] =
         "`slice.from` over `%s`, a `ref`: keel does not vouch for the extent behind a `ref`; pass a pointer",
     [K_DIAG_DEFINE_OVER_KEEL_NAME] = "cannot `#%s` `%s`: %s",
+    [K_DIAG_DEFINE_OVER_KEEL_WORD] =
+        "`#%s` of `%s`, a keel word: where it stands as a construction, keel reads the construction, not the macro",
     [K_DIAG_LITERAL_WITH_NEWLINE] =
         "%s literal has no closing `%s` before the end of the line; write `\\n` for a newline inside it",
 };

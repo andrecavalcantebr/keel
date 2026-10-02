@@ -1,7 +1,8 @@
-/* Pass 3 (parser-design §3), stages 4a and 4b: type, name, call,
- * ref and implicit-init islands, then array, array-index, index and
- * range-index, read from the token stream of each function and variable
- * declaration — signature and body alike.
+/* Pass 3 (parser-design §3), stages 4a to 4h: type, name, call, ref and
+ * implicit-init islands; array, array-index, index and range-index; defer,
+ * foreach, walk and match; parallel and worker-exit; the else of a result;
+ * extent and column — read from the token stream of each function and
+ * variable declaration, signature and body alike, and of each extent.
  *
  * What resolves a call is the declared signature, never the call site (spec
  * §4.4): the callee module's own AST gives the parameter list, so the pass
@@ -1775,6 +1776,8 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
     return close + 1;
 }
 
+static size_t column_access(Ctx *c, size_t i, size_t open, bool *any);
+
 /* `x[`, `x.f[`, `x->f[i][j]`: every index or range-index over a container this
    pass can type is an island, even when the emission is the written text (spec
    §2.3). True when one was printed. */
@@ -1788,7 +1791,8 @@ static bool path_forms(Ctx *c, size_t i) {
         if ((punct(a, j, ".") || punct(a, j, "->")) && ident(a, j + 1)) { j += 2; continue; }
         if (!punct(a, j, "[")) break;
         resolution_begin(c);
-        j = index_group(c, i, j, &any);
+        size_t past = column_access(c, i, j, &any);
+        j = past ? past : index_group(c, i, j, &any);
         resolution_end(c);
     }
     return any;
@@ -2352,6 +2356,260 @@ static bool worker_flow(Ctx *c, size_t i) {
     return false;
 }
 
+/* ---- extent (stage 4h) ------------------------------------------------ */
+
+#define K_EXTENT_MAX 16
+
+typedef struct {
+    const KAst *home;
+    size_t at;                              /* the word `extent` */
+    keel_slice_char name;
+    size_t groups;
+    size_t count[8], cap[8];                /* token indexes of each group's names */
+    size_t columns;
+    size_t col[K_EXTENT_MAX];               /* the column's name */
+    bool embedded[K_EXTENT_MAX];
+    keel_slice_char dims[K_EXTENT_MAX];     /* an embedded column's dimensions, as written */
+    size_t fields;
+    keel_slice_char field[32];              /* every field's name, columns included */
+} Extent;
+
+/* `extent struct NAME [count, cap]... { fields }` in [n->first, n->end) of `home` (spec §4.11) */
+static bool extent_scan(const KAst *home, const KAstNode *n, Extent *e) {
+    memset(e, 0, sizeof *e);
+    e->home = home;
+    size_t j = n->first;
+    while (j < n->end && (word(home, j, "pub") || word(home, j, "priv"))) j++;
+    if (!word(home, j, "extent") || !word(home, j + 1, "struct") || !ident(home, j + 2)) return false;
+    e->at = j;
+    e->name = tok(home, j + 2);
+    j += 3;
+    while (punct(home, j, "[") && e->groups < 8) {
+        size_t cl = close_bracket(home, j, n->end);
+        if (cl == SIZE_MAX || cl != j + 4 || !punct(home, j + 2, ",")) return false;
+        e->count[e->groups] = j + 1;
+        e->cap[e->groups++] = j + 3;
+        j = cl + 1;
+    }
+    if (!punct(home, j, "{")) return false;
+    size_t close = j, depth = 0;
+    for (; close < n->end; close++) {
+        if (punct(home, close, "{")) depth++;
+        else if (punct(home, close, "}") && --depth == 0) break;
+    }
+    for (size_t f = j + 1; f < close; ) {
+        size_t end = f;
+        depth = 0;
+        while (end < close && !(depth == 0 && punct(home, end, ";"))) {
+            if (punct(home, end, "(") || punct(home, end, "[") || punct(home, end, "{")) depth++;
+            else if (punct(home, end, ")") || punct(home, end, "]") || punct(home, end, "}")) depth--;
+            end++;
+        }
+        bool column = word(home, f, "array");
+        /* each declarator: the last name before a ',' or a '[' at depth 0 */
+        size_t name = SIZE_MAX, dims = SIZE_MAX;
+        depth = 0;
+        for (size_t k = f; k <= end; k++) {
+            bool stop = k == end || (!depth && punct(home, k, ","));
+            if (!stop) {
+                if (punct(home, k, "[") && !depth && dims == SIZE_MAX) dims = k;
+                if (punct(home, k, "(") || punct(home, k, "[") || punct(home, k, "{")) depth++;
+                else if (punct(home, k, ")") || punct(home, k, "]") || punct(home, k, "}")) depth--;
+                else if (!depth && dims == SIZE_MAX && ident(home, k)) name = k;
+                continue;
+            }
+            if (name != SIZE_MAX) {
+                if (e->fields < 32) e->field[e->fields++] = tok(home, name);
+                if (column && e->columns < K_EXTENT_MAX) {
+                    e->col[e->columns] = name;
+                    e->embedded[e->columns] = dims != SIZE_MAX;
+                    if (dims != SIZE_MAX)
+                        e->dims[e->columns] = range_text(home, (Range){ dims, k });
+                    e->columns++;
+                }
+            }
+            name = dims = SIZE_MAX;
+        }
+        f = end + 1;
+    }
+    return true;
+}
+
+static bool extent_field(const Extent *e, keel_slice_char name) {
+    for (size_t k = 0; k < e->fields; k++) if (k_symtab_same_name(e->field[k], name)) return true;
+    return false;
+}
+
+/* the extent declared as `name` in `home`, if it is one */
+static bool extent_named(const KAst *home, keel_slice_char name, Extent *e) {
+    for (size_t i = 0; i < home->nodes.len; i++) {
+        const KAstNode *n = node_at(home, i);
+        if (n->kind == K_AST_TYPE && k_symtab_same_name(tok(home, n->name_first), name)) return extent_scan(home, n, e);
+    }
+    return false;
+}
+
+/* the declaration: its groups, its columns and their checks */
+static void extent_island(Ctx *c, const KAstNode *n) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    Extent e;
+    if (!extent_scan(a, n, &e)) return;
+    bool any_embedded = false, any_pointer = false;
+    for (size_t k = 0; k < e.columns; k++) {
+        if (e.embedded[k]) any_embedded = true;
+        else any_pointer = true;
+    }
+    Text d = { .ok = true };
+    put(&d, e.name.ptr, e.name.len);
+    for (size_t g = 0; g < e.groups; g++) {
+        put_str(&d, " [");
+        put(&d, tok(a, e.count[g]).ptr, tok(a, e.count[g]).len);
+        put_str(&d, ", ");
+        put(&d, tok(a, e.cap[g]).ptr, tok(a, e.cap[g]).len);
+        put_str(&d, "]");
+    }
+    put_str(&d, any_embedded ? " embedded:" : " pointer:");
+    for (size_t k = 0; k < e.columns; k++) { put_str(&d, " "); put(&d, tok(a, e.col[k]).ptr, tok(a, e.col[k]).len); }
+    emit(c, K_ISLAND_EXTENT, e.at, &d);
+
+    bool field_cap = false;
+    for (size_t g = 0; g < e.groups; g++) {
+        KToken count = tok(a, e.count[g]), cap = tok(a, e.cap[g]);
+        if (!extent_field(&e, count)) diag3(c, K_DIAG_EXTENT_COUNT_NOT_FIELD, count, count, e.name, none);
+        long v;
+        if (extent_field(&e, cap)) field_cap = true;
+        else if (!decimal_of_token(c, cap, &v)) diag3(c, K_DIAG_EXTENT_UNKNOWN_CAPACITY, cap, cap, e.name, none);
+    }
+    if (!e.columns) { diag3(c, K_DIAG_EXTENT_WITHOUT_COLUMN, tok(a, e.at), e.name, none, none); return; }
+    if (any_embedded && any_pointer) diag3(c, K_DIAG_EXTENT_MIXED_COLUMNS, tok(a, e.at), e.name, none, none);
+    Text caps = { .ok = true };
+    put_str(&caps, "[");
+    for (size_t g = 0; g < e.groups; g++) {
+        if (g) put_str(&caps, ", ");
+        put(&caps, tok(a, e.cap[g]).ptr, tok(a, e.cap[g]).len);
+    }
+    put_str(&caps, "]");
+    for (size_t k = 0; k < e.columns; k++) {
+        if (!e.embedded[k]) continue;
+        KToken col = tok(a, e.col[k]);
+        if (field_cap) {
+            for (size_t g = 0; g < e.groups; g++)
+                if (extent_field(&e, tok(a, e.cap[g]))) {
+                    diag3(c, K_DIAG_EXTENT_EMBEDDED_FIELD_CAPACITY, col, col, tok(a, e.cap[g]), none);
+                    break;
+                }
+            continue;
+        }
+        /* the dimensions, one per group and named as its capacity */
+        KLexer lexer;
+        TKPpKind pp;
+        k_lexer_init(&lexer, e.dims[k], NULL);
+        size_t g = 0, depth = 0, tokens = 0;
+        bool same = true;
+        KToken only = {0};
+        for (KToken t = k_lexer_next(&lexer, &pp); t.len; t = k_lexer_next(&lexer, &pp)) {
+            bool open = k_token_is_punct(t, "["), close = k_token_is_punct(t, "]");
+            if (open && depth++ == 0) { tokens = 0; continue; }
+            if ((close && --depth == 0) || (depth == 1 && k_token_is_punct(t, ","))) {
+                if (g >= e.groups || tokens != 1 || !k_symtab_same_name(only, tok(a, e.cap[g]))) same = false;
+                g++;
+                tokens = 0;
+                continue;
+            }
+            if (depth >= 1) { tokens++; only = t; }
+        }
+        if (!same || g != e.groups)
+            diag3(c, K_DIAG_EXTENT_DIMENSION_MISMATCH, col, col, e.dims[k], keep(c, &caps));
+    }
+}
+
+/* `P.col[i, ...]` or `P->col[...]`, with `col` a column of an extent: the
+   path [i, open) ends in `. col` or `-> col` (spec §4.11). Returns the token
+   after the brackets, or 0 when the path is not a column. */
+static size_t column_access(Ctx *c, size_t i, size_t open, bool *any) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    if (open < i + 3 || !ident(a, open - 1) || !(punct(a, open - 2, ".") || punct(a, open - 2, "->"))) return 0;
+    int t = type_of(c, (Range){ i, open - 2 });
+    if (t < 0) return 0;
+    const KType *k = kt(c, t);
+    if (k->kind != KT_NAMED || !*k->symbol) return 0;
+    const KAst *home = ast_of(c, k->module);
+    Extent e;
+    if (!home || !extent_named(home, k->name, &e)) return 0;
+    size_t which = SIZE_MAX;
+    for (size_t m = 0; m < e.columns; m++) if (k_symtab_same_name(tok(home, e.col[m]), tok(a, open - 1))) which = m;
+    if (which == SIZE_MAX) return 0;
+    size_t close = close_bracket(a, open, a->tokens.len);
+    if (close == SIZE_MAX) return 0;
+    Range idx[8];
+    size_t indices = 0, st = open + 1, depth = 0;
+    for (size_t m = open + 1; m <= close; m++) {
+        if (m < close && (punct(a, m, "(") || punct(a, m, "[") || punct(a, m, "{"))) depth++;
+        else if (m < close && (punct(a, m, ")") || punct(a, m, "]") || punct(a, m, "}"))) depth--;
+        else if (m == close || (!depth && punct(a, m, ","))) {
+            if (indices < 8) idx[indices] = (Range){ st, m };
+            indices++;
+            st = m + 1;
+        }
+    }
+    keel_slice_char path = { (size_t)(tok(a, open - 1).ptr + tok(a, open - 1).len - tok(a, i).ptr), tok(a, i).ptr };
+    Text d = { .ok = true };
+    put(&d, path.ptr, path.len);
+    put_str(&d, " rank ");
+    put_uint(&d, indices);
+    put_str(&d, " \xe2\x86\x92 ");
+    put_str(&d, k->symbol);
+    put_str(&d, "_");
+    put(&d, tok(a, open - 1).ptr, tok(a, open - 1).len);
+    put_str(&d, "_ptr");
+    if (punct(a, open - 2, ".")) put_str(&d, " &1");
+    *any = emit(c, K_ISLAND_COLUMN, i, &d) || *any;
+    if (indices != e.groups) {
+        Text r = { .ok = true }, w = { .ok = true };
+        put_uint(&r, e.groups);
+        put_uint(&w, indices);
+        diag3(c, K_DIAG_EXTENT_INDEX_ARITY, tok(a, i), path, keep(c, &r), keep(c, &w));
+        return close + 1;
+    }
+    for (size_t g = 0; g < indices && g < 8; g++) {
+        long v, cap;
+        if (decimal_of(c, idx[g], &v) && decimal_of_token(c, tok(home, e.cap[g]), &cap) && v >= cap)
+            diag3(c, K_DIAG_EXTENT_INDEX_ABOVE_CAPACITY, tok(a, idx[g].first), range_text(a, idx[g]),
+                  tok(home, e.cap[g]), none);
+    }
+    return close + 1;
+}
+
+/* `f(x)->col[i]` or `f(x).col[i]`: a column reached through a call, where `col`
+   is a column of an extent of the file (spec §4.11) */
+static void column_through_call(Ctx *c, const KAstNode *n, size_t i) {
+    KAst *a = c->ast;
+    if (!punct(a, i, ")") || !(punct(a, i + 1, ".") || punct(a, i + 1, "->")) || !ident(a, i + 2) ||
+        !punct(a, i + 3, "["))
+        return;
+    for (size_t m = 0; m < a->nodes.len; m++) {
+        const KAstNode *t = node_at(a, m);
+        Extent e;
+        if (t->kind != K_AST_TYPE || !extent_scan(a, t, &e)) continue;
+        for (size_t k = 0; k < e.columns; k++)
+            if (k_symtab_same_name(tok(a, e.col[k]), tok(a, i + 2))) {
+                size_t start = i, depth = 0;
+                while (start > n->first) {
+                    if (punct(a, start, ")")) depth++;
+                    else if (punct(a, start, "(") && --depth == 0) break;
+                    start--;
+                }
+                if (start > n->first && ident(a, start - 1)) start--;
+                keel_slice_char path = { (size_t)(tok(a, i + 2).ptr + tok(a, i + 2).len - tok(a, start).ptr),
+                                         tok(a, start).ptr };
+                diag3(c, K_DIAG_EXTENT_PATH_WITH_CALL, tok(a, start), path, (keel_slice_char){0}, (keel_slice_char){0});
+                return;
+            }
+    }
+}
+
 /* ---- the else of a result (stage 4g) ----------------------------------- */
 
 /* `T x = e else …;` and `x = e else …;` (spec §4.10). The `else` of an `if`
@@ -2464,6 +2722,7 @@ static void walk(Ctx *c, const KAstNode *n) {
             continue;
         }
         if (punct(a, i, ";")) { c->has_target = false; continue; }
+        if (!signature_of(n, i) && punct(a, i, ")")) { column_through_call(c, n, i); continue; }
         if (word(a, i, "constexpr") && !signature_of(n, i)) { block_constexpr(c, i); continue; }
         if (!signature_of(n, i) && word(a, i, "else") && i > n->first && !punct(a, i - 1, ";") &&
             !punct(a, i - 1, "}")) {
@@ -2602,6 +2861,12 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     ctx.quiet = false;
     for (size_t i = 0; i < a->nodes.len; i++)
         if (node_at(a, i)->kind == K_AST_FUNCTION) check_signature(&ctx, node_at(a, i));
+    for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++)
+        if (node_at(a, i)->kind == K_AST_TYPE) {
+            ctx.local_count = ctx.global_count;
+            memcpy(ctx.locals, ctx.globals, ctx.global_count * sizeof *ctx.globals);
+            extent_island(&ctx, node_at(a, i));
+        }
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = node_at(a, i);

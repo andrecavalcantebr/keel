@@ -1,6 +1,6 @@
 ---
 name: cgen-implementacao
-description: cgen — os 5 designs fechados em 2026-09-20; M0 e M1 fechados, parser (M2) até as ilhas 4a–4d e 4f; tool/ e engine/ no fonte
+description: cgen — os 5 designs fechados em 2026-09-20; M0 e M1 fechados, parser (M2) até as ilhas 4a–4h; tool/ e engine/ no fonte
 metadata: 
   node_type: memory
   type: project
@@ -25,8 +25,8 @@ Os cinco designs em `design/`, um por peça de `cgen-tool.md` §3.1:
 
 **Estado em 2026-10-02:** o M0 (driver) e o M1 (lexer) estão fechados. O M2
 (parser) reconhece módulos, imports, declarações (inclusive `decl-protocol`,
-papéis e `typedef … byref`) e as ilhas das etapas 4a–4d e 4f
-(`--stop-after=parse`, com `-o` no sentido do gcc). Há 17 casos de falha em
+papéis e `typedef … byref`) e as ilhas das etapas 4a–4h
+(`--stop-after=parse`, com `-o` no sentido do gcc). Há 20 casos de falha em
 `tools/cgen/test/diag/`, e o catálogo de diagnósticos é gerado da spec §6.2
 (`gen-diags.py`), com as mensagens escritas em `diag.c` à medida que o motor
 passa a emitir cada id. Ainda não há emissão de C. O detalhe por etapa está em
@@ -49,9 +49,10 @@ os contadores de linha (decisão E4).
 
 ## O que falta, na ordem
 
-1. **Etapas 4e, 4g, 4h e 4i do parser** (`parser-design.md` §3.2):
-   `parallel`/`win`/`fail`, `else`, as colunas de `extent` e o fecho de
-   instâncias.
+1. **Etapa 4i do parser** (`parser-design.md` §3.2): o fecho de instâncias.
+   As 4e, 4g e 4h saíram em 2026-10-02, com as espécies `parallel`,
+   `worker-exit`, `else`, `extent` e `column` (formato em `cgen-tool.md` §5.2,
+   a revisar com o André).
 2. **Análise de papéis** (spec §4.12: `region-escape`,
    `child-region-after-invalidation`) e o parâmetro de protocolo fora da
    primeira posição.
@@ -61,8 +62,7 @@ os contadores de linha (decisão E4).
    resolvida em 2026-09-21 (`cgen-tool.md` §13).
 
 Decisões ainda abertas: `buffer.of(v)` como nome que o núcleo conhece, `byref`
-em `typedef` e o `{0}` da arena, o prefixo das instâncias aninhadas e o formato
-do dump para `parallel`/`else`/`extent`.
+em `typedef` e o `{0}` da arena, e o prefixo das instâncias aninhadas.
 
 ## Pendências registradas nos designs
 

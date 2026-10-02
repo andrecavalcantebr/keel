@@ -1,0 +1,46 @@
+module	app.pos	app/pos.k:1:1
+import	keel.arena as arena types	app/pos.k:3:1
+import	keel.slice as slice types	app/pos.k:4:1
+decl	pub constexpr	H	app_pos_H	app/pos.k:6:1
+decl	pub constexpr	W	app_pos_W	app/pos.k:7:1
+decl	pub type	position	app_pos_position	app/pos.k:11:1
+decl	pub type	grid	app_pos_grid	app/pos.k:19:1
+decl	pub type	image	app_pos_image	app/pos.k:25:1
+decl	pub func	reserve	app_pos_reserve	app/pos.k:31:1
+decl	pub func	push_row	app_pos_push_row	app/pos.k:40:1
+decl	pub func	sum_x	app_pos_sum_x	app/pos.k:49:1
+decl	pub func	grid_init	app_pos_grid_init	app/pos.k:56:1
+decl	pub func	grid_fill	app_pos_grid_fill	app/pos.k:65:1
+decl	pub func	grid_at	app_pos_grid_at	app/pos.k:73:1
+decl	pub func	paint	app_pos_paint	app/pos.k:77:1
+inst	slice f32	keel_slice_f32	app/pos.k:50:5
+ilha	extent	position [len, cap] pointer: x y	app/pos.k:11:5
+ilha	extent	grid [rows, rcap] [cols, ccap] pointer: v	app/pos.k:19:5
+ilha	extent	image [h, H] [w, W] embedded: r g	app/pos.k:25:5
+ilha	type	position → app_pos_position	app/pos.k:31:25
+ilha	type	arena → keel_arena	app/pos.k:31:38
+ilha	call	arena.alloc/3 → keel_arena_alloc2 type:2	app/pos.k:32:12
+ilha	call	arena.alloc/3 → keel_arena_alloc2 type:2	app/pos.k:33:12
+ilha	type	position → app_pos_position	app/pos.k:40:26
+ilha	column	p->x rank 1 → app_pos_position_x_ptr	app/pos.k:43:5
+ilha	column	p->y rank 1 → app_pos_position_y_ptr	app/pos.k:44:5
+ilha	type	position → app_pos_position	app/pos.k:49:22
+ilha	type	slice f32 → keel_slice_f32	app/pos.k:50:5
+ilha	call	slice.from/3 → keel_slice_f32_from	app/pos.k:50:20
+ilha	foreach	v, i : xs (slice f32)	app/pos.k:52:5
+ilha	type	grid → app_pos_grid	app/pos.k:56:27
+ilha	type	arena → keel_arena	app/pos.k:56:36
+ilha	call	arena.alloc/3 → keel_arena_alloc2 type:2	app/pos.k:57:12
+ilha	type	grid → app_pos_grid	app/pos.k:65:27
+ilha	column	g->v rank 2 → app_pos_grid_v_ptr	app/pos.k:70:13
+ilha	type	grid → app_pos_grid	app/pos.k:73:24
+ilha	column	g->v rank 2 → app_pos_grid_v_ptr	app/pos.k:74:12
+ilha	type	image → app_pos_image	app/pos.k:77:23
+ilha	name	H → app_pos_H	app/pos.k:78:14
+ilha	name	W → app_pos_W	app/pos.k:79:14
+ilha	name	H → app_pos_H	app/pos.k:80:28
+ilha	name	W → app_pos_W	app/pos.k:81:32
+ilha	column	img->r rank 2 → app_pos_image_r_ptr	app/pos.k:82:13
+ilha	name	W → app_pos_W	app/pos.k:82:37
+ilha	column	img->g rank 2 → app_pos_image_g_ptr	app/pos.k:83:13
+ilha	column	img->r rank 2 → app_pos_image_r_ptr	app/pos.k:83:39

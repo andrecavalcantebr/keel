@@ -275,9 +275,10 @@ quebrar as anteriores.
 | 4h | `ilha` | `decl-extent`, `extent-column` | espécie(s) de coluna de `extent` | golden 020 |
 | 4i | `ilha` (fecho) | resolução completa de instância por fecho de genérico (§5) | `KInstanceUse` fechado, não só direto | golden 007, base inteira |
 
-**Estado em 2026-10-02:** as etapas 1, 2, 3, 4a, 4b, 4c, 4d e 4f estão acesas,
-com oráculo de dump e casos de falha (`tools/cgen/src/engine/README.md`); faltam
-4e, 4g, 4h e 4i. A 4f saiu antes da 4e porque `match` não depende do manager.
+**Estado em 2026-10-02:** as etapas 1, 2, 3 e 4a–4h estão acesas, com oráculo
+de dump e casos de falha (`tools/cgen/src/engine/README.md`); falta a 4i. As
+espécies novas da 4e, da 4g e da 4h são `parallel`, `worker-exit`, `else`,
+`extent` e `column` ([`cgen-tool.md`](cgen-tool.md) §5.2).
 
 4a–4i seguem a ordem dos casos golden, no espírito do M6 do
 [`cgen-tool.md`](cgen-tool.md) §9 ("uma construção por vez, na ordem dos casos

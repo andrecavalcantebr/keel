@@ -84,6 +84,24 @@ static const char *const messages[K_DIAG_COUNT] = {
         "the `else` of a result needs a name declared with a keel type as its target, and `%s` is not one: store the result in a local first",
     [K_DIAG_ELSE_MULTIPLE_DECLARATORS] =
         "the `else` of a result takes one declarator: declare the others in their own statement",
+    [K_DIAG_EXTENT_COUNT_NOT_FIELD] =
+        "the count `%s` of `extent struct %s` names no field of the struct",
+    [K_DIAG_EXTENT_UNKNOWN_CAPACITY] =
+        "the capacity `%s` of `extent struct %s` is not a field, a known `constexpr` or a decimal literal",
+    [K_DIAG_EXTENT_WITHOUT_COLUMN] =
+        "`extent struct %s` has no column: mark the columns with `array`",
+    [K_DIAG_EXTENT_MIXED_COLUMNS] =
+        "`extent struct %s` mixes embedded columns and columns by pointer: use one kind",
+    [K_DIAG_EXTENT_EMBEDDED_FIELD_CAPACITY] =
+        "the embedded column `%s` needs constant capacities, and `%s` is a field: use a `constexpr`, or a column by pointer",
+    [K_DIAG_EXTENT_DIMENSION_MISMATCH] =
+        "the embedded column `%s` declares `%s`, and the capacities of the groups are `%s`: one dimension per group, named as its capacity",
+    [K_DIAG_EXTENT_INDEX_ARITY] =
+        "`%s` is a column of rank %s, and the access writes %s indices",
+    [K_DIAG_EXTENT_INDEX_ABOVE_CAPACITY] =
+        "index `%s` is at or above the capacity `%s` of its group",
+    [K_DIAG_EXTENT_PATH_WITH_CALL] =
+        "the column access `%s` goes through a call: store the struct, or a pointer to it, in a local first",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

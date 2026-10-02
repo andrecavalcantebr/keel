@@ -223,8 +223,8 @@ A gramática acompanha a revisão de 2026-10-02 da spec (§§2.2, 4.12, 4.14, 5.
 
 Ainda não: análise de papéis (§4.12: `region-escape`,
 `child-region-after-invalidation`), parâmetro de protocolo fora da primeira
-posição, e as etapas 4e (`parallel`), 4g (`else`), 4h (`extent`) e 4i (fecho de
-instâncias).
+posição, e a etapa 4i (fecho de instâncias). As etapas 4e, 4g e 4h estão na
+seção abaixo.
 
 ## Etapas 4c, 4d e 4f (2026-10-02)
 
@@ -267,3 +267,39 @@ que o montou já retornou.
   porque não chega ao C, mas onde está como construção keel lê a construção, e
   não a macro, o que costuma ser bug. As palavras de papel (`parent`, `child`,
   `invalidates`, `consumes`) não disparam nenhum dos dois.
+
+## Etapas 4e, 4g e 4h (2026-10-02)
+
+- **`parallel`** (spec §4.8): ilha com o nome, a política, os binders, o
+  contêiner e o seu tipo keel, as capturas e o `partition` da distribuição.
+  O nome declara um símbolo `parallel.control` (com `keel.parallel` importado),
+  e é isso que dá o `&1` de `parallel.ok(search)`. O corpo é percorrido como
+  qualquer outro; a ilha só guarda onde ele está. `win;` e `fail;` dentro dele
+  são ilhas `worker-exit`, e fora dele `flow-verb-outside-parallel`. Também
+  `unnamed-parallel`, `nested-parallel`, `duplicate-parallel-name`,
+  `nonconstant-parallel` (contagem ou política que não é decimal nem
+  `constexpr`), `partition-type-mismatch` (o binder contra o retorno de
+  `partition`), `captured-write`, `return-in-parallel` e `Partitionable`.
+  `mutation-during-traversal` (`push`, `pop` ou `clear` sobre o contêiner
+  percorrido) vale para `foreach`, `walk` e `parallel`.
+- **`else` de resultado** (spec §4.10): o `else` que segue uma expressão, e não
+  um `;` ou uma `}`, é o da declaração ou da atribuição. A ilha dá o alvo, o seu
+  tipo, a forma (`exit` quando o tratamento começa por `{` ou por salto,
+  `default` nos demais) e os símbolos de `failed` e, no default, de `win`, com
+  o `&1` dele. Pede `Failable`, e `Winnable` para o default. Também
+  `else-without-initializer`, `else-multiple-declarators` e
+  `else-on-complex-target`; uma declaração C (`i16 x = r else 0`) é
+  `protocol-not-satisfied`. Limite conhecido: um `else` depois de
+  inicializador entre chaves (`= {0} else …`) é lido como o do `if`.
+- **`extent`** (spec §4.11): a declaração é ilha `extent`, com os grupos, o
+  tipo das colunas e as colunas, e é verificada (`extent-count-not-field`,
+  `extent-unknown-capacity`, `extent-without-column`, `extent-mixed-columns`,
+  `extent-embedded-field-capacity`, `extent-dimension-mismatch`). Todo
+  `P.col[…]` e `P->col[…]` sobre coluna é ilha `column`, com a função de acesso
+  `<struct>_<coluna>_ptr` e `&1` quando `P` é o objeto; a coluna embutida deixa
+  de ser `array-index`. No uso, `extent-index-arity`,
+  `extent-index-above-capacity` e `extent-path-with-call` (coluna de `extent`
+  do arquivo alcançada por chamada).
+
+Os oráculos de dump cobrem agora os golden 004, 011, 012, 018, 020 e 021
+inteiros, e `run.sh` compara o nível `ilha` sem filtro de espécie.

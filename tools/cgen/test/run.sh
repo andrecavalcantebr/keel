@@ -14,9 +14,8 @@
 #                catalog's coverage (diag-design §7)
 #   parse_dump.sh --stop-after=parse at level $PARSE_LEVEL (header, decl, inst,
 #                ilha, or ilha:<kinds> for the island stages of parser design
-#                §3.2). The default is stages 4a and 4b: the islands type, name,
-#                call, ref, defer, implicit-init, foreach, walk, match, array, array-index, index
-#                and range-index.
+#                §3.2). The default is plain `ilha`: every kind of island, as
+#                stages 4a to 4h are all lit.
 #
 # Each test prints its last line; the suite fails if any test fails.
 cd "$(dirname "$0")/../../.." || exit 2
@@ -49,6 +48,6 @@ done
 for t in tools/cgen/test/cli/*.sh;  do run "cli/$(basename "$t" .sh)"  sh "$t"; done
 run lex_dump sh tools/cgen/test/lex_dump.sh
 run diag sh tools/cgen/test/diag.sh
-PARSE_LEVEL=${PARSE_LEVEL:-ilha:type,name,call,ref,defer,implicit-init,foreach,walk,match,array,array-index,index,range-index,parallel,worker-exit,else}
+PARSE_LEVEL=${PARSE_LEVEL:-ilha}
 run "parse_dump/$PARSE_LEVEL" sh tools/cgen/test/parse_dump.sh "$PARSE_LEVEL"
 exit $fail

@@ -5,5 +5,5 @@
 - [protocolos estruturais](protocolos-estruturais-2026-10-02.md) — 2026-10-02: sem `implement`, papéis herdados, diagnósticos unificados, §4.14 na v0, `slice.of` sobre `Sliceable`, `from_stack` fora.
 - [ideias pendentes: soa e cooperativo](ideias-pendentes-soa-e-cooperativo.md) — soa struct concreto (linha mais madura), buffer(N)/slice(N), strbuf/string, bitbuffer/bitslice, atomic/chan/barrier.; traits sobre o `T` opaco (v2); protocolos nomeados já existem.
 - [biblioteca padrão: catálogo](biblioteca-padrao-planejamento.md) — histórico; a fonte agora é design/possibilidades.md (v0 núcleo+base, v1 stdlib, v2+ protocolos).
-- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; M0 e M1 fechados, M2 até as ilhas 4a–4d e 4f; tool/ e engine/ com `make boundary`.
+- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; M0 e M1 fechados, M2 até as ilhas 4a–4h; tool/ e engine/ com `make boundary`.
 - [Código em inglês](codigo-em-ingles.md) — docs pt-BR, código em inglês; as 4 etapas concluídas (commits 36ca188, 14c4d9a, 1c249c7, 1ae845d).

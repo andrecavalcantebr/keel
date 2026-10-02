@@ -492,6 +492,11 @@ viram um espaço só.
 | `range-index` | o contêiner | `<contêiner> <intervalo como escrito> → <símbolo do as_slice> [core \| <símbolo de length>]`, e as marcas: o verbo de três parâmetros do protocolo (spec §5.1), e o limite da ponta aberta à direita |
 | `array` | a palavra `array` | `<nome> [<dimensões>]` |
 | `array-index` | o nome | `<nome> rank <n>`: todo `x[…]` sobre símbolo `array`, com `n` os índices escritos, num colchete ou em vários (`v[1,2,3]` e `v[1][2][3]` são `rank 3`); a emissão pode ser a própria escrita, e a ilha existe do mesmo jeito (spec §2.3) |
+| `parallel` | a palavra `parallel` | `<nome> <política> (<worker> : <intervalo>; <parte> : <contêiner> (<tipo keel do contêiner>)[; (<capturas>)]) → <símbolo de partition>`, e as marcas da chamada de `partition` (spec §4.8) |
+| `worker-exit` | a palavra `win` ou `fail` | `<win\|fail> → <nome do parallel>`: a saída e o bloco de que ela sai |
+| `else` | a palavra `else` | `<alvo> (<tipo keel>) <exit\|default> → <símbolo de failed> [<símbolo de win>]`, e as marcas do `win`: o `else` de resultado (spec §4.10), na declaração ou na atribuição; `exit` quando o tratamento começa por `{` ou palavra de salto, `default` nos demais |
+| `extent` | a palavra `extent` | `<nome> [<contagem>, <capacidade>]… <embedded\|pointer>: <coluna> <coluna> …` (spec §4.11) |
+| `column` | o início do caminho | `<caminho> rank <n> → <função de acesso>`, e as marcas: todo `P.col[…]` ou `P->col[…]` sobre coluna de `extent`, com `n` os índices escritos; `&1` quando `P` é o objeto (backend §5.15) |
 
 As marcas de adaptação vêm depois dos símbolos, separadas por espaço. `&<k>`: o
 argumento *k*, contado de 1, recebe `&`, porque o parâmetro declarado no
@@ -503,7 +508,7 @@ os dois símbolos vêm nessa ordem, antes das marcas; sobre `array` o limite é 
 `core`. `slice.of(v…)` sobre `array` é o `as_slice` de `keel.array` (spec §5.3).
 
 Os módulos importados são carregados (é preciso, para resolver) e não são
-impressos. Os despejos esperados de três casos do golden estão em
+impressos. Os despejos esperados de treze casos do golden estão em
 `tools/cgen/test/parse/`, e o teste `parse_dump.sh` os compara em
 quatro níveis cumulativos: `header`, `decl`, `inst`, `ilha`.
 

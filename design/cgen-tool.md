@@ -482,7 +482,6 @@ viram um espaço só.
 | `type` | primeira token do tipo | `<tipo escrito> → <tipo C>`: aplicação de modificador (`outcome i32`), tipo de módulo (`arena`, `Agent`) |
 | `name` | o nome | `<nome> → <símbolo>`: constante, variável ou valor de tags do módulo ou de import |
 | `call` | primeira token do chamado | `<chamado>/<aridade escrita> → <símbolo>`, e as marcas de adaptação |
-| `from-stack` | primeira token do chamado | como `call`; a região automática é do emissor |
 | `ref` | a palavra `ref` | o nome declarado |
 | `defer` | a palavra `defer` | o conteúdo dos colchetes: `now FILE *fp` |
 | `implicit-init` | o nome declarado | o nome: `arena` sem inicializador recebe `= {0}` |

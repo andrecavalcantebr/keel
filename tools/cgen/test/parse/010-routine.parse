@@ -47,7 +47,7 @@ ilha	name	hello → ag2_hello	ag2.k:19:16
 ilha	name	authenticate → ag2_authenticate	ag2.k:20:16
 ilha	name	ready → ag2_ready	ag2.k:21:16
 ilha	call	routine.seq/1 → keel_routine_ag2_Ag_seq	ag2.k:23:12
-ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:23:24
+ilha	call	slice.of/1 → keel_slice_of_keel_array_keel_routine_slot_ag2_Ag dim:1	ag2.k:23:24
 ilha	type	outcome u32 → keel_outcome_u32	ag2.k:28:5
 ilha	type	Ag → ag2_Ag	ag2.k:28:30
 ilha	array	steps [3]	ag2.k:29:5
@@ -57,7 +57,7 @@ ilha	name	faults → ag2_faults	ag2.k:31:16
 ilha	name	ready → ag2_ready	ag2.k:32:16
 ilha	type	outcome u32 → keel_outcome_u32	ag2.k:34:5
 ilha	call	routine.seq/1 → keel_routine_ag2_Ag_seq	ag2.k:34:21
-ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:34:33
+ilha	call	slice.of/1 → keel_slice_of_keel_array_keel_routine_slot_ag2_Ag dim:1	ag2.k:34:33
 ilha	call	routine.code/1 → keel_routine_slot_ag2_Ag_code &1	ag2.k:35:20
 ilha	array-index	steps rank 1	ag2.k:35:33
 ilha	type	outcome u32 → keel_outcome_u32	ag2.k:41:5
@@ -67,7 +67,7 @@ ilha	type	routine.slot Ag → keel_routine_slot_ag2_Ag	ag2.k:42:11
 ilha	name	hello → ag2_hello	ag2.k:43:16
 ilha	name	authenticate → ag2_authenticate	ag2.k:44:16
 ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:46:12
-ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:46:24
+ilha	call	slice.of/1 → keel_slice_of_keel_array_keel_routine_slot_ag2_Ag dim:1	ag2.k:46:24
 ilha	type	outcome u32 → keel_outcome_u32	ag2.k:50:5
 ilha	type	Ag → ag2_Ag	ag2.k:50:21
 ilha	array	steps [3]	ag2.k:51:5
@@ -76,7 +76,7 @@ ilha	name	faults → ag2_faults	ag2.k:52:16
 ilha	name	hello → ag2_hello	ag2.k:53:16
 ilha	name	authenticate → ag2_authenticate	ag2.k:54:16
 ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:56:12
-ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:56:24
+ilha	call	slice.of/1 → keel_slice_of_keel_array_keel_routine_slot_ag2_Ag dim:1	ag2.k:56:24
 ilha	type	outcome u32 → keel_outcome_u32	ag2.k:60:5
 ilha	type	Ag → ag2_Ag	ag2.k:60:28
 ilha	array	steps [3]	ag2.k:61:5
@@ -85,4 +85,4 @@ ilha	name	faults → ag2_faults	ag2.k:62:16
 ilha	name	faults → ag2_faults	ag2.k:63:16
 ilha	name	ready → ag2_ready	ag2.k:64:16
 ilha	call	routine.par/2 → keel_routine_ag2_Ag_par	ag2.k:66:12
-ilha	call	slice.of/1 → keel_array_keel_routine_slot_ag2_Ag_as_slice dim:1	ag2.k:66:24
+ilha	call	slice.of/1 → keel_slice_of_keel_array_keel_routine_slot_ag2_Ag dim:1	ag2.k:66:24

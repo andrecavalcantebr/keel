@@ -23,7 +23,7 @@ temporário, sem `mkstemp`, sem limpeza.
 | `parser_keel.c` | ponto de entrada, `k_parser_keel(input, output, diagnostics)`; por ora, o despejo de tokens do `--stop-after=lex` ([desenho do cgen §5.1](../../../../design/cgen-tool.md#51---stop-afterlex)) |
 | `ast.h`, `ast.c` | AST de nível de arquivo, com spans de tokens e fonte persistente; coleta de `module`, imports e declarações para M2 |
 | `parser_dump.c` | projeta essa AST no formato `--stop-after=parse` (níveis `header`, `decl`, `inst` e `ilha`) |
-| `parser_islands.c`, `islands.h` | passagem 3, etapa 4a: as ilhas `type`, `name`, `call`, `from-stack`, `ref` e `implicit-init` ([parser-design §3.2](../../../../design/parser-design.md)) |
+| `parser_islands.c`, `islands.h` | passagem 3, etapa 4a: as ilhas `type`, `name`, `call`, `ref` e `implicit-init` ([parser-design §3.2](../../../../design/parser-design.md)) |
 | `parser.c`, `symtab.c` | [parser-design.md](../../../../design/parser-design.md) |
 | `emit/` | [codegen-design.md](../../../../design/codegen-design.md) |
 | `diag.h`, `diag.c` | [diag-design.md](../../../../design/diag-design.md): o sink, que acumula na memória dada por quem chama; a tabela tem por ora só os diagnósticos do lexer |
@@ -61,7 +61,7 @@ corpo, e preenche `KAst.islands` (ordenado pela âncora) e `KAst.island_text`
 (a coluna de detalhe, já formatada). O módulo genérico não tem ilhas concretas,
 como não tem instâncias. O dump imprime as linhas `ilha` depois das `inst`.
 
-Espécies desta etapa: `type`, `name`, `call`, `from-stack`, `ref` e
+Espécies desta etapa: `type`, `name`, `call`, `ref` e
 `implicit-init`. O que a chamada resolve vem da assinatura declarada no módulo
 chamado (spec §4.4), nunca do ponto de chamada; por isso a passagem lê os
 parâmetros da AST dos módulos importados. A única tipagem de expressão é a forma
@@ -78,7 +78,7 @@ para vários índices (`v[1,2,3]`, `v rank 3`): `v[1][2][3]` e `v[i]` são C.
 `x[a..b]` é `as_slice(x, a, b)` do módulo do tipo do contêiner, e `x[a..]`,
 `x[..]` pedem também o `length` dele: é o protocolo da spec (§4.5, §5.1), o
 mesmo para qualquer módulo, da base ou do programa. Sobre `array` o verbo é o
-de `keel.array`, que o arquivo tem de importar (`no-range-index-verb`); o
+de `keel.array`, que o arquivo tem de importar (`protocol-not-satisfied`); o
 limite aberto é do núcleo (`core`). `x[i,j]` sobre modificador não tem `ptr`
 por aridade (§4.5, item 1): sem `dim` é `no-ptr-for-arity`, e com `dim` (o
 acessor de vetor, provisório) ainda não recebe ilha, à espera do oráculo 006.
@@ -92,7 +92,7 @@ o módulo declara mas o objeto não serve vira diagnóstico (`wrong-qualifier`,
 `flat-view-of-n-dim-array`). `x[…]` sobre `array` ou instância de modificador é
 sempre ilha, mesmo quando a emissão é o próprio texto (`y[1][5]`); um índice sem
 `ptr` daquela aridade é `no-ptr-for-arity`, e um intervalo sobre tipo cujo módulo
-não declara `length` e `as_slice` de três parâmetros é `no-range-index-verb`. Símbolos de arquivo
+não declara `length` e `as_slice` de três parâmetros é `protocol-not-satisfied`. Símbolos de arquivo
 (`buffer i32 gbuf;`, `array i32 v[6]`) valem em todas as funções, onde quer que
 estejam no arquivo.
 
@@ -102,9 +102,10 @@ módulo dele declara o verbo (§4.4, passo 1); antes de uma função do próprio
 com o mesmo nome.
 
 `of`, `from` e `clone` são produtores, qualificados pelo módulo do produto
-(§4.4, regra 1), então `slice.of(b, r)` sobre um `buffer` é o `as_slice` do buffer
-e não é `wrong-qualifier`. Sobre `array`, `slice.of(v…)` é o `as_slice` de
-`keel.array`, `buffer.of(v)` baixa para o `of` do buffer, e os verbos de
+(§4.4, regra 1). `slice.of(x…)` é função sobre `Sliceable` (spec §4.14, backend
+§5.19): a ilha resolve o `as_slice` de três parâmetros do tipo de `x` para achar a
+instância e o tipo do resultado, e escreve `keel_slice_of<aridade>_<tipo>`, que não
+é `wrong-qualifier`. `buffer.of(v)` baixa para o `of` do buffer, e os verbos de
 `keel.array` são `keel_array_<T>_<verbo>`, todos com a marca `dim:1`.
 
 **Tipagem de contêiner.** A posição de contêiner é a produção `container` da §2.2

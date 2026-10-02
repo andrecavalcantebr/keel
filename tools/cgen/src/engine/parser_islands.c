@@ -1,4 +1,4 @@
-/* Pass 3 (parser-design §3), stages 4a and 4b: type, name, call, from-stack,
+/* Pass 3 (parser-design §3), stages 4a and 4b: type, name, call,
  * ref and implicit-init islands, then array, array-index, index and
  * range-index, read from the token stream of each function and variable
  * declaration — signature and body alike.
@@ -1010,33 +1010,40 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     }
 
     keel_slice_char redirected = {0};
-    /* `slice.of` over a `buffer` is the buffer's `as_slice`, chosen by arity (backend §5.2, item 3) */
-    if (module && module_named(home, "keel.slice") && k_token_spelled(name, "of") && k0 &&
-        k0->kind == KT_MODIFIER && k0->module && k0->module != module && ast_of(c, k0->module) &&
-        module_named(ast_of(c, k0->module), "keel.buffer")) {
-        module = k0->module;
-        home = ast_of(c, module);
-        redirected = k_diag_text("as_slice");
-    }
-    /* `slice.of` over an `array` is the `as_slice` of `keel.array`, which the file imports (spec §5.3) */
+    /* `slice.of` is a function over `Sliceable` (spec §4.14, backend §5.19): the
+       instance is named by the concrete type, and its body calls that type's
+       `length` and three-parameter `as_slice`, so the island resolves the call as
+       that `as_slice` to find the instance and the type of the result */
+    bool proto_of = false;
     if (module && module_named(home, "keel.slice") && k_token_spelled(name, "of") && k0 && k0->kind == KT_ARRAY) {
         if (k0->rank > 1) {
             diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, tok(a, callee), written, range_text(a, args[0]), k0->dims);
             return -1;
         }
         const KModule *am = module_by_name(a->symbols, "keel.array");
-        if (!am || !ast_of(c, am) || !find_verb(ast_of(c, am), k_diag_text("as_slice"), argc).found) {
-            diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, tok(a, callee), range_text(a, args[0]), written, none);
+        if (!am || !ast_of(c, am) || !find_verb(ast_of(c, am), k_diag_text("as_slice"), 3).found ||
+            !find_verb(ast_of(c, am), k_diag_text("length"), 1).found) {
+            diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, callee), range_text(a, args[0]), k_diag_text("Sliceable"), written);
             return -1;
         }
         module = am;
         home = ast_of(c, module);
         redirected = k_diag_text("as_slice");
+        proto_of = true;
+    } else if (module && module_named(home, "keel.slice") && k_token_spelled(name, "of") && k0 &&
+               k0->kind == KT_MODIFIER && k0->module && ast_of(c, k0->module)) {
+        const KAst *own = ast_of(c, k0->module);
+        if (!find_verb(own, k_diag_text("as_slice"), 3).found || !find_verb(own, k_diag_text("length"), 1).found) {
+            diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, callee), range_text(a, args[0]), k_diag_text("Sliceable"), written);
+            return -1;
+        }
+        module = k0->module;
+        home = own;
+        redirected = k_diag_text("as_slice");
+        proto_of = true;
     }
-    bool from_stack = module && module_named(home, "keel.arena") && k_token_spelled(name, "from_stack");
-    Sig sig = from_stack ? find_verb(home, k_diag_text("from_array"), SIZE_MAX)
-                         : find_verb(home, redirected.len ? redirected : name, argc);
-    keel_slice_char declared = from_stack ? k_diag_text("from_array") : redirected.len ? redirected : name;
+    Sig sig = find_verb(home, redirected.len ? redirected : name, proto_of ? 3 : argc);
+    keel_slice_char declared = redirected.len ? redirected : name;
     bool gen = module && generic(home);
     keel_slice_char modifier = gen ? modifier_of(home) : none;
 
@@ -1052,10 +1059,6 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         else if (gen && nested == SIZE_MAX && mentions_own(home, &sig.p[k])) nested = k;
     }
     if (!sig.found && gen && argc) recv = 0;        /* the module declares no such verb: the object is first */
-
-    long known;
-    if (from_stack && argc == 2 && !decimal_of(c, args[1], &known))
-        diag3(c, K_DIAG_NONCONSTANT_ARENA_STACK, tok(a, args[1].first), range_text(a, args[1]), none, none);
 
     /* slice.from over a `ref` would take a pointer keel does not vouch for (spec §5.3) */
     if (module && module_named(home, "keel.slice") && k_token_spelled(name, "from") && argc >= 2) {
@@ -1077,17 +1080,11 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         return -1;
     }
 
-    /* arena.from_array(a, v) takes the extent of an `array u8` (spec §5.2) */
+    /* arena.from_array(a, v) takes an `array u8` by its binder (spec §5.2); the
+       element type is the C compiler's to check */
     if (module && module_named(home, "keel.arena") && k_token_spelled(name, "from_array") && argc == 2) {
         int t1 = type_of(c, args[1]);
-        if (t1 < 0) return -1;                      /* not a symbol this pass saw declared */
-        const KType *v = kt(c, t1);
-        if (v->kind != KT_ARRAY || strcmp(kt_symbol(c, v->elem), "u8")) {
-            diag3(c, K_DIAG_ARENA_FROM_ARRAY_NOT_U8, tok(a, args[1].first), range_text(a, args[1]),
-                  v->kind == KT_ARRAY ? (keel_slice_char){ strlen(kt_symbol(c, v->elem)), (char *)kt_symbol(c, v->elem) } : none,
-                  none);
-            return -1;
-        }
+        if (t1 < 0 || kt(c, t1)->kind != KT_ARRAY) return -1;
         Text array_form = { .ok = true };
         put(&array_form, written.ptr, written.len);
         put_str(&array_form, "/2 \xe2\x86\x92 ");
@@ -1202,7 +1199,17 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             return -1;
         }
         if (inst < 0 || kt(c, inst)->kind != KT_MODIFIER) return -1;
-        if (direct) {
+        if (proto_of) {
+            /* keel_slice_of<arity>_<concrete type> (backend §5.19): the concrete
+               type's canonical name is the prefix its own verbs carry */
+            Text own = { .ok = true };
+            if (direct ? (put_str(&own, kt(c, inst)->symbol), !*kt(c, inst)->symbol)
+                       : !module_instance_prefix(c, home, inst, &own)) return -1;
+            put_str(&t, "keel_slice_of");
+            if (argc > 1) put_uint(&t, argc - 1);
+            put_str(&t, "_");
+            put(&t, own.s, own.n);
+        } else if (direct) {
             if (!*kt(c, inst)->symbol) return -1;
             put_str(&t, kt(c, inst)->symbol);
         } else if (!module_instance_prefix(c, home, inst, &t)) {
@@ -1211,9 +1218,11 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     } else {
         put_module_prefix(&t, home);
     }
-    put_str(&t, "_");
-    put(&t, declared.ptr, declared.len);
-    if (sig.found && sig.overloaded && argc > 1) put_uint(&t, argc - 1);
+    if (!proto_of) {
+        put_str(&t, "_");
+        put(&t, declared.ptr, declared.len);
+        if (sig.found && sig.overloaded && argc > 1) put_uint(&t, argc - 1);
+    }
 
     /* adaptation marks, from the declared parameter (spec §4.4, item 5) */
     for (size_t k = 0; sig.found && k < argc && k < sig.n; k++) {
@@ -1229,7 +1238,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         }
         if (sig.p[k].pointer && ak && ak->pointers == 0 && ak->lvalue) { put_str(&t, " &"); put_uint(&t, k + 1); }
     }
-    emit(c, from_stack ? K_ISLAND_FROM_STACK : K_ISLAND_CALL, callee, &t);
+    emit(c, K_ISLAND_CALL, callee, &t);
     return sig.found && sig.fn ? ret_type(c, home, sig.fn, inst) : -1;
 }
 
@@ -1532,7 +1541,7 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
             const KModule *am = module_by_name(a->symbols, "keel.array");
             Sig sig = am && ast_of(c, am) ? find_verb(ast_of(c, am), k_diag_text("as_slice"), 3) : (Sig){0};
             if (!sig.found) {
-                diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, name, path, group, none);
+                diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, name, path, k_diag_text("Sliceable"), group);
                 return close + 1;
             }
             bool high = range + 1 < close;
@@ -1609,7 +1618,7 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
         bool ignored = false;
         if (!container_verb(k, home, k_diag_text("as_slice"), 3, &tx, &adapt) ||
             (!high && (put_str(&tx, " "), !container_verb(k, home, k_diag_text("length"), 1, &tx, &ignored)))) {
-            diag3(c, K_DIAG_NO_RANGE_INDEX_VERB, name, path, text, none);
+            diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, name, path, k_diag_text("Sliceable"), text);
             return close + 1;
         }
     }

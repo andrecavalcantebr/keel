@@ -165,7 +165,7 @@ typedef struct {
  * (cgen-tool.md §5.2). O detalhe de cada espécie é o que a tabela do §5.2 já
  * fixa; a struct só nomeia os campos em vez de compor a string na hora. */
 typedef enum {
-    K_ISLAND_TYPE, K_ISLAND_NAME, K_ISLAND_CALL, K_ISLAND_FROM_STACK,
+    K_ISLAND_TYPE, K_ISLAND_NAME, K_ISLAND_CALL,
     K_ISLAND_REF, K_ISLAND_DEFER, K_ISLAND_IMPLICIT_INIT,
     K_ISLAND_FOREACH, K_ISLAND_MATCH, K_ISLAND_INDEX,
     K_ISLAND_RANGE_INDEX, K_ISLAND_ARRAY, K_ISLAND_ARRAY_INDEX

@@ -169,7 +169,7 @@ escrever as 135 sem inventar um estilo por vez:
 | --- | --- | --- | --- |
 | **Grafia errada, forma certa conhecida** | ~40 | "escreva X, não Y" | `array-1d-as-parameter`, `enum-constant-without-type`, `import-clause-order` |
 | **Conflito entre dois pontos do programa** | ~25 | "X já é Y, declarado em Z" | `symbol-collision`, `duplicate-alias`, `canonical-name-collision` |
-| **O tipo não oferece o que a construção pede** | ~35 | "T não declara V" + o que declara | `not-partitionable`, `no-range-index-verb`, `verb-not-in-instance` |
+| **O tipo não oferece o que a construção pede** | ~35 | "T não declara V" + o que declara | `protocol-not-satisfied`, `verb-not-in-instance` |
 
 A terceira é a mais valiosa e a mais fácil de escrever mal. O protocolo é uma
 lista de verbos (spec §5.1), então a mensagem pode dizer exatamente o que falta:

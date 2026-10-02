@@ -68,7 +68,7 @@ typedef struct KInstanceUse {
  * signatures and bodies. The detail column lives in KAst.island_text
  * (`text`, `text_len`), already formatted the way the dump prints it. */
 typedef enum {
-    K_ISLAND_TYPE, K_ISLAND_NAME, K_ISLAND_CALL, K_ISLAND_FROM_STACK,
+    K_ISLAND_TYPE, K_ISLAND_NAME, K_ISLAND_CALL,
     K_ISLAND_REF, K_ISLAND_DEFER, K_ISLAND_IMPLICIT_INIT,
     K_ISLAND_FOREACH, K_ISLAND_MATCH, K_ISLAND_INDEX,
     K_ISLAND_RANGE_INDEX, K_ISLAND_ARRAY, K_ISLAND_ARRAY_INDEX

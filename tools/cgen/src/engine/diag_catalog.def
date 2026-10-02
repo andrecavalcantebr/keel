@@ -39,9 +39,7 @@
     X(REF_WITHOUT_INITIALIZER, "ref-without-initializer", K_ERROR) \
     X(REF_ARITHMETIC, "ref-arithmetic", K_ERROR) \
     X(SLICE_FROM_REF, "slice-from-ref", K_ERROR) \
-    X(NONCONSTANT_ARENA_STACK, "nonconstant-arena-stack", K_ERROR) \
-    X(ARENA_FROM_ARRAY_NOT_U8, "arena-from-array-not-u8", K_ERROR) \
-    X(ARENA_ESCAPE, "arena-escape", K_ERROR) \
+    X(REGION_ESCAPE, "region-escape", K_ERROR) \
     X(DEFER_WITHOUT_BRACES, "defer-without-braces", K_ERROR) \
     X(DEFER_AT_FILE_SCOPE, "defer-at-file-scope", K_ERROR) \
     X(JUMP_OVER_DEFER, "jump-over-defer", K_ERROR) \
@@ -66,7 +64,7 @@
     X(REDUNDANT_INSTANCE, "redundant-instance", K_WARNING) \
     X(NONPARAMETRIC_OUT_OF_LINE, "nonparametric-out-of-line", K_ERROR) \
     X(BYREF_PARAM, "byref-param", K_ERROR) \
-    X(CHILD_ARENA_AFTER_RESET, "child-arena-after-reset", K_ERROR) \
+    X(CHILD_REGION_AFTER_INVALIDATION, "child-region-after-invalidation", K_ERROR) \
     X(UNNAMED_TAGS, "unnamed-tags", K_ERROR) \
     X(DUPLICATE_TAGS_NAME, "duplicate-tags-name", K_ERROR) \
     X(EMPTY_TAGS, "empty-tags", K_ERROR) \
@@ -75,22 +73,15 @@
     X(UNDECLARED_TAGS, "undeclared-tags", K_ERROR) \
     X(TAG_FROM_OTHER_SET, "tag-from-other-set", K_ERROR) \
     X(DUPLICATE_TAG, "duplicate-tag", K_ERROR) \
-    X(MATCH_WITHOUT_TAG, "match-without-tag", K_ERROR) \
     X(MATCH_WITHOUT_TAGS, "match-without-tags", K_ERROR) \
-    X(AMBIGUOUS_MATCH_TAGS, "ambiguous-match-tags", K_ERROR) \
     X(INVALID_FAULT_CODE, "invalid-fault-code", K_ERROR) \
     X(NO_PTR_FOR_ARITY, "no-ptr-for-arity", K_ERROR) \
-    X(NOT_ITERABLE, "not-iterable", K_ERROR) \
-    X(NOT_CURSOR_ITERABLE, "not-cursor-iterable", K_ERROR) \
     X(WALK_WITHOUT_CURSOR, "walk-without-cursor", K_ERROR) \
     X(CURSOR_TYPE_MISMATCH, "cursor-type-mismatch", K_ERROR) \
-    X(NOT_PARTITIONABLE, "not-partitionable", K_ERROR) \
     X(PARTITION_TYPE_MISMATCH, "partition-type-mismatch", K_ERROR) \
     X(BINDER_COPIES_CONTAINER, "binder-copies-container", K_ERROR) \
     X(MUTATION_DURING_TRAVERSAL, "mutation-during-traversal", K_ERROR) \
     X(INDEX_NOT_SIZE_T, "index-not-size-t", K_ERROR) \
-    X(NOT_COUNTABLE, "not-countable", K_ERROR) \
-    X(NO_RANGE_INDEX_VERB, "no-range-index-verb", K_ERROR) \
     X(INVERTED_RANGE_INDEX, "inverted-range-index", K_ERROR) \
     X(ARRAY_INDEX_ABOVE_DIMENSION, "array-index-above-dimension", K_ERROR) \
     X(FOREACH_TWO_BINDERS_ON_LITERAL, "foreach-two-binders-on-literal", K_ERROR) \
@@ -118,10 +109,8 @@
     X(FROM_WITHOUT_TARGET, "from-without-target", K_ERROR) \
     X(CAPTURED_WRITE, "captured-write", K_ERROR) \
     X(ELSE_WITHOUT_INITIALIZER, "else-without-initializer", K_ERROR) \
-    X(ELSE_ON_INFALLIBLE_TYPE, "else-on-infallible-type", K_ERROR) \
     X(ELSE_ON_COMPLEX_TARGET, "else-on-complex-target", K_ERROR) \
     X(ELSE_MULTIPLE_DECLARATORS, "else-multiple-declarators", K_ERROR) \
-    X(ELSE_DEFAULT_WITHOUT_WIN, "else-default-without-win", K_ERROR) \
     X(HIDDEN_DECLARATOR, "hidden-declarator", K_ERROR) \
     X(NONSCALAR_CONSTEXPR, "nonscalar-constexpr", K_ERROR) \
     X(RETURN_IN_PARALLEL, "return-in-parallel", K_ERROR) \
@@ -140,4 +129,22 @@
     X(EXTENT_PATH_WITH_CALL, "extent-path-with-call", K_ERROR) \
     X(PARTIAL_INSTANCE_SELECTION, "partial-instance-selection", K_ERROR) \
     X(TYPE_PARAM_OUTSIDE_SIZE, "type-param-outside-size", K_ERROR) \
-    X(TYPE_PARAM_SHADOWS_TYPE, "type-param-shadows-type", K_ERROR)
+    X(TYPE_PARAM_SHADOWS_TYPE, "type-param-shadows-type", K_ERROR) \
+    X(ROLE_POSITION, "role-position", K_ERROR) \
+    X(UNKNOWN_PROTOCOL, "unknown-protocol", K_ERROR) \
+    X(ASSOCIATED_TYPE_UNBOUND, "associated-type-unbound", K_ERROR) \
+    X(ASSOCIATED_TYPE_CONFLICT, "associated-type-conflict", K_ERROR) \
+    X(CIRCULAR_PROTOCOL, "circular-protocol", K_ERROR) \
+    X(PROTOCOL_VERB_CONFLICT, "protocol-verb-conflict", K_ERROR) \
+    X(PROTOCOL_ROLE_MISMATCH, "protocol-role-mismatch", K_ERROR) \
+    X(NOT_IN_V0, "not-in-v0", K_ERROR) \
+    X(MOLD_POSITION, "mold-position", K_ERROR) \
+    X(MOLD_RETURN, "mold-return", K_ERROR) \
+    X(MOLD_ARGUMENT, "mold-argument", K_ERROR) \
+    X(CIRCULAR_MOLD, "circular-mold", K_ERROR) \
+    X(MOLD_DEPTH, "mold-depth", K_ERROR) \
+    X(MOLD_SIZE, "mold-size", K_ERROR) \
+    X(CODE_PARAM_OUTSIDE_MOLD, "code-param-outside-mold", K_ERROR) \
+    X(PROTOCOL_NOT_SATISFIED, "protocol-not-satisfied", K_ERROR) \
+    X(VERB_NOT_IN_PROTOCOL, "verb-not-in-protocol", K_ERROR) \
+    X(INSTANCE_DEPTH, "instance-depth", K_ERROR)

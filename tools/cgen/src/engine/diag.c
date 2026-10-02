@@ -32,8 +32,8 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` needs a one-dimensional `array`, and `%s` has dimensions `%s`: index it down to one dimension first",
     [K_DIAG_NO_PTR_FOR_ARITY] =
         "`%s` has no `ptr` for the indices `%s`: a container is indexed with the arities its module declares `ptr` for",
-    [K_DIAG_NO_RANGE_INDEX_VERB] =
-        "`%s` takes no range index `%s`: the module of its type must declare `length` and `as_slice(x, a, b)` (an `array` needs `keel.array` imported)",
+    [K_DIAG_PROTOCOL_NOT_SATISFIED] =
+        "`%s` does not meet `%s`, which `%s` needs: the module of its type must declare the protocol's verbs (an `array` takes them from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =
         "`keel.dim` needs a dimension index known at translation time, and `%s` is not one: write a decimal literal or a `constexpr`",
     [K_DIAG_PARTIAL_ARRAY_INDEX] =
@@ -58,10 +58,6 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` needs a one-dimensional `array` to read the size from, and `%s` is not one: use `buffer.of(p, n)`",
     [K_DIAG_BUFFER_OVER_CONST] =
         "`%s` cannot make a `buffer` over the const elements `%s`: use `slice.of`, which gives a `slice const T`",
-    [K_DIAG_ARENA_FROM_ARRAY_NOT_U8] =
-        "`arena.from_array` takes an `array u8`, and `%s` is not one (its elements are `%s`)",
-    [K_DIAG_NONCONSTANT_ARENA_STACK] =
-        "`arena.from_stack` needs a size known at translation time, and `%s` is not: use `arena.from_parent`",
     [K_DIAG_C_TYPE_AS_ARGUMENT] =
         "`%s` takes keel types as arguments, and `%s` is a C keyword: write the keel spelling (`i32`, `u8`, `f64`, ...) or a named type",
     [K_DIAG_RESTRICT_ON_CONTAINER] =

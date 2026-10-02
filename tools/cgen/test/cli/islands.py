@@ -95,13 +95,13 @@ EXPECTED = [
     ('range-index', 's 1.. → keel_slice_i32_as_slice keel_slice_i32_length', 30, 's[', 0),
     ('index', 't → keel_slice_i32_ptr1', 31, 't[', 0),
     # a qualified name is an island whether or not the module declares it, an
-    # index over a file-scope symbol is one, and slice.of over a buffer is its as_slice
+    # index over a file-scope symbol is one, and slice.of over a buffer is its instance (backend §5.19)
     ('type', 'buffer i32 → keel_buffer_i32', 33, 'buffer', 0),
     ('type', 'arena → keel_arena', 34, 'arena', 0),
     ('type', 'buffer i32 → keel_buffer_i32', 34, 'buffer', 0),
     ('call', 'arena.reset_all/1 → keel_arena_reset_all', 35, 'arena', 0),
     ('type', 'slice i32 → keel_slice_i32', 36, 'slice', 0),
-    ('call', 'slice.of/1 → keel_buffer_i32_as_slice &1', 36, 'slice.of', 0),
+    ('call', 'slice.of/1 → keel_slice_of_keel_buffer_i32 &1', 36, 'slice.of', 0),
     ('index', 'gbuf → keel_buffer_i32_ptr1 &1', 37, 'gbuf', 0),
     ('name', 'outcome.OK → keel_outcome_OK', 37, 'outcome.OK', 0),
     ('call', 'buffer.length/1 → keel_buffer_i32_length &1', 37, 'buffer.length', 0),

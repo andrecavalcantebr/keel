@@ -1769,9 +1769,9 @@ cooperativo ou da política escrita entre colchetes **deixaram de existir**,
 porque a condição que observavam deixou de ser expressável.
 
 Na direção oposta, os diagnósticos novos são de protocolo, e não de forma
-escrita: `not-partitionable`, `not-cursor-iterable`,
-`partition-type-mismatch`, `cursor-type-mismatch`, `match-without-tag` e
-`match-without-tags` recusam um tipo que não declara a operação exigida.
+escrita: `protocol-not-satisfied` recusa um tipo que não declara as operações
+exigidas, e `partition-type-mismatch`, `cursor-type-mismatch` e
+`match-without-tags` conferem o que ele declara.
 
 Referência: [spec §6.2](keel-spec.md#62-catálogo).
 
@@ -1840,31 +1840,32 @@ corpo inteiro; essa exceção não muda a ABI das funções comuns. A especializ
 de funções sobre protocolo é outro contrato, ligado ao tipo concreto e aos
 verbos do argumento, sem especialização por fragmento.
 
-### Conformidade nominal no módulo
+### Contrato nomeado, conformidade estrutural
 
-Um protocolo nomeia um contrato; a cláusula `implement` registra quem o
-cumpre. Juntos, associam um tipo e o código que opera sobre ele numa unidade,
-como um objeto, mas de tempo de tradução: não há vtable, teste em execução nem
-objeto de interface. A instância de um genérico é a materialização dessa
-unidade em código C e em algumas estruturas.
+Um protocolo nomeia um contrato: os verbos, os tipos associados e os papéis que
+uma construção exige. O nome serve a dois usos: a tabela das construções e o
+parâmetro de função genérica (§4.14), como uma interface de Java, mas resolvida
+na tradução, sem vtable nem objeto de interface.
 
-A cláusula fica no módulo, e não no tipo, porque os verbos são do módulo. A
-resolução procura o verbo no módulo do contêiner (§4.4), e não há sobrecarga
-por tipo C: um módulo só pode dar um `length` a um receptor. O implementador
-único é corolário disso, e a regra só o torna explícito. Na prática, um
-módulo que implementa protocolos tem um modificador, e alguns poucos tipos
-associados a ele, como o cursor de `keel.buffer`.
+A conformidade é estrutural: declarar os verbos basta, sem registro, marcação
+nem permissão. Uma declaração obrigatória de conformidade foi considerada e
+recusada. Não acrescentava verificação que o uso não fizesse, e puxava keel
+para a orientação a objetos: primeiro um implementador por módulo, depois um
+protocolo por módulo, sem retorno que pagasse o custo. Uma declaração opcional
+seria um comentário com sintaxe.
 
-A conformidade é nominal porque as construções a consomem: um `foreach` que
-aceitasse qualquer tipo com os verbos certos tornaria a cláusula um
-comentário. Com ela, o diagnóstico sai no implementador, com todos os verbos
-ausentes listados, e não no uso, com o nome manglado de uma chamada C.
+Os verbos são do módulo, e não há sobrecarga por tipo C (§4.4): um módulo dá um
+só `length` a um receptor. Isso é corolário da resolução, e não regra de
+protocolo.
 
-`array` não é tipo, e o núcleo não o trata como implementador: `x[i]` e
-`foreach` sobre `array` são a sintaxe do C. Quem implementa protocolos sobre
-`array` é `keel.array`, por inteiro, com a extensão recebida pelo binder. Assim
-o contrato de cada protocolo tem um só dono, e as constantes de tradução
-(`keel.length`, `keel.dim`) continuam no núcleo, que é quem as conhece.
+Os papéis do protótipo valem também para o implementador que não os escreve.
+Assim a procedência é rastreada sem que cada módulo do programa repita `parent`
+e `child`; escrever papéis diferentes contradiz o contrato e é erro.
+
+`array` não é tipo: `x[i]` e `foreach` sobre `array` são a sintaxe do C. Os
+verbos dos protocolos sobre `array` são de `keel.array`, com a extensão
+recebida pelo binder, e as constantes de tradução (`keel.length`, `keel.dim`)
+continuam no núcleo, que é quem as conhece.
 
 Composição significa conjunção. A alternativa entre leitura por valor e por
 endereço pertence ao `foreach`, que aceita `IndexGet` ou `IndexPtr` para
@@ -1875,9 +1876,7 @@ sem default não exige um verbo que escreve valor.
 
 A unidade instanciada é o módulo. Seus modificadores, tipos e funções
 compartilham os argumentos de `dim`, `tags` e `type`; movê-los para cada
-modificador criaria unidades de instanciação diferentes. Pelo mesmo motivo,
-`implement` também fica na linha `module`: os verbos que a cláusula promete são
-do módulo.
+modificador criaria unidades de instanciação diferentes.
 
 ### Tipos associados em vez de consulta de tipo declarado
 

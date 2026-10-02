@@ -1495,7 +1495,7 @@ keel_outcome_keel_string name = app_login(); if (keel_outcome_keel_string_failed
 4. Nada é sintetizado dentro do operando: não há desembrulho, conversão nem `return` implícito.
 5. `corot` não declara `failed` e não chega a este lowering (linguagem §5.5). [R: resultados finais](keel-rationale.md#resultados-finais-e-estados-cooperativos)
 
-**Verificações:** nenhuma de `debug`. `else-default-without-win` é da tradução e não chega ao backend.
+**Verificações:** nenhuma de `debug`. A falta de `win` na forma de default é `protocol-not-satisfied`, da tradução, e não chega ao backend.
 
 **Perfis:** iguais.
 

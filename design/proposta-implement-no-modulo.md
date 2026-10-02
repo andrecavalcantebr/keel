@@ -1,7 +1,8 @@
 # Proposta: `implement` no módulo, conformidade nominal
 
-**Data:** 2026-10-02. **Status:** aceita e incorporada à spec e ao rationale
-em 2026-10-02. A Base e o golden seguem pendentes (ver o fim do documento).
+**Data:** 2026-10-02. **Status:** superada no mesmo dia. Foi incorporada e
+depois revertida: a conformidade ficou estrutural, sem `implement` (ver o
+rationale, "Contrato nomeado, conformidade estrutural"). Fica como histórico.
 
 ## Decisões que o texto realiza
 

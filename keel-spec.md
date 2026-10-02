@@ -215,7 +215,6 @@ As palavras abaixo têm função keel nas posições indicadas. Fora delas, apli
 | Palavra | Onde vale |
 | --- | --- |
 | `protocol` | declaração de arquivo, seguido do nome e de `type` ou `[` (§5.1) |
-| `implement` | na linha `module`, depois dos parâmetros, seguido de `[` (§5.1) |
 | `parent`, `child`, `invalidates`, `consumes` | antes do tipo de um parâmetro; `child` também antes do tipo de retorno (§4.12) |
 | `keel_code` | **(v1)** antes do tipo de retorno de função, e como espécie de parâmetro seguido de `IDENT` (§4.13) |
 | `module` | primeira construção do arquivo (§4.1) |
@@ -290,7 +289,7 @@ Uma região `<opaque>` pode conter construções keel. Essas construções são 
 unit      ::= decl-module { top-item }
 
 decl-module  ::= 'module' module-name [ dim-binder ] [ tags-binder ]
-                 [ type-binder ] [ implement ] ';'
+                 [ type-binder ] ';'
 module-name  ::= IDENT { '.' IDENT }
 dim-binder   ::= 'dim' IDENT { ',' IDENT }
 tags-binder  ::= 'tags' IDENT { ',' IDENT }
@@ -309,7 +308,6 @@ top-decl    ::= [ 'pub' | 'priv' ]
                  | <opaque> )
 
 decl-modifier ::= 'modifier' IDENT [ 'byref' ] '{' <opaque> '}'
-implement     ::= 'implement' '[' qualified-name { ',' qualified-name } ']'
 decl-protocol ::= 'protocol' IDENT 'type' IDENT '{' { proto-item } '}'
                 | 'protocol' IDENT '[' qualified-name { ',' qualified-name } ']' ';'
 proto-item    ::= 'type' IDENT ';'
@@ -348,10 +346,10 @@ spec-c        ::= 'inline' | 'static' | 'extern' | '_Noreturn'
                 | ( 'alignas' | '_Alignas' ) '(' <opaque> ')'
                 | '[[' <opaque> ']]' | qual-c
 param-array   ::= { spec-c } { role } 'array' argument { '*' } IDENT param-dims
-param-dims    ::= '[' dim-binder { ',' <opaque> } ']'
-                | '[' dim-binder ']' { '[' <opaque> ']' }
+param-dims    ::= '[' size-binder { ',' <opaque> } ']'
+                | '[' size-binder ']' { '[' <opaque> ']' }
                 | dimensions
-dim-binder    ::= 'size_t' IDENT
+size-binder   ::= 'size_t' IDENT
 param-type    ::= 'type' IDENT
 role          ::= 'parent' | 'child' | 'invalidates' | 'consumes'
 param-code    ::= 'keel_code' IDENT                       (* v1 *)
@@ -366,7 +364,7 @@ Em `param-proto`, o primeiro nome é protocolo conhecido; o `IDENT` opcional
 nomeia o tipo concreto ligado ao argumento; o último é o parâmetro. A
 contagem distingue as duas formas. `param-dim` só é admitido num molde (§4.13).
 
-`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome de cada um de seus declaradores, inclusive quando o declarador é ponteiro a função. O especificador é comum, e cada declarador deriva dele o seu próprio tipo: em `typedef int a[4], *b;`, `a` é vetor de `int` e `b` é ponteiro para `int`. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). Os declaradores de `decl-struct`, quando escritos, declaram objetos do tipo do `struct-spec`, um por declarador: em `struct Foo { i32 x; } a, *b;`, o tag `Foo` é registrado como tipo e `a` e `b` são objetos declarados. Sem declarador, a forma só declara o tipo. `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `dim-binder` liga um nome à dimensão 0 do vetor recebido (§4.2); só a dimensão 0 o admite. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
+`system-header` designa a forma `<…>` de header usada por `import_c`. O corpo de `extern-c` é preservado segundo a §4.1. `decl-typedef` registra como tipo o nome de cada um de seus declaradores, inclusive quando o declarador é ponteiro a função. O especificador é comum, e cada declarador deriva dele o seu próprio tipo: em `typedef int a[4], *b;`, `a` é vetor de `int` e `b` é ponteiro para `int`. `struct-spec` registra os campos keel — os que casam `decl-keel` ou `decl-array` —, e os demais campos são opacos (§4.2). Os declaradores de `decl-struct`, quando escritos, declaram objetos do tipo do `struct-spec`, um por declarador: em `struct Foo { i32 x; } a, *b;`, o tag `Foo` é registrado como tipo e `a` e `b` são objetos declarados. Sem declarador, a forma só declara o tipo. `param` usa o `declarator` completo, de modo que parâmetro ponteiro a função não tira a função do reconhecimento. `param-array` usa as dimensões de `array`, e as restrições de rank em parâmetros pertencem ao contrato do marcador. `size-binder` liga um nome à dimensão 0 do vetor recebido (§4.2); só a dimensão 0 o admite. `param-type` declara um parâmetro que recebe um tipo escrito na chamada (§4.4). `decl-extent` e `extent-column` pertencem à §4.11.
 
 #### Tipos e declarações
 
@@ -609,7 +607,7 @@ pub i32 counter;
 priv i32 helper(i32 x) { return x; }
 ```
 
-`module`, `import`, `import_c` e `extern_c` ocupam o nível de arquivo. `module` é a primeira construção significativa, antes de diretivas C; seu nome é um caminho de identificadores separados por ponto, e a forma genérica acrescenta os parâmetros da §4.3, e qualquer módulo pode terminar a linha com a cláusula `implement` da §5.1. `import M [as A] [types];` admite alias antes de `types`. `import_c` recebe um nome de header entre `<` e `>`, ou entre aspas. `pub` e `priv` antecedem uma declaração de módulo.
+`module`, `import`, `import_c` e `extern_c` ocupam o nível de arquivo. `module` é a primeira construção significativa, antes de diretivas C; seu nome é um caminho de identificadores separados por ponto, e a forma genérica acrescenta os parâmetros da §4.3. `import M [as A] [types];` admite alias antes de `types`. `import_c` recebe um nome de header entre `<` e `>`, ou entre aspas. `pub` e `priv` antecedem uma declaração de módulo.
 
 **Reconhecimento**
 
@@ -787,10 +785,9 @@ pub modifier mark { i32 tag; T value; }
 
 Os parâmetros ficam na linha `module`, e não no `modifier`, porque a unidade
 instanciada é o módulo: todos os seus modificadores e funções compartilham os
-argumentos. A cláusula `implement [lista]`, depois dos parâmetros, declara os
-protocolos que o módulo implementa (§5.1).
+argumentos.
 
-Os parâmetros pertencem à linha `module`, nesta ordem: `dim`, `tags`, `type`. Cada um admite lista separada por vírgulas. O uso espelha a assinatura: `blocos.bloco(3) i32`, `marked.mark Kind i32`. `modifier` e `instance` são declarações de arquivo; `byref` segue o nome do modificador. Um módulo pode declarar mais de um modificador, e o nome do módulo não precisa coincidir com o de nenhum deles; só um tipo do módulo é o implementador dos seus protocolos (§5.1, regra 12).
+Os parâmetros pertencem à linha `module`, nesta ordem: `dim`, `tags`, `type`. Cada um admite lista separada por vírgulas. O uso espelha a assinatura: `blocos.bloco(3) i32`, `marked.mark Kind i32`. `modifier` e `instance` são declarações de arquivo; `byref` segue o nome do modificador. Um módulo pode declarar mais de um modificador, e o nome do módulo não precisa coincidir com o de nenhum deles.
 
 **Reconhecimento**
 
@@ -1067,7 +1064,7 @@ O incremento ocorre uma vez e a escrita alcança o armazenamento original.
 
 #### 4. Erros
 
-Condições no [catálogo](#62-catálogo). De keel, na tradução: `partial-array-index`, `array-index-above-dimension`, `no-ptr-for-arity`, `no-range-index-verb`, `inverted-range-index`, `open-range-index-on-complex-path`. Do backend, em execução debug: `array-index-out-of-bounds`, `range-index-out-of-bounds` e, pelo `ptr` de `buffer` e `slice`, `index-out-of-length`.
+Condições no [catálogo](#62-catálogo). De keel, na tradução: `partial-array-index`, `array-index-above-dimension`, `no-ptr-for-arity`, `protocol-not-satisfied`, `inverted-range-index`, `open-range-index-on-complex-path`. Do backend, em execução debug: `array-index-out-of-bounds`, `range-index-out-of-bounds` e, pelo `ptr` de `buffer` e `slice`, `index-out-of-length`.
 
 #### 5. Casos especiais
 
@@ -1188,7 +1185,7 @@ while (keel_buffer_i32_has_next(&xs, &c)) {
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `not-iterable`, `not-cursor-iterable`, `walk-without-cursor`, `cursor-type-mismatch`, `binder-copies-container`, `mutation-during-traversal`, `index-not-size-t`, `not-countable`, `foreach-two-binders-on-literal`, `pointer-binder-on-range`, `open-range-outside-index`.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `protocol-not-satisfied`, `walk-without-cursor`, `cursor-type-mismatch`, `binder-copies-container`, `mutation-during-traversal`, `index-not-size-t`, `foreach-two-binders-on-literal`, `pointer-binder-on-range`, `open-range-outside-index`.
 
 #### 5. Casos especiais
 
@@ -1266,7 +1263,7 @@ for (size_t w = 0; w < 4; ++w) {
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `not-partitionable`, `partition-type-mismatch`, `mutation-during-traversal`, `unnamed-parallel`, `flow-verb-outside-parallel`, `nested-parallel`, `duplicate-parallel-name`, `nonconstant-parallel`, `captured-write`, `return-in-parallel`. O compilador C verifica nomes ausentes da captura e tipos incompatíveis.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `protocol-not-satisfied`, `partition-type-mismatch`, `mutation-during-traversal`, `unnamed-parallel`, `flow-verb-outside-parallel`, `nested-parallel`, `duplicate-parallel-name`, `nonconstant-parallel`, `captured-write`, `return-in-parallel`. O compilador C verifica nomes ausentes da captura e tipos incompatíveis.
 
 #### 5. Casos especiais
 
@@ -1398,7 +1395,7 @@ void ast_eval(keel_tagged_ast_Kind_ast_NodeRef t) {
 
 #### 4. Erros
 
-Condições no [catálogo](#62-catálogo). De keel, na tradução: `unnamed-tags`, `duplicate-tags-name`, `duplicate-tag`, `partial-tag-values`, `nonconstant-tag-value`, `empty-tags`, `match-without-tag`, `match-without-tags`, `ambiguous-match-tags`, `tag-not-in-set`, `tag-without-label`, `tag-from-other-set`, `enum-constant-without-type`. Do backend, em execução debug: `tag-out-of-range`.
+Condições no [catálogo](#62-catálogo). De keel, na tradução: `unnamed-tags`, `duplicate-tags-name`, `duplicate-tag`, `partial-tag-values`, `nonconstant-tag-value`, `empty-tags`, `protocol-not-satisfied`, `match-without-tags`, `ambiguous-match-tags`, `tag-not-in-set`, `tag-without-label`, `tag-from-other-set`, `enum-constant-without-type`. Do backend, em execução debug: `tag-out-of-range`.
 
 #### 5. Casos especiais
 
@@ -1446,7 +1443,7 @@ O [exemplo 4 do README](README.md#4-resultado-com-default-e-extração-explícit
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `else-without-initializer`, `else-on-infallible-type`, `else-on-complex-target`, `else-multiple-declarators`, `else-default-without-win`. Argumento, retorno ou atribuição com tipos C incompatíveis são diagnosticados pelo compilador C.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `else-without-initializer`, `protocol-not-satisfied`, `else-on-complex-target`, `else-multiple-declarators`. Argumento, retorno ou atribuição com tipos C incompatíveis são diagnosticados pelo compilador C.
 
 #### 5. Casos especiais
 
@@ -1753,7 +1750,7 @@ do argumento, e dá acesso aos tipos associados por `C.nome`.
    não é deduzido.
 3. Cada parâmetro de protocolo é independente: dois parâmetros do mesmo
    protocolo podem receber tipos diferentes.
-4. O tipo concreto deve atender o protocolo pelas regras 3 e 13 da §5.1.
+4. O tipo concreto deve atender o protocolo pelas regras 3 e 4 da §5.1.
 5. O corpo só chama verbos do protocolo sobre o parâmetro, ainda que o tipo
    concreto tenha outros.
 6. `C.nome` designa o tipo associado ligado ao tipo concreto.
@@ -1839,12 +1836,20 @@ default escrito e o parâmetro do implementador é validada pelo compilador C
 (regra 5). `Failable` exige somente `bool failed(resultado)`. Nenhum dos dois
 introduz papéis nessas operações.
 
-Implementador:
+Implementador: basta declarar os verbos.
 
 ```keel
-module keel.buffer type T implement [IndexPtr, IndexGet, Sliceable, Traversable, Partitionable];
-pub modifier buffer byref { /* ... */ }
+module lst;
+pub typedef struct Node { i32 v; struct Node *link; } Node;
+pub typedef struct { Node *head; } List;
+pub typedef struct { Node *current; } cursor;
+pub cursor begin(List *l);                // roles inherited: parent l, child result
+pub bool   has_next(List *l, cursor *c);
+pub i32   *next(List *l, cursor *c);      // roles inherited: parent l, child result
 ```
+
+`List` atende `Traversable`, e `walk` o percorre. Não há declaração de
+conformidade.
 
 Composição:
 
@@ -1857,15 +1862,16 @@ pub protocol Sequence [IndexPtr, Sliceable, Traversable];
 1. Um protocolo é um conjunto nomeado de verbos e tipos associados. `type C`
    nomeia o implementador; `type nome;` nas chaves declara um tipo associado.
 2. A declaração de protocolo não emite C.
-3. A conformidade é nominal: um tipo atende um protocolo quando o seu módulo o
-   declara na cláusula `implement` da linha `module`, diretamente ou por
-   composição. As construções (tabela abaixo) e as funções sobre protocolo
-   (§4.14) recusam o tipo que não o atende, com `protocol-not-satisfied`.
-4. A cláusula é verificada no módulo que a declara. Para cada protocolo, o
-   módulo declara cada verbo exigido com o mesmo nome, a mesma aridade e o
+3. A conformidade é estrutural: um tipo atende um protocolo quando o seu
+   módulo declara cada verbo exigido, com o mesmo nome, a mesma aridade e o
    receptor na mesma posição; o receptor casa pela adaptação da §4.4. Verbos
-   de módulos importados não contam. Cada verbo ausente é
-   `protocol-verb-missing`, e todos são listados na cláusula.
+   de módulos importados não contam. Não há declaração de conformidade.
+4. A conformidade é verificada no uso: pela construção (tabela abaixo) e pelo
+   argumento de função sobre protocolo (§4.14). O tipo que não atende é
+   `protocol-not-satisfied`, e a mensagem nomeia a construção ou o parâmetro,
+   o protocolo e todos os verbos ausentes. Numa instância de genérico, o verbo
+   retirado pelas regras 11 a 13 da §4.3 conta como ausente, e a mensagem
+   nomeia o argumento que o retirou.
 5. Um tipo associado que aparece no retorno de um verbo exigido é ligado pelo
    retorno declarado do implementador, descontados os níveis de ponteiro
    escritos no protocolo. Um tipo associado que só aparece em parâmetros não é
@@ -1883,30 +1889,15 @@ pub protocol Sequence [IndexPtr, Sliceable, Traversable];
    construção que consome os protocolos.
 9. As construções consultam `keel.protocols` sem import.
 10. Papéis escritos num protótipo de protocolo (§4.12) fazem parte do
-    contrato. O verbo do implementador declara os mesmos papéis nas mesmas
-    posições, sob pena de `protocol-role-mismatch`. Na chamada, valem os papéis
-    da declaração do implementador. A divergência é diagnosticada na cláusula.
+    contrato. Se o verbo do implementador não declara papéis, valem os do
+    protótipo; se declara, são os mesmos nas mesmas posições, sob pena de
+    `protocol-role-mismatch`.
 11. Todo verbo de protocolo que entrega vista, parte, cursor ou endereço de
     elemento do receptor declara o receptor `parent` e o produto `child`.
     Assim, invalidar o dono do armazenamento invalida as vistas e os ponteiros
     derivados dele, transitivamente.
-12. O implementador é o tipo do receptor dos verbos exigidos. Todos os
-    protocolos da cláusula ligam `type C` a esse mesmo tipo, que é um
-    modificador ou um `typedef` keel declarado no módulo. Num módulo genérico
-    que não declara tipo, o receptor pode ser `array T v[size_t N]`, com `T`
-    parâmetro da linha `module`, e o implementador é o `array` do tipo do
-    elemento (§4.4, §5.3). Receptores de tipos diferentes, ou um receptor fora
-    dessas formas, são `protocol-receiver-mismatch`. Um módulo tem, portanto,
-    no máximo um implementador.
-13. Num módulo genérico, a cláusula é verificada na declaração. Numa instância
-    em que as regras 11 a 13 da §4.3 retiram um verbo exigido, a instância não
-    atende o protocolo. O uso que o exige é `protocol-not-satisfied`, e a
-    mensagem nomeia o verbo, o argumento que o retirou e a cadeia de
-    propagação.
-14. Os nomes da cláusula são resolvidos depois dos imports do arquivo. Os de
-    `keel.protocols` dispensam import (regra 9).
 
-Referências: [Rationale: conformidade nominal no módulo](keel-rationale.md#conformidade-nominal-no-módulo).
+Referências: [Rationale: contrato nomeado, conformidade estrutural](keel-rationale.md#contrato-nomeado-conformidade-estrutural).
 
 #### Uso pelas construções
 
@@ -1927,9 +1918,9 @@ Referências: [Rationale: conformidade nominal no módulo](keel-rationale.md#con
 limite depende dele, mesmo quando o verbo chamado é `ptr`.
 
 Sobre `array`, indexação e `foreach` são tradução do núcleo por sintaxe C
-(§4.2), e não conformidade: não exigem protocolo nem import. Os protocolos
-sobre `array` são os de `keel.array`, que os implementa por inteiro (§5.3);
-`x[a..b]` e as funções sobre protocolo (§4.14) exigem esse import. Um conjunto
+(§4.2): não exigem protocolo nem import. Os verbos dos protocolos sobre `array`
+são os de `keel.array` (§5.3); `x[a..b]` e as funções sobre protocolo (§4.14)
+exigem esse import. Um conjunto
 `tags` direto dispensa `tag` (§4.9).
 
 A forma dos argumentos vem de `byref` e da adaptação da §4.4, não do protocolo.
@@ -1939,7 +1930,7 @@ o implementador importa o tipo da vista que devolve.
 
 #### 4. Erros
 
-`unknown-protocol`, `protocol-verb-missing`, `associated-type-unbound`,
+`unknown-protocol`, `protocol-not-satisfied`, `associated-type-unbound`,
 `associated-type-conflict`, `circular-protocol`, `protocol-verb-conflict`,
 `protocol-role-mismatch`.
 
@@ -2170,7 +2161,7 @@ outcome i32 r = array.at(v, 9);
 | `array.as_slice(v, a, b)` | `slice T` | vista de `[a, b)` do `array` unidimensional `v`; é o verbo de `x[a..b]` sobre `array` (§4.5) |
 | `array.at(v, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora da extensão, em toda build |
 
-Protocolos (§5.1): IndexPtr/IndexGet — `length`, `get`, `ptr`; Countable — `first`, `limit`; Traversable — `begin`, `has_next`, `next`; Partitionable — `partition`; Sliceable — `length` e `as_slice`. O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção.
+O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama é a construção (§5.1).
 
 **Reconhecimento**
 
@@ -2181,11 +2172,10 @@ Protocolos (§5.1): IndexPtr/IndexGet — `length`, `get`, `ptr`; Countable — 
 
 #### Conformidade e procedência
 
-As linhas `module` de `keel.buffer` e `keel.slice` declaram
-`implement [IndexPtr, IndexGet, Sliceable, Traversable, Partitionable]`; a de
-`keel.range`, `implement [Countable, IndexGet, Partitionable]`; a de
-`keel.array`, `implement [IndexPtr, IndexGet, Sliceable]`. Layout e `byref`
-permanecem os declarados pelos respectivos tipos.
+Pelos verbos que declaram, `buffer` e `slice` atendem `IndexPtr`, `IndexGet`,
+`Sliceable`, `Traversable` e `Partitionable`; `range`, `Countable`, `IndexGet` e
+`Partitionable`; os verbos de `keel.array` dão a `array` `IndexPtr`, `IndexGet`
+e `Sliceable`.
 
 Os verbos da Base têm os papéis abaixo. A tabela faz parte de suas assinaturas;
 os demais parâmetros e retornos conservam os tipos das tabelas de chamadas.
@@ -2206,12 +2196,12 @@ os demais parâmetros e retornos conservam os tipos das tabelas de chamadas.
 Exemplos de assinatura no módulo correspondente:
 
 ```keel
-pub child T *ptr(parent buffer T *b, size_t i);
-pub child slice T as_slice(parent buffer T *b, size_t a, size_t c);
-pub child cursor begin(parent buffer T *b);
-pub child T *next(parent buffer T *b, cursor *c);
-pub child slice T partition(parent buffer T *b, size_t k, size_t w);
-pub child outcome buffer T clone(parent arena *a, buffer T *b);
+pub child T *ptr(parent buffer *b, size_t i);
+pub child slice as_slice(parent buffer *b, size_t a, size_t c);
+pub child cursor begin(parent buffer *b);
+pub child T *next(parent buffer *b, cursor *c);
+pub child slice partition(parent buffer *b, size_t k, size_t w);
+pub child outcome buffer clone(parent arena *a, buffer *b);
 ```
 
 Um construtor sobre arena transmite a procedência dessa arena ao produto
@@ -2264,7 +2254,7 @@ Sequências de comprimento variável, trechos de extensão fixa e intervalos.
 10. A posição devolvida por `pop` continua no armazenamento, fora do comprimento, e pode ser reutilizada pela próxima inserção.
 11. `clone` copia o comprimento da origem, e não a capacidade.
 12. Indexação e `range-index` seguem a §4.5.
-13. `keel.array` não declara tipo nem modificador: a instância é a família de verbos de um tipo de elemento, e o implementador é o `array` desse tipo (§5.1, regra 12). `array.length` é o verbo dos protocolos e devolve o binder. As constantes de `array` (`keel.length`, `keel.capacity`, `keel.dim`) ficam no núcleo (§4.2).
+13. `keel.array` não declara tipo nem modificador: a instância é a família de verbos de um tipo de elemento, e o receptor desses verbos é o `array` desse tipo. `array.length` é o verbo dos protocolos e devolve o binder. As constantes de `array` (`keel.length`, `keel.capacity`, `keel.dim`) ficam no núcleo (§4.2).
 
 Referências: [Rationale: memória por região](keel-rationale.md#memória-por-região); [Rationale: acesso e travessia](keel-rationale.md#acesso-e-travessia); [Backend: contêineres](keel-c-backend.md#52-containers-struct-e-funções-static-inline); [Backend: acessor verificado](keel-c-backend.md#513-at--o-acessor-verificado).
 
@@ -2299,7 +2289,7 @@ tagged Kind struct Node no = {0};
 ```
 
 ```keel
-module keel.tagged tags E type T implement [Taggable];
+module keel.tagged tags E type T;
 pub modifier tagged { i32 tag; T value; }
 ```
 
@@ -2354,10 +2344,10 @@ corot step;
 ```
 
 ```keel
-module keel.outcome type T implement [Failable, Winnable];
+module keel.outcome type T;
 pub modifier outcome { i32 code; T value; }
 
-module keel.corot implement [Taggable];
+module keel.corot;
 pub tags Status [SUCCESS = -1, ONGOING = 0, FAILED = 1];
 pub typedef struct { i32 code; } corot;
 ```
@@ -2365,7 +2355,7 @@ pub typedef struct { i32 code; } corot;
 **`outcome`** — resultado final, de dois estados, com valor associado.
 
 Em `outcome void`, `win(r, v)` é retirado (§4.3, regra 11), e a instância não
-atende `Winnable` (§5.1, regra 13): o `else` de default sobre ela é recusado.
+atende `Winnable` (§5.1, regra 4): o `else` de default sobre ela é recusado.
 
 | Chamada | Devolve | O que faz | Com `T` `void` |
 | --- | --- | --- | --- |
@@ -2733,23 +2723,17 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `undeclared-tags` | Argumento de parâmetro `tags` que não nomeia conjunto declarado | `error` | keel | §4.3 |
 | `tag-from-other-set` | Tag escrita que não pertence ao conjunto exigido — rótulo de `match`, ou constante em verbo com parâmetro `tags` | `error` | keel | §4.9 |
 | `duplicate-tag` | Tag repetida no mesmo conjunto, ou rótulo repetido no mesmo `match` | `error` | keel | §4.9 |
-| `match-without-tag` | Operando de `match` cujo tipo não é conjunto `tags` nem declara `tag` | `error` | keel | §4.9 |
 | `match-without-tags` | Operando cujo módulo não declara conjunto de tags | `error` | keel | §4.9 |
 | `ambiguous-match-tags` | Operando cujo módulo declara mais de um conjunto, sem parâmetro `tags` que decida | `error` | keel | §4.9 |
 | `invalid-fault-code` | `corot.fault(r,c)` com código conhecido zero ou negativo | `error` | keel | §5.5 |
 | `tag-out-of-range` | Etiqueta fora da lista declarada | `debug` | Backend, em execução | §4.9 |
 | `no-ptr-for-arity` | Índice de dois ou mais valores sobre modificador sem `ptr` de vetor, ou cujo `dim` difere do número de índices — a mensagem diz o que o módulo declara | `error` | keel | §4.5 |
-| `not-iterable` | `foreach` sobre tipo que não declara `length`, ou `get`/`ptr` conforme o binder | `error` | keel | §4.7 |
-| `not-cursor-iterable` | `walk` sobre tipo que não declara `begin`, `has_next` e `next` | `error` | keel | §4.7 |
 | `walk-without-cursor` | `walk` sem o binder de cursor | `error` | keel | §4.7 |
 | `cursor-type-mismatch` | Tipo do binder de cursor diferente do produto declarado de `begin` | `error` | keel | §4.7 |
-| `not-partitionable` | `parallel` sobre tipo que não declara `partition` | `error` | keel | §4.8 |
 | `partition-type-mismatch` | Tipo do binder de partição diferente do produto declarado de `partition` | `error` | keel | §4.8 |
 | `binder-copies-container` | Binder por valor de `foreach` ou `walk` sobre elemento que é instância de modificador — a mensagem indica `T *`. Não se aplica ao binder de partição de `parallel` | `error` | keel | §4.7 |
 | `mutation-during-traversal` | `push`, `pop` ou `clear` sobre o contêiner percorrido ou particionado, no corpo do `foreach`, do `walk` ou do `parallel` | `error` | keel | §4.7 |
 | `index-not-size-t` | Binder de índice cujo tipo não é `size_t` | `error` | keel | §4.7 |
-| `not-countable` | `foreach` de um binder sobre tipo que não declara `first` e `limit` | `error` | keel | §4.7 |
-| `no-range-index-verb` | Índice por intervalo sobre tipo cujo módulo não declara `length` e `as_slice` de três parâmetros, inclusive `array` sem `keel.array` importado | `error` | keel | §4.5 |
 | `inverted-range-index` | Índice por intervalo com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
 | `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
 | `array-index-above-dimension` | Índice de `array` decimal conhecido acima da dimensão declarada | `error` | keel | §4.5 |
@@ -2782,10 +2766,8 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `from-without-target` | Verbo que depende do tipo do alvo fora de inicialização, atribuição a símbolo conhecido ou retorno | `error` | keel | §4.4 |
 | `captured-write` | Atribuição a escalar capturado, no corpo de um `parallel` | `error` | keel | §4.8 |
 | `else-without-initializer` | Cláusula `else` em declaração sem inicializador | `error` | keel | §4.10 |
-| `else-on-infallible-type` | Cláusula `else` sobre tipo que não declara `failed`, inclusive ponteiro ou escalar | `error` | keel | §4.10 |
 | `else-on-complex-target` | Cláusula `else` sobre alvo que não é identificador declarado em keel — campo, índice, deref, cast ou símbolo C | `error` | keel | §4.10 |
 | `else-multiple-declarators` | Cláusula `else` em declaração com mais de um declarador | `error` | keel | §4.10 |
-| `else-default-without-win` | Cláusula `else` na forma de default sobre tipo falível que não declara `win` | `error` | keel | §4.10 |
 | `hidden-declarator` | Declarador cujo nome não é o último token, onde keel precisa reconstruir a declaração — `constexpr`, captura de `[now]`, tipo de retorno sob `defer`. A `note` manda usar `typedef` | `error` | keel | §4.2 |
 | `nonscalar-constexpr` | `constexpr` com declarador de vetor ou inicializador entre chaves | `error` | keel | §4.2 |
 | `return-in-parallel` | `return` no corpo de um `parallel`: o corpo do worker não sai da função que o contém | `error` | keel | §4.8 |
@@ -2808,13 +2790,11 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `type-param-shadows-type` | Parâmetro `type` apagado com nome de tipo conhecido no escopo | `error` | keel | §4.4 |
 | `role-position` | Papel fora de posição admitida | `error` | keel, na tradução | §4.12 |
 | `unknown-protocol` | Nome de protocolo desconhecido | `error` | keel, na tradução | §5.1 |
-| `protocol-verb-missing` | Verbo exigido por protocolo da cláusula `implement` ausente no módulo | `error` | keel, na tradução | §5.1 |
 | `associated-type-unbound` | Tipo associado que não aparece em nenhum verbo exigido do protocolo | `error` | keel, na tradução | §5.1 |
 | `associated-type-conflict` | Ligações incompatíveis para o mesmo tipo associado | `error` | keel, na tradução | §5.1 |
 | `circular-protocol` | Ciclo na composição de protocolos | `error` | keel, na tradução | §5.1 |
 | `protocol-verb-conflict` | Verbos de mesmo nome e aridade com assinaturas conflitantes | `error` | keel, na tradução | §5.1 |
 | `protocol-role-mismatch` | Papéis do implementador divergentes dos exigidos | `error` | keel, na tradução | §5.1 |
-| `protocol-receiver-mismatch` | Verbos exigidos pela cláusula `implement` com receptores de tipos diferentes, ou receptor que não é modificador nem `typedef` keel do módulo | `error` | keel, na tradução | §5.1 |
 | `not-in-v0` | Construção normativa v1 reconhecida por implementação v0 | `error` | keel, na tradução | §6.3 |
 | `mold-position` | (v1) Chamada a molde em posição não admitida | `error` | keel, na tradução | §4.13 |
 | `mold-return` | (v1) Retorno de molde fora da forma final permitida | `error` | keel, na tradução | §4.13 |
@@ -2823,7 +2803,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `mold-depth` | (v1) Profundidade de expansão acima do limite | `error` | keel, na tradução | §4.13 |
 | `mold-size` | (v1) Quantidade de tokens expandidos acima do limite | `error` | keel, na tradução | §4.13 |
 | `code-param-outside-mold` | (v1) Parâmetro keel_code em função que não é molde | `error` | keel, na tradução | §4.13 |
-| `protocol-not-satisfied` | Tipo cujo módulo não declara o protocolo exigido pela construção ou pelo parâmetro, ou instância que perdeu um verbo exigido | `error` | keel, na tradução | §5.1 |
+| `protocol-not-satisfied` | Tipo que não atende o protocolo exigido pela construção ou pelo parâmetro de função: o módulo não declara os verbos, ou a instância os perdeu. A mensagem nomeia a construção, o protocolo e os verbos ausentes; sobre `array`, indica o import de `keel.array` | `error` | keel, na tradução | §5.1 |
 | `verb-not-in-protocol` | (v1) Verbo fora do contrato do parâmetro de protocolo | `error` | keel, na tradução | §4.14 |
 | `instance-depth` | (v1) Profundidade de especialização acima do limite | `error` | keel, na tradução | §4.14 |
 

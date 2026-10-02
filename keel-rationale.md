@@ -1840,14 +1840,31 @@ corpo inteiro; essa exceção não muda a ABI das funções comuns. A especializ
 de funções sobre protocolo é outro contrato, ligado ao tipo concreto e aos
 verbos do argumento, sem especialização por fragmento.
 
-### Conformidade estrutural com asserção opcional
+### Conformidade nominal no módulo
 
-Nomear o contrato permite compartilhá-lo entre construções, verificar papéis
-e ligar tipos associados. Não exige que cada implementador peça permissão
-para participar: declarar os verbos suficientes continua bastando.
-`implement [lista]` antecipa a verificação para a declaração do tipo; sem a
-asserção, a verificação ocorre no uso. Cada modificador pode afirmar seu
-próprio conjunto, mesmo quando compartilha módulo com outros.
+Um protocolo nomeia um contrato; a cláusula `implement` registra quem o
+cumpre. Juntos, associam um tipo e o código que opera sobre ele numa unidade,
+como um objeto, mas de tempo de tradução: não há vtable, teste em execução nem
+objeto de interface. A instância de um genérico é a materialização dessa
+unidade em código C e em algumas estruturas.
+
+A cláusula fica no módulo, e não no tipo, porque os verbos são do módulo. A
+resolução procura o verbo no módulo do contêiner (§4.4), e não há sobrecarga
+por tipo C: um módulo só pode dar um `length` a um receptor. O implementador
+único é corolário disso, e a regra só o torna explícito. Na prática, um
+módulo que implementa protocolos tem um modificador, e alguns poucos tipos
+associados a ele, como o cursor de `keel.buffer`.
+
+A conformidade é nominal porque as construções a consomem: um `foreach` que
+aceitasse qualquer tipo com os verbos certos tornaria a cláusula um
+comentário. Com ela, o diagnóstico sai no implementador, com todos os verbos
+ausentes listados, e não no uso, com o nome manglado de uma chamada C.
+
+`array` não é tipo, e o núcleo não o trata como implementador: `x[i]` e
+`foreach` sobre `array` são a sintaxe do C. Quem implementa protocolos sobre
+`array` é `keel.array`, por inteiro, com a extensão recebida pelo binder. Assim
+o contrato de cada protocolo tem um só dono, e as constantes de tradução
+(`keel.length`, `keel.dim`) continuam no núcleo, que é quem as conhece.
 
 Composição significa conjunção. A alternativa entre leitura por valor e por
 endereço pertence ao `foreach`, que aceita `IndexGet` ou `IndexPtr` para
@@ -1858,8 +1875,9 @@ sem default não exige um verbo que escreve valor.
 
 A unidade instanciada é o módulo. Seus modificadores, tipos e funções
 compartilham os argumentos de `dim`, `tags` e `type`; movê-los para cada
-modificador criaria unidades de instanciação diferentes. Já `implement`
-qualifica um tipo e fica na declaração desse tipo.
+modificador criaria unidades de instanciação diferentes. Pelo mesmo motivo,
+`implement` também fica na linha `module`: os verbos que a cláusula promete são
+do módulo.
 
 ### Tipos associados em vez de consulta de tipo declarado
 

@@ -1,7 +1,7 @@
 # Proposta: `implement` no módulo, conformidade nominal
 
-**Data:** 2026-10-02. **Status:** rascunho para aceite. Não altera a spec, o
-rationale, a Base nem o golden até o "sim".
+**Data:** 2026-10-02. **Status:** aceita e incorporada à spec e ao rationale
+em 2026-10-02. A Base e o golden seguem pendentes (ver o fim do documento).
 
 ## Decisões que o texto realiza
 

@@ -317,7 +317,10 @@ A estudar:
 
 ### Protocolo nominal
 
-**Status: proposta para discussão, não normativa (reelaborada em 2026-09-30).**
+**Status: incorporada em 2026-10-02, em forma reduzida.** A spec tem protocolos
+nomeados (§5.1), no prelúdio `keel`, com conformidade estrutural: não há
+`implement` nem exaustividade no implementador. O texto abaixo é a proposta de
+2026-09-30, que fica como histórico.
 O estudo do que mudaria na documentação e no código está em
 [`protocolo-impacto.md`](protocolo-impacto.md).
 Os protocolos da spec §5.1 são estruturais: quem declara `begin`/`has_next`/

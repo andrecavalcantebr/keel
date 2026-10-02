@@ -4,7 +4,7 @@
 
 > A revisão aceita está em `keel-spec.md`, §§4.12–4.14 e §5.1, e em
 > [requisitos-v0.md](requisitos-v0.md). Ela acrescenta `consumes`, mantém a
-> conformidade estrutural com `implement` opcional e restringe parâmetros de
+> conformidade estrutural (o `implement` opcional caiu depois, em 2026-10-02) e restringe parâmetros de
 > código a moldes. `type T` de função comum continua selecionado ou apagado.
 > O texto abaixo documenta a proposta anterior; não deve orientar novas alterações.
 Este documento não altera a spec, o backend, a Base nem o compilador.

@@ -1,6 +1,6 @@
 ---
 name: cgen-implementacao
-description: cgen — os 5 designs fechados em 2026-09-20; lexer (M1) fechado, parser (M2) em andamento até as ilhas; tool/ e engine/ no fonte
+description: cgen — os 5 designs fechados em 2026-09-20; M0 e M1 fechados, parser (M2) até as ilhas 4a–4d e 4f; tool/ e engine/ no fonte
 metadata: 
   node_type: memory
   type: project
@@ -23,11 +23,15 @@ Os cinco designs em `design/`, um por peça de `cgen-tool.md` §3.1:
 | `codegen-design.md` | `engine/emit/`. Decisões E1–E5 |
 | `diag-design.md` | `engine/diag.c`, `tool/report.c`. Decisões G1–G4 |
 
-**Estado em 2026-10-02:** o lexer (M1) está fechado; o parser (M2) reconhece
-módulos, imports, declarações e as ilhas (`--stop-after=parse`), com oráculos de
-dump e casos de falha; o catálogo de diagnósticos é gerado da spec §6.2
-(`gen-diags.py`). Não há emissão de C ainda. Alinhamento com a revisão de
-2026-10-02 em [[protocolos-estruturais-2026-10-02]].
+**Estado em 2026-10-02:** o M0 (driver) e o M1 (lexer) estão fechados. O M2
+(parser) reconhece módulos, imports, declarações (inclusive `decl-protocol`,
+papéis e `typedef … byref`) e as ilhas das etapas 4a–4d e 4f
+(`--stop-after=parse`, com `-o` no sentido do gcc). Há 17 casos de falha em
+`tools/cgen/test/diag/`, e o catálogo de diagnósticos é gerado da spec §6.2
+(`gen-diags.py`), com as mensagens escritas em `diag.c` à medida que o motor
+passa a emitir cada id. Ainda não há emissão de C. O detalhe por etapa está em
+`tools/cgen/src/engine/README.md`; o alinhamento com a revisão de 2026-10-02,
+em [[protocolos-estruturais-2026-10-02]].
 
 ## As duas decisões de arquitetura de 2026-09-20
 
@@ -45,26 +49,20 @@ os contadores de linha (decisão E4).
 
 ## O que falta, na ordem
 
-1. **Os casos de falha do golden.** Hoje são **zero** — o runner conta `xfail`
-   e nunca viu um. O molde é `diag-design.md` §7 [G3]: um caso agrupa vários
-   diagnósticos, e o `VERIFY` compara só o **conjunto de ids** lidos dos
-   marcadores `/* DIAG: id */` do fonte contra os `[id]` da saída.
-2. **Casos de C simples e complexo**, pedido do André: código que ninguém
-   escreveu pensando em keel, para testar a premissa do parser de ilhas.
-   Primeiro complexo em andamento (2026-09-21): o `list.h` do Linux em três
-   casos, `golden/cases/022-024-linux-list-*` (import_c, extern_c, módulo),
-   mesmo `main`, listagem por `walk` e por `list_for_each_entry`. GPLv2-only
-   (linha própria no LICENSE.md). Marcados `WIP` (marcador novo do runner):
-   `expected/` e `VERIFY` (gnu11/gnu2x sem -pedantic) por fazer; 023 e 024
-   esperam a **P16** (visibilidade do C no módulo, cgen-tool.md §13 — André
-   inclina a "em C tudo é público").
-3. **O M0 do `cgen-tool.md` §9** — o driver.
-4. **As mensagens de diagnóstico** (133 ids, nenhuma escrita) — escritas junto
-   com o `diag.c`, não antes. **Não travam os casos de falha** (correção do
-   André, 2026-09-21): a mensagem é molde que depende do que o programa
-   escreveu (nomes, aridade, outro participante), linha/coluna vêm do formato
-   de impressão, e o id kebab-case já diz do que se trata; o G3 nunca compara
-   texto. Guia: `diag-design.md` §4 [G2] e as três famílias do §5.
+1. **Etapas 4e, 4g, 4h e 4i do parser** (`parser-design.md` §3.2):
+   `parallel`/`win`/`fail`, `else`, as colunas de `extent` e o fecho de
+   instâncias.
+2. **Análise de papéis** (spec §4.12: `region-escape`,
+   `child-region-after-invalidation`) e o parâmetro de protocolo fora da
+   primeira posição.
+3. **O M3 em diante** (`cgen-tool.md` §9): emissão sem ilhas e depois com elas.
+4. **Os casos 022–024 do golden** (o `list.h` do Linux, GPLv2-only) continuam
+   `WIP`: falta `expected/` e `VERIFY`. A P16, de que 023 e 024 dependiam, foi
+   resolvida em 2026-09-21 (`cgen-tool.md` §13).
+
+Decisões ainda abertas: `buffer.of(v)` como nome que o núcleo conhece, `byref`
+em `typedef` e o `{0}` da arena, o prefixo das instâncias aninhadas e o formato
+do dump para `parallel`/`else`/`extent`.
 
 ## Pendências registradas nos designs
 

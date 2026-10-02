@@ -1,6 +1,10 @@
 # protocolo nominal — estudo de impacto na documentação e no código
 
-**Status: estudo para discussão, não normativo.** Acompanha a entrada
+**Status: histórico (2026-10-02).** O protocolo nomeado entrou na spec, com
+conformidade estrutural e sem a cláusula na linha `module` nem a exaustividade
+no implementador (rationale, "Contrato nomeado, conformidade estrutural"). O
+estudo abaixo fica como registro de como se chegou lá. Era: **estudo para
+discussão, não normativo.** Acompanha a entrada
 ["Protocolo nominal"](possibilidades.md#protocolo-nominal) de `possibilidades.md`
 e parte dela. Nada aqui altera um normativo: cada mudança nos documentos abaixo
 só é escrita depois do "sim" do André, como pede o `CLAUDE.md`.

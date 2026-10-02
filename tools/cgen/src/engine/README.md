@@ -223,7 +223,8 @@ A gramática acompanha a revisão de 2026-10-02 da spec (§§2.2, 4.12, 4.14, 5.
 
 Ainda não: análise de papéis (§4.12: `region-escape`,
 `child-region-after-invalidation`), parâmetro de protocolo fora da primeira
-posição, e as etapas 4e (`parallel`), 4g (`else`) e 4h (`extent`).
+posição, e as etapas 4e (`parallel`), 4g (`else`), 4h (`extent`) e 4i (fecho de
+instâncias).
 
 ## Etapas 4c, 4d e 4f (2026-10-02)
 
@@ -248,3 +249,21 @@ posição, e as etapas 4e (`parallel`), 4g (`else`) e 4h (`extent`).
 Um argumento de diagnóstico montado na ilha (a lista de verbos ausentes) é
 guardado no texto das ilhas: o sink formata a mensagem depois, quando a função
 que o montou já retornou.
+
+## Prelúdio, `-o` e `#define` sobre nome keel (2026-10-02)
+
+- **Protocolos no prelúdio.** Os protocolos da base moram em `base/keel.k` e
+  chegam a todo módulo pelo `import keel types` implícito (spec §5.1);
+  `inject_types` (`parser_imports.c`) injeta `K_SYM_PROTOCOL` junto dos tipos.
+  Não há carga à parte de outro módulo de protocolos.
+- **`-o`** (ferramenta §4.2): com `--stop-after=lex` ou `--stop-after=parse`, o
+  dump vai para o arquivo de `-o` em vez de `stdout`, escrito por
+  `cgen_write_output` (`tool/output.c`) com temporário e `rename`, sem tocar um
+  arquivo idêntico. Com `--stop-after=gen`, `-o` é `output-with-gen`: a fase
+  escreve vários arquivos, e quem os nomeia é `--dest-dir`.
+- **`#define`/`#undef` sobre nome keel** (spec §2.5, `lexer.c`): nome que começa
+  com `keel_` ou `KEEL_` é `define-over-keel-name` (`error`), porque colide com
+  o C gerado; palavra contextual keel é `define-over-keel-word` (`warning`),
+  porque não chega ao C, mas onde está como construção keel lê a construção, e
+  não a macro, o que costuma ser bug. As palavras de papel (`parent`, `child`,
+  `invalidates`, `consumes`) não disparam nenhum dos dois.

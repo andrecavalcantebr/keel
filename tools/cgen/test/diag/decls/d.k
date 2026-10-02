@@ -31,3 +31,9 @@ pub void g(void) {
     blk.blk(2) Color i32 y = {0};
     x = y;
 }
+pub int array;                               /* DIAG: keel-name-shadowed */
+pub int win(void) { return 0; }
+pub void h(void) {
+    int parallel = 0;                        /* DIAG: keel-name-shadowed */
+    (void)parallel;
+}

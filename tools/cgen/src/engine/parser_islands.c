@@ -1646,7 +1646,7 @@ static bool is_arena(const KAst *a, const KSpecifier *spec) {
 /* A keel type at token `i`: its `type` island, then what it declares. Returns
    the index of the last token of the specifier. */
 static void check_arguments(Ctx *c, const KSpecifier *spec, KToken at);
-static void check_name(Ctx *c, KToken name, bool top);
+static void check_name(Ctx *c, KToken name, bool top, bool function);
 
 static void check_constexpr(Ctx *c, size_t kw, size_t end);
 static bool spec_byref(const KAst *a, const KSpecifier *spec);
@@ -1684,6 +1684,9 @@ static bool c_declares(const KAst *a, size_t i, size_t from) {
         size_t p = j - 1;
         if (punct(a, p, ";") || punct(a, p, "{") || punct(a, p, "}")) return types > 0;
         if (punct(a, p, "*")) { j = p; continue; }
+        if (word(a, p, "return") || word(a, p, "goto") || word(a, p, "case") || word(a, p, "else") ||
+            word(a, p, "do") || word(a, p, "sizeof"))
+            return false;                                   /* a statement, not a declaration */
         if (ident(a, p) || k_token_is_c_word(tok(a, p))) { types++; j = p; continue; }
         return false;
     }
@@ -1725,7 +1728,7 @@ static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexe
         if (!k_scan_declarator(lexer, d, &decl, &after, &pp) || !decl.name.len) break;
         if (decl.has_function_suffix && !decl.parenthesized) break;   /* a prototype */
         size_t at = index_at(a, i, decl.name.ptr);
-        if (!signature && c->depth > 0) check_name(c, decl.name, false);
+        if (!signature && c->depth > 0) check_name(c, decl.name, false, false);
         if (!signature) note_shadow(c, decl.name);
         add_local(c, (Local){ .name = decl.name, .spec = *spec, .decl_at = at,
                               .pointers = decl.pointer_depth + (decl.has_array_suffix ? 1 : 0) });
@@ -3033,7 +3036,10 @@ static void walk(Ctx *c, const KAstNode *n) {
                           (keel_slice_char){0}, (keel_slice_char){0});
             }
         }
-        if (c->later_count && !signature_of(n, i) && c_declares(a, i, n->first)) note_shadow(c, tok(a, i));
+        if (!signature_of(n, i) && c_declares(a, i, n->body_first - 1)) {
+            check_name(c, tok(a, i), false, false);                 /* a C declaration in the body */
+            if (c->later_count) note_shadow(c, tok(a, i));
+        }
         if (i > n->first && (punct(a, i - 1, ".") || punct(a, i - 1, "->"))) continue;
 
         KToken t = tok(a, i);
@@ -3073,7 +3079,13 @@ static void walk(Ctx *c, const KAstNode *n) {
             resolution_end(c);
             continue;
         }
-        if (!signature && word(a, i, "parallel") && !punct(a, i + 1, ".")) { parallel_island(c, n, i); continue; }
+        /* `parallel` opens the construction only where it can: before a name, a
+           policy or the parenthesis (spec §4.8); elsewhere it is a C name */
+        if (!signature && word(a, i, "parallel") &&
+            (ident(a, i + 1) || punct(a, i + 1, "(") || k_token_is_number(tok(a, i + 1)))) {
+            parallel_island(c, n, i);
+            continue;
+        }
         if (!signature && worker_flow(c, i)) continue;
         check_uses(c, i);
 
@@ -3731,17 +3743,25 @@ static void check_alias_types(Ctx *c) {
 /* ---- declarations (passage 2: spec §2.5, §4.1, §4.2, §4.3, §4.9) ------- */
 
 /* a declared name: in the reserved spaces (reserved-name), a contextual word
-   of keel (keel-name-shadowed; roles are not in the list, and the verbs `win`
-   and `fail` and the module names `array` and `parallel` are let through,
-   spec §6.2), or a name `types` injected (shadowed-injected-name) */
-static void check_name(Ctx *c, KToken name, bool top) {
+   of keel or a qualifier of an import (keel-name-shadowed, a warning only:
+   where the name stands as a construction, keel reads the construction), or a
+   name `types` injected (shadowed-injected-name) */
+static void check_name(Ctx *c, KToken name, bool top, bool function) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
     if (k_token_starts_with(name, "keel_") || k_token_starts_with(name, "KEEL_"))
         diag3(c, K_DIAG_RESERVED_NAME, name, name, none, none);
-    if (k_token_is_keel_word(name) && !k_token_spelled(name, "win") && !k_token_spelled(name, "fail") &&
-        !k_token_spelled(name, "array") && !k_token_spelled(name, "parallel"))
-        diag3(c, K_DIAG_KEEL_NAME_SHADOWED, name, name, none, none);
+    /* a contextual word, roles aside (they are not in the list); a function
+       named `win` or `fail` is a verb, always written qualified, and shadows
+       nothing (spec §2.5) */
+    bool verb = function && (k_token_spelled(name, "win") || k_token_spelled(name, "fail"));
+    bool shadows = k_token_is_keel_word(name) && !verb;
+    /* or a qualifier of an import of the file */
+    for (size_t k = 0; !shadows && k < a->symbols->len; k++) {
+        const KSymbol *q = keel_buffer_KSymbol_ptr(a->symbols, k);
+        if (q->kind == K_SYM_MODULE && k_symtab_same_name(q->name, name)) shadows = true;
+    }
+    if (shadows) diag3(c, K_DIAG_KEEL_NAME_SHADOWED, name, name, none, none);
     /* a name `types` injected from another module, declared again here: the
        bare name now means this declaration (shadowed-injected-name) */
     const KAstNode *mod = module_node(a);
@@ -3866,7 +3886,7 @@ static void check_declarations(Ctx *c) {
             n->kind == K_AST_INSTANCE)
             continue;
         KToken name = tok(a, n->name_first);
-        check_name(c, name, true);
+        check_name(c, name, true, n->kind == K_AST_FUNCTION);
         /* the module's parameters are not redeclared (spec §4.3) */
         for (size_t k = mod->dim_first; k < mod->type_end; k++)
             if (ident(a, k) && k_symtab_same_name(tok(a, k), name))
@@ -3885,7 +3905,7 @@ static void check_declarations(Ctx *c) {
             if (p[k].end <= p[k].first) continue;
             KToken pn = tok(a, p[k].end - 1);
             if (ident(a, p[k].end - 1) && !p[k].is_type) {      /* `type T` selects the instance (§4.4) */
-                check_name(c, pn, false);
+                check_name(c, pn, false, false);
                 for (size_t m = mod->dim_first; m < mod->type_end; m++)
                     if (ident(a, m) && k_symtab_same_name(tok(a, m), pn))
                         diag3(c, K_DIAG_PARAMETER_NAME_REUSE, pn, pn, none, none);

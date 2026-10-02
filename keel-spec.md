@@ -573,11 +573,11 @@ Diagnósticos do lexer e do parser, emitidos por keel durante a tradução. Os d
 | `#define` ou `#undef` de nome nos espaços `keel_` e `KEEL_` | `define-over-keel-name` | `error` |
 | `#define` ou `#undef` de palavra contextual keel | `define-over-keel-word` | `warning` |
 | Newline não emendado em literal de string ou caractere | `literal-with-newline` | `error` |
-| Sombreamento de palavra contextual, verbo ou nome de módulo | `keel-name-shadowed` | `warning` |
+| Declaração com nome de palavra contextual keel ou de qualificador de import do arquivo | `keel-name-shadowed` | `warning` |
 | Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `alias-type-collision` | `error` |
 
 Para o diagnóstico `symbol-redeclaration`, keel reconhece os padrões `IDENT IDENT` e `IDENT '*' IDENT` no início de statement, quando o segundo identificador é um símbolo keel conhecido. A verificação recusa a possível redeclaração sem precisar resolver o primeiro identificador como tipo C. [Justificativa: recusa de possíveis redeclarações](keel-rationale.md#por-que-a-redeclaração-é-recusada-em-vez-de-classificada).
-Os nomes `keel_` e `KEEL_` são o espaço do C gerado, e um `#define` sobre eles o altera: é `error`. As palavras contextuais não chegam ao C gerado, e keel não expande macro, então um `#define` delas não muda nem o que keel lê nem o que o C compila; o aviso existe porque uma macro com o nome de uma construção, usada na posição dela, é lida por keel como a construção, e isso costuma ser bug. As palavras de papel (`parent`, `child`, `invalidates`, `consumes`, §4.12) ficam fora de `define-over-keel-word` e de `keel-name-shadowed`: são nomes comuns no C, e o aviso seria ruído.
+Os nomes `keel_` e `KEEL_` são o espaço do C gerado, e um `#define` sobre eles o altera: é `error`. As palavras contextuais não chegam ao C gerado, e keel não expande macro, então um `#define` delas não muda nem o que keel lê nem o que o C compila; o aviso existe porque uma macro com o nome de uma construção, usada na posição dela, é lida por keel como a construção, e isso costuma ser bug. As palavras de papel (`parent`, `child`, `invalidates`, `consumes`, §4.12) ficam fora de `define-over-keel-word` e de `keel-name-shadowed`: são nomes comuns no C, e o aviso seria ruído. Os verbos de módulo também ficam fora: são sempre escritos qualificados, e um nome C não os sombreia. `keel-name-shadowed` é só aviso: onde o nome aparece na posição de uma construção keel, keel lê a construção.
 Para os diagnósticos `define-over-keel-name` e `define-over-keel-word`, keel lê o nome alvo de `#define` ou `#undef`. Essa inspeção é adicional à classificação pela palavra da diretiva; não examina semanticamente o corpo da macro, não o expande e não altera a diretiva. A preservação do conteúdo não exclui essa verificação lexical.
 
 Referências: [Rationale](keel-rationale.md): “Fronteira com C e conflitos léxicos”, “Prelúdio e base mínima”, “Por que `<opaque>` é o terminal central”, “Por que a contagem é por alternativa” e “Por que a redeclaração é recusada em vez de classificada”; [Backend](keel-c-backend.md): §§2, 5, 6 e 9.
@@ -2719,7 +2719,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `define-over-keel-name` | `#define` ou `#undef` de nome `keel_` ou `KEEL_` | `error` | keel | §2.5 |
 | `define-over-keel-word` | `#define` ou `#undef` de palavra contextual keel, exceto as de papel | `warning` | keel | §2.5 |
 | `literal-with-newline` | Literal de string ou char com newline não-emendado | `error` | keel | §2.5 |
-| `keel-name-shadowed` | Sombreamento de palavra contextual, exceto as de papel, de verbo ou de nome de módulo | `warning` | keel | §2.5 |
+| `keel-name-shadowed` | Declaração com nome de palavra contextual keel, exceto as de papel, ou de qualificador de import do arquivo | `warning` | keel | §2.5 |
 | `byref-assignment` | Atribuição entre instâncias de modificador `byref`, nomeando o aliasing | `warning` | keel | §4.3 |
 | `defer-in-control-block` | `defer` registrado em corpo de `if`, `else` ou `switch` | `warning` | keel | §4.6 |
 | `instance-field-access` | Acesso direto a campo de instância de modificador | `warning` | Backend / compilador C | §4.4 |

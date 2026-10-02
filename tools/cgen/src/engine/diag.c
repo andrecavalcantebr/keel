@@ -143,7 +143,7 @@ static const char *const messages[K_DIAG_COUNT] = {
     [K_DIAG_RESERVED_NAME] =
         "`%s` is in the space of the generated C: names starting with `keel_` or `KEEL_` are reserved",
     [K_DIAG_KEEL_NAME_SHADOWED] =
-        "`%s` is a keel word: declared as a name, it hides the construction where it would stand",
+        "`%s` is a keel word or the qualifier of an import: where it stands as a construction, keel still reads the construction",
     [K_DIAG_SHADOWED_INJECTED_NAME] =
         "`%s` hides the type that `types` brought from `%s`: the bare name now means this declaration",
     [K_DIAG_BYREF_PARAM] =

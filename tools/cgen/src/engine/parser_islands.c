@@ -752,6 +752,27 @@ static int kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst
                 return kt_copy(c, kt(c, inst)->arg[p]);
             }
         if (k_symtab_same_name(first, modifier_of(home))) return kt_copy(c, inst);
+        /* the module's own type wins over one `types` injected (spec §4.1):
+           `cursor` in keel.buffer is keel.buffer's, not keel.slice's */
+        for (size_t i = 0; i < home->nodes.len; i++) {
+            const KAstNode *d = node_at(home, i);
+            if (d->kind != K_AST_TYPE || !k_symtab_same_name(tok(home, d->name_first), first)) continue;
+            int t = kt_new(c);
+            if (t < 0) return -1;
+            kt(c, t)->kind = KT_NAMED;
+            kt(c, t)->name = first;
+            for (size_t k = 0; home->symbols && k < home->symbols->len; k++) {
+                const KSymbol *q = keel_buffer_KSymbol_ptr(home->symbols, k);
+                if (q->kind == K_SYM_TYPE && k_symtab_same_name(q->name, first) && q->origin &&
+                    q->origin->ast == home) {
+                    char buf[K_SYMBOL_MAX];
+                    size_t n = k_mangle_symbol(q, (keel_slice_char){ sizeof buf, buf });
+                    if (n < sizeof buf) kt_set_symbol(kt(c, t), buf, n);
+                    kt(c, t)->module = q->origin;
+                }
+            }
+            return t;
+        }
         const KSymbol *s = k_symbol_resolve(home->symbols, first);
         if (s && s->kind == K_SYM_MODIFIER && s->origin) {
             int t = kt_new(c);
@@ -1121,6 +1142,34 @@ static int prim_type(Ctx *c, const char *name) {
    compiler to validate (spec §4.4, item 3). It is not printed only where this
    pass cannot name the instance: the object is a shape it does not type yet.
    Returns the type of the result, or -1. */
+/* Spec §4.2, rules 12 and 22: the argument of an `array` parameter with a
+   binder is an `array` symbol or field (binder-argument-not-array), and an
+   `array` argument has the parameter's rank, the same dimensions from index 1
+   on, and a dimension 0 no smaller than the declared one
+   (array-argument-wrong-dimension). */
+static void check_array_argument(Ctx *c, const KAst *home, const Param *p, Range arg, const KType *ak) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    size_t open = SIZE_MAX;
+    for (size_t j = p->first; j < p->end; j++) if (punct(home, j, "[")) { open = j; break; }
+    if (open == SIZE_MAX) return;
+    bool binder = word(home, open + 1, "size_t") && ident(home, open + 2);
+    if (!ak || ak->kind != KT_ARRAY) {
+        if (binder && arg.end > arg.first)
+            diag3(c, K_DIAG_BINDER_ARGUMENT_NOT_ARRAY, tok(a, arg.first), range_text(a, arg), none, none);
+        return;
+    }
+    keel_slice_char dims = range_text(home, (Range){ open, p->end });
+    int rank = rank_of(dims.ptr, dims.ptr + dims.len);
+    long want[8], got[8];
+    size_t nw = dims_of(c, dims, want), ng = dims_of(c, ak->dims, got);
+    bool wrong = rank != ak->rank;
+    for (size_t d = 1; !wrong && d < nw && d < ng && d < 8; d++)
+        if (want[d] >= 0 && got[d] >= 0 && want[d] != got[d]) wrong = true;
+    if (!wrong && !binder && nw && ng && want[0] >= 0 && got[0] >= 0 && got[0] < want[0]) wrong = true;
+    if (wrong) diag3(c, K_DIAG_ARRAY_ARGUMENT_WRONG_DIMENSION, tok(a, arg.first), range_text(a, arg), ak->dims, dims);
+}
+
 static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KModule *module) {
     KAst *a = c->ast;
     size_t close = close_paren(a, open, a->tokens.len);
@@ -1455,6 +1504,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         const KType *ak = tk >= 0 ? kt(c, tk) : NULL;
         if (sig.p[k].is_array) {
             if (ak && ak->kind == KT_ARRAY) { put_str(&t, " dim:"); put_uint(&t, k + 1); }
+            check_array_argument(c, home, &sig.p[k], args[k], ak);
             continue;
         }
         if (sig.p[k].pointer && ak && ak->pointers == 0 && ak->lvalue) { put_str(&t, " &"); put_uint(&t, k + 1); }
@@ -1585,6 +1635,15 @@ static void note_shadow(Ctx *c, KToken name) {
                 break;
             }
     }
+}
+
+/* whether `name` is the binder of an `array` parameter of `fn`: `[size_t name]` */
+static bool binder_of(const KAst *a, const KAstNode *fn, KToken name) {
+    size_t end = fn->body_first != SIZE_MAX ? fn->body_first : fn->end;
+    for (size_t j = fn->name_end; j + 3 < end; j++)
+        if (punct(a, j, "[") && word(a, j + 1, "size_t") && k_symtab_same_name(tok(a, j + 2), name) && punct(a, j + 3, "]"))
+            return true;
+    return false;
 }
 
 /* `int fd = 3;`, `struct S *p;`: a C declaration opening a statement, read
@@ -2150,6 +2209,32 @@ static void traversal(Ctx *c, const KAstNode *n, size_t at, bool cursor) {
     const Local *l = box.end == box.first + 1 && ident(a, box.first) ? find_local(c, tok(a, box.first)) : NULL;
     if (l && l->spec.text.len) { put_str(&d, " ("); put(&d, l->spec.text.ptr, l->spec.text.len); put_str(&d, ")"); }
     emit(c, cursor ? K_ISLAND_WALK : K_ISLAND_FOREACH, at, &d);
+    /* an element binder by value that is an instance copies it (spec §4.7) */
+    if (!pointer && b1.end > b1.first + 1) {
+        KLexer lexer;
+        TKPpKind pp;
+        KSpecifier spec;
+        KToken next = {0};
+        KToken first = enter(a, b1.first, &lexer, &pp);
+        if (k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind == K_SPEC_MODIFIER)
+            diag3(c, K_DIAG_BINDER_COPIES_CONTAINER, tok(a, b1.end - 1), tok(a, b1.end - 1), spec.text, none);
+    }
+    /* the cursor binder has the type `begin` produces (spec §4.7) */
+    if (cursor && binders == 2 && b2.end > b2.first + 1) {
+        int t = type_of(c, box);
+        const KType *k = t >= 0 ? kt(c, t) : NULL;
+        const KAst *home = k && k->kind == KT_MODIFIER && k->module ? ast_of(c, k->module) : NULL;
+        Sig sig = home ? find_verb(home, k_diag_text("begin"), 1) : (Sig){0};
+        int r = sig.found ? ret_type(c, home, sig.fn, t) : -1;
+        size_t last = b2.end - 1;
+        while (last > b2.first && punct(a, last - 1, "*")) last--;
+        int b = last > b2.first ? kt_from_text(c, a->symbols, range_text(a, (Range){ b2.first, last })) : -1;
+        if (r >= 0 && b >= 0 && *kt(c, r)->symbol && *kt(c, b)->symbol && strcmp(kt(c, r)->symbol, kt(c, b)->symbol)) {
+            Text prod = { .ok = true };
+            put_str(&prod, kt(c, r)->symbol);
+            diag3(c, K_DIAG_CURSOR_TYPE_MISMATCH, tok(a, b2.first), range_text(a, (Range){ b2.first, last }), keep(c, &prod), none);
+        }
+    }
     if (!literal) mutations(c, close + 1, statement_end(a, close + 1, n->end), box, cursor ? "walk" : "foreach");
 
     Text missing = { .ok = true };
@@ -2880,7 +2965,47 @@ static void walk(Ctx *c, const KAstNode *n) {
             diag3(c, K_DIAG_RETURN_IN_PARALLEL, tok(a, i), c->par_name, (keel_slice_char){0}, (keel_slice_char){0});
             continue;
         }
+        if (!signature_of(n, i) && punct(a, i, "..")) {
+            /* `a..`, `..b`, `..` belong in an index (spec §4.7) */
+            bool open_left = punct(a, i - 1, "(") || punct(a, i - 1, ",") || punct(a, i - 1, ":") ||
+                             punct(a, i - 1, "=") || punct(a, i - 1, "[");
+            bool open_right = punct(a, i + 1, ")") || punct(a, i + 1, ",") || punct(a, i + 1, ";") ||
+                              punct(a, i + 1, "]");
+            if (open_left || open_right) {
+                size_t j = i;
+                for (size_t depth = 0; j-- > n->first; ) {
+                    if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) depth++;
+                    else if (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{")) { if (!depth) break; depth--; }
+                }
+                if (!punct(a, j, "["))
+                    diag3(c, K_DIAG_OPEN_RANGE_OUTSIDE_INDEX, tok(a, i), tok(a, i), (keel_slice_char){0}, (keel_slice_char){0});
+            }
+            continue;
+        }
         if (i == n->name_first || !ident(a, i)) continue;
+        /* `corot.fault(r, c)` with a code known to be zero or negative (spec §5.5) */
+        if (word(a, i, "fault") && punct(a, i + 1, "(") && i >= 2 && punct(a, i - 1, ".") && ident(a, i - 2)) {
+            const KModule *m = module_alias(a->symbols, tok(a, i - 2));
+            size_t close = close_paren(a, i + 1, n->end);
+            if (m && k_symtab_same_name(m->name, k_diag_text("keel.corot")) && close != SIZE_MAX) {
+                size_t comma = i + 2;
+                for (size_t depth = 0; comma < close; comma++) {
+                    if (punct(a, comma, "(") || punct(a, comma, "[")) depth++;
+                    else if (punct(a, comma, ")") || punct(a, comma, "]")) depth--;
+                    else if (!depth && punct(a, comma, ",")) break;
+                }
+                long v;
+                bool negative = punct(a, comma + 1, "-");
+                Range code = { comma + 1 + negative, close };
+                if (comma < close && decimal_of(c, code, &v) && (negative || v == 0))
+                    diag3(c, K_DIAG_INVALID_FAULT_CODE, tok(a, comma + 1), range_text(a, (Range){ comma + 1, close }),
+                          (keel_slice_char){0}, (keel_slice_char){0});
+            }
+        }
+        /* a binder of dimension 0 is not a dimension of a vector (spec §4.2, rule 20) */
+        if (!signature_of(n, i) && punct(a, i - 1, "[") && punct(a, i + 1, "]") && i >= 2 && ident(a, i - 2) &&
+            c_declares(a, i - 2, n->body_first) && binder_of(a, n, tok(a, i)))
+            diag3(c, K_DIAG_BINDER_AS_DIMENSION, tok(a, i), tok(a, i), (keel_slice_char){0}, (keel_slice_char){0});
         if (c->later_count && !signature_of(n, i) && c_declares(a, i, n->first)) note_shadow(c, tok(a, i));
         if (i > n->first && (punct(a, i - 1, ".") || punct(a, i - 1, "->"))) continue;
 

@@ -212,6 +212,20 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` selects the instance, and so names a `type` parameter for every `type` of the module line (and the module has no `dim` or `tags`)",
     [K_DIAG_VERB_NOT_IN_PROTOCOL] =
         "`%s` is not a verb of `%s`: a function over a protocol calls on its parameter only the verbs the protocol requires",
+    [K_DIAG_BINDER_ARGUMENT_NOT_ARRAY] =
+        "`%s` carries no dimension: the parameter binds its dimension 0, so the argument is an `array` symbol or field",
+    [K_DIAG_ARRAY_ARGUMENT_WRONG_DIMENSION] =
+        "`%s` has dimensions %s, and the parameter declares %s: the rank and the dimensions from index 1 on coincide, and dimension 0 is not smaller",
+    [K_DIAG_BINDER_COPIES_CONTAINER] =
+        "the binder `%s` copies an instance of `%s` for each element: write it by pointer (`T *`)",
+    [K_DIAG_CURSOR_TYPE_MISMATCH] =
+        "the cursor binder is `%s`, and `begin` produces `%s`",
+    [K_DIAG_OPEN_RANGE_OUTSIDE_INDEX] =
+        "a range with an open end stands only in an index (`x[a..]`): write both ends here",
+    [K_DIAG_INVALID_FAULT_CODE] =
+        "the fault code `%s` is not positive: a fault is a code above zero (zero is ongoing, negative is success)",
+    [K_DIAG_BINDER_AS_DIMENSION] =
+        "`%s` is the binder of an `array` parameter, not a constant: it cannot size a vector",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

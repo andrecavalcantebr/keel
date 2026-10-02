@@ -2095,12 +2095,12 @@ De keel, na tradução; condições no [catálogo](#62-catálogo): `region-escap
 
 ```keel
 import keel.buffer as buffer types;
-import keel.slice as slice types;
+import keel.slice as slice;
 
 buffer i32 b = buffer.of(vec);
 buffer i32 empty = buffer.from(p, capacity);
-slice i32 s = slice.of(b, start, end);
-slice i32 external = slice.from(i32, p, n);
+slice.slice i32 s = slice.of(b, start, end);
+slice.slice i32 external = slice.from(i32, p, n);
 range r = start..end;
 ```
 

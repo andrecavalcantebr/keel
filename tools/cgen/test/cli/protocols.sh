@@ -8,8 +8,8 @@ trap 'rm -rf "$d"' EXIT
 mkdir -p "$d/app"
 cat > "$d/app/lst.k" <<'K'
 module app.lst;
-import keel.buffer as buffer types;
-import keel.slice as slice types;
+import keel.buffer as buffer;
+import keel.slice as slice;
 // the protocols come with the prelude (spec §5.1)
 
 pub protocol Seq [IndexPtr, Sliceable];
@@ -25,8 +25,8 @@ pub inline i32   *next(List *l, cursor *c)     { i32 *p = &c->current->v; c->cur
 
 pub size_t count(Traversable C items) { return 0; }
 
-pub size_t use(buffer i32 *xs, List *l) {
-    slice i32 s = slice.of(xs, 1, 2);
+pub size_t use(buffer.buffer i32 *xs, List *l) {
+    slice.slice i32 s = slice.of(xs, 1, 2);
     return count(l);
 }
 K
@@ -34,7 +34,7 @@ want=$(cat <<'W'
 decl	pub protocol	Seq	-	app/lst.k:6:1
 decl	pub protocol	Sized	-	app/lst.k:7:1
 decl	pub type	Shared	app_lst_Shared	app/lst.k:8:1
-ilha	call	slice.of/3 → keel_slice_of2_keel_buffer_i32	app/lst.k:20:19
+ilha	call	slice.of/3 → keel_slice_of2_keel_buffer_i32	app/lst.k:20:25
 ilha	call	count/1 → app_lst_count_app_lst_List	app/lst.k:21:12
 W
 )

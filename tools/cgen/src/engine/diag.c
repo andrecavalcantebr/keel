@@ -226,6 +226,8 @@ static const char *const messages[K_DIAG_COUNT] = {
         "the fault code `%s` is not positive: a fault is a code above zero (zero is ongoing, negative is success)",
     [K_DIAG_BINDER_AS_DIMENSION] =
         "`%s` is the binder of an `array` parameter, not a constant: it cannot size a vector",
+    [K_DIAG_DUPLICATE_INJECTED_NAME] =
+        "`%s` comes bare from `%s` and from `%s`: import one of them without `types`, and write the name qualified",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

@@ -22,10 +22,23 @@ static keel_slice_char spelled(const KAst *a, size_t first, size_t end) {
    funções, variáveis nem constantes de enum." Arity travels with a
    modifier, because that is what decides how many arguments its uses
    read. */
-static bool inject_types(KSymbolTable *symtab, const KModule *module) {
+static bool inject_types(KSymbolTable *symtab, const KModule *module, KDiagnosticSink *diag, keel_slice_char at,
+                         bool *clash) {
     for (size_t i = 0; i < module->symbol_count; i++) {
         const KSymbol *sym = &module->symbols[i];
         if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER && sym->kind != K_SYM_PROTOCOL) continue;
+        /* two imports with `types` inject the same bare name (keel-spec §4.1):
+           one of them is written without `types`, and the name qualified */
+        for (size_t j = 0; j < symtab->len; j++) {
+            const KSymbol *old = keel_buffer_KSymbol_ptr(symtab, j);
+            if ((old->kind == K_SYM_TYPE || old->kind == K_SYM_MODIFIER || old->kind == K_SYM_PROTOCOL) &&
+                old->origin && old->origin != module && k_symtab_same_name(old->name, sym->name)) {
+                k_diag_emit(diag, K_DIAG_DUPLICATE_INJECTED_NAME, at,
+                            (KDiagArgs){{ sym->name, module->name, old->origin->name }});
+                *clash = true;
+                break;
+            }
+        }
         if (!k_symtab_insert(symtab, sym->name, sym->kind, sym->arity)) return false;
         (*keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)) = *sym;
     }
@@ -53,7 +66,9 @@ static bool resolve_one(KLoader *loader, KSymbolTable *symtab, KDiagnosticSink *
     if (result != K_LOAD_OK && result != K_LOAD_ALREADY) return false;
     if (module == NULL) return false;
 
-    if (has_types && !inject_types(symtab, module)) return false;
+    bool clash = false;
+    if (has_types && !inject_types(symtab, module, diag, at, &clash)) return false;
+    if (clash) return false;
     /* Keep the real qualifier as well as any alias; neither changes origin. */
     if (!k_symtab_insert(symtab, module_name, K_SYM_MODULE, 0)) return false;
     keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)->origin = module;

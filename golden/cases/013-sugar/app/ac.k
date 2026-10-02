@@ -1,16 +1,16 @@
 module app.ac;
-import keel.buffer as buffer types;
+import keel.buffer as buffer;
 import keel.slice  as slice  types;
 import_c <stdio.h>;
 
 /* `x[i]` is `*ptr(x,i)` — an lvalue, and the lowering is by function, never by
    macro: that is what guarantees `x[i++]` increments `i` exactly once (§5.3). */
-pub i32 bump(buffer i32 *b, size_t i) {
+pub i32 bump(buffer.buffer i32 *b, size_t i) {
     b[i] = b[i] + 1;
     return b[i];
 }
 
-pub i32 once(buffer i32 *b, size_t *i) {
+pub i32 once(buffer.buffer i32 *b, size_t *i) {
     b[(*i)++] = 9;              /* the index is evaluated exactly once */
     return (i32)*i;
 }
@@ -23,7 +23,7 @@ pub i32 cube(void) {
 }
 
 /* Range index: rvalue, half-open. The four forms of §4.5. */
-pub size_t cut(buffer i32 *b) {
+pub size_t cut(buffer.buffer i32 *b) {
     slice i32 mid = b[2..7];
     slice i32 tail  = b[5..];
     slice i32 head  = b[..3];

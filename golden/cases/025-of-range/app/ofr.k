@@ -1,7 +1,7 @@
 module app.ofr;
 
 import keel.slice   as slice   types;
-import keel.buffer  as buffer  types;
+import keel.buffer  as buffer;
 import keel.range   as range   types;
 import keel.outcome as outcome types;
 import keel.array   as array;
@@ -18,7 +18,7 @@ pub slice i32 by_range(range r) { return slice.of(v, r); }
 pub slice i32 same(slice i32 s) { return slice.of(s); }
 pub slice i32 sub(slice i32 s, range r) { return slice.of(s, r); }
 pub slice i32 from_buffer(range r) {
-    buffer i32 b = buffer.of(v);
+    buffer.buffer i32 b = buffer.of(v);
     return slice.of(b, r);
 }
 

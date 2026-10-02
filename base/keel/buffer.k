@@ -7,7 +7,7 @@
 
 module keel.buffer type T;
 
-import keel.slice   as slice   types;
+import keel.slice   as slice;
 import keel.outcome as outcome types;
 import keel.range   as range   types;
 import keel.arena   as arena   types;
@@ -66,17 +66,17 @@ pub inline outcome T at(buffer *b, size_t i) {
 // slicing is a buffer verb, not a slice verb: the memory side knows the
 // view side, never the reverse (rationale, "Memória e visão"), which is
 // what keeps the import graph acyclic.
-pub inline slice as_slice(buffer *b) {
-    return (slice){ b->len, b->ptr };
+pub inline slice.slice as_slice(buffer *b) {
+    return (slice.slice){ b->len, b->ptr };
 }
 
-pub inline slice as_slice(buffer *b, size_t a, size_t c) {
+pub inline slice.slice as_slice(buffer *b, size_t a, size_t c) {
     if (c > b->len) c = b->len; if (a > c) a = c;
-    return (slice){ c - a, b->ptr + a };
+    return (slice.slice){ c - a, b->ptr + a };
 }
 
 // `x[r]`-style view by a `range`: `slice.of(b, r)` over a buffer (spec §5.3).
-pub inline slice as_slice(buffer *b, range r) { return as_slice(b, r.first, r.limit); }
+pub inline slice.slice as_slice(buffer *b, range r) { return as_slice(b, r.first, r.limit); }
 
 // allocates in `a`, copies the source's length (spec §5.3); the arena's memory is never const.
 pub inline child outcome buffer clone(parent arena *a, buffer *b) {
@@ -95,12 +95,12 @@ pub inline T     *next(buffer *b, cursor *c) { return &b->ptr[c->i++]; }
 
 // `k` disjoint parts covering the container; the high-index one may come
 // out empty. The product is `slice T` (spec §4.8, backend §5.11).
-pub inline slice partition(buffer *b, size_t k, size_t w) {
-    if (k == 0) return (slice){0, b->ptr};
+pub inline slice.slice partition(buffer *b, size_t k, size_t w) {
+    if (k == 0) return (slice.slice){0, b->ptr};
     size_t step = b->len / k + (b->len % k ? 1 : 0);
     size_t lo = w * step;
-    if (lo >= b->len) return (slice){0, b->ptr};
+    if (lo >= b->len) return (slice.slice){0, b->ptr};
     size_t hi = lo + step;
     if (hi > b->len) hi = b->len;
-    return (slice){ hi - lo, b->ptr + lo };
+    return (slice.slice){ hi - lo, b->ptr + lo };
 }

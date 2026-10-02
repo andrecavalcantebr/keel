@@ -1,6 +1,6 @@
 module lst;
-import keel.buffer as buffer types;
-import keel.slice  as slice  types;
+import keel.buffer as buffer;
+import keel.slice  as slice;
 
 /* A linked list declares neither `length` nor `ptr`, and is traversable all
    the same: `walk` asks for `begin`, `has_next` and `next`, and nothing else.
@@ -23,7 +23,7 @@ pub i32 sum(List *l) {
 
 /* The same statement over a base container: the cursor is `buffer.cursor`,
    declared once for the module and written without an argument. */
-pub i32 sum_buffer(buffer i32 *xs) {
+pub i32 sum_buffer(buffer.buffer i32 *xs) {
     i32 t = 0;
     walk (i32 *p, buffer.cursor c : xs) {
         t += *p;

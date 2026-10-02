@@ -745,6 +745,31 @@ static int kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst
     keel_slice_char binders[8];
     size_t nb = binders_of(home, binders);
 
+    /* `slice.slice`, an imported modifier written qualified and without
+       arguments, takes them as they stand, like the bare `slice` (spec §4.3) */
+    if (k_token_is_punct(after, ".")) {
+        KLexer look;
+        KToken rest;
+        TKPpKind lpp;
+        KToken head = enter_text(body, &look, &lpp);
+        keel_slice_char qualified = k_scan_qualified_name(&look, head, &rest, &lpp);
+        const KSymbol *s = rest.len ? NULL : k_symbol_resolve(home->symbols, qualified);
+        if (s && s->kind == K_SYM_MODIFIER && s->origin) {
+            int t = kt_new(c);
+            if (t < 0) return -1;
+            kt(c, t)->kind = KT_MODIFIER;
+            kt(c, t)->module = s->origin;
+            kt(c, t)->name = s->name;
+            for (int i = 0; i < s->arity - s->dim_arity && i < K_SPEC_MAX_ARGS; i++) {
+                int arg = inst >= 0 && i < kt(c, inst)->argc ? kt_copy(c, kt(c, inst)->arg[i]) : -1;
+                if (arg < 0) return -1;
+                kt(c, t)->arg[kt(c, t)->argc++] = arg;
+            }
+            kt_compose(c, t, s);
+            return t;
+        }
+    }
+
     if (!after.len) {                                   /* one name */
         for (size_t p = 0; p < nb; p++)
             if (k_symtab_same_name(binders[p], first)) {
@@ -991,6 +1016,7 @@ static bool first_arg(const KAst *a, size_t open, Range *out) {
 }
 
 static int type_of(Ctx *c, Range r);
+static keel_slice_char alias_of(const KSymbolTable *symbols, const KModule *m);
 static bool tags_decl(const KAst *where, keel_slice_char name, KTagsDecl *out);
 static bool tag_of_some_set(const KAst *where, keel_slice_char name);
 static bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause);
@@ -1407,6 +1433,9 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         } else if (selection) {
             /* the written types are the instance's arguments, in parameter order */
             Text spelled = { .ok = true };
+            keel_slice_char alias = alias_of(a->symbols, module);    /* qualified: `types` may be absent */
+            put(&spelled, alias.ptr, alias.len);
+            put_str(&spelled, ".");
             put(&spelled, modifier.ptr, modifier.len);
             for (size_t k = 0; k < sig.n && k < argc; k++) {
                 if (!sig.p[k].is_type || !binder(home, sig.p[k].base)) continue;
@@ -1716,7 +1745,9 @@ static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexe
             KToken value = k_lexer_next(lexer, &pp);
             k_scan_opaque_until(lexer, value, stops, 2, &which, &after, &pp);
         }
-        if (signature || !k_token_is_punct(after, ",")) break;
+        /* in `(T *e, M.cursor c : x)` the comma separates binders, not declarators */
+        bool binder = i > 0 && (punct(a, i - 1, "(") || punct(a, i - 1, ","));
+        if (signature || binder || !k_token_is_punct(after, ",")) break;
         d = k_lexer_next(lexer, &pp);
     }
     return end - 1;
@@ -3692,10 +3723,10 @@ static void check_alias_types(Ctx *c) {
 
 /* ---- declarations (passage 2: spec §2.5, §4.1, §4.2, §4.3, §4.9) ------- */
 
-/* a declared name: in the reserved spaces (reserved-name), or a contextual
-   word of keel (keel-name-shadowed; roles are not in the list, and the verbs
-   `win` and `fail` and the module names `array` and `parallel` are let
-   through, spec §6.2) */
+/* a declared name: in the reserved spaces (reserved-name), a contextual word
+   of keel (keel-name-shadowed; roles are not in the list, and the verbs `win`
+   and `fail` and the module names `array` and `parallel` are let through,
+   spec §6.2), or a name `types` injected (shadowed-injected-name) */
 static void check_name(Ctx *c, KToken name, bool top) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
@@ -3704,9 +3735,19 @@ static void check_name(Ctx *c, KToken name, bool top) {
     if (k_token_is_keel_word(name) && !k_token_spelled(name, "win") && !k_token_spelled(name, "fail") &&
         !k_token_spelled(name, "array") && !k_token_spelled(name, "parallel"))
         diag3(c, K_DIAG_KEEL_NAME_SHADOWED, name, name, none, none);
+    /* a name `types` injected from another module, declared again here: the
+       bare name now means this declaration (shadowed-injected-name) */
+    const KAstNode *mod = module_node(a);
+    keel_slice_char self = range_text(a, (Range){ mod->name_first, mod->name_end });
+    for (size_t k = 0; k < a->symbols->len; k++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(a->symbols, k);
+        if ((s->kind == K_SYM_TYPE || s->kind == K_SYM_MODIFIER || s->kind == K_SYM_PROTOCOL) && s->origin &&
+            !k_symtab_same_name(s->origin->name, self) && k_symtab_same_name(s->name, name)) {
+            diag3(c, K_DIAG_SHADOWED_INJECTED_NAME, name, name, s->origin->name, none);
+            break;
+        }
+    }
     (void)top;
-    /* shadowed-injected-name waits on the base: keel.buffer declares its own
-       `cursor` and imports keel.slice, which injects one (see the README) */
 }
 
 /* whether the type a specifier names is `byref`: a modifier declared

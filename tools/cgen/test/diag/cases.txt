@@ -32,3 +32,4 @@ collide a.k
 decls d.k
 delims d.k
 eof e.k
+defers f.k

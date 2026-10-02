@@ -84,6 +84,14 @@ typedef struct {
     size_t par_count;
     struct Surface *surface;    /* what each instance's verbs are, computed on demand (stage 4i) */
     size_t surface_count;
+    struct {                    /* the `later` defers of the blocks open, for defer-later-shadowed */
+        size_t at, body_first, body_end;
+        int depth;
+        keel_slice_char shadow;
+        int shadow_depth;
+        bool told;
+    } later[16];
+    size_t later_count;
 } Ctx;
 
 /* Whether a verb survives in an instance (spec §4.3, rules 12 and 13; parser
@@ -1564,6 +1572,36 @@ static void check_name(Ctx *c, KToken name, bool top);
 static void check_constexpr(Ctx *c, size_t kw, size_t end);
 static bool spec_byref(const KAst *a, const KSpecifier *spec);
 
+/* a name the body of a `later` defer reads, declared again inside: the
+   cleanup at an exit from here would read this one (defer-later-shadowed) */
+static void note_shadow(Ctx *c, KToken name) {
+    KAst *a = c->ast;
+    for (size_t k = 0; k < c->later_count; k++) {
+        if (c->depth <= c->later[k].depth || c->later[k].shadow.len) continue;
+        for (size_t j = c->later[k].body_first; j < c->later[k].body_end; j++)
+            if (ident(a, j) && k_symtab_same_name(tok(a, j), name)) {
+                c->later[k].shadow = name;
+                c->later[k].shadow_depth = c->depth;
+                break;
+            }
+    }
+}
+
+/* `int fd = 3;`, `struct S *p;`: a C declaration opening a statement, read
+   only far enough to find the name it declares */
+static bool c_declares(const KAst *a, size_t i, size_t from) {
+    if (!(punct(a, i + 1, "=") || punct(a, i + 1, ";") || punct(a, i + 1, ",") || punct(a, i + 1, "["))) return false;
+    size_t j = i, types = 0;
+    while (j > from && j + 6 > i) {
+        size_t p = j - 1;
+        if (punct(a, p, ";") || punct(a, p, "{") || punct(a, p, "}")) return types > 0;
+        if (punct(a, p, "*")) { j = p; continue; }
+        if (ident(a, p) || k_token_is_c_word(tok(a, p))) { types++; j = p; continue; }
+        return false;
+    }
+    return false;
+}
+
 static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, KToken next,
                           bool signature, bool declarators) {
     KAst *a = c->ast;
@@ -1600,6 +1638,7 @@ static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexe
         if (decl.has_function_suffix && !decl.parenthesized) break;   /* a prototype */
         size_t at = index_at(a, i, decl.name.ptr);
         if (!signature && c->depth > 0) check_name(c, decl.name, false);
+        if (!signature) note_shadow(c, decl.name);
         add_local(c, (Local){ .name = decl.name, .spec = *spec, .decl_at = at,
                               .pointers = decl.pointer_depth + (decl.has_array_suffix ? 1 : 0) });
 
@@ -1999,6 +2038,18 @@ static void defer_island(Ctx *c, const KAstNode *n, size_t at) {
         put_str(&d, "later");
     }
     emit(c, K_ISLAND_DEFER, at, &d);
+    bool later = !punct(a, at + 1, "[") || word(a, at + 2, "later");
+    if (later && c->later_count < sizeof c->later / sizeof *c->later) {
+        size_t first = punct(a, at + 1, "[") ? close_bracket(a, at + 1, n->end) + 1 : at + 1;
+        size_t end = first;
+        for (size_t depth = 0; end < n->end; end++) {
+            if (punct(a, end, "{") || punct(a, end, "(")) depth++;
+            else if (punct(a, end, "}") || punct(a, end, ")")) { if (--depth == 0 && punct(a, end, "}")) break; }
+            else if (!depth && punct(a, end, ";")) break;
+        }
+        c->later[c->later_count++] = (__typeof__(c->later[0])){ .at = at, .body_first = first, .body_end = end,
+                                                                .depth = c->depth };
+    }
 }
 
 /* the protocols of the base live in the prelude (spec §5.1, rule 9) */
@@ -2793,6 +2844,7 @@ static void walk(Ctx *c, const KAstNode *n) {
     c->has_target = false;
     c->par_open = c->par_close = 0;
     c->par_count = 0;
+    c->later_count = 0;
     c->cap_first = c->cap_end = 0;
     for (size_t i = n->first; i < n->end && !c->failed; i++) {
         if (!live(a, i)) continue;
@@ -2800,8 +2852,18 @@ static void walk(Ctx *c, const KAstNode *n) {
         if (punct(a, i, "}")) {
             while (c->local_count && c->locals[c->local_count - 1].depth >= c->depth) c->local_count--;
             c->depth--;
+            while (c->later_count && c->later[c->later_count - 1].depth > c->depth) c->later_count--;
+            for (size_t k = 0; k < c->later_count; k++)
+                if (c->later[k].shadow.len && c->later[k].shadow_depth > c->depth) c->later[k].shadow = (keel_slice_char){0};
             continue;
         }
+        if (!signature_of(n, i) && (word(a, i, "return") || word(a, i, "break") || word(a, i, "continue") ||
+                                    word(a, i, "goto")))
+            for (size_t k = 0; k < c->later_count; k++)
+                if (c->later[k].shadow.len && !c->later[k].told) {
+                    diag3(c, K_DIAG_DEFER_LATER_SHADOWED, tok(a, i), c->later[k].shadow, tok(a, i), (keel_slice_char){0});
+                    c->later[k].told = true;
+                }
         if (punct(a, i, ";")) { c->has_target = false; continue; }
         if (!signature_of(n, i) && punct(a, i, ")")) { column_through_call(c, n, i); continue; }
         if (word(a, i, "constexpr") && !signature_of(n, i)) {
@@ -2819,6 +2881,7 @@ static void walk(Ctx *c, const KAstNode *n) {
             continue;
         }
         if (i == n->name_first || !ident(a, i)) continue;
+        if (c->later_count && !signature_of(n, i) && c_declares(a, i, n->first)) note_shadow(c, tok(a, i));
         if (i > n->first && (punct(a, i - 1, ".") || punct(a, i - 1, "->"))) continue;
 
         KToken t = tok(a, i);
@@ -3704,6 +3767,44 @@ static void check_constexpr(Ctx *c, size_t kw, size_t end) {
     if (!ident(a, eq - 1)) diag3(c, K_DIAG_CONSTEXPR_NAME_MISSING, tok(a, eq - 1), tok(a, eq - 1), none, none);
 }
 
+/* the '}' that closes the block opened at `open` */
+static size_t block_end(const KAst *a, size_t open, size_t end) {
+    for (size_t j = open, depth = 0; j < end; j++) {
+        if (punct(a, j, "{")) depth++;
+        else if (punct(a, j, "}") && --depth == 0) return j;
+    }
+    return end;
+}
+
+/* Spec §4.6, rule 9: an outside jump does not enter a scope over a `defer`
+   registered in it — a `goto` to a label after the defer, from outside the
+   block, or a `case`/`default` after a defer in the body of a `switch`
+   (jump-over-defer). */
+static void check_jumps(Ctx *c, const KAstNode *fn) {
+    KAst *a = c->ast;
+    if (fn->body_first == SIZE_MAX) return;
+    for (size_t d = fn->body_first; d < fn->body_end; d++) {
+        if (!word(a, d, "defer")) continue;
+        size_t open = enclosing_brace(a, fn->body_first, d);
+        if (open == SIZE_MAX) continue;
+        size_t close = block_end(a, open, fn->body_end);
+        const char *ctl = control_before(a, fn->body_first, open);
+        bool sw = ctl && !strcmp(ctl, "switch");
+        for (size_t j = d + 1; j < close; j++) {
+            if (enclosing_brace(a, fn->body_first, j) != open) continue;      /* directly in the block */
+            if (sw && (word(a, j, "case") || (word(a, j, "default") && punct(a, j + 1, ":")))) {
+                diag3(c, K_DIAG_JUMP_OVER_DEFER, tok(a, j), tok(a, j), (keel_slice_char){0}, (keel_slice_char){0});
+                continue;
+            }
+            if (!ident(a, j) || !punct(a, j + 1, ":") || punct(a, j + 2, ":")) continue;
+            if (!(punct(a, j - 1, ";") || punct(a, j - 1, "{") || punct(a, j - 1, "}"))) continue;
+            for (size_t g = fn->body_first; g + 1 < fn->body_end; g++)
+                if (word(a, g, "goto") && k_symtab_same_name(tok(a, g + 1), tok(a, j)) && (g < open || g > close))
+                    diag3(c, K_DIAG_JUMP_OVER_DEFER, tok(a, g), tok(a, j), (keel_slice_char){0}, (keel_slice_char){0});
+        }
+    }
+}
+
 /* ---- extern_c and main (spec §4.1) ------------------------------------ */
 
 /* `priv extern_c [type_h]` asks for the interface and the implementation at
@@ -3796,6 +3897,14 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
         if (n->kind == K_AST_INSTANCE) instance_decl(&ctx, n);
         if (n->kind == K_AST_EXTERN_C) check_extern_c(&ctx, n);
         if (n->kind == K_AST_FUNCTION && n->name_first != n->name_end) check_main(&ctx, n);
+        if (n->kind == K_AST_FUNCTION) check_jumps(&ctx, n);
+        {
+            size_t f = n->first;
+            while (f < n->end && (word(a, f, "pub") || word(a, f, "priv") || word(a, f, "inline"))) f++;
+            if (n->kind != K_AST_MODULE && word(a, f, "defer"))
+                diag3(&ctx, K_DIAG_DEFER_AT_FILE_SCOPE, tok(a, f), (keel_slice_char){0}, (keel_slice_char){0},
+                      (keel_slice_char){0});
+        }
         if (n->kind == K_AST_CONSTEXPR) {
             size_t kw = n->first;
             while (kw < n->end && !word(a, kw, "constexpr")) kw++;

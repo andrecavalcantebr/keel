@@ -190,6 +190,12 @@ static const char *const messages[K_DIAG_COUNT] = {
         "the alternatives of this conditional group leave different delimiters open: every branch, the missing `#else` included, has to open and close the same",
     [K_DIAG_UNEXPECTED_EOF] =
         "the file ends inside a declaration: `%s` is the last token, and the declaration has no `;` or closing brace",
+    [K_DIAG_DEFER_AT_FILE_SCOPE] =
+        "`defer` at file scope: a `defer` belongs to a block of a function",
+    [K_DIAG_JUMP_OVER_DEFER] =
+        "`%s` enters a block past a `defer` registered in it: the cleanup would run for a registration that never happened; give the case its own block, or move the label",
+    [K_DIAG_DEFER_LATER_SHADOWED] =
+        "`%s` is declared again inside the scope of a `defer` that reads it at the exit, and `%s` leaves from here: the cleanup would read the inner one; write `defer [now ...]` or leave by `goto`",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

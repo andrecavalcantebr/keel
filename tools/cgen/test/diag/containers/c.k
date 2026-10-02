@@ -12,3 +12,8 @@ pub size_t f(buffer i32 b, i32 n, slice i32 s) {  /* DIAG: byref-param */
     x += buffer.length(b);
     return x;
 }
+pub void copies(void) {
+    buffer i32 x = {0};
+    buffer i32 y = {0};
+    x = y;                                   /* DIAG: byref-assignment */
+}

@@ -19,3 +19,15 @@ blk.blk(n) Color i32 v1;                     /* DIAG: nonconstant-dim */
 blk.blk(Z) Color i32 v2;                     /* DIAG: dim-below-one */
 blk.blk(2) i32 i32 v3;                       /* DIAG: undeclared-tags */
 pub typedef int Color_RED;                   /* DIAG: canonical-name-collision */
+constexpr int TABLE[2] = {1, 2};             /* DIAG: nonscalar-constexpr */
+constexpr int (*fp) = 0;                     /* DIAG: constexpr-name-missing */
+pub void f(void) {
+    constexpr size_t K = {3};                /* DIAG: nonscalar-constexpr */
+}
+pub int total;
+pub void g(void) {
+    handle total;                            /* DIAG: symbol-redeclaration */
+    blk.blk(2) Color i32 x = {0};
+    blk.blk(2) Color i32 y = {0};
+    x = y;
+}

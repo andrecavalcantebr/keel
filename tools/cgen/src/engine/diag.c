@@ -174,6 +174,16 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` is a parameter of the module: a declaration cannot reuse its name",
     [K_DIAG_CANONICAL_NAME_COLLISION] =
         "`%s` is the C name of both `%s` and `%s` in this module: rename one",
+    [K_DIAG_NONSCALAR_CONSTEXPR] =
+        "a `constexpr` is a scalar: no array declarator and no braces around the value; use `static const` for an aggregate",
+    [K_DIAG_CONSTEXPR_NAME_MISSING] =
+        "the token before the `=` of a `constexpr` is `%s`, not the name: write `constexpr T NAME = value;`, with a `typedef` for a complex type",
+    [K_DIAG_TAG_FROM_OTHER_SET] =
+        "`%s` is a tag of another set: here the set is `%s`",
+    [K_DIAG_SYMBOL_REDECLARATION] =
+        "`%s` is already a keel symbol, and here it may be declared again (`%s %s`): keel does not decide which, and refuses; use another name",
+    [K_DIAG_BYREF_ASSIGNMENT] =
+        "`%s = %s` copies a `byref` instance: both now share the storage, and a change through one is seen through the other",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

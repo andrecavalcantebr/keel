@@ -962,6 +962,8 @@ static bool first_arg(const KAst *a, size_t open, Range *out) {
 }
 
 static int type_of(Ctx *c, Range r);
+static bool tags_decl(const KAst *where, keel_slice_char name, KTagsDecl *out);
+static bool tag_of_some_set(const KAst *where, keel_slice_char name);
 static bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause);
 static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KModule *module);
 
@@ -1411,6 +1413,30 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         if (sig.found && sig.overloaded && argc > 1) put_uint(&t, argc - 1);
     }
 
+    /* a value of a set where the verb's parameter is the module's `tags`
+       binder belongs to the instance's set (spec §4.3, rule 6) */
+    if (inst >= 0 && sig.found && !proto_of && kt(c, inst)->kind == KT_MODIFIER) {
+        const KAstNode *mn = module_node(home);
+        size_t bi = 0;
+        for (size_t j = mn->tags_first; j < mn->tags_end; j++) {
+            if (!ident(home, j)) continue;
+            for (size_t k = 0; k < argc && k < sig.n; k++) {
+                if (!k_symtab_same_name(sig.p[k].base, tok(home, j)) || sig.p[k].pointer) continue;
+                if (args[k].end != args[k].first + 1 || !ident(a, args[k].first) || (int)bi >= kt(c, inst)->argc) continue;
+                const KType *set = kt(c, kt(c, inst)->arg[bi]);
+                const KAst *where = set->module && ast_of(c, set->module) ? ast_of(c, set->module) : a;
+                KTagsDecl tags;
+                if (!tags_decl(where, set->name, &tags)) continue;
+                bool in = false;
+                for (size_t m = 0; m < tags.item_count; m++) if (k_symtab_same_name(tags.items[m], tok(a, args[k].first))) in = true;
+                if (!in && tag_of_some_set(a, tok(a, args[k].first)))
+                    diag3(c, K_DIAG_TAG_FROM_OTHER_SET, tok(a, args[k].first), tok(a, args[k].first), set->name,
+                          (keel_slice_char){0});
+            }
+            bi++;
+        }
+    }
+
     /* adaptation marks, from the declared parameter (spec §4.4, item 5) */
     for (size_t k = 0; sig.found && k < argc && k < sig.n; k++) {
         if (sig.p[k].is_type) {
@@ -1465,6 +1491,12 @@ static bool tag_value(const KAst *a, keel_slice_char name, Text *t) {
         }
     }
     return false;
+}
+
+/* whether `name` is a value of a set declared in `where` */
+static bool tag_of_some_set(const KAst *where, keel_slice_char name) {
+    Text scratch = { .ok = true };
+    return tag_value(where, name, &scratch);
 }
 
 static void name_island(Ctx *c, size_t i) {
@@ -1528,6 +1560,9 @@ static bool is_arena(const KAst *a, const KSpecifier *spec) {
    the index of the last token of the specifier. */
 static void check_arguments(Ctx *c, const KSpecifier *spec, KToken at);
 static void check_name(Ctx *c, KToken name, bool top);
+
+static void check_constexpr(Ctx *c, size_t kw, size_t end);
+static bool spec_byref(const KAst *a, const KSpecifier *spec);
 
 static size_t declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, KToken next,
                           bool signature, bool declarators) {
@@ -2198,7 +2233,8 @@ static void match_island(Ctx *c, const KAstNode *n, size_t at) {
     for (size_t k = 0; k < count; k++) {
         bool in = false;
         for (size_t m = 0; m < tags.item_count; m++) if (k_symtab_same_name(tok(a, labels[k]), tags.items[m])) in = true;
-        if (!in) diag3(c, K_DIAG_TAG_NOT_IN_SET, tok(a, labels[k]), tok(a, labels[k]), set, none);
+        if (!in) diag3(c, tag_of_some_set(a, tok(a, labels[k])) ? K_DIAG_TAG_FROM_OTHER_SET : K_DIAG_TAG_NOT_IN_SET,
+                       tok(a, labels[k]), tok(a, labels[k]), set, none);
         for (size_t m = 0; m < k; m++)
             if (k_symtab_same_name(tok(a, labels[k]), tok(a, labels[m])))
                 diag3(c, K_DIAG_DUPLICATE_TAG, tok(a, labels[k]), tok(a, labels[k]), set, none);
@@ -2768,7 +2804,11 @@ static void walk(Ctx *c, const KAstNode *n) {
         }
         if (punct(a, i, ";")) { c->has_target = false; continue; }
         if (!signature_of(n, i) && punct(a, i, ")")) { column_through_call(c, n, i); continue; }
-        if (word(a, i, "constexpr") && !signature_of(n, i)) { block_constexpr(c, i); continue; }
+        if (word(a, i, "constexpr") && !signature_of(n, i)) {
+            check_constexpr(c, i, n->end);
+            block_constexpr(c, i);
+            continue;
+        }
         if (!signature_of(n, i) && word(a, i, "else") && i > n->first && !punct(a, i - 1, ";") &&
             !punct(a, i - 1, "}")) {
             else_island(c, n, i);
@@ -2864,6 +2904,31 @@ static void walk(Ctx *c, const KAstNode *n) {
                               (keel_slice_char){0});
                         break;
                     }
+        }
+
+        bool stmt_start = i == n->body_first + 1 || punct(a, i - 1, ";") || punct(a, i - 1, "{") || punct(a, i - 1, "}");
+        /* `IDENT IDENT` or `IDENT * IDENT` opening a statement, the second a
+           known keel symbol: a possible redeclaration, refused (spec §2.5) */
+        if (!signature && stmt_start) {
+            size_t second = punct(a, i + 1, "*") ? i + 2 : i + 1;
+            if (ident(a, second) && (punct(a, second + 1, ";") || punct(a, second + 1, "=") ||
+                                     punct(a, second + 1, ",") || punct(a, second + 1, "["))) {
+                KToken nm = tok(a, second);
+                const Local *l = find_local(c, nm);
+                const KSymbol *sym = l ? NULL : k_symbol_resolve(a->symbols, nm);
+                bool known = (l && l->spec.kind != K_SPEC_NONE) ||
+                             (sym && sym->origin && (sym->kind == K_SYM_VARIABLE || sym->kind == K_SYM_FUNCTION ||
+                                                     sym->kind == K_SYM_CONSTANT));
+                if (known) diag3(c, K_DIAG_SYMBOL_REDECLARATION, nm, nm, tok(a, i), nm);
+            }
+        }
+        /* `a = b;` between two `byref` instances by value: one storage, two
+           names (spec §4.3, rule 17) */
+        if (!signature && stmt_start && punct(a, i + 1, "=") && ident(a, i + 2) && punct(a, i + 3, ";")) {
+            const Local *l = find_local(c, tok(a, i)), *r = find_local(c, tok(a, i + 2));
+            if (l && r && l->pointers == 0 && r->pointers == 0 && l->spec.kind != K_SPEC_NONE &&
+                r->spec.kind != K_SPEC_NONE && spec_byref(a, &l->spec) && spec_byref(a, &r->spec))
+                diag3(c, K_DIAG_BYREF_ASSIGNMENT, tok(a, i), tok(a, i), tok(a, i + 2), (keel_slice_char){0});
         }
 
         /* `alias.verb(`, `verb(x, ...)` over a container, and a function of the file */
@@ -3619,6 +3684,26 @@ static void check_declarations(Ctx *c) {
     }
 }
 
+/* `constexpr T NAME = value;` (spec §4.2): the name is the token before the
+   only `=` at the top (constexpr-name-missing), and the declaration is a
+   scalar: no array declarator, no braces around the value (nonscalar-constexpr) */
+static void check_constexpr(Ctx *c, size_t kw, size_t end) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    size_t eq = SIZE_MAX, depth = 0;
+    for (size_t j = kw + 1; j < end && !(depth == 0 && punct(a, j, ";")); j++) {
+        if (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{")) depth++;
+        else if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) depth--;
+        else if (!depth && punct(a, j, "=")) { eq = j; break; }
+    }
+    if (eq == SIZE_MAX) return;
+    if (punct(a, eq - 1, "]") || punct(a, eq + 1, "{")) {
+        diag3(c, K_DIAG_NONSCALAR_CONSTEXPR, tok(a, kw), none, none, none);
+        return;
+    }
+    if (!ident(a, eq - 1)) diag3(c, K_DIAG_CONSTEXPR_NAME_MISSING, tok(a, eq - 1), tok(a, eq - 1), none, none);
+}
+
 /* ---- extern_c and main (spec §4.1) ------------------------------------ */
 
 /* `priv extern_c [type_h]` asks for the interface and the implementation at
@@ -3711,6 +3796,11 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
         if (n->kind == K_AST_INSTANCE) instance_decl(&ctx, n);
         if (n->kind == K_AST_EXTERN_C) check_extern_c(&ctx, n);
         if (n->kind == K_AST_FUNCTION && n->name_first != n->name_end) check_main(&ctx, n);
+        if (n->kind == K_AST_CONSTEXPR) {
+            size_t kw = n->first;
+            while (kw < n->end && !word(a, kw, "constexpr")) kw++;
+            check_constexpr(&ctx, kw, n->end);
+        }
     }
     /* what the file declares at file scope is known to every function, wherever
        it stands in the file: read those declarations first, printing nothing */

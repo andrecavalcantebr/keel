@@ -266,14 +266,20 @@ static bool parse(KAst *a,
         } else if (named(a, i, "constexpr")) {
             KToken kw = reenter(a, i, &lexer, &pp);
             KConstexprDecl cdef;
-            if (!k_scan_decl_constexpr(&lexer, kw, symtab, &cdef, &next, &next_pp))
-                return false;
             node.kind = K_AST_CONSTEXPR;
-            if (cdef.has_name) {
-                node.name_first = index_at(a, i, cdef.name.ptr);
-                node.name_end = index_at(a, node.name_first, cdef.name.ptr + cdef.name.len);
+            if (!k_scan_decl_constexpr(&lexer, kw, symtab, &cdef, &next, &next_pp)) {
+                /* `=` at the top with no name before it: kept unnamed, so the
+                   collection can say why (constexpr-name-missing, nonscalar-constexpr) */
+                node.end = declaration_end(a, i, &node.body_first, &node.body_end);
+                if (node.end <= start || node.end > n) return false;
+                node.body_first = node.body_end = SIZE_MAX;
+            } else {
+                if (cdef.has_name) {
+                    node.name_first = index_at(a, i, cdef.name.ptr);
+                    node.name_end = index_at(a, node.name_first, cdef.name.ptr + cdef.name.len);
+                }
+                node.end = index_at(a, i, next.ptr);
             }
-            node.end = index_at(a, i, next.ptr);
         } else if (named(a, i, "extent")) {
             KToken kw = reenter(a, i, &lexer, &pp);
             KExtentDecl edef;

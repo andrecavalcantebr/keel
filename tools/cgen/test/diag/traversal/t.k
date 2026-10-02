@@ -35,3 +35,12 @@ pub void use(buffer i32 *xs, Bare *b, array i32 v[size_t n], tagged Light void *
     match (b) { RED: break; }                          /* DIAG: protocol-not-satisfied */
     match (o) { RED: break; }                          /* DIAG: match-without-tags */
 }
+pub tags Other [RED2, BLUE2];
+pub void paint(tagged Light void *s) {
+    tagged.mark(s, BLUE2);                             /* DIAG: tag-from-other-set */
+    tagged.mark(s, AMBER);
+    match (s) {                                        /* DIAG: tag-without-label */ /* DIAG: tag-without-label */
+        RED: break;
+        RED2: break;                                   /* DIAG: tag-from-other-set */
+    }
+}

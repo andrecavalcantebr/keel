@@ -1,6 +1,6 @@
 ---
 name: cgen-implementacao
-description: cgen — os 5 designs fechados em 2026-09-20; a implementação não começou; tool/ e engine/ no fonte
+description: cgen — os 5 designs fechados em 2026-09-20; lexer (M1) fechado, parser (M2) em andamento até as ilhas; tool/ e engine/ no fonte
 metadata: 
   node_type: memory
   type: project
@@ -23,8 +23,11 @@ Os cinco designs em `design/`, um por peça de `cgen-tool.md` §3.1:
 | `codegen-design.md` | `engine/emit/`. Decisões E1–E5 |
 | `diag-design.md` | `engine/diag.c`, `tool/report.c`. Decisões G1–G4 |
 
-**A implementação não começou.** `tools/cgen/src/tool/main.c` tem 23 linhas e
-imprime uma string.
+**Estado em 2026-10-02:** o lexer (M1) está fechado; o parser (M2) reconhece
+módulos, imports, declarações e as ilhas (`--stop-after=parse`), com oráculos de
+dump e casos de falha; o catálogo de diagnósticos é gerado da spec §6.2
+(`gen-diags.py`). Não há emissão de C ainda. Alinhamento com a revisão de
+2026-10-02 em [[protocolos-estruturais-2026-10-02]].
 
 ## As duas decisões de arquitetura de 2026-09-20
 

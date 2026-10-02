@@ -120,6 +120,10 @@ Os itens 2–5 (buffer(N)/slice(N), strbuf/string, bitbuffer(W)/bitslice(W), ato
 **How to apply:** ao retomar [[base-real-keel-em-progresso]] ou a spec, perguntar se o Andre quer discutir uma dessas duas ideias antes de qualquer edição.
 
 **Protocolo nominal / traits (ideia de André, 2026-09-19, alvo v2 — NÃO v0/v1):**
+*Atualização 2026-10-02:* os protocolos nomeados existem na v0, com conformidade
+estrutural e uso como tipo de parâmetro (§4.14); a declaração nominal foi
+recusada. O que segue v2 é o bound sobre o `T` opaco do genérico. Ver
+[[protocolos-estruturais-2026-10-02]].
 `module nome type T;` só com protótipos sobre `T` já seria a declaração de um
 trait. Uma kw (talvez `protocol`) ligaria um módulo ao contrato (externalizando
 os protótipos) e a mesma kw marcaria o bound no genérico ou na construção que o

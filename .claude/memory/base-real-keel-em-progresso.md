@@ -12,9 +12,12 @@ metadata:
 futuro `cgen` processa. **Não confundir** com `tools/codegen/base` nem com
 `tools/cgen/gen`, que são do bootstrap `$T`. Ver [[keel-quatro-documentos]].
 
-9 arquivos: `keel.k` e `keel/{arena,buffer,slice,outcome,corot,range,tagged,
-parallel,routine}.k`. Cobre as §§5.2–5.7 da spec. Nunca foi executada — não há
-parser; a verificação é manual contra `golden/c{11,23}/keel/*.h`.
+11 arquivos: `keel.k` e `keel/{arena,array,buffer,slice,outcome,corot,range,
+tagged,parallel,routine,protocols}.k`. Cobre as §§5.1–5.7 da spec. O cgen (M2)
+já a lê e parseia; a emissão ainda é verificada à mão contra
+`golden/c{11,23}/keel/*.h`. Em 2026-10-02 a base ganhou `protocols.k`, os papéis
+nos verbos, `slice.of` sobre `Sliceable`, `array.length` e `tag` tipado — ver
+[[protocolos-estruturais-2026-10-02]].
 
 **P15 fechada em 2026-09-20** (commits `bbc59c5` e `5fe7fea`). O golden deixou
 de ser aproximação: é o que o cgen deve emitir a partir da `/base`. A regra que
@@ -25,8 +28,9 @@ onde golden e `.k` divergiam, o `.k` mandou.
 que eram resíduo do bootstrap `$T`. `alloc` virou `pub inline void *alloc(arena
 *a, size_t n, size_t sz, size_t align)` — verbo comum; o programa escreve
 `arena.alloc(a, T, n)` e o backend materializa `sizeof`/`alignof`/cast.
-`from_stack` não declara função: cria armazenamento no escopo do **chamador**,
-então é reescrita do backend.
+`from_stack` não declarava função: criava armazenamento no escopo do
+**chamador**, por reescrita do backend. **Saiu da linguagem em 2026-10-02**: o
+programa declara o `array u8` e o passa a `from_array`.
 
 **A instância sai inteira**, pelo backend §7.2 (o header é função *apenas do
 próprio nome*). Recortar "ao que o caso usa" fazia o arquivo ser função de quem

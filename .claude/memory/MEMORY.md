@@ -1,8 +1,9 @@
 - [Discutir antes de editar as specs](discutir-antes-de-editar-spec.md) — propor texto e argumento; só escrever após o "sim".
 - [keel: quatro documentos](keel-quatro-documentos.md) — divisão de propriedade entre spec, rationale, backend e ferramenta.
 - [golden: perfis são autorais](golden-perfis-autorais.md) — c11 e c23 escritos à mão, nunca derivados um do outro.
-- [/base e a P15](base-real-keel-em-progresso.md) — os 9 módulos; golden re-derivado dela, "a emissão segue o .k sempre".
-- [ideias pendentes: soa e cooperativo](ideias-pendentes-soa-e-cooperativo.md) — soa struct concreto (linha mais madura), buffer(N)/slice(N), strbuf/string, bitbuffer/bitslice, atomic/chan/barrier.; protocolo nominal/traits (v2).
+- [/base e a P15](base-real-keel-em-progresso.md) — os 11 arquivos; golden re-derivado dela, "a emissão segue o .k sempre".
+- [protocolos estruturais](protocolos-estruturais-2026-10-02.md) — 2026-10-02: sem `implement`, papéis herdados, diagnósticos unificados, §4.14 na v0, `slice.of` sobre `Sliceable`, `from_stack` fora.
+- [ideias pendentes: soa e cooperativo](ideias-pendentes-soa-e-cooperativo.md) — soa struct concreto (linha mais madura), buffer(N)/slice(N), strbuf/string, bitbuffer/bitslice, atomic/chan/barrier.; traits sobre o `T` opaco (v2); protocolos nomeados já existem.
 - [biblioteca padrão: catálogo](biblioteca-padrao-planejamento.md) — histórico; a fonte agora é design/possibilidades.md (v0 núcleo+base, v1 stdlib, v2+ protocolos).
-- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; implementação não começou; tool/ e engine/ com `make boundary`.
+- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; M1 fechado, M2 até as ilhas; tool/ e engine/ com `make boundary`.
 - [Código em inglês](codigo-em-ingles.md) — docs pt-BR, código em inglês; as 4 etapas concluídas (commits 36ca188, 14c4d9a, 1c249c7, 1ae845d).

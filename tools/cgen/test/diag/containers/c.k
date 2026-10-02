@@ -17,3 +17,7 @@ pub void copies(void) {
     buffer i32 y = {0};
     x = y;                                   /* DIAG: byref-assignment */
 }
+pub size_t qualifier(buffer i32 *b) {
+    int slice = 0;                           /* DIAG: keel-name-shadowed */
+    return slice.length(b) + (size_t)slice;  /* DIAG: wrong-qualifier */
+}

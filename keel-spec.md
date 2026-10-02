@@ -540,7 +540,7 @@ apontar, o diagnóstico é `unexpected-eof` (§2.5).
 #### Qualificação, acesso e sombreamento
 
 - Na resolução de `.` consultam-se, nesta ordem, um alias de módulo, um nome de tipo declarado em keel e uma expressão de contêiner reconhecida. As demais formas permanecem acesso a campo ou designador C.
-- Uma declaração local reconhecida que sombreie um qualificador desativa sua interpretação como qualificador naquele escopo. O sombreamento tem os diagnósticos da §2.5.
+- Uma declaração local com o nome de um qualificador recebe `keel-name-shadowed` (§2.5); onde o nome aparece como qualificador (`nome.verbo(` ou `nome.Tipo`), keel continua a lê-lo como qualificador.
 - A coexistência de alias de módulo e nome de tipo com a mesma grafia é aceita quando ambos provêm do mesmo módulo. Nos demais casos aplica-se o diagnóstico `alias-type-collision`.
 - A posição de contêiner usa a produção `container` e a informação dos símbolos keel. Uma expressão C desconhecida, como uma chamada C ou um cast arbitrário, não fornece a identidade de contêiner exigida pelo despacho.
 - Índices, valores e demais argumentos continuam sendo regiões opacas, inclusive quando contêm outras construções keel reconhecíveis.

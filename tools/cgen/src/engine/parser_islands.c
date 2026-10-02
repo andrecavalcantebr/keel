@@ -1030,13 +1030,16 @@ typedef struct { size_t verb, open; const KModule *module; } Callee;
 static bool callee_at(Ctx *c, size_t i, Callee *out) {
     const KAst *a = c->ast;
     KToken name = tok(a, i);
-    if (!ident(a, i) || find_local(c, name)) return false;
+    if (!ident(a, i)) return false;
+    /* `alias.verb(`: a local of the same name does not hide the qualifier,
+       which is read where it stands as one (spec §2.3) */
     if (punct(a, i + 1, ".") && ident(a, i + 2) && punct(a, i + 3, "(")) {
         const KModule *m = module_alias(a->symbols, name);
         if (!m) return false;
         *out = (Callee){ i + 2, i + 3, m };
         return true;
     }
+    if (find_local(c, name)) return false;
     if (!punct(a, i + 1, "(")) return false;
     Range first;
     if (first_arg(a, i + 1, &first)) {
@@ -3160,7 +3163,7 @@ static void walk(Ctx *c, const KAstNode *n) {
 
         /* `alias.verb(`, `verb(x, ...)` over a container, and a function of the file */
         if (call_at(c, i)) continue;
-        if (!find_local(c, t) && punct(a, i + 1, ".") && ident(a, i + 2) && !punct(a, i + 3, "(")) {
+        if (punct(a, i + 1, ".") && ident(a, i + 2) && !punct(a, i + 3, "(")) {
             const KModule *module = module_alias(a->symbols, t);
             if (module) { qualified_name(c, i, module); i += 2; continue; }
         }

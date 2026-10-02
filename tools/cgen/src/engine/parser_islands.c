@@ -2779,6 +2779,18 @@ static void walk(Ctx *c, const KAstNode *n) {
         KToken t = tok(a, i);
         bool signature = signature_of(n, i);
         if (!signature && word(a, i, "defer")) { defer_island(c, n, i); continue; }
+        if (!signature && word(a, i, "extern_c") && (punct(a, i + 1, "{") || punct(a, i + 1, "["))) {
+            /* recognized only to be refused (spec §2.2, §4.1): its body is C */
+            diag3(c, K_DIAG_NESTED_EXTERN_C, tok(a, i), (keel_slice_char){0}, (keel_slice_char){0}, (keel_slice_char){0});
+            size_t b = i + 1;
+            while (b < n->end && !punct(a, b, "{")) b++;
+            for (size_t depth = 0; b < n->end; b++) {
+                if (punct(a, b, "{")) depth++;
+                else if (punct(a, b, "}") && --depth == 0) break;
+            }
+            i = b;
+            continue;
+        }
         if (!signature && word(a, i, "instance") && ident(a, i + 1) && !punct(a, i + 1, "=")) {
             size_t e = i + 1;
             while (e < n->end && !punct(a, e, ";") && !punct(a, e, "=") && !punct(a, e, "{")) e++;
@@ -3305,6 +3317,172 @@ static void check_modifiers(Ctx *c) {
     }
 }
 
+/* ---- names across modules (spec §2.5, §4.1) ---------------------------- */
+
+static bool module_generic(const KModule *m) {
+    if (!m || !m->ast) return false;
+    const KAstNode *n = node_at(m->ast, m->ast->module);
+    return n->dim_first != n->type_end;
+}
+
+/* the canonical names a symbol takes in C: its own, and each value of a set */
+static size_t canonical_names(const KSymbol *sym, char out[][K_SYMBOL_MAX], size_t cap) {
+    char buf[K_SYMBOL_MAX];
+    size_t n = k_mangle_symbol(sym, (keel_slice_char){ sizeof buf, buf });
+    if (n >= sizeof buf || !cap) return 0;
+    memcpy(out[0], buf, n);
+    out[0][n] = 0;
+    size_t count = 1;
+    KTagsDecl tags;
+    if (sym->kind == K_SYM_TAGS && sym->origin && sym->origin->ast && tags_decl(sym->origin->ast, sym->name, &tags))
+        for (size_t k = 0; k < tags.item_count && count < cap; k++) {
+            if (n + 1 + tags.items[k].len >= K_SYMBOL_MAX) continue;
+            memcpy(out[count], buf, n);
+            out[count][n] = '_';
+            memcpy(out[count] + n + 1, tags.items[k].ptr, tags.items[k].len);
+            out[count][n + 1 + tags.items[k].len] = 0;
+            count++;
+        }
+    return count;
+}
+
+/* Spec §4.1, rule 9: the module's exported symbols against those of the
+   transitive closure of its imports, by canonical name (symbol-collision). */
+static void check_collisions(Ctx *c) {
+    KAst *a = c->ast;
+    const KAstNode *mod = module_node(a);
+    keel_slice_char self = range_text(a, (Range){ mod->name_first, mod->name_end });
+    const KModule *seen[64];
+    size_t ns = 0;
+    for (size_t i = 0; i < a->symbols->len; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(a->symbols, i);
+        if (s->kind == K_SYM_MODULE && s->origin && ns < 64) {
+            bool dup = false;
+            for (size_t k = 0; k < ns; k++) if (seen[k] == s->origin) dup = true;
+            if (!dup) seen[ns++] = s->origin;
+        }
+    }
+    for (size_t q = 0; q < ns; q++) {                          /* the closure */
+        const KAst *ma = seen[q]->ast;
+        if (!ma || !ma->symbols) continue;
+        for (size_t i = 0; i < ma->symbols->len && ns < 64; i++) {
+            const KSymbol *s = keel_buffer_KSymbol_ptr(ma->symbols, i);
+            if (s->kind != K_SYM_MODULE || !s->origin) continue;
+            bool dup = false;
+            for (size_t k = 0; k < ns; k++) if (seen[k] == s->origin) dup = true;
+            if (!dup) seen[ns++] = s->origin;
+        }
+    }
+    for (size_t i = 0; i < a->symbols->len; i++) {
+        const KSymbol *own = keel_buffer_KSymbol_ptr(a->symbols, i);
+        if (!own->origin || !k_symtab_same_name(own->origin->name, self) || own->kind == K_SYM_MODULE ||
+            own->kind == K_SYM_MODIFIER || own->kind == K_SYM_PROTOCOL)
+            continue;
+        char mine[K_TAGS_MAX_ITEMS + 1][K_SYMBOL_MAX];
+        size_t nm = canonical_names(own, mine, K_TAGS_MAX_ITEMS + 1);
+        for (size_t q = 0; q < ns; q++) {
+            const KModule *m = seen[q];
+            if (module_generic(m) || k_symtab_same_name(m->name, self)) continue;
+            for (size_t k = 0; k < m->symbol_count; k++) {
+                const KSymbol *other = &m->symbols[k];
+                if (other->kind == K_SYM_MODIFIER || other->kind == K_SYM_PROTOCOL) continue;
+                char theirs[K_TAGS_MAX_ITEMS + 1][K_SYMBOL_MAX];
+                size_t nt = canonical_names(other, theirs, K_TAGS_MAX_ITEMS + 1);
+                for (size_t x = 0; x < nm; x++)
+                    for (size_t y = 0; y < nt; y++)
+                        if (!strcmp(mine[x], theirs[y])) {
+                            Text name = { .ok = true };
+                            put_str(&name, mine[x]);
+                            KToken at = own->name;
+                            for (size_t j = 0; j < a->nodes.len; j++) {
+                                const KAstNode *d = node_at(a, j);
+                                if (d->name_first != d->name_end && k_symtab_same_name(tok(a, d->name_first), own->name))
+                                    { at = tok(a, d->name_first); break; }
+                            }
+                            diag3(c, K_DIAG_SYMBOL_COLLISION, at, keep(c, &name), own->name, m->name);
+                        }
+            }
+        }
+    }
+}
+
+/* Spec §2.5: an alias of a module and a type of another origin spelled
+   alike in the file (alias-type-collision). The alias `outcome` and the
+   modifier `outcome` that `types` injects share an origin, and are fine. */
+static void check_alias_types(Ctx *c) {
+    KAst *a = c->ast;
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (n->kind != K_AST_IMPORT || n->alias == SIZE_MAX) continue;
+        KToken alias = tok(a, n->alias);
+        const KSymbol *m = NULL;
+        for (size_t k = 0; k < a->symbols->len; k++) {
+            const KSymbol *s = keel_buffer_KSymbol_ptr(a->symbols, k);
+            if (s->kind == K_SYM_MODULE && k_symtab_same_name(s->name, alias)) { m = s; break; }
+        }
+        if (!m) continue;
+        for (size_t k = 0; k < a->symbols->len; k++) {
+            const KSymbol *s = keel_buffer_KSymbol_ptr(a->symbols, k);
+            bool typeish = s->kind == K_SYM_TYPE || s->kind == K_SYM_MODIFIER || s->kind == K_SYM_TAGS ||
+                           s->kind == K_SYM_PROTOCOL;
+            if (typeish && s->origin != m->origin && k_symtab_same_name(s->name, alias)) {
+                diag3(c, K_DIAG_ALIAS_TYPE_COLLISION, alias, alias, s->origin ? s->origin->name : k_diag_text("this file"),
+                      m->origin ? m->origin->name : alias);
+                break;
+            }
+        }
+    }
+}
+
+/* ---- extern_c and main (spec §4.1) ------------------------------------ */
+
+/* `priv extern_c [type_h]` asks for the interface and the implementation at
+   once (type-layer-on-priv-extern-c), and `main` is not defined inside one
+   (main-in-extern-c): it is a function of the module, which takes its prefix. */
+static void check_extern_c(Ctx *c, const KAstNode *n) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    size_t kw = n->first;
+    while (kw < n->end && !word(a, kw, "extern_c")) kw++;
+    if (!n->is_public)
+        for (size_t j = kw; j < n->end && j < n->body_first; j++)
+            if (word(a, j, "type_h")) { diag3(c, K_DIAG_TYPE_LAYER_ON_PRIV_EXTERN_C, tok(a, kw), none, none, none); break; }
+    if (n->body_first == SIZE_MAX) return;
+    size_t depth = 0, top = punct(a, n->body_first, "{") ? 1 : 0;   /* the body's span may hold its braces */
+    for (size_t j = n->body_first; j < n->body_end; j++) {
+        if (punct(a, j, "{") || punct(a, j, "(")) depth++;
+        else if (punct(a, j, "}") || punct(a, j, ")")) depth--;
+        else if (depth == top && word(a, j, "main") && punct(a, j + 1, "(")) {
+            size_t cp = close_paren(a, j + 1, n->body_end);
+            if (cp != SIZE_MAX && punct(a, cp + 1, "{")) diag3(c, K_DIAG_MAIN_IN_EXTERN_C, tok(a, j), none, none, none);
+        }
+    }
+}
+
+/* `main` is public (private-main) and has one of the two forms of C:
+   `int main(void)` or `int main(int argc, char *argv[])` (invalid-main-signature) */
+static void check_main(Ctx *c, const KAstNode *fn) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    KToken name = tok(a, fn->name_first);
+    if (!k_token_spelled(name, "main")) return;
+    if (!fn->is_public) diag3(c, K_DIAG_PRIVATE_MAIN, name, none, none, none);
+    size_t s = fn->first;
+    while (s < fn->name_first && (word(a, s, "pub") || word(a, s, "priv"))) s++;
+    bool ok = s + 1 == fn->name_first && word(a, s, "int") && punct(a, fn->name_first + 1, "(");
+    size_t open = fn->name_first + 1, close = ok ? close_paren(a, open, fn->end) : SIZE_MAX;
+    if (close == SIZE_MAX) ok = false;
+    else if (close == open + 1 || (close == open + 2 && word(a, open + 1, "void"))) { /* () and (void) */ }
+    else {
+        /* int NAME , char * NAME [ ]   or   int NAME , char * * NAME */
+        size_t j = open + 1;
+        ok = word(a, j, "int") && ident(a, j + 1) && punct(a, j + 2, ",") && word(a, j + 3, "char") && punct(a, j + 4, "*");
+        if (ok && punct(a, j + 5, "*")) ok = ident(a, j + 6) && j + 7 == close;
+        else if (ok) ok = ident(a, j + 5) && punct(a, j + 6, "[") && punct(a, j + 7, "]") && j + 8 == close;
+    }
+    if (!ok) diag3(c, K_DIAG_INVALID_MAIN_SIGNATURE, name, none, none, none);
+}
+
 /* What the v0 grammar recognizes in a signature only to refuse or place it:
    `keel_code` and the mold's `dim` parameter are v1 (spec §4.13), and a role
    stands before a parameter's type, or `child` before the return type
@@ -3340,8 +3518,14 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
         check_generic(&ctx);
         return true;
     }
-    for (size_t i = 0; i < a->nodes.len; i++)
-        if (node_at(a, i)->kind == K_AST_INSTANCE) instance_decl(&ctx, node_at(a, i));
+    check_collisions(&ctx);
+    check_alias_types(&ctx);
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (n->kind == K_AST_INSTANCE) instance_decl(&ctx, n);
+        if (n->kind == K_AST_EXTERN_C) check_extern_c(&ctx, n);
+        if (n->kind == K_AST_FUNCTION && n->name_first != n->name_end) check_main(&ctx, n);
+    }
     /* what the file declares at file scope is known to every function, wherever
        it stands in the file: read those declarations first, printing nothing */
     ctx.quiet = true;

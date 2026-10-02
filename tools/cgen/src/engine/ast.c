@@ -184,6 +184,7 @@ static bool parse(KAst *a,
                 node.name_first = index_at(a, i, imp.module_name.ptr);
                 node.name_end = index_at(a, node.name_first, imp.module_name.ptr + imp.module_name.len);
                 node.has_types = imp.has_types;
+                node.clause_swapped = imp.swapped;
                 node.alias = imp.alias.len ? index_at(a, node.name_end, imp.alias.ptr) : SIZE_MAX;
             }
             node.end = index_at(a, node.name_end, next.ptr);

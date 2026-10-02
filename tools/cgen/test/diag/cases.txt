@@ -23,3 +23,9 @@ surface s.k
 instances use.k
 generic gen.k
 plainmod p.k
+stem my-file.k
+nomodule n.k
+imports-order o.k
+mains m.k
+mains2 n.k
+collide a.k

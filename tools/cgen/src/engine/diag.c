@@ -116,6 +116,30 @@ static const char *const messages[K_DIAG_COUNT] = {
         "a modifier cannot be named `instance`: the word opens the declaration that places an instance's bodies",
     [K_DIAG_MODIFIER_OUTSIDE_GENERIC] =
         "modifier `%s` in a module with no parameters: a modifier belongs to a generic module (`module M type T;`)",
+    [K_DIAG_IMPORT_CLAUSE_ORDER] =
+        "`as` comes before `types`: write `import %s as %s types;`",
+    [K_DIAG_DUPLICATE_ALIAS] =
+        "`%s`, the alias of `import %s`, is already the qualifier of `%s`: each import needs its own",
+    [K_DIAG_MISSING_MODULE] =
+        "a keel file starts with `module NAME;`, before any directive or declaration",
+    [K_DIAG_INVALID_STEM] =
+        "the file name `%s` is not a C identifier, so it cannot name a module: rename the file",
+    [K_DIAG_CASE_AMBIGUOUS_STEM] =
+        "`%s` and `%s` differ only in case: on a case-insensitive file system they are one file; rename one",
+    [K_DIAG_NESTED_EXTERN_C] =
+        "`extern_c` stands inside a declaration: it is a file-scope construction",
+    [K_DIAG_TYPE_LAYER_ON_PRIV_EXTERN_C] =
+        "`priv extern_c [type_h]` is contradictory: `type_h` puts the text in the interface, `priv` in the implementation",
+    [K_DIAG_MAIN_IN_EXTERN_C] =
+        "`main` is defined inside `extern_c`: `main` is a function of the module, which takes its prefix and gets the C wrapper",
+    [K_DIAG_PRIVATE_MAIN] =
+        "`main` is `priv`: `main` is a public function of the module",
+    [K_DIAG_INVALID_MAIN_SIGNATURE] =
+        "`main` has neither form of C: write `int main(void)` or `int main(int argc, char *argv[])`",
+    [K_DIAG_SYMBOL_COLLISION] =
+        "`%s`, the C name of `%s`, is also a name exported by `%s`: rename one of them",
+    [K_DIAG_ALIAS_TYPE_COLLISION] =
+        "`%s` is the alias of a module and also a type from `%s`: choose another alias",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

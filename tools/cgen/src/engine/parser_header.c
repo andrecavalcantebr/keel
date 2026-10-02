@@ -39,9 +39,18 @@ bool k_scan_import(KLexer *lexer, KToken import_kw, KImportDecl *out,
         *next_out = k_lexer_next(lexer, next_pp_kind_out);
     }
 
+    out->swapped = false;
     if (k_token_is_ident_named(*next_out, "types")) {
         out->has_types = true;
         *next_out = k_lexer_next(lexer, next_pp_kind_out);
+        /* `import M types as A;` is the clauses out of order: read it whole,
+           and import-clause-order gives the right form */
+        if (!out->alias.len && k_token_is_ident_named(*next_out, "as")) {
+            out->alias = k_lexer_next(lexer, next_pp_kind_out);
+            if (!k_token_is_ident(out->alias)) return false;
+            out->swapped = true;
+            *next_out = k_lexer_next(lexer, next_pp_kind_out);
+        }
     }
 
     if (!k_token_is_punct(*next_out, ";")) return false;

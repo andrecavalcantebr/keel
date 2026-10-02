@@ -88,6 +88,30 @@ bool k_resolve_imports(const KAst *ast, KLoader *loader, KSymbolTable *symtab,
         keel_slice_char alias = n->alias != (size_t)-1
             ? keel_buffer_KLexeme_ptr(&ast->tokens, n->alias)->token
             : (keel_slice_char){ 0, NULL };
+        KToken at = keel_buffer_KLexeme_ptr(&ast->tokens, n->anchor)->token;
+        if (n->clause_swapped) {
+            k_diag_emit(diag, K_DIAG_IMPORT_CLAUSE_ORDER, at, (KDiagArgs){{ name, alias }});
+            ok = false;
+        }
+        /* an alias is the qualifier of one import only, and never `keel`
+           (keel-spec §4.1, duplicate-alias) */
+        if (alias.len) {
+            keel_slice_char other = {0};
+            if (k_symtab_same_name(alias, prelude)) other = prelude;
+            for (size_t j = 0; j < ast->nodes.len && !other.len; j++) {
+                const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, j);
+                if (m->kind != K_AST_IMPORT || j == i) continue;
+                keel_slice_char mname = spelled(ast, m->name_first, m->name_end);
+                keel_slice_char malias = m->alias != (size_t)-1
+                    ? keel_buffer_KLexeme_ptr(&ast->tokens, m->alias)->token : (keel_slice_char){0};
+                if (k_symtab_same_name(alias, mname) || (j < i && malias.len && k_symtab_same_name(alias, malias)))
+                    other = mname;
+            }
+            if (other.len) {
+                k_diag_emit(diag, K_DIAG_DUPLICATE_ALIAS, alias, (KDiagArgs){{ alias, name, other }});
+                ok = false;
+            }
+        }
         if (!resolve_one(loader, symtab, diag, name, n->has_types, alias,
                          keel_buffer_KLexeme_ptr(&ast->tokens, n->anchor)->token))
             ok = false;

@@ -57,6 +57,7 @@ typedef struct {
     keel_slice_char module_name;
     keel_slice_char alias;
     bool has_types;
+    bool swapped;               /* `types as A`: read, so import-clause-order can name it */
 } KImportDecl;
 
 bool k_scan_import(KLexer *lexer, KToken import_kw, KImportDecl *out,

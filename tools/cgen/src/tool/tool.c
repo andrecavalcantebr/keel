@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <dirent.h>
+#include <strings.h>
 #include "tool/tool.h"
 #include "tool/cli_limits.h"
 #include "engine/instances.h"
@@ -107,6 +109,40 @@ static bool exports(CgenTool *t, CgenModuleEntry *e) {
     return true;
 }
 
+/* keel-spec §4.1: the file's stem names the module, so it is a C identifier
+   (invalid-stem), and no other `.k` beside it differs from it only in case
+   (case-ambiguous-stem). Both point at the start of the file. */
+static bool check_stem(CgenTool *t, const char *path, keel_slice_char at) {
+    const char *base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+    size_t len = strlen(base);
+    if (len < 3 || strcmp(base + len - 2, ".k") != 0) return true;
+    keel_slice_char stem = { len - 2, (char *)base };
+    if (!k_token_is_ident(stem)) {
+        k_diag_emit(t->diag, K_DIAG_INVALID_STEM, at, (KDiagArgs){{ stem }});
+        return false;
+    }
+    char dir[4096];
+    size_t dlen = (size_t)(base - path);
+    if (dlen >= sizeof dir) return true;
+    memcpy(dir, path, dlen);
+    dir[dlen] = 0;
+    DIR *d = opendir(dlen ? dir : ".");
+    if (!d) return true;
+    bool ok = true;
+    for (struct dirent *x; ok && (x = readdir(d)) != NULL; ) {
+        if (strcmp(x->d_name, base) != 0 && strcasecmp(x->d_name, base) == 0) {
+            string other = cgen_string_dup(t->arena, x->d_name, strlen(x->d_name));
+            if (other.ptr)
+                k_diag_emit(t->diag, K_DIAG_CASE_AMBIGUOUS_STEM, at,
+                            (KDiagArgs){{ (keel_slice_char){ len, (char *)base }, (keel_slice_char){ other.len, other.ptr } }});
+            ok = false;
+        }
+    }
+    closedir(d);
+    return ok;
+}
+
 static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path,
                              long long mtime, KModule **out) {
     size_t before=k_diag_count(t->diag,K_ERROR);
@@ -133,6 +169,17 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     e->ast.tokens.len=count;
     k_lexemes(e->ast.source,e->ast.tokens.ptr,count,t->diag);
     if(k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    {
+        keel_slice_char at=e->ast.source.len?(keel_slice_char){1,e->ast.source.ptr}:e->module.name;
+        if(!check_stem(t,str_cstr(e->path),at))return failure(t,e,K_DIAG_LOAD_FAILED,before);
+        /* `module` is the first construction, before any directive (§4.1) */
+        if(!count||keel_buffer_KLexeme_ptr(&e->ast.tokens,0)->directive||
+           !k_token_spelled(keel_buffer_KLexeme_ptr(&e->ast.tokens,0)->token,"module")) {
+            if(count)at=keel_buffer_KLexeme_ptr(&e->ast.tokens,0)->token;
+            k_diag_emit(t->diag,K_DIAG_MISSING_MODULE,at,(KDiagArgs){{at}});
+            return failure(t,e,K_DIAG_LOAD_FAILED,before);
+        }
+    }
     if(!k_parse_headers(&e->ast))return failure(t,e,K_DIAG_PARSE_FAILED,before);
     KAstNode *mod=keel_buffer_KAstNode_ptr(&e->ast.nodes, e->ast.module);
     keel_slice_char declared=span(&e->ast,mod->name_first,mod->name_end);

@@ -53,6 +53,7 @@ typedef struct {
     size_t type_first, type_end;
     size_t alias;               /* import alias token; SIZE_MAX if absent */
     bool has_types;             /* import ... types */
+    bool clause_swapped;        /* import ... types as A */
     bool is_public;             /* default visibility is public */
     bool is_inline;
 } KAstNode;

@@ -169,6 +169,7 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     e->ast.tokens.len=count;
     k_lexemes(e->ast.source,e->ast.tokens.ptr,count,t->diag);
     if(k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    if(!k_check_delimiters(&e->ast,t->diag))return failure(t,e,K_DIAG_LOAD_FAILED,before);
     {
         keel_slice_char at=e->ast.source.len?(keel_slice_char){1,e->ast.source.ptr}:e->module.name;
         if(!check_stem(t,str_cstr(e->path),at))return failure(t,e,K_DIAG_LOAD_FAILED,before);
@@ -180,7 +181,14 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
             return failure(t,e,K_DIAG_LOAD_FAILED,before);
         }
     }
-    if(!k_parse_headers(&e->ast))return failure(t,e,K_DIAG_PARSE_FAILED,before);
+    if(!k_parse_headers(&e->ast)) {
+        /* the file ended inside a declaration: the last token neither ends
+           one nor closes a block (unexpected-eof) */
+        const KLexeme *last=count?keel_buffer_KLexeme_ptr(&e->ast.tokens,count-1):NULL;
+        if(last&&!last->directive&&!k_token_is_punct(last->token,";")&&!k_token_is_punct(last->token,"}"))
+            k_diag_emit(t->diag,K_DIAG_UNEXPECTED_EOF,last->token,(KDiagArgs){{last->token}});
+        return failure(t,e,K_DIAG_PARSE_FAILED,before);
+    }
     KAstNode *mod=keel_buffer_KAstNode_ptr(&e->ast.nodes, e->ast.module);
     keel_slice_char declared=span(&e->ast,mod->name_first,mod->name_end);
     char declared_name[4096];

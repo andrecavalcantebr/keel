@@ -30,3 +30,5 @@ mains m.k
 mains2 n.k
 collide a.k
 decls d.k
+delims d.k
+eof e.k

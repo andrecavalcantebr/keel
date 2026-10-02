@@ -184,6 +184,12 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` is already a keel symbol, and here it may be declared again (`%s %s`): keel does not decide which, and refuses; use another name",
     [K_DIAG_BYREF_ASSIGNMENT] =
         "`%s = %s` copies a `byref` instance: both now share the storage, and a change through one is seen through the other",
+    [K_DIAG_UNMATCHED_DELIMITER] =
+        "`%s` has no pair: it meets %s",
+    [K_DIAG_DELIMITER_MISMATCH_ACROSS_BRANCHES] =
+        "the alternatives of this conditional group leave different delimiters open: every branch, the missing `#else` included, has to open and close the same",
+    [K_DIAG_UNEXPECTED_EOF] =
+        "the file ends inside a declaration: `%s` is the last token, and the declaration has no `;` or closing brace",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

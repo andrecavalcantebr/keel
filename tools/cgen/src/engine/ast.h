@@ -39,6 +39,10 @@ bool k_collect_ast(KAst *ast, KSymbolTable *symbols);
    Returns false if any import did not resolve. */
 bool k_resolve_imports(const KAst *ast, KLoader *loader,
                        KSymbolTable *symtab, KDiagnosticSink *diag);
+/* keel-spec §2.4: `()`, `[]` and `{}` pair in every alternative of a
+   conditional group, and the alternatives agree (unmatched-delimiter,
+   delimiter-mismatch-across-branches). */
+bool k_check_delimiters(const KAst *ast, KDiagnosticSink *diag);
 /* Writes at most output.len bytes, returns the required length. */
 size_t k_dump_ast(const KAst *ast, const char *path, keel_slice_char output);
 

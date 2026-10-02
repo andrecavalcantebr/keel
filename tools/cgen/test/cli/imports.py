@@ -39,11 +39,12 @@ with tempfile.TemporaryDirectory() as directory:
     r = run(root, 'usebad', 1, 'define-over-keel-name')
     assert r.stderr.count('[define-over-keel-name]') == 1, r.stderr
     assert 'bad.k:2:' in r.stderr
-    for source in ['module truncated\ni32 x;',
-                   'module truncated; import_c <stdio.h;',
-                   'module truncated; int f(void) {return 0;']:
+    for source, diagnostic in [('module truncated\ni32 x;', 'unexpected-token'),
+                               ('module truncated; import_c <stdio.h;', 'unexpected-token'),
+                               ('module truncated; int f(void) {return 0;', 'unmatched-delimiter'),
+                               ('module truncated; import keel.slice', 'unexpected-eof')]:
         write('truncated', source)
-        run(root, 'truncated', 1, 'unexpected-token')
+        run(root, 'truncated', 1, diagnostic)
     # Diamond: a completed shared dependency is not a cycle.
     write('a', 'module a; import b; import c;')
     write('b', 'module b; import c;')

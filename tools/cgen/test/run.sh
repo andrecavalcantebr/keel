@@ -49,6 +49,6 @@ done
 for t in tools/cgen/test/cli/*.sh;  do run "cli/$(basename "$t" .sh)"  sh "$t"; done
 run lex_dump sh tools/cgen/test/lex_dump.sh
 run diag sh tools/cgen/test/diag.sh
-PARSE_LEVEL=${PARSE_LEVEL:-ilha:type,name,call,ref,defer,implicit-init,foreach,walk,match,array,array-index,index,range-index}
+PARSE_LEVEL=${PARSE_LEVEL:-ilha:type,name,call,ref,defer,implicit-init,foreach,walk,match,array,array-index,index,range-index,parallel,worker-exit}
 run "parse_dump/$PARSE_LEVEL" sh tools/cgen/test/parse_dump.sh "$PARSE_LEVEL"
 exit $fail

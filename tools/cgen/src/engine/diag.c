@@ -60,6 +60,24 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` of `%s` has no arm in this `match`: every tag of the set has a label",
     [K_DIAG_MATCH_WITHOUT_TAGS] =
         "the `tag` of `%s` returns no set of tags, so `match` has no labels to check",
+    [K_DIAG_UNNAMED_PARALLEL] =
+        "`parallel` has no name: write `parallel NAME POLICY (...)`; the name is the control symbol the queries read",
+    [K_DIAG_FLOW_VERB_OUTSIDE_PARALLEL] =
+        "`%s;` is a worker exit, and it stands outside the body of a `parallel`",
+    [K_DIAG_NESTED_PARALLEL] =
+        "`parallel %s` stands in the body of `parallel %s`: a worker does not start workers",
+    [K_DIAG_DUPLICATE_PARALLEL_NAME] =
+        "`%s` names a second `parallel` in the same function: each one needs its own name",
+    [K_DIAG_NONCONSTANT_PARALLEL] =
+        "`%s` is not known at translation time: the worker count and the policy of `parallel` are a decimal literal or a `constexpr`",
+    [K_DIAG_CAPTURED_WRITE] =
+        "`%s` is captured by `parallel %s`, and each worker writes its own copy: pass a pointer to give a result back",
+    [K_DIAG_RETURN_IN_PARALLEL] =
+        "`return` in the body of `parallel %s`: the worker does not leave the function; end it with `win;` or `fail;`",
+    [K_DIAG_PARTITION_TYPE_MISMATCH] =
+        "the partition binder is `%s`, and the `partition` of `%s` produces `%s`",
+    [K_DIAG_MUTATION_DURING_TRAVERSAL] =
+        "`%s` changes `%s` while the `%s` goes over it: change the container before or after",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

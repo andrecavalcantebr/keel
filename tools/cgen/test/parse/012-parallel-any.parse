@@ -1,0 +1,17 @@
+module	app.bs	app/bs.k:1:1
+import	keel.buffer as buffer types	app/bs.k:2:1
+import	keel.slice as slice types	app/bs.k:3:1
+import	keel.parallel as parallel	app/bs.k:4:1
+decl	pub func	found_any	app_bs_found_any	app/bs.k:9:1
+inst	buffer i32	keel_buffer_i32	app/bs.k:9:20
+inst	buffer size_t	keel_buffer_size_t	app/bs.k:9:48
+inst	slice i32	keel_slice_i32	app/bs.k:10:43
+ilha	type	buffer i32 → keel_buffer_i32	app/bs.k:9:20
+ilha	type	buffer size_t → keel_buffer_size_t	app/bs.k:9:48
+ilha	parallel	search ANY (w : 0..4; part : xs (buffer i32); (target, where)) → keel_buffer_i32_partition	app/bs.k:10:5
+ilha	type	slice i32 → keel_slice_i32	app/bs.k:10:43
+ilha	foreach	x, i : part (slice i32)	app/bs.k:11:9
+ilha	call	parallel.interrupted/1 → keel_parallel_interrupted &1	app/bs.k:12:17
+ilha	call	buffer.set/3 → keel_buffer_size_t_set	app/bs.k:13:32
+ilha	worker-exit	win → search	app/bs.k:13:61
+ilha	call	parallel.ok/1 → keel_parallel_ok &1	app/bs.k:16:12

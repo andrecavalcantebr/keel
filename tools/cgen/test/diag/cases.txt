@@ -16,3 +16,4 @@ protocols p.k
 signatures s.k
 roles r.k
 traversal t.k
+parallel w.k

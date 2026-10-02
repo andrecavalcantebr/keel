@@ -1,0 +1,13 @@
+module	app.val	app/val.k:1:1
+import	keel.buffer as buffer types	app/val.k:2:1
+import	keel.slice as slice types	app/val.k:3:1
+import	keel.parallel as parallel	app/val.k:4:1
+decl	pub func	has_negative	app_val_has_negative	app/val.k:10:1
+inst	buffer i32	keel_buffer_i32	app/val.k:10:23
+inst	slice i32	keel_slice_i32	app/val.k:11:45
+ilha	type	buffer i32 → keel_buffer_i32	app/val.k:10:23
+ilha	parallel	validate ALL (w : 0..4; part : xs (buffer i32)) → keel_buffer_i32_partition	app/val.k:11:5
+ilha	type	slice i32 → keel_slice_i32	app/val.k:11:45
+ilha	foreach	x, i : part (slice i32)	app/val.k:12:9
+ilha	worker-exit	fail → validate	app/val.k:13:24
+ilha	call	parallel.failed/1 → keel_parallel_failed &1	app/val.k:16:12

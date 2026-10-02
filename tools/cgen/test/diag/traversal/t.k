@@ -20,6 +20,8 @@ pub void use(buffer i32 *xs, Bare *b, array i32 v[size_t n], tagged Light void *
     foreach (i32 x, int i : xs) { }                    /* DIAG: index-not-size-t */
     foreach (i32 x, size_t i : b) { }                  /* DIAG: protocol-not-satisfied */
     foreach (i32 x, size_t i : v) { }
+    foreach (i32 x, size_t i : xs) { buffer.clear(xs); }   /* DIAG: mutation-during-traversal */
+    foreach (i32 x, size_t i : xs) buffer.pop(xs);         /* DIAG: mutation-during-traversal */
     match (s) {                                        /* DIAG: tag-without-label */
         RED: break;
         AMBER: break;

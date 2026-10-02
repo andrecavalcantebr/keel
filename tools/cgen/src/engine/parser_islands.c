@@ -76,6 +76,11 @@ typedef struct {
     bool failed;
     bool has_target;            /* an initializer is being read... */
     KSpecifier target;          /* ...of an object declared with this type */
+    size_t par_open, par_close; /* the worker body of the `parallel` under way, or 0, 0 */
+    keel_slice_char par_name;
+    size_t cap_first, cap_end;  /* its capture list, tokens inside the parentheses */
+    keel_slice_char par_names[16];  /* the `parallel`s of the function so far */
+    size_t par_count;
 } Ctx;
 
 typedef struct { char s[K_DETAIL_MAX]; size_t n; bool ok; } Text;
@@ -1941,6 +1946,43 @@ static bool meets(Ctx *c, Range r, const char *proto, Text *missing) {
     return satisfies(c, own, k->name, &pd, missing, tok(c->ast, r.first));
 }
 
+/* the statement after token `at`: a block to its '}', or a statement to its ';' */
+static size_t statement_end(const KAst *a, size_t at, size_t end) {
+    size_t depth = 0;
+    for (size_t j = at; j < end; j++) {
+        if (punct(a, j, "{") || punct(a, j, "(") || punct(a, j, "[")) depth++;
+        else if (punct(a, j, "}") || punct(a, j, ")") || punct(a, j, "]")) {
+            if (depth && --depth == 0 && punct(a, j, "}") && punct(a, at, "{")) return j;
+        }
+        else if (!depth && punct(a, j, ";")) return j;
+    }
+    return end;
+}
+
+/* `push`, `pop` or `clear` over the container `box` in [first, end): the body
+   of the construction that goes over it (spec §4.7, §4.8) */
+static void mutations(Ctx *c, size_t first, size_t end, Range box, const char *what) {
+    KAst *a = c->ast;
+    keel_slice_char text = range_text(a, box);
+    static const char *const verbs[] = { "push", "pop", "clear" };
+    for (size_t j = first; j < end; j++) {
+        if (!punct(a, j + 1, "(")) continue;
+        bool verb = false;
+        for (size_t v = 0; v < 3; v++) if (word(a, j, verbs[v])) verb = true;
+        if (!verb) continue;
+        size_t arg = j + 2, stop = arg;
+        for (size_t depth = 0; stop < end; stop++) {
+            if (punct(a, stop, "(") || punct(a, stop, "[")) depth++;
+            else if ((punct(a, stop, ")") || punct(a, stop, "]")) && depth-- == 0) break;
+            else if (!depth && punct(a, stop, ",")) break;
+        }
+        while (arg < stop && punct(a, arg, "&")) arg++;
+        keel_slice_char got = range_text(a, (Range){ arg, stop });
+        if (stop > arg && got.len == text.len && !memcmp(got.ptr, text.ptr, text.len))
+            diag3(c, K_DIAG_MUTATION_DURING_TRAVERSAL, tok(a, j), tok(a, j), text, k_diag_text(what));
+    }
+}
+
 /* foreach (binder[, binder] : container) and walk (elem, cursor : container)
    (spec §4.7). The detail is the binders' names, the container as written,
    and its keel type when it is a declared symbol (cgen-tool §5.2). */
@@ -1973,6 +2015,7 @@ static void traversal(Ctx *c, const KAstNode *n, size_t at, bool cursor) {
     const Local *l = box.end == box.first + 1 && ident(a, box.first) ? find_local(c, tok(a, box.first)) : NULL;
     if (l && l->spec.text.len) { put_str(&d, " ("); put(&d, l->spec.text.ptr, l->spec.text.len); put_str(&d, ")"); }
     emit(c, cursor ? K_ISLAND_WALK : K_ISLAND_FOREACH, at, &d);
+    if (!literal) mutations(c, close + 1, statement_end(a, close + 1, n->end), box, cursor ? "walk" : "foreach");
 
     Text missing = { .ok = true };
     if (cursor) {
@@ -2118,12 +2161,206 @@ static void match_island(Ctx *c, const KAstNode *n, size_t at) {
     }
 }
 
+/* ---- parallel, win, fail (stage 4e) ----------------------------------- */
+
+static bool inside_parallel(const Ctx *c, size_t i) { return c->par_close && i > c->par_open && i < c->par_close; }
+
+/* the ranges a `;` at depth 0 splits [first, end) into, up to `cap` */
+static size_t split_semis(const KAst *a, size_t first, size_t end, Range *out, size_t cap) {
+    size_t n = 0, depth = 0, st = first;
+    for (size_t j = first; j <= end; j++) {
+        if (j < end && (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{"))) depth++;
+        else if (j < end && (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}"))) depth--;
+        else if (j == end || (!depth && punct(a, j, ";"))) {
+            if (n < cap) out[n] = (Range){ st, j };
+            n++;
+            st = j + 1;
+        }
+    }
+    return n;
+}
+
+static size_t colon_in(const KAst *a, Range r) {
+    for (size_t j = r.first, depth = 0; j < r.end; j++) {
+        if (punct(a, j, "(") || punct(a, j, "[")) depth++;
+        else if (punct(a, j, ")") || punct(a, j, "]")) depth--;
+        else if (!depth && punct(a, j, ":")) return j;
+    }
+    return SIZE_MAX;
+}
+
+/* parallel NAME POLICY (w : 0..k; part : x [; (captures)]) { body } (spec §4.8).
+   The detail is the name, the policy, the binders and the container as
+   written, the container's keel type, the captures, and the `partition` the
+   distribution calls (cgen-tool §5.2). The body's tokens are walked as usual:
+   this only records where it is, for `win`, `fail`, `return` and the captures. */
+static void parallel_island(Ctx *c, const KAstNode *n, size_t at) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    if (!ident(a, at + 1) || punct(a, at + 2, "(") || word(a, at + 1, "ALL") || word(a, at + 1, "ANY")) {
+        diag3(c, K_DIAG_UNNAMED_PARALLEL, tok(a, at), none, none, none);
+        return;
+    }
+    KToken name = tok(a, at + 1);
+    size_t open = at + 2;
+    while (open < n->end && open < at + 6 && !punct(a, open, "(")) open++;
+    if (!punct(a, open, "(")) return;
+    Range policy = { at + 2, open };
+    size_t close = close_paren(a, open, n->end);
+    if (close == SIZE_MAX || !punct(a, close + 1, "{")) return;
+    size_t body = close + 1, end = SIZE_MAX;
+    for (size_t j = body, depth = 0; j < n->end; j++) {
+        if (punct(a, j, "{")) depth++;
+        else if (punct(a, j, "}") && --depth == 0) { end = j; break; }
+    }
+    if (end == SIZE_MAX) return;
+    Range part[3];
+    size_t parts = split_semis(a, open + 1, close, part, 3);
+    if (parts < 2) return;
+    size_t c1 = colon_in(a, part[0]), c2 = colon_in(a, part[1]);
+    if (c1 == SIZE_MAX || c2 == SIZE_MAX || c1 == part[0].first || c2 == part[1].first) return;
+    Range workers = { c1 + 1, part[0].end }, box = { c2 + 1, part[1].end };
+    Range binder = { part[1].first, c2 };
+    Range capture = { 0, 0 };
+    if (parts > 2 && punct(a, part[2].first, "(") && part[2].end > part[2].first &&
+        punct(a, part[2].end - 1, ")"))
+        capture = (Range){ part[2].first + 1, part[2].end - 1 };
+
+    Text d = { .ok = true };
+    put(&d, name.ptr, name.len);
+    put_str(&d, " ");
+    put_range(&d, a, policy.first, policy.end);
+    put_str(&d, " (");
+    put(&d, tok(a, c1 - 1).ptr, tok(a, c1 - 1).len);
+    put_str(&d, " : ");
+    put_range(&d, a, workers.first, workers.end);
+    put_str(&d, "; ");
+    put(&d, tok(a, c2 - 1).ptr, tok(a, c2 - 1).len);
+    put_str(&d, " : ");
+    put_range(&d, a, box.first, box.end);
+    const Local *l = box.end == box.first + 1 && ident(a, box.first) ? find_local(c, tok(a, box.first)) : NULL;
+    if (l && l->spec.text.len) { put_str(&d, " ("); put(&d, l->spec.text.ptr, l->spec.text.len); put_str(&d, ")"); }
+    if (capture.end > capture.first) { put_str(&d, "; ("); put_range(&d, a, capture.first, capture.end); put_str(&d, ")"); }
+    put_str(&d, ")");
+
+    resolution_begin(c);
+    int t = type_of(c, box);
+    const KType *k = t >= 0 ? kt(c, t) : NULL;
+    if (k && k->kind == KT_MODIFIER && k->module && ast_of(c, k->module)) {
+        const KAst *home = ast_of(c, k->module);
+        Text sym = { .ok = true };
+        bool adapt = false;
+        if (container_verb(k, home, k_diag_text("partition"), 3, &sym, &adapt)) {
+            put_str(&d, " \xe2\x86\x92 ");
+            put(&d, sym.s, sym.n);
+            if (adapt) put_str(&d, " &1");
+            /* the binder's written type against the product of `partition` (§4.8,
+               item 5): a `byref` product comes by pointer, so the stars go */
+            Sig sig = find_verb(home, k_diag_text("partition"), 3);
+            int r = sig.found ? ret_type(c, home, sig.fn, t) : -1;
+            size_t last = binder.end - 1;
+            while (last > binder.first && punct(a, last - 1, "*")) last--;
+            int b = last > binder.first ? kt_from_text(c, a->symbols, range_text(a, (Range){ binder.first, last })) : -1;
+            if (r >= 0 && b >= 0 && *kt(c, r)->symbol && *kt(c, b)->symbol &&
+                strcmp(kt(c, r)->symbol, kt(c, b)->symbol) != 0)
+            {
+                Text prod = { .ok = true };
+                put_str(&prod, kt(c, r)->symbol);
+                diag3(c, K_DIAG_PARTITION_TYPE_MISMATCH, tok(a, binder.first),
+                      range_text(a, (Range){ binder.first, last }), range_text(a, box), keep(c, &prod));
+            }
+        }
+    }
+    Text missing = { .ok = true };
+    if (!meets(c, box, "Partitionable", &missing))
+        diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, box.first), range_text(a, box), k_diag_text("Partitionable"),
+              keep(c, &missing));
+    resolution_end(c);
+    emit(c, K_ISLAND_PARALLEL, at, &d);
+    mutations(c, body, end, box, "parallel");
+
+    /* the count of workers and the policy are constants (§4.8) */
+    size_t dots = SIZE_MAX;
+    for (size_t j = workers.first; j < workers.end; j++) if (punct(a, j, "..")) dots = j;
+    long v;
+    if (dots != SIZE_MAX && !decimal_of(c, (Range){ dots + 1, workers.end }, &v))
+        diag3(c, K_DIAG_NONCONSTANT_PARALLEL, tok(a, dots + 1), range_text(a, (Range){ dots + 1, workers.end }), none, none);
+    bool qualified = policy.end == policy.first + 3 && punct(a, policy.first + 1, ".");
+    if (!word(a, policy.first, "ALL") && !word(a, policy.first, "ANY") && !qualified && !decimal_of(c, policy, &v))
+        diag3(c, K_DIAG_NONCONSTANT_PARALLEL, tok(a, policy.first), range_text(a, policy), none, none);
+
+    /* the name declares a `parallel.control` in the enclosing scope (§4.8), which
+       the queries of keel.parallel read when that module is imported */
+    const KModule *pm = module_by_name(a->symbols, "keel.parallel");
+    if (pm && !c->quiet) {
+        Text ty = { .ok = true };
+        keel_slice_char alias = alias_of(a->symbols, pm);
+        put(&ty, alias.ptr, alias.len);
+        put_str(&ty, ".control");
+        keel_slice_char text = keep(c, &ty);
+        KLexer lexer;
+        TKPpKind pp;
+        KSpecifier spec;
+        KToken next = {0};
+        KToken first = enter_text(text, &lexer, &pp);
+        if (k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind != K_SPEC_NONE)
+            add_local(c, (Local){ .name = name, .spec = spec, .decl_at = at + 1 });
+    }
+    for (size_t k2 = 0; k2 < c->par_count; k2++)
+        if (k_symtab_same_name(c->par_names[k2], name))
+            diag3(c, K_DIAG_DUPLICATE_PARALLEL_NAME, name, name, none, none);
+    if (c->par_count < sizeof c->par_names / sizeof *c->par_names) c->par_names[c->par_count++] = name;
+    if (inside_parallel(c, at)) {
+        diag3(c, K_DIAG_NESTED_PARALLEL, tok(a, at), name, c->par_name, none);
+        return;
+    }
+    c->par_open = body;
+    c->par_close = end;
+    c->par_name = name;
+    c->cap_first = capture.first;
+    c->cap_end = capture.end;
+}
+
+/* win; fail; return; and a write to a capture, in or out of a worker body */
+static bool worker_flow(Ctx *c, size_t i) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    bool inside = inside_parallel(c, i);
+    if ((word(a, i, "win") || word(a, i, "fail")) && punct(a, i + 1, ";")) {
+        if (!inside) {
+            diag3(c, K_DIAG_FLOW_VERB_OUTSIDE_PARALLEL, tok(a, i), tok(a, i), none, none);
+            return true;
+        }
+        Text d = { .ok = true };
+        put(&d, tok(a, i).ptr, tok(a, i).len);
+        put_str(&d, " \xe2\x86\x92 ");
+        put(&d, c->par_name.ptr, c->par_name.len);
+        emit(c, K_ISLAND_WORKER_EXIT, i, &d);
+        return true;
+    }
+    if (!inside) return false;
+    bool write = assignment_op(a, i + 1) || (i > 0 && (punct(a, i - 1, "++") || punct(a, i - 1, "--")));
+    bool through = i > 0 && punct(a, i - 1, "*") && !after_operand(a, i - 1);   /* `*out = v` writes the target */
+    if (!write || through) return false;
+    for (size_t j = c->cap_first; j < c->cap_end; j++) {
+        if (!ident(a, j) || !k_symtab_same_name(tok(a, j), tok(a, i))) continue;
+        const Local *l = find_local(c, tok(a, i));
+        if (l && l->spec.kind == K_SPEC_MODIFIER && l->pointers == 0) return false;   /* a byref instance */
+        diag3(c, K_DIAG_CAPTURED_WRITE, tok(a, i), tok(a, i), c->par_name, none);
+        return false;
+    }
+    return false;
+}
+
 static void walk(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
     memcpy(c->locals, c->globals, c->global_count * sizeof *c->globals);
     c->local_count = c->global_count;
     c->depth = 0;
     c->has_target = false;
+    c->par_open = c->par_close = 0;
+    c->par_count = 0;
+    c->cap_first = c->cap_end = 0;
     for (size_t i = n->first; i < n->end && !c->failed; i++) {
         if (!live(a, i)) continue;
         if (punct(a, i, "{")) { c->depth++; continue; }
@@ -2134,6 +2371,10 @@ static void walk(Ctx *c, const KAstNode *n) {
         }
         if (punct(a, i, ";")) { c->has_target = false; continue; }
         if (word(a, i, "constexpr") && !signature_of(n, i)) { block_constexpr(c, i); continue; }
+        if (word(a, i, "return") && inside_parallel(c, i)) {      /* a C word, not an identifier */
+            diag3(c, K_DIAG_RETURN_IN_PARALLEL, tok(a, i), c->par_name, (keel_slice_char){0}, (keel_slice_char){0});
+            continue;
+        }
         if (i == n->name_first || !ident(a, i)) continue;
         if (i > n->first && (punct(a, i - 1, ".") || punct(a, i - 1, "->"))) continue;
 
@@ -2141,10 +2382,19 @@ static void walk(Ctx *c, const KAstNode *n) {
         bool signature = signature_of(n, i);
         if (!signature && word(a, i, "defer")) { defer_island(c, n, i); continue; }
         if (!signature && punct(a, i + 1, "(") && (word(a, i, "foreach") || word(a, i, "walk"))) {
+            resolution_begin(c);
             traversal(c, n, i, word(a, i, "walk"));
+            resolution_end(c);
             continue;
         }
-        if (!signature && word(a, i, "match") && punct(a, i + 1, "(")) { match_island(c, n, i); continue; }
+        if (!signature && word(a, i, "match") && punct(a, i + 1, "(")) {
+            resolution_begin(c);
+            match_island(c, n, i);
+            resolution_end(c);
+            continue;
+        }
+        if (!signature && word(a, i, "parallel") && !punct(a, i + 1, ".")) { parallel_island(c, n, i); continue; }
+        if (!signature && worker_flow(c, i)) continue;
         check_uses(c, i);
 
         /* the marker, unless a qualifier: `array.get(`, with `array` an alias */

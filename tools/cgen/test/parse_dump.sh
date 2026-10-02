@@ -22,7 +22,8 @@
 # For each case in parse/cases.txt, cgen runs from the case directory, with
 # the repository's base, and its stdout — only the lines of the kinds of the
 # level — must equal parse/<case>.parse filtered the same way, byte for byte.
-# stderr must be empty and the exit code 0.
+# stderr must hold no error (warnings and infos are allowed) and the exit
+# code must be 0.
 #
 # The .parse files are the expectation, written by hand from the .k and the
 # expected C of the golden case: they are NOT regenerated from cgen.
@@ -87,7 +88,9 @@ while read -r c src covers; do
     out=$(cd "$ROOT/golden/cases/$c" &&
           timeout 20 "$BIN" --base-dir "$ROOT/base" --stop-after=parse "$src" 2>/tmp/parsediff.$$)
     rc=$?
-    err=$(cat /tmp/parsediff.$$)
+    # warnings and infos come out on stderr by default (diag-design R1): only an
+    # error fails the case
+    err=$(grep ': error: ' /tmp/parsediff.$$ || true)
     if [ $rc -ne 0 ] || [ -n "$err" ]; then
         echo "FAIL: $c/$src — cgen exited $rc"
         printf '%s\n' "$err" | head -5

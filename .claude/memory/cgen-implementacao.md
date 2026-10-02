@@ -72,7 +72,7 @@ em `typedef` e o `{0}` da arena, e o prefixo das instâncias aninhadas.
 - `codegen` C2: o fecho de instâncias da base foi calculado à mão; o emissor
   tem que dar exatamente os mesmos 7 arquivos.
 - `parser` Q1, Q2.
-- `diag` R1: a severidade `info` sai por padrão? Candidato é `-W<nome>`.
+- `diag` R1 resolvida (2026-10-02): `info` sai por padrão, só do módulo traduzido.
 - `diag` R2: o runner não tem modo para caso `debug` (compilar, rodar sob
   `--checks=on`, afirmar o `abort`). Os 7 ficam sem teste.
 

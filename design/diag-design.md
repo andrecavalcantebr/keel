@@ -296,5 +296,5 @@ modo para ela.
 
 | | Onde | Divergência |
 | --- | --- | --- |
-| R1 | spec §6.1 × este documento | a severidade `info` tem duas entradas no catálogo (`injected-names`, `indirect-import`) e a spec diz que "a apresentação é definida pela ferramenta" — mas não diz se `info` sai por padrão. Sair sempre é ruído; nunca sair torna a entrada decorativa. O candidato é ligar por `-W<nome>`, e falta decidir |
+| R1 | spec §6.1 × este documento | a severidade `info` tem duas entradas no catálogo (`injected-names`, `indirect-import`) e a spec diz que "a apresentação é definida pela ferramenta" — mas não diz se `info` sai por padrão. Sair sempre é ruído; nunca sair torna a entrada decorativa. **Resolvida em 2026-10-02 pelo André: `info` sai por padrão**, no stderr, como warning e erro. O cgen só relata o `info` do módulo traduzido, não o dos módulos que ele carrega (senão cada import da base traria os seus). |
 | R2 | golden × este documento | o runner não tem modo para caso `debug`: compilar, rodar sob `--checks=on` e afirmar o `abort`. Os 7 `debug` do catálogo ficam sem teste até ele existir |

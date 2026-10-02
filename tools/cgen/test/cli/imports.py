@@ -17,7 +17,7 @@ def run(root, module, expected=0, diagnostic=None):
         assert '[' + diagnostic + ']' in result.stderr, result.stderr
         assert not result.stdout, result.stdout
     else:
-        assert not result.stderr, result.stderr
+        assert ': error: ' not in result.stderr and ': warning: ' not in result.stderr, result.stderr
     return result
 
 with tempfile.TemporaryDirectory() as directory:

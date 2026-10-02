@@ -228,6 +228,10 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` is the binder of an `array` parameter, not a constant: it cannot size a vector",
     [K_DIAG_DUPLICATE_INJECTED_NAME] =
         "`%s` comes bare from `%s` and from `%s`: import one of them without `types`, and write the name qualified",
+    [K_DIAG_INJECTED_NAMES] =
+        "`types` brings from `%s`, unqualified: %s",
+    [K_DIAG_INSTANCE_FIELD_ACCESS] =
+        "`%s` is a field of `%s`, an instance of `%s`: the fields belong to its module; use its verbs",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

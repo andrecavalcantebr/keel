@@ -3157,6 +3157,13 @@ static void walk(Ctx *c, const KAstNode *n) {
         if (punct(a, i + 1, ":") && (i == n->first || punct(a, i - 1, "{") || punct(a, i - 1, ";") ||
                                      punct(a, i - 1, "}") || punct(a, i - 1, ":")))
             continue;
+        /* `s.len` on an instance of a modifier: the fields belong to its module
+           (instance-field-access, a warning) */
+        if (!signature && (punct(a, i + 1, ".") || punct(a, i + 1, "->")) && ident(a, i + 2) && !punct(a, i + 3, "(")) {
+            const Local *l = find_local(c, t);
+            if (l && l->spec.kind == K_SPEC_MODIFIER && !l->rank)
+                diag3(c, K_DIAG_INSTANCE_FIELD_ACCESS, tok(a, i + 2), tok(a, i + 2), t, l->spec.text);
+        }
         if ((punct(a, i + 1, "[") || punct(a, i + 1, ".") || punct(a, i + 1, "->")) && path_forms(c, i)) continue;
         name_island(c, i);
     }

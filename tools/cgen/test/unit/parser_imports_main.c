@@ -96,8 +96,10 @@ static void run(const char *label, const char *src, bool want_ok,
         fprintf(stderr, "FAIL: %s — symtab \"%s\", want \"%s\"\n", label, got, want);
         failures++;
     }
-    if (sink.len != want_diags) {
-        fprintf(stderr, "FAIL: %s — %zu diagnostics, want %zu\n", label, sink.len, want_diags);
+    /* injected-names is an info that comes with every `types`: count the rest */
+    size_t counted = k_diag_count(&sink, K_ERROR) + k_diag_count(&sink, K_WARNING);
+    if (counted != want_diags) {
+        fprintf(stderr, "FAIL: %s — %zu diagnostics, want %zu\n", label, counted, want_diags);
         failures++;
     }
 }

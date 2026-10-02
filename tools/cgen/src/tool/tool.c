@@ -34,6 +34,7 @@ typedef struct {
     KDiagnosticSink *diag;
     CgenModuleEntry *mods;
     CgenModuleEntry *active;
+    const char *entry;          /* the source the invocation translates */
 } CgenTool;
 
 static CgenModuleEntry *find(CgenTool *t, keel_slice_char name) {
@@ -270,6 +271,7 @@ KLoadResult cgen_load(void *v, keel_slice_char name, KModule **out) {
 }
 KLoadResult cgen_load_path(void *v,const char *path,const char *name,KModule **out) {
     struct stat st;*out=NULL;
+    ((CgenTool *)v)->entry=path;
     if(stat(path,&st)!=0) return K_LOAD_NOT_FOUND;
     return load_file(v,k_diag_text(name),path,(long long)st.st_mtime,out);
 }
@@ -298,6 +300,8 @@ void cgen_loader_report(void *v,const KDiagnosticSink *sink) {
             uintptr_t p=(uintptr_t)item.at.ptr,b=(uintptr_t)e->ast.source.ptr;
             if(b&&p>=b&&p<=b+e->ast.source.len){owner=e;break;}
         }
+        /* an info speaks of the module translated, not of the ones it loads */
+        if(item.severity==K_INFO&&owner&&t->entry&&strcmp(str_cstr(owner->path),t->entry)!=0)continue;
         KDiagnosticSink one={.items=&item,.len=1};
         if(owner)cgen_report(str_cstr(owner->path),owner->ast.source,&one);
         else {item.at=k_diag_text("");cgen_report("cgen",item.at,&one);}

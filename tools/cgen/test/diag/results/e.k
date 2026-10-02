@@ -17,5 +17,5 @@ pub i32 use(Box *b, i16 *p) {
     corot s = step() else return 2;                         /* DIAG: protocol-not-satisfied */
     corot t = step() else 0;                                /* DIAG: protocol-not-satisfied */
     a = get() else break;
-    if (a.code) return 3; else return 4;
+    if (a.code) return 3; else return 4;  /* DIAG: instance-field-access */
 }

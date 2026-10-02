@@ -1,5 +1,5 @@
 module p;
-import keel.buffer as buffer types;
+import keel.buffer as buffer types;          /* DIAG: injected-names */
 import keel.slice as slice;
 // the protocols come with the prelude (spec §5.1)
 

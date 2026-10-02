@@ -53,15 +53,21 @@ def run_case(name, source):
     got = Counter()
     kinds = severities()
     errors = 0
+    want = expected(root)
+    marked = {ident for (_, _, ident) in want}
     for line in result.stderr.splitlines():
         m = LINE.match(line)
         if not m:
             return f'{name}: a line of stderr is not a diagnostic: {line!r}'
         path = os.path.relpath(os.path.join(root, m.group(1)), root) if not os.path.isabs(m.group(1)) \
             else os.path.relpath(m.group(1), root)
+        # an info comes out by default (diag-design R1); a case answers for the
+        # infos it marks, and the others are context, not a finding
+        if m.group(4) == 'info' and m.group(5) not in marked:
+            continue
         got[(path, int(m.group(2)), m.group(5))] += 1
         errors += m.group(4) == 'error'
-    want = expected(root)
+
     if got != want:
         lines = [f'{name}: diagnostics differ from the markers']
         for key in sorted((want - got)):

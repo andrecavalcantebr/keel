@@ -6,6 +6,7 @@
 #include "engine/ast.h"
 #include "engine/loader.h"
 #include "engine/parser.h"
+#include <string.h>
 
 /* The name as written, from the first token of the path to the last:
    `keel.slice` is one slice of the source, dots included, and no
@@ -69,6 +70,25 @@ static bool resolve_one(KLoader *loader, KSymbolTable *symtab, KDiagnosticSink *
     bool clash = false;
     if (has_types && !inject_types(symtab, module, diag, at, &clash)) return false;
     if (clash) return false;
+    /* the names `types` brought, at the import that wrote it (injected-names,
+       info: it comes out by default). The prelude's are left out: its import
+       is implicit and has no position. */
+    if (has_types && !k_symtab_same_name(module_name, (keel_slice_char){ 4, (char *)"keel" })) {
+        static char store[32768];
+        static size_t used;
+        size_t start = used;
+        for (size_t i = 0; i < module->symbol_count; i++) {
+            const KSymbol *sym = &module->symbols[i];
+            if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER && sym->kind != K_SYM_PROTOCOL) continue;
+            if (used + sym->name.len + 2 >= sizeof store) { used = start; break; }
+            if (used > start) { store[used++] = ','; store[used++] = ' '; }
+            memcpy(store + used, sym->name.ptr, sym->name.len);
+            used += sym->name.len;
+        }
+        if (used > start)
+            k_diag_emit(diag, K_DIAG_INJECTED_NAMES, at,
+                        (KDiagArgs){{ module_name, (keel_slice_char){ used - start, store + start } }});
+    }
     /* Keep the real qualifier as well as any alias; neither changes origin. */
     if (!k_symtab_insert(symtab, module_name, K_SYM_MODULE, 0)) return false;
     keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)->origin = module;

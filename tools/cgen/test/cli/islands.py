@@ -153,7 +153,8 @@ with tempfile.TemporaryDirectory() as directory:
                              '--stop-after=parse', 'app/t.k'],
                             text=True, capture_output=True, timeout=5, cwd=root)
     assert result.returncode == 0, (result.returncode, result.stderr)
-    assert not result.stderr, result.stderr
+    # infos come out by default (diag-design R1); nothing more is expected here
+    assert ': error: ' not in result.stderr and ': warning: ' not in result.stderr, result.stderr
     got = [l for l in result.stdout.split('\n') if l.startswith('ilha\t')]
     want = ['ilha\t%s\t%s\tapp/t.k:%d:%d' % (k, d, line, column(line, n, w))
             for k, d, line, n, w in EXPECTED]

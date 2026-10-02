@@ -38,6 +38,28 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` is a role: a role stands before the type of a parameter, and only `child` before the return type",
     [K_DIAG_PROTOCOL_ROLE_MISMATCH] =
         "`%s` declares roles that differ from the prototype in `%s`: write the same roles in the same positions, or none, and the prototype's apply",
+    [K_DIAG_DEFER_WITHOUT_BRACES] =
+        "`defer` is the whole body of `%s`: put it in braces, so the scope it cleans up is the block's",
+    [K_DIAG_DEFER_IN_CONTROL_BLOCK] =
+        "`defer` in the body of `%s` runs when that block ends, not when the function does",
+    [K_DIAG_LATER_WITH_CAPTURE] =
+        "`later` reads the values at the exit and takes no list (`%s`): write `[now ...]` to copy them",
+    [K_DIAG_WALK_WITHOUT_CURSOR] =
+        "`walk` needs two binders, the element and the cursor, and `%s` is one: write `walk (T *e, M.cursor c : x)`",
+    [K_DIAG_FOREACH_TWO_BINDERS_ON_LITERAL] =
+        "`foreach` over the literal `%s` takes one binder: name the range to have the position",
+    [K_DIAG_POINTER_BINDER_ON_RANGE] =
+        "`%s` is a pointer, and a range binder is the counter itself: write it by value",
+    [K_DIAG_INDEX_NOT_SIZE_T] =
+        "the index binder `%s` must be `size_t`",
+    [K_DIAG_TAG_NOT_IN_SET] =
+        "`%s` is not a tag of `%s`",
+    [K_DIAG_DUPLICATE_TAG] =
+        "`%s` labels a second arm of the same `match` over `%s`",
+    [K_DIAG_TAG_WITHOUT_LABEL] =
+        "`%s` of `%s` has no arm in this `match`: every tag of the set has a label",
+    [K_DIAG_MATCH_WITHOUT_TAGS] =
+        "the `tag` of `%s` returns no set of tags, so `match` has no labels to check",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

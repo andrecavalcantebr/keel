@@ -483,9 +483,10 @@ viram um espaço só.
 | `name` | o nome | `<nome> → <símbolo>`: constante, variável ou valor de tags do módulo ou de import |
 | `call` | primeira token do chamado | `<chamado>/<aridade escrita> → <símbolo>`, e as marcas de adaptação |
 | `ref` | a palavra `ref` | o nome declarado |
-| `defer` | a palavra `defer` | o conteúdo dos colchetes: `now FILE *fp` |
+| `defer` | a palavra `defer` | o conteúdo dos colchetes: `now FILE *fp`; sem colchetes, `later`, a captura implícita (spec §4.6) |
 | `implicit-init` | o nome declarado | o nome: `arena` sem inicializador recebe `= {0}` |
-| `foreach` | a palavra `foreach` | `<elemento>[, <índice>] : <contêiner> (<tipo keel do contêiner>)` |
+| `foreach` | a palavra `foreach` | `<elemento>[, <índice>] : <contêiner> (<tipo keel do contêiner>)`; sobre literal de intervalo, sem o tipo: `v : 0..4` |
+| `walk` | a palavra `walk` | `<elemento>, <cursor> : <contêiner> (<tipo keel do contêiner>)` |
 | `match` | a palavra `match` | `<expressão> (<tipo keel>): <braço> <braço> …` |
 | `index` | o contêiner | `<contêiner> → <símbolo do acessor>`, e as marcas |
 | `range-index` | o contêiner | `<contêiner> <intervalo como escrito> → <símbolo do as_slice> [core \| <símbolo de length>]`, e as marcas: o verbo de três parâmetros do protocolo (spec §5.1), e o limite da ponta aberta à direita |

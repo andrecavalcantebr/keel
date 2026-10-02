@@ -81,6 +81,17 @@ bool k_resolve_imports(const KAst *ast, KLoader *loader, KSymbolTable *symtab,
             ok = false;
     }
 
+    /* keel-spec §5.1, rule 9: the constructions consult `keel.protocols`
+       without an import. It is loaded for them and its names are not
+       injected; the prelude and keel.protocols itself do without it. */
+    static const char protocols_name[] = "keel.protocols";
+    keel_slice_char protocols = { sizeof protocols_name - 1, (char *)protocols_name };
+    if (!k_symtab_same_name(self, prelude) && !k_symtab_same_name(self, protocols)) {
+        if (!resolve_one(loader, symtab, diag, protocols, false,
+                         (keel_slice_char){ 0, NULL }, self))
+            ok = false;
+    }
+
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
         if (n->kind != K_AST_IMPORT) continue;

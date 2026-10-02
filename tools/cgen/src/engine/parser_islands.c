@@ -178,6 +178,18 @@ static void put_source(Text *t, const char *p, const char *end) {
 
 /* islands stay sorted by anchor: a later declarator's island can be found
    before an earlier declarator's initializer is read */
+/* A diagnostic argument built here must outlive the function that built it:
+   the sink formats the message later. It is kept in the island text, after
+   the details, where nothing reads it but the diagnostic. */
+static keel_slice_char keep(Ctx *c, const Text *t) {
+    KAst *a = c->ast;
+    if (!t->ok || t->n > a->island_text.cap - a->island_text.len) return k_diag_text("its verbs");
+    char *at = a->island_text.ptr + a->island_text.len;
+    memcpy(at, t->s, t->n);
+    a->island_text.len += t->n;
+    return (keel_slice_char){ t->n, at };
+}
+
 static bool emit(Ctx *c, KIslandKind kind, size_t anchor, const Text *t) {
     KAst *a = c->ast;
     if (c->quiet) return true;
@@ -1146,7 +1158,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             Text missing = { .ok = true };
             if (!own || !satisfies(c, own, k0->kind == KT_ARRAY ? (keel_slice_char){0} : k0->name, &pd, &missing, tok(a, callee))) {
                 diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, callee), range_text(a, args[0]), f.p[0].base,
-                      own ? (keel_slice_char){ missing.n, missing.s } : k_diag_text("its verbs"));
+                      own ? keep(c, &missing) : k_diag_text("its verbs"));
                 return -1;
             }
             const KProtocolVerb *v = verb_for_return(home, f.fn, &pd);
@@ -1830,6 +1842,281 @@ static void check_uses(Ctx *c, size_t i) {
     }
 }
 
+/* ---- defer, foreach, walk, match (stages 4c, 4d, 4f) ----------------- */
+
+static void put_range(Text *t, const KAst *a, size_t first, size_t end) {
+    for (size_t j = first; j < end; j++) {
+        if (j > first) {
+            bool tight = punct(a, j, ".") || punct(a, j - 1, ".") || punct(a, j, "..") || punct(a, j - 1, "..") ||
+                         punct(a, j, "->") || punct(a, j - 1, "->") || punct(a, j, ",") || punct(a, j - 1, "(") ||
+                         punct(a, j, ")") || punct(a, j, "[") || punct(a, j - 1, "[") || punct(a, j, "]") ||
+                         punct(a, j - 1, "*") || punct(a, j - 1, "&");
+            if (!tight) put_str(t, " ");
+            else if (punct(a, j - 1, ",")) put_str(t, " ");
+        }
+        put(t, tok(a, j).ptr, tok(a, j).len);
+    }
+}
+
+/* the '{' that opens the block holding token `i`, or SIZE_MAX */
+static size_t enclosing_brace(const KAst *a, size_t from, size_t i) {
+    size_t depth = 0;
+    for (size_t j = i; j-- > from; ) {
+        if (punct(a, j, "}")) depth++;
+        else if (punct(a, j, "{")) { if (!depth) return j; depth--; }
+    }
+    return SIZE_MAX;
+}
+
+/* the control word whose statement token `j` is the body of — `if`, `while`,
+   `for`, `switch` before a ')', or `else` and `do' themselves — or NULL */
+static const char *control_before(const KAst *a, size_t from, size_t j) {
+    if (j <= from) return NULL;
+    if (word(a, j - 1, "else")) return "else";
+    if (word(a, j - 1, "do")) return "do";
+    if (!punct(a, j - 1, ")")) return NULL;
+    size_t depth = 0;
+    for (size_t k = j - 1; k-- > from; ) {
+        if (punct(a, k, ")")) depth++;
+        else if (punct(a, k, "(")) {
+            if (depth) { depth--; continue; }
+            static const char *const words[] = { "if", "while", "for", "switch" };
+            for (size_t w = 0; w < 4; w++) if (k > from && word(a, k - 1, words[w])) return words[w];
+            return NULL;
+        }
+    }
+    return NULL;
+}
+
+/* defer [capture] body (spec §4.6, cgen-tool §5.2: the capture as written, or
+   `later` when none is written) */
+static void defer_island(Ctx *c, const KAstNode *n, size_t at) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    const char *ctl = control_before(a, n->first, at);
+    if (ctl) diag3(c, K_DIAG_DEFER_WITHOUT_BRACES, tok(a, at), k_diag_text(ctl), none, none);
+    size_t brace = enclosing_brace(a, n->first, at);
+    const char *block = brace != SIZE_MAX ? control_before(a, n->first, brace) : NULL;
+    if (block && (!strcmp(block, "if") || !strcmp(block, "else") || !strcmp(block, "switch")))
+        diag3(c, K_DIAG_DEFER_IN_CONTROL_BLOCK, tok(a, at), k_diag_text(block), none, none);
+    Text d = { .ok = true };
+    if (punct(a, at + 1, "[")) {
+        size_t close = close_bracket(a, at + 1, n->end);
+        if (close == SIZE_MAX) return;
+        if (word(a, at + 2, "later") && close > at + 3)
+            diag3(c, K_DIAG_LATER_WITH_CAPTURE, tok(a, at + 3), range_text(a, (Range){ at + 3, close }), none, none);
+        put_range(&d, a, at + 2, close);
+    } else {
+        put_str(&d, "later");
+    }
+    emit(c, K_ISLAND_DEFER, at, &d);
+}
+
+static const KAst *protocols_ast(const Ctx *c) {
+    const KModule *m = module_by_name(c->ast->symbols, "keel.protocols");
+    return m && m->ast ? m->ast : NULL;
+}
+
+/* Whether the type of `r`, which has kind KT_MODIFIER or KT_NAMED, meets the
+   base protocol `proto`; `missing` names the verbs it lacks. A type the pass
+   cannot see is taken as meeting it: C decides. */
+static bool meets(Ctx *c, Range r, const char *proto, Text *missing) {
+    int t = type_of(c, r);
+    if (t < 0) return true;
+    const KType *k = kt(c, t);
+    if (k->kind != KT_MODIFIER && k->kind != KT_NAMED && k->kind != KT_ARRAY) return true;
+    const KAst *pa = protocols_ast(c);
+    KProtocolDecl pd;
+    if (!pa || !protocol_decl(c, pa, k_diag_text(proto), &pd, 0)) return true;
+    const KAst *own;
+    if (k->kind == KT_ARRAY) {
+        /* an `array` meets a protocol by the verbs of keel.array (spec §5.1) */
+        const KModule *am = module_by_name(c->ast->symbols, "keel.array");
+        own = am && am->ast ? am->ast : NULL;
+        if (!own) { put_str(missing, "its verbs"); return false; }
+        return satisfies(c, own, (keel_slice_char){0}, &pd, missing, tok(c->ast, r.first));
+    }
+    own = k->module && k->module->ast ? k->module->ast : c->ast;
+    return satisfies(c, own, k->name, &pd, missing, tok(c->ast, r.first));
+}
+
+/* foreach (binder[, binder] : container) and walk (elem, cursor : container)
+   (spec §4.7). The detail is the binders' names, the container as written,
+   and its keel type when it is a declared symbol (cgen-tool §5.2). */
+static void traversal(Ctx *c, const KAstNode *n, size_t at, bool cursor) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    size_t open = at + 1, close = close_paren(a, open, n->end);
+    if (close == SIZE_MAX) return;
+    size_t colon = SIZE_MAX, depth = 0;
+    size_t comma[2]; size_t commas = 0;
+    for (size_t j = open + 1; j < close; j++) {
+        if (punct(a, j, "(") || punct(a, j, "[")) depth++;
+        else if (punct(a, j, ")") || punct(a, j, "]")) depth--;
+        else if (!depth && punct(a, j, ":")) { colon = j; break; }
+        else if (!depth && punct(a, j, ",") && commas < 2) comma[commas++] = j;
+    }
+    if (colon == SIZE_MAX) return;
+    size_t binders = commas + 1;
+    Range b1 = { open + 1, commas ? comma[0] : colon }, b2 = { commas ? comma[0] + 1 : colon, colon };
+    Range box = { colon + 1, close };
+    bool literal = false, pointer = false;
+    for (size_t j = box.first; j < box.end; j++) if (punct(a, j, "..")) literal = true;
+    for (size_t j = b1.first; j < b1.end; j++) if (punct(a, j, "*")) pointer = true;
+
+    Text d = { .ok = true };
+    if (b1.end > b1.first) put(&d, tok(a, b1.end - 1).ptr, tok(a, b1.end - 1).len);
+    if (binders > 1 && b2.end > b2.first) { put_str(&d, ", "); put(&d, tok(a, b2.end - 1).ptr, tok(a, b2.end - 1).len); }
+    put_str(&d, " : ");
+    put_range(&d, a, box.first, box.end);
+    const Local *l = box.end == box.first + 1 && ident(a, box.first) ? find_local(c, tok(a, box.first)) : NULL;
+    if (l && l->spec.text.len) { put_str(&d, " ("); put(&d, l->spec.text.ptr, l->spec.text.len); put_str(&d, ")"); }
+    emit(c, cursor ? K_ISLAND_WALK : K_ISLAND_FOREACH, at, &d);
+
+    Text missing = { .ok = true };
+    if (cursor) {
+        if (binders < 2) { diag3(c, K_DIAG_WALK_WITHOUT_CURSOR, tok(a, at), range_text(a, b1), none, none); return; }
+        if (!literal && !meets(c, box, "Traversable", &missing))
+            diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, box.first), range_text(a, box), k_diag_text("Traversable"),
+                  keep(c, &missing));
+        return;
+    }
+    if (binders == 2 && literal)
+        diag3(c, K_DIAG_FOREACH_TWO_BINDERS_ON_LITERAL, tok(a, box.first), range_text(a, box), none, none);
+    if (binders == 1 && literal && pointer)
+        diag3(c, K_DIAG_POINTER_BINDER_ON_RANGE, tok(a, b1.first), range_text(a, b1), none, none);
+    if (binders == 2 && !(b2.end == b2.first + 2 && word(a, b2.first, "size_t")))
+        diag3(c, K_DIAG_INDEX_NOT_SIZE_T, tok(a, b2.first), range_text(a, b2), none, none);
+    if (literal) return;
+    int t = type_of(c, box);
+    if (t >= 0 && kt(c, t)->kind == KT_ARRAY) return;          /* the core's own traversal (spec §4.2) */
+    const char *proto = binders == 1 ? "Countable" : pointer ? "IndexPtr" : "IndexGet";
+    if (!meets(c, box, proto, &missing)) {
+        Text other = { .ok = true };
+        if (binders == 2 && !pointer && meets(c, box, "IndexPtr", &other)) return;
+        diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, box.first), range_text(a, box), k_diag_text(proto),
+              keep(c, &missing));
+    }
+}
+
+/* The tags declaration `name` in `where` (spec §4.9). */
+static bool tags_decl(const KAst *where, keel_slice_char name, KTagsDecl *out) {
+    for (size_t i = 0; i < where->nodes.len; i++) {
+        const KAstNode *n = node_at(where, i);
+        if (n->kind != K_AST_TAGS || !k_symtab_same_name(tok(where, n->name_first), name)) continue;
+        size_t kw = n->first;
+        while (kw < n->name_first && !word(where, kw, "tags")) kw++;
+        KToken t = tok(where, kw);
+        KLexer lexer;
+        TKPpKind pp;
+        k_lexer_init(&lexer, (keel_slice_char){ (size_t)(where->source.ptr + where->source.len - t.ptr), (char *)t.ptr }, NULL);
+        KToken first = k_lexer_next(&lexer, &pp), next;
+        KSymbol scratch[2];
+        KSymbolTable none;
+        k_symtab_init(&none, scratch, 2);
+        return k_scan_tags_decl(&lexer, first, &none, out, &next, &pp);
+    }
+    return false;
+}
+
+/* The set a `match` operand's labels come from (spec §4.9): its declared type
+   when that is a set, or else the set its module's `tag` returns — for an
+   instance, the argument written for the module's `tags` parameter. */
+static int match_set(Ctx *c, Range op, const KAst **where, keel_slice_char *set) {
+    int t = type_of(c, op);
+    if (t < 0) return -1;
+    const KType *k = kt(c, t);
+    const KAst *own = k->module && k->module->ast ? k->module->ast : c->ast;
+    if (k->kind == KT_NAMED) {
+        const KSymbol *s = k_symbol_resolve(c->ast->symbols, k->name);
+        if (s && s->kind == K_SYM_TAGS) { *where = own; *set = k->name; return 1; }
+    }
+    if (k->kind != KT_MODIFIER && k->kind != KT_NAMED) return -1;
+    Sig sig = find_verb(own, k_diag_text("tag"), 1);
+    if (!sig.found || (!sig.p[0].is_array && !k_symtab_same_name(sig.p[0].base, k->name))) return 0;
+    size_t s = sig.fn->first;
+    while (s < sig.fn->name_first && (word(own, s, "pub") || word(own, s, "priv") || word(own, s, "inline")))
+        s++;
+    if (s >= sig.fn->name_first || !ident(own, s)) return -1;
+    keel_slice_char ret = tok(own, s);
+    if (k->kind == KT_MODIFIER) {
+        const KAstNode *m = module_node(own);
+        int idx = 0;
+        for (size_t j = m->dim_first; j < m->dim_end; j++) if (ident(own, j)) idx++;
+        for (size_t j = m->tags_first; j < m->tags_end; j++) {
+            if (!ident(own, j)) continue;
+            if (k_symtab_same_name(tok(own, j), ret) && idx < k->argc) {
+                const KType *arg = kt(c, k->arg[idx]);
+                *where = arg->module && arg->module->ast ? arg->module->ast : c->ast;
+                *set = arg->name;
+                return 1;
+            }
+            idx++;
+        }
+    }
+    for (size_t i = 0; i < own->nodes.len; i++)
+        if (node_at(own, i)->kind == K_AST_TAGS && k_symtab_same_name(tok(own, node_at(own, i)->name_first), ret)) {
+            *where = own; *set = ret; return 1;
+        }
+    return 2;                                       /* `tag` returns no set */
+}
+
+/* match (operand) { LABEL: … } (spec §4.9). */
+static void match_island(Ctx *c, const KAstNode *n, size_t at) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    size_t open = at + 1, close = close_paren(a, open, n->end);
+    if (close == SIZE_MAX || !punct(a, close + 1, "{")) return;
+    Range op = { open + 1, close };
+    size_t body = close + 1, depth = 0, end = SIZE_MAX;
+    for (size_t j = body; j < n->end; j++) {
+        if (punct(a, j, "{")) depth++;
+        else if (punct(a, j, "}") && --depth == 0) { end = j; break; }
+    }
+    if (end == SIZE_MAX) return;
+    size_t labels[K_TAGS_MAX_ITEMS * 2], count = 0;
+    depth = 0;
+    for (size_t j = body + 1; j < end; j++) {
+        if (punct(a, j, "{") || punct(a, j, "(") || punct(a, j, "[")) depth++;
+        else if (punct(a, j, "}") || punct(a, j, ")") || punct(a, j, "]")) depth--;
+        else if (!depth && ident(a, j) && punct(a, j + 1, ":") &&
+                 (punct(a, j - 1, "{") || punct(a, j - 1, ";") || punct(a, j - 1, "}") || punct(a, j - 1, ":")) &&
+                 count < sizeof labels / sizeof *labels)
+            labels[count++] = j;
+    }
+    Text d = { .ok = true };
+    put_range(&d, a, op.first, op.end);
+    const Local *l = op.end == op.first + 1 && ident(a, op.first) ? find_local(c, tok(a, op.first)) : NULL;
+    if (l && l->spec.text.len) { put_str(&d, " ("); put(&d, l->spec.text.ptr, l->spec.text.len); put_str(&d, ")"); }
+    put_str(&d, ":");
+    for (size_t k = 0; k < count; k++) { put_str(&d, " "); put(&d, tok(a, labels[k]).ptr, tok(a, labels[k]).len); }
+    emit(c, K_ISLAND_MATCH, at, &d);
+
+    const KAst *where = NULL;
+    keel_slice_char set = {0};
+    int found = match_set(c, op, &where, &set);
+    if (found == 0) {
+        diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, op.first), range_text(a, op), k_diag_text("Taggable"), k_diag_text("tag"));
+        return;
+    }
+    if (found == 2) { diag3(c, K_DIAG_MATCH_WITHOUT_TAGS, tok(a, op.first), range_text(a, op), none, none); return; }
+    KTagsDecl tags;
+    if (found != 1 || !tags_decl(where, set, &tags)) return;
+    for (size_t k = 0; k < count; k++) {
+        bool in = false;
+        for (size_t m = 0; m < tags.item_count; m++) if (k_symtab_same_name(tok(a, labels[k]), tags.items[m])) in = true;
+        if (!in) diag3(c, K_DIAG_TAG_NOT_IN_SET, tok(a, labels[k]), tok(a, labels[k]), set, none);
+        for (size_t m = 0; m < k; m++)
+            if (k_symtab_same_name(tok(a, labels[k]), tok(a, labels[m])))
+                diag3(c, K_DIAG_DUPLICATE_TAG, tok(a, labels[k]), tok(a, labels[k]), set, none);
+    }
+    for (size_t m = 0; m < tags.item_count; m++) {
+        bool labelled = false;
+        for (size_t k = 0; k < count; k++) if (k_symtab_same_name(tok(a, labels[k]), tags.items[m])) labelled = true;
+        if (!labelled) diag3(c, K_DIAG_TAG_WITHOUT_LABEL, tok(a, at), tags.items[m], set, none);
+    }
+}
+
 static void walk(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
     memcpy(c->locals, c->globals, c->global_count * sizeof *c->globals);
@@ -1850,8 +2137,14 @@ static void walk(Ctx *c, const KAstNode *n) {
         if (i > n->first && (punct(a, i - 1, ".") || punct(a, i - 1, "->"))) continue;
 
         KToken t = tok(a, i);
-        check_uses(c, i);
         bool signature = signature_of(n, i);
+        if (!signature && word(a, i, "defer")) { defer_island(c, n, i); continue; }
+        if (!signature && punct(a, i + 1, "(") && (word(a, i, "foreach") || word(a, i, "walk"))) {
+            traversal(c, n, i, word(a, i, "walk"));
+            continue;
+        }
+        if (!signature && word(a, i, "match") && punct(a, i + 1, "(")) { match_island(c, n, i); continue; }
+        check_uses(c, i);
 
         /* the marker, unless a qualifier: `array.get(`, with `array` an alias */
         if (k_token_spelled(t, "array") && !punct(a, i + 1, ".")) {

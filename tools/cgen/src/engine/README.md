@@ -223,6 +223,28 @@ A gramática acompanha a revisão de 2026-10-02 da spec (§§2.2, 4.12, 4.14, 5.
 
 Ainda não: análise de papéis (§4.12: `region-escape`,
 `child-region-after-invalidation`), parâmetro de protocolo fora da primeira
-posição. `foreach`, `walk`, `parallel`, `match` e `else` ainda não são ilhas (as
-espécies existem em `KIslandKind`, sem reconhecedor): quando entrarem, pedem os
-verbos pela mesma tabela, como já fazem o `x[a..b]` e as funções sobre protocolo.
+posição, e as etapas 4e (`parallel`), 4g (`else`) e 4h (`extent`).
+
+## Etapas 4c, 4d e 4f (2026-10-02)
+
+- **`defer`** (spec §4.6): ilha com a captura escrita, ou `later`;
+  `defer-without-braces` quando o `defer` é o corpo inteiro de um `if`, `else`,
+  `while`, `for`, `switch` ou `do`; `defer-in-control-block` (aviso) no bloco
+  de `if`, `else` ou `switch`; `later-with-capture`.
+- **`foreach` e `walk`** (spec §4.7): ilhas com os binders, o contêiner e o seu
+  tipo keel. O protocolo vem da tabela de `keel.protocols`, que todo módulo
+  carrega sem import (spec §5.1, regra 9): `walk` pede `Traversable`;
+  `foreach` de dois binders, `IndexPtr` (ponteiro) ou `IndexGet`/`IndexPtr`
+  (valor); de um binder, `Countable`. Sobre `array`, o `foreach` é do núcleo, e
+  os protocolos são os de `keel.array`. Também `walk-without-cursor`,
+  `foreach-two-binders-on-literal`, `pointer-binder-on-range` e
+  `index-not-size-t`.
+- **`match`** (spec §4.9): ilha com o operando, o tipo e os rótulos. O conjunto
+  é o tipo do operando, quando é um conjunto, ou o que `tag` devolve — numa
+  instância, o argumento do parâmetro `tags`. Sem `tag`, `protocol-not-satisfied`
+  (`Taggable`); com `tag` que não devolve conjunto, `match-without-tags`;
+  exaustividade por `tag-not-in-set`, `duplicate-tag` e `tag-without-label`.
+
+Um argumento de diagnóstico montado na ilha (a lista de verbos ausentes) é
+guardado no texto das ilhas: o sink formata a mensagem depois, quando a função
+que o montou já retornou.

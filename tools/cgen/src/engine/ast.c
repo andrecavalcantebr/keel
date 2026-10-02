@@ -288,6 +288,18 @@ static bool parse(KAst *a,
                 if (node.end <= start || node.end > n) return false;
                 node.kind = K_AST_OPAQUE;
             }
+        } else if (named(a, i, "protocol") && i + 2 < n &&
+                   k_token_is_ident(keel_buffer_KLexeme_ptr(&a->tokens, i + 1)->token) &&
+                   (named(a, i + 2, "type") || punct(a, i + 2, "["))) {
+            /* decl-protocol (keel-spec §2.2, §5.1): `protocol` is contextual,
+               so only `protocol NAME type` or `protocol NAME [` opens one */
+            KToken kw = reenter(a, i, &lexer, &pp);
+            KProtocolDecl pdef;
+            if (!k_scan_decl_protocol(&lexer, kw, symtab, &pdef, &next, &next_pp)) return false;
+            node.kind = K_AST_PROTOCOL;
+            node.name_first = index_at(a, i, pdef.name.ptr);
+            node.name_end = index_at(a, node.name_first, pdef.name.ptr + pdef.name.len);
+            node.end = index_at(a, node.name_end, next.ptr);
         } else if (named(a, i, "typedef")) {
             KToken kw = reenter(a, i, &lexer, &pp);
             KTypedefDecl tdef;

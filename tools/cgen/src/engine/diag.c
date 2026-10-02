@@ -32,8 +32,14 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` needs a one-dimensional `array`, and `%s` has dimensions `%s`: index it down to one dimension first",
     [K_DIAG_NO_PTR_FOR_ARITY] =
         "`%s` has no `ptr` for the indices `%s`: a container is indexed with the arities its module declares `ptr` for",
+    [K_DIAG_NOT_IN_V0] =
+        "`%s` is a v1 construction: this implementation recognizes it and does not translate it",
+    [K_DIAG_ROLE_POSITION] =
+        "`%s` is a role: a role stands before the type of a parameter, and only `child` before the return type",
+    [K_DIAG_PROTOCOL_ROLE_MISMATCH] =
+        "`%s` declares roles that differ from the prototype in `%s`: write the same roles in the same positions, or none, and the prototype's apply",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
-        "`%s` does not meet `%s`, which `%s` needs: the module of its type must declare the protocol's verbs (an `array` takes them from `keel.array`, which must be imported)",
+        "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =
         "`keel.dim` needs a dimension index known at translation time, and `%s` is not one: write a decimal literal or a `constexpr`",
     [K_DIAG_PARTIAL_ARRAY_INDEX] =

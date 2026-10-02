@@ -85,6 +85,8 @@ typedef struct { size_t first, end; } Range;      /* tokens [first, end) */
 typedef struct {
     bool is_type;               /* `type X` */
     bool is_array;              /* `array T v[size_t N]` */
+    bool is_protocol;           /* `Proto [C] x`: a function over the protocol (spec §4.14) */
+    KRole role;                 /* the role written before it (spec §4.12) */
     bool pointer;               /* declared as pointer */
     keel_slice_char base;       /* first type name of the parameter; the element of an array */
     size_t first, end;          /* its tokens, in the module that declares it */
@@ -344,11 +346,18 @@ static size_t params_of(const KAst *a, const KAstNode *fn, Param *out, size_t ca
         if (!closing && !(depth == 0 && punct(a, j, ","))) continue;
         if (j > start && !(j == start + 1 && word(a, start, "void"))) {
             if (n == cap) return SIZE_MAX;
-            Param p = { .is_type = word(a, start, "type"), .is_array = word(a, start, "array"),
-                        .first = start, .end = j };
-            for (size_t k = start; k < j; k++) {
+            /* a role leads the parameter, and is not its type (spec §4.12) */
+            KRole role = k_token_role(tok(a, start));
+            size_t lead = role != K_ROLE_NONE ? start + 1 : start;
+            Param p = { .is_type = word(a, lead, "type"), .is_array = word(a, lead, "array"),
+                        .role = role, .first = start, .end = j };
+            for (size_t k = lead; k < j; k++) {
                 if (punct(a, k, "*") || (punct(a, k, "[") && !p.is_array)) p.pointer = true;
-                if (!p.base.len && ident(a, k) && !((p.is_type || p.is_array) && k == start)) p.base = tok(a, k);
+                if (!p.base.len && ident(a, k) && !((p.is_type || p.is_array) && k == lead)) p.base = tok(a, k);
+            }
+            if (p.base.len && a->symbols) {
+                const KSymbol *s = k_symtab_lookup(a->symbols, p.base);
+                p.is_protocol = s && s->kind == K_SYM_PROTOCOL;
             }
             out[n++] = p;
         }
@@ -409,6 +418,100 @@ static const KModule *module_by_name(const KSymbolTable *symbols, const char *na
             !memcmp(s->origin->name.ptr, name, s->origin->name.len))
             return s->origin;
     }
+    return NULL;
+}
+
+/* ---- protocols ---------------------------------------------------------- */
+
+/* The declaration of protocol `name` as `home` sees it — its own, or the one of
+   the module its symbol table says the name comes from — with the verbs of its
+   components folded in (spec §5.1, rule 7). */
+static bool protocol_decl(const Ctx *c, const KAst *home, keel_slice_char name, KProtocolDecl *out, int depth) {
+    if (depth > 4) return false;
+    const KAst *where = home;
+    const KSymbol *s = home->symbols ? k_symtab_lookup(home->symbols, name) : NULL;
+    if (s && s->origin && s->origin->ast) where = s->origin->ast;
+    for (size_t i = 0; i < where->nodes.len; i++) {
+        const KAstNode *n = node_at(where, i);
+        if (n->kind != K_AST_PROTOCOL || !k_symtab_same_name(tok(where, n->name_first), name)) continue;
+        size_t kw = n->first;
+        while (kw < n->name_first && !word(where, kw, "protocol")) kw++;
+        KToken t = tok(where, kw);
+        KLexer lexer;
+        TKPpKind pp;
+        k_lexer_init(&lexer, (keel_slice_char){ (size_t)(where->source.ptr + where->source.len - t.ptr), (char *)t.ptr }, NULL);
+        KToken first = k_lexer_next(&lexer, &pp), next;
+        KSymbol scratch[2];
+        KSymbolTable none;
+        k_symtab_init(&none, scratch, 2);
+        if (!k_scan_decl_protocol(&lexer, first, &none, out, &next, &pp)) return false;
+        for (size_t k = 0; k < out->component_count; k++) {
+            KProtocolDecl part;
+            if (!protocol_decl(c, where, out->components[k], &part, depth + 1)) return false;
+            for (size_t j = 0; j < part.verb_count && out->verb_count < K_PROTOCOL_MAX_ITEMS; j++)
+                out->verbs[out->verb_count++] = part.verbs[j];
+            for (size_t j = 0; j < part.assoc_count && out->assoc_count < K_PROTOCOL_MAX_ITEMS; j++)
+                out->assoc[out->assoc_count++] = part.assoc[j];
+        }
+        return true;
+    }
+    return false;
+}
+
+static Sig find_verb(const KAst *a, keel_slice_char verb, size_t arity);
+static void diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, keel_slice_char y,
+                  keel_slice_char z);
+
+/* Whether the module `own` declares every verb of `pd` (spec §5.1, rule 3),
+   naming the ones it lacks in `missing`; a verb whose roles differ from the
+   prototype's is protocol-role-mismatch (rule 10). */
+static bool satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtocolDecl *pd, Text *missing, KToken at) {
+    bool ok = true;
+    for (size_t i = 0; i < pd->verb_count; i++) {
+        const KProtocolVerb *v = &pd->verbs[i];
+        Sig sig = find_verb(own, v->name, v->arity);
+        /* the verb must take this type as its receiver, and not another of the module's */
+        if (sig.found && receiver.len && v->receiver < sig.n && !sig.p[v->receiver].is_array &&
+            !k_symtab_same_name(sig.p[v->receiver].base, receiver))
+            sig.found = false;
+        if (!sig.found) {
+            if (missing->n) put_str(missing, ", ");
+            put(missing, v->name.ptr, v->name.len);
+            ok = false;
+            continue;
+        }
+        bool written = false, differ = false;
+        for (size_t k = 0; k < sig.n && k < K_PROTOCOL_MAX_PARAMS; k++) {
+            if (sig.p[k].role != K_ROLE_NONE) written = true;
+            if (sig.p[k].role != v->roles[k]) differ = true;
+        }
+        if (written && differ)
+            diag3(c, K_DIAG_PROTOCOL_ROLE_MISMATCH, at, v->name, pd->name, (keel_slice_char){0});
+    }
+    return ok;
+}
+
+/* The associated type the function `fn` returns, written `C.name`; empty when
+   its return type is not one. */
+static keel_slice_char returned_associated(const KAst *home, const KAstNode *fn) {
+    for (size_t j = fn->first; j + 2 < fn->name_first; j++)
+        if (ident(home, j) && punct(home, j + 1, ".") && ident(home, j + 2)) return tok(home, j + 2);
+    return (keel_slice_char){0};
+}
+
+static bool returns_associated(const KAst *home, const KAstNode *fn) {
+    return returned_associated(home, fn).len != 0;
+}
+
+/* The verb of `pd` the call is resolved as: the one whose result is the
+   associated type the function returns, or else the first that takes the
+   receiver. */
+static const KProtocolVerb *verb_for_return(const KAst *home, const KAstNode *fn, const KProtocolDecl *pd) {
+    keel_slice_char assoc = returned_associated(home, fn);
+    for (size_t i = 0; assoc.len && i < pd->verb_count; i++)
+        if (k_symtab_same_name(pd->verbs[i].returns, assoc)) return &pd->verbs[i];
+    for (size_t i = 0; i < pd->verb_count; i++)
+        if (pd->verbs[i].receiver == 0) return &pd->verbs[i];
     return NULL;
 }
 
@@ -656,7 +759,8 @@ static int kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst
 static int ret_type(Ctx *c, const KAst *home, const KAstNode *fn, int inst) {
     size_t s = fn->first;
     while (s < fn->name_first && (word(home, s, "pub") || word(home, s, "priv") || word(home, s, "inline") ||
-                                  word(home, s, "static") || word(home, s, "extern")))
+                                  word(home, s, "static") || word(home, s, "extern") ||
+                                  k_token_role(tok(home, s)) == K_ROLE_CHILD))
         s++;
     size_t e = fn->name_first;
     int pointers = 0;
@@ -1010,39 +1114,53 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     }
 
     keel_slice_char redirected = {0};
-    /* `slice.of` is a function over `Sliceable` (spec §4.14, backend §5.19): the
-       instance is named by the concrete type, and its body calls that type's
-       `length` and three-parameter `as_slice`, so the island resolves the call as
-       that `as_slice` to find the instance and the type of the result */
+    /* A function over a protocol (spec §4.14, backend §5.19): the instance is
+       named by the concrete type of the argument, `<prefix>_<name><arity>_<type>`.
+       The island resolves the call as the concrete type's own verb — the one
+       whose result is the function's associated return type, or the first verb
+       that takes the receiver — to find the instance, the adaptation and the
+       type of the result. Only the first parameter may be the protocol one. */
     bool proto_of = false;
-    if (module && module_named(home, "keel.slice") && k_token_spelled(name, "of") && k0 && k0->kind == KT_ARRAY) {
-        if (k0->rank > 1) {
-            diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, tok(a, callee), written, range_text(a, args[0]), k0->dims);
-            return -1;
+    size_t redirect_arity = argc;
+    const KAst *proto_home = NULL;
+    Sig fsig = {0};
+    if (argc) {
+        Sig f = find_verb(home, name, argc);
+        if (f.found && f.n && f.p[0].is_protocol) {
+            KProtocolDecl pd;
+            if (!protocol_decl(c, home, f.p[0].base, &pd, 0)) return -1;
+            const KModule *own_module = NULL;
+            if (k0 && k0->kind == KT_ARRAY) {
+                if (k0->rank > 1) {
+                    diag3(c, K_DIAG_FLAT_VIEW_OF_N_DIM_ARRAY, tok(a, callee), written, range_text(a, args[0]), k0->dims);
+                    return -1;
+                }
+                own_module = module_by_name(a->symbols, "keel.array");
+            } else if (k0 && (k0->kind == KT_MODIFIER || k0->kind == KT_NAMED)) {
+                own_module = k0->module;
+            } else {
+                return -1;
+            }
+            const KAst *own = own_module && own_module->ast ? own_module->ast
+                            : k0->kind == KT_ARRAY ? NULL : a;   /* a type of this very file */
+            Text missing = { .ok = true };
+            if (!own || !satisfies(c, own, k0->kind == KT_ARRAY ? (keel_slice_char){0} : k0->name, &pd, &missing, tok(a, callee))) {
+                diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, callee), range_text(a, args[0]), f.p[0].base,
+                      own ? (keel_slice_char){ missing.n, missing.s } : k_diag_text("its verbs"));
+                return -1;
+            }
+            const KProtocolVerb *v = verb_for_return(home, f.fn, &pd);
+            if (!v) return -1;
+            proto_of = true;
+            proto_home = home;
+            fsig = f;
+            module = own_module;
+            home = own;
+            redirected = v->name;
+            redirect_arity = v->arity;
         }
-        const KModule *am = module_by_name(a->symbols, "keel.array");
-        if (!am || !ast_of(c, am) || !find_verb(ast_of(c, am), k_diag_text("as_slice"), 3).found ||
-            !find_verb(ast_of(c, am), k_diag_text("length"), 1).found) {
-            diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, callee), range_text(a, args[0]), k_diag_text("Sliceable"), written);
-            return -1;
-        }
-        module = am;
-        home = ast_of(c, module);
-        redirected = k_diag_text("as_slice");
-        proto_of = true;
-    } else if (module && module_named(home, "keel.slice") && k_token_spelled(name, "of") && k0 &&
-               k0->kind == KT_MODIFIER && k0->module && ast_of(c, k0->module)) {
-        const KAst *own = ast_of(c, k0->module);
-        if (!find_verb(own, k_diag_text("as_slice"), 3).found || !find_verb(own, k_diag_text("length"), 1).found) {
-            diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, callee), range_text(a, args[0]), k_diag_text("Sliceable"), written);
-            return -1;
-        }
-        module = k0->module;
-        home = own;
-        redirected = k_diag_text("as_slice");
-        proto_of = true;
     }
-    Sig sig = find_verb(home, redirected.len ? redirected : name, proto_of ? 3 : argc);
+    Sig sig = find_verb(home, redirected.len ? redirected : name, redirected.len ? redirect_arity : argc);
     keel_slice_char declared = redirected.len ? redirected : name;
     bool gen = module && generic(home);
     keel_slice_char modifier = gen ? modifier_of(home) : none;
@@ -1205,8 +1323,10 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             Text own = { .ok = true };
             if (direct ? (put_str(&own, kt(c, inst)->symbol), !*kt(c, inst)->symbol)
                        : !module_instance_prefix(c, home, inst, &own)) return -1;
-            put_str(&t, "keel_slice_of");
-            if (argc > 1) put_uint(&t, argc - 1);
+            put_module_prefix(&t, proto_home);
+            put_str(&t, "_");
+            put(&t, name.ptr, name.len);
+            if (fsig.overloaded && argc > 1) put_uint(&t, argc - 1);
             put_str(&t, "_");
             put(&t, own.s, own.n);
         } else if (direct) {
@@ -1215,6 +1335,15 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         } else if (!module_instance_prefix(c, home, inst, &t)) {
             return -1;
         }
+    } else if (proto_of) {
+        /* a type of a module that is not generic: its canonical name is its symbol */
+        if (!k0 || !*k0->symbol) return -1;
+        put_module_prefix(&t, proto_home);
+        put_str(&t, "_");
+        put(&t, name.ptr, name.len);
+        if (fsig.overloaded && argc > 1) put_uint(&t, argc - 1);
+        put_str(&t, "_");
+        put_str(&t, k0->symbol);
     } else {
         put_module_prefix(&t, home);
     }
@@ -1239,6 +1368,8 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         if (sig.p[k].pointer && ak && ak->pointers == 0 && ak->lvalue) { put_str(&t, " &"); put_uint(&t, k + 1); }
     }
     emit(c, K_ISLAND_CALL, callee, &t);
+    if (proto_of && !returns_associated(proto_home, fsig.fn))
+        return ret_type(c, proto_home, fsig.fn, -1);
     return sig.found && sig.fn ? ret_type(c, home, sig.fn, inst) : -1;
 }
 
@@ -1541,7 +1672,7 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
             const KModule *am = module_by_name(a->symbols, "keel.array");
             Sig sig = am && ast_of(c, am) ? find_verb(ast_of(c, am), k_diag_text("as_slice"), 3) : (Sig){0};
             if (!sig.found) {
-                diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, name, path, k_diag_text("Sliceable"), group);
+                diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, name, path, k_diag_text("Sliceable"), k_diag_text("length, as_slice"));
                 return close + 1;
             }
             bool high = range + 1 < close;
@@ -1618,7 +1749,7 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
         bool ignored = false;
         if (!container_verb(k, home, k_diag_text("as_slice"), 3, &tx, &adapt) ||
             (!high && (put_str(&tx, " "), !container_verb(k, home, k_diag_text("length"), 1, &tx, &ignored)))) {
-            diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, name, path, k_diag_text("Sliceable"), text);
+            diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, name, path, k_diag_text("Sliceable"), k_diag_text("length, as_slice"));
             return close + 1;
         }
     }
@@ -1782,6 +1913,29 @@ static void walk(Ctx *c, const KAstNode *n) {
     }
 }
 
+/* What the v0 grammar recognizes in a signature only to refuse or place it:
+   `keel_code` and the mold's `dim` parameter are v1 (spec §4.13), and a role
+   stands before a parameter's type, or `child` before the return type
+   (spec §4.12). */
+static void check_signature(Ctx *c, const KAstNode *fn) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    for (size_t j = fn->first; j < fn->name_first; j++) {
+        if (word(a, j, "keel_code")) diag3(c, K_DIAG_NOT_IN_V0, tok(a, j), tok(a, j), none, none);
+        KRole r = k_token_role(tok(a, j));
+        if (r != K_ROLE_NONE && r != K_ROLE_CHILD) diag3(c, K_DIAG_ROLE_POSITION, tok(a, j), tok(a, j), none, none);
+    }
+    Param p[K_PARAMS_MAX];
+    size_t n = params_of(a, fn, p, K_PARAMS_MAX);
+    for (size_t k = 0; n != SIZE_MAX && k < n; k++) {
+        size_t lead = p[k].role != K_ROLE_NONE ? p[k].first + 1 : p[k].first;
+        if (word(a, lead, "keel_code") || (word(a, lead, "dim") && lead + 2 == p[k].end && ident(a, lead + 1)))
+            diag3(c, K_DIAG_NOT_IN_V0, tok(a, lead), tok(a, lead), none, none);
+        if (p[k].role != K_ROLE_NONE && p[k].is_type)
+            diag3(c, K_DIAG_ROLE_POSITION, tok(a, p[k].first), tok(a, p[k].first), none, none);
+    }
+}
+
 bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     a->islands.len = 0;
     a->island_text.len = 0;
@@ -1803,6 +1957,8 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
             }
     }
     ctx.quiet = false;
+    for (size_t i = 0; i < a->nodes.len; i++)
+        if (node_at(a, i)->kind == K_AST_FUNCTION) check_signature(&ctx, node_at(a, i));
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = node_at(a, i);

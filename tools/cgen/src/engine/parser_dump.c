@@ -62,6 +62,7 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
                 break;
             case K_AST_MODIFIER: case K_AST_TAGS: case K_AST_TYPE:
             case K_AST_CONSTEXPR: case K_AST_FUNCTION: case K_AST_VARIABLE:
+            case K_AST_PROTOCOL:
                 if (n->name_first == n->name_end) continue;
                 put_s(&o, "decl\t"); put_s(&o, n->is_public ? "pub" : "priv");
                 if (n->is_inline) put_s(&o, " inline");
@@ -71,12 +72,14 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
                     case K_AST_TYPE: put_s(&o, " type"); break;
                     case K_AST_CONSTEXPR: put_s(&o, " constexpr"); break;
                     case K_AST_FUNCTION: put_s(&o, " func"); break;
+                    case K_AST_PROTOCOL: put_s(&o, " protocol"); break;
                     default: put_s(&o, " var"); break;
                 }
                 put_c(&o, '\t');
                 put_name(&o, a, n->name_first, n->name_end);
                 put_c(&o, '\t');
-                put_symbol(&o, a, n);
+                if (n->kind == K_AST_PROTOCOL) put_c(&o, '-');   /* a protocol emits no C */
+                else put_symbol(&o, a, n);
                 break;
             default: continue;
         }

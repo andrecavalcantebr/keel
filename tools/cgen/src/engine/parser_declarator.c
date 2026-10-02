@@ -92,6 +92,15 @@ bool k_scan_declarator(KLexer *lexer, KToken first, KDeclarator *out,
 
 /* Whether a `declarator` starting at `from` parses, names something, and
    stops on a token that can follow one in a declaration. */
+/* `byref ;` after a typedef's single declarator (keel-spec §2.2): `t` is the
+   token after the declarator, and `lexer` stands right after it. */
+static bool byref_tail(const KLexer *lexer, KToken t) {
+    if (!k_token_spelled(t, "byref")) return false;
+    KLexer peek = *lexer;
+    TKPpKind pp;
+    return k_token_is_punct(k_lexer_next(&peek, &pp), ";");
+}
+
 static bool parses_as_declarator(const KLexer *lexer, KToken from) {
     keel_slice_char rest = {
         (size_t)((lexer->source.ptr + lexer->source.len) - from.ptr), from.ptr
@@ -106,7 +115,8 @@ static bool parses_as_declarator(const KLexer *lexer, KToken from) {
         return false;
     if (declarator.name.len == 0) return false;
     return k_token_is_punct(next, ";") || k_token_is_punct(next, ",") ||
-           k_token_is_punct(next, "=") || k_token_is_punct(next, "{");
+           k_token_is_punct(next, "=") || k_token_is_punct(next, "{") ||
+           byref_tail(&scout, next);
 }
 
 KToken k_find_declarator_start(const KLexer *lexer, KToken first, const char *limit) {
@@ -129,7 +139,7 @@ KToken k_find_declarator_start(const KLexer *lexer, KToken first, const char *li
                identifiers would otherwise look like later candidates
                (`int x = y;` must name x, not y). */
             if (k_token_is_punct(tok, ";") || k_token_is_punct(tok, ",") ||
-                k_token_is_punct(tok, "=")) break;
+                k_token_is_punct(tok, "=") || byref_tail(&scout, tok)) break;
             /* Latest wins: the specifier is maximal, so of two starts
                that both parse, the declarator is the later one. */
             if (parses_as_declarator(lexer, tok)) best = tok;

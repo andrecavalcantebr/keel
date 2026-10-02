@@ -12,3 +12,6 @@ refs r.k
 arenas ar.k
 types t.k
 rangeimport r.k
+protocols p.k
+signatures s.k
+roles r.k

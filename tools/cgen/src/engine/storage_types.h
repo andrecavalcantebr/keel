@@ -9,7 +9,8 @@ typedef enum {
     K_SYM_CONSTANT,    /* constexpr, constante de enum                       */
     K_SYM_TAGS,        /* conjunto fechado e seus valores                    */
     K_SYM_MODULE,      /* alias ativo de import                              */
-    K_SYM_EXTERN_C     /* nome de extern_c: só a distinção variável/função   */
+    K_SYM_EXTERN_C,    /* nome de extern_c: só a distinção variável/função   */
+    K_SYM_PROTOCOL     /* contrato nomeado (keel-spec §5.1); não emite C      */
 } KSymKind;
 
 struct KModule;
@@ -38,7 +39,7 @@ typedef struct {
 typedef enum {
     K_AST_MODULE, K_AST_IMPORT, K_AST_IMPORT_C, K_AST_EXTERN_C,
     K_AST_MODIFIER, K_AST_TAGS, K_AST_TYPE, K_AST_CONSTEXPR,
-    K_AST_FUNCTION, K_AST_VARIABLE, K_AST_OPAQUE
+    K_AST_FUNCTION, K_AST_VARIABLE, K_AST_PROTOCOL, K_AST_OPAQUE
 } KAstKind;
 
 typedef struct {

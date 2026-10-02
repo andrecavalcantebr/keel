@@ -565,4 +565,49 @@ typedef struct {
 bool k_scan_decl_constexpr(KLexer *lexer, KToken constexpr_kw, KSymbolTable *symtab,
                             KConstexprDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* decl-protocol (keel-spec §2.2, §5.1):
+ *   decl-protocol ::= 'protocol' IDENT 'type' IDENT '{' { proto-item } '}'
+ *                   | 'protocol' IDENT '[' qualified-name { ',' qualified-name } ']' ';'
+ *   proto-item    ::= 'type' IDENT ';' | return-type fn-declarator ';'
+ * `protocol_kw` is the already-consumed 'protocol' token. The braced form
+ * reads the implementer, the associated types and, for each prototype, its
+ * name, its arity, the position of the parameter that names the implementer
+ * (the receiver) and the roles written before each parameter and before the
+ * return type (keel-spec §4.12). The composition form reads the component
+ * names. Registers `out->name` as K_SYM_PROTOCOL.
+ *
+ * Returns false on anything that does not fit, or past K_PROTOCOL_MAX_ITEMS
+ * items or K_PROTOCOL_MAX_PARAMS parameters. Consumes through the closing
+ * '}' (and a ';' after it, when written) or the ';' of the composition form,
+ * and hands back the token after it. */
+#define K_PROTOCOL_MAX_ITEMS 16
+#define K_PROTOCOL_MAX_PARAMS 8
+
+typedef enum { K_ROLE_NONE, K_ROLE_PARENT, K_ROLE_CHILD, K_ROLE_INVALIDATES, K_ROLE_CONSUMES } KRole;
+
+/* The role a token spells, or K_ROLE_NONE (keel-spec §4.12). */
+KRole k_token_role(KToken t);
+
+typedef struct {
+    keel_slice_char name;
+    size_t arity;
+    size_t receiver;                       /* parameter index of the implementer; SIZE_MAX if none */
+    KRole result_role;                     /* K_ROLE_CHILD when written */
+    keel_slice_char returns;               /* the last name of the return type: an associated type, or a C type */
+    KRole roles[K_PROTOCOL_MAX_PARAMS];
+} KProtocolVerb;
+
+typedef struct {
+    keel_slice_char name, implementer;     /* implementer empty in the composition form */
+    keel_slice_char assoc[K_PROTOCOL_MAX_ITEMS];
+    size_t assoc_count;
+    KProtocolVerb verbs[K_PROTOCOL_MAX_ITEMS];
+    size_t verb_count;
+    keel_slice_char components[K_PROTOCOL_MAX_ITEMS];
+    size_t component_count;
+} KProtocolDecl;
+
+bool k_scan_decl_protocol(KLexer *lexer, KToken protocol_kw, KSymbolTable *symtab,
+                          KProtocolDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
+
 #endif /* CGEN_ENGINE_PARSER_H */

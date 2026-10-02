@@ -17,7 +17,7 @@ static keel_slice_char spelled(const KAst *a, size_t first, size_t end) {
     return (keel_slice_char){ (size_t)((last.ptr + last.len) - lead.ptr), lead.ptr };
 }
 
-/* `types` injects the module's type and modifier names without a
+/* `types` injects the module's type, modifier and protocol names without a
    qualifier, and nothing else — keel-spec §4.1 item 6: "Não injeta
    funções, variáveis nem constantes de enum." Arity travels with a
    modifier, because that is what decides how many arguments its uses
@@ -25,7 +25,7 @@ static keel_slice_char spelled(const KAst *a, size_t first, size_t end) {
 static bool inject_types(KSymbolTable *symtab, const KModule *module) {
     for (size_t i = 0; i < module->symbol_count; i++) {
         const KSymbol *sym = &module->symbols[i];
-        if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER) continue;
+        if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER && sym->kind != K_SYM_PROTOCOL) continue;
         if (!k_symtab_insert(symtab, sym->name, sym->kind, sym->arity)) return false;
         (*keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)) = *sym;
     }

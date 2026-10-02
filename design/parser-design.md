@@ -82,7 +82,8 @@ typedef enum {
     K_SYM_CONSTANT,    /* constexpr, constante de enum                       */
     K_SYM_TAGS,        /* conjunto fechado e seus valores                    */
     K_SYM_MODULE,      /* alias ativo de import                              */
-    K_SYM_EXTERN_C     /* nome de extern_c: só a distinção variável/função   */
+    K_SYM_EXTERN_C,    /* nome de extern_c: só a distinção variável/função   */
+    K_SYM_PROTOCOL     /* contrato nomeado (spec §5.1); não emite C           */
 } KSymKind;
 ```
 

@@ -78,6 +78,7 @@ static bool exports(CgenTool *t, CgenModuleEntry *e) {
         case K_AST_FUNCTION: kind=K_SYM_FUNCTION; break;
         case K_AST_VARIABLE: kind=K_SYM_VARIABLE; break;
         case K_AST_CONSTEXPR: kind=K_SYM_CONSTANT; break;
+        case K_AST_PROTOCOL: kind=K_SYM_PROTOCOL; break;
         default: continue;
         }
         KSymbol sym={.name=span(a,n->name_first,n->name_end),.kind=kind,

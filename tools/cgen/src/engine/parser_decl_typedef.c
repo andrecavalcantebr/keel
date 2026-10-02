@@ -4,7 +4,7 @@
 
      decl-typedef ::= 'typedef' ( specifier | struct-spec |
                                   <opaque-no-parens> )
-                      declarator { ',' declarator } ';'
+                      ( declarator [ 'byref' ] | declarator { ',' declarator } ) ';'
 
    The specifier is shared and opaque to this production: it is only
    walked past, and `k_find_declarator_start` says where it ends. Each
@@ -17,6 +17,7 @@ bool k_scan_decl_typedef(KLexer *lexer, KToken typedef_kw, KSymbolTable *symtab,
     out->name_count = 0;
 
     KToken tok = k_lexer_next(lexer, next_pp_kind_out);
+
     KToken start = k_find_declarator_start(lexer, tok, NULL);
     if (start.len == 0) return false;
 
@@ -40,6 +41,10 @@ bool k_scan_decl_typedef(KLexer *lexer, KToken typedef_kw, KSymbolTable *symtab,
                the very next token — no second lookahead */
             tok = k_lexer_next(lexer, next_pp_kind_out);
             continue;
+        }
+        if (out->name_count == 1 && k_token_spelled(after, "byref")) {
+            after = k_lexer_next(lexer, next_pp_kind_out);
+            if (!k_token_is_punct(after, ";")) return false;
         }
         if (k_token_is_punct(after, ";")) {
             *next_out = k_lexer_next(lexer, next_pp_kind_out);

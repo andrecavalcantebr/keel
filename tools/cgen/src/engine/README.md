@@ -193,3 +193,36 @@ marca a linha que deve ser recusada com `/* DIAG: <identificador> */`, e
 `test/diag.py` compara o conjunto (arquivo, linha, identificador) impresso com o
 marcado. A última linha do teste é a cobertura do catálogo;
 `python3 tools/cgen/test/diag.py --coverage -v` lista o que falta.
+
+## Protocolos, papéis e função sobre protocolo (2026-10-02)
+
+A gramática acompanha a revisão de 2026-10-02 da spec (§§2.2, 4.12, 4.14, 5.1).
+
+- **`decl-protocol`** (`parser_protocol_decl.c`): a forma com chaves lê o
+  implementador, os tipos associados e, de cada protótipo, nome, aridade,
+  posição do receptor, papéis e o nome do retorno; a de composição lê os
+  componentes. O nó é `K_AST_PROTOCOL`, o símbolo `K_SYM_PROTOCOL`, exportado e
+  injetado por `types`. No dump, `decl pub protocol <nome> -`: o protocolo não
+  emite C. `protocol` é contextual: só `protocol NOME type` ou `protocol NOME [`
+  abrem a declaração.
+- **Assinaturas**: um papel (`parent`, `child`, `invalidates`, `consumes`) antes
+  do tipo de um parâmetro não é o seu tipo; `child` antes do retorno também é
+  pulado. Fora dessas posições, `role-position`. `keel_code` e o `dim N` de
+  molde são reconhecidos e recusados com `not-in-v0`. `typedef … nome byref;`
+  registra `nome`.
+- **Função sobre protocolo** (spec §4.14, backend §5.19): uma chamada cuja
+  função tem o primeiro parâmetro de protocolo escreve
+  `<prefixo>_<nome><aridade>_<tipo>`. Os verbos exigidos vêm da declaração do
+  protocolo (com os componentes); o tipo concreto atende quando o seu módulo
+  declara cada um, com esse tipo como receptor, e senão é
+  `protocol-not-satisfied`, com os verbos ausentes. Papéis diferentes dos do
+  protótipo são `protocol-role-mismatch`. A ilha resolve a chamada como o verbo
+  do tipo concreto que devolve o tipo associado de retorno da função (ou o
+  primeiro que recebe o receptor), para achar a instância, a adaptação e o tipo
+  do resultado. `slice.of` é o primeiro uso, e deixou de ser caso particular.
+
+Ainda não: análise de papéis (§4.12: `region-escape`,
+`child-region-after-invalidation`), parâmetro de protocolo fora da primeira
+posição. `foreach`, `walk`, `parallel`, `match` e `else` ainda não são ilhas (as
+espécies existem em `KIslandKind`, sem reconhecedor): quando entrarem, pedem os
+verbos pela mesma tabela, como já fazem o `x[a..b]` e as funções sobre protocolo.

@@ -154,9 +154,9 @@ Um verbo pode existir em mais de uma aridade — `ptr(x)` e `ptr(x,i)`, `push(x)
 ```plain
 ptr(b)          →  keel_buffer_i32_ptr
 ptr(b,i)        →  keel_buffer_i32_ptr1
-of(s)           →  keel_slice_i32_of
-of(s,r)         →  keel_slice_i32_of1
-of(s,a,b)       →  keel_slice_i32_of2
+of(s)           →  keel_slice_of_keel_slice_i32     /* função sobre protocolo, §5.19 */
+of(s,r)         →  keel_slice_of1_keel_slice_i32
+of(s,a,b)       →  keel_slice_of2_keel_slice_i32
 push(b,v)       →  keel_buffer_i32_push1
 get(b,i)        →  keel_buffer_i32_get      /* aridade única: sem sufixo */
 alloc(a,T,n)    →  keel_arena_alloc2        /* função de módulo; `type` conta um */

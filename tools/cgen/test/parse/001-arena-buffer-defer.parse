@@ -27,8 +27,9 @@ ilha	foreach	x, i : xs (buffer i32)	app/cfg.k:25:5
 ilha	call	outcome.win/2 → keel_outcome_i32_win1 &1	app/cfg.k:26:12
 ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:30:5
 ilha	type	outcome i32 → keel_outcome_i32	app/cfg.k:31:5
-ilha	type	arena → keel_arena	app/cfg.k:32:5
-ilha	implicit-init	t	app/cfg.k:32:11
-ilha	from-stack	arena.from_stack/2 → keel_arena_from_array &1	app/cfg.k:33:10
-ilha	call	outcome.fail/2 → keel_outcome_i32_fail &1	app/cfg.k:33:44
-ilha	call	sum/2 → app_cfg_sum &1	app/cfg.k:34:12
+ilha	array	storage [4096]	app/cfg.k:32:5
+ilha	type	arena → keel_arena	app/cfg.k:33:5
+ilha	implicit-init	t	app/cfg.k:33:11
+ilha	call	arena.from_array/2 → keel_arena_from_array &1 dim:2	app/cfg.k:34:10
+ilha	call	outcome.fail/2 → keel_outcome_i32_fail &1	app/cfg.k:34:47
+ilha	call	sum/2 → app_cfg_sum &1	app/cfg.k:35:12

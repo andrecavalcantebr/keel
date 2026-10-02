@@ -12,9 +12,8 @@ module keel.arena;
 // §4.3).
 pub typedef struct { size_t top, cap; u8 *ptr; } arena;
 
-// `arena.from_stack(a, N)` declares no function here: it creates automatic
-// storage in the CALLER's scope, so the backend rewrites the call site into a
-// local array plus `from_array` (spec §5.2, backend §5.4).
+// There is no `from_stack`: storage in the frame is an `array u8` the program
+// declares and hands to `from_array` (spec §5.2, backend §5.4).
 
 pub inline bool from_array(arena *a, u8 arr[], size_t len) {
     *a = (arena){0};

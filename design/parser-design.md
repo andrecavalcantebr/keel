@@ -179,7 +179,7 @@ typedef struct {
         struct { keel_slice_char name, symbol; } name_;
         struct { keel_slice_char callee, symbol; int arity;
                  KAdaptMark *marks; size_t mark_count; } call_;
-        /* … from_stack (mesma forma de call_), ref, defer, implicit_init,
+        /* … ref, defer, implicit_init,
              foreach, match, index_, range_index_, array_, array_index_ */
     } as;
 } KIsland;

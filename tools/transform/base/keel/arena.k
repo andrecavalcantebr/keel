@@ -18,7 +18,6 @@ typedef struct keel_arena {
 } keel_arena;
 
 %h
-#define keel_arena_from_stack(a, len) u8 arr[len]; keel_arena_from_array((a), arr, (len))
 
 #define keel_arena_alloc(a, T, len) \
     ((T *)keel_arena_alloc_((a), sizeof(T), _Alignof(T), (len)))

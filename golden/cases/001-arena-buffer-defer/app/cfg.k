@@ -26,10 +26,11 @@ pub outcome i32 sum(arena *a, const char *path) {
     return outcome.win(result, total);
 }
 
-/* Arena in the frame: `from_stack` demands a compile-time constant size. */
+/* Arena in the frame: the storage is an `array` written here, and its extent reaches `from_array` by the binder. */
 pub outcome i32 sum_scratch(const char *path) {
     outcome i32 result = {0};
+    array u8 storage[4096];
     arena t;
-    if (!arena.from_stack(t, 4096)) return outcome.fail(result, 4);
+    if (!arena.from_array(t, storage)) return outcome.fail(result, 4);
     return sum(t, path);
 }

@@ -218,7 +218,6 @@ buffer _Atomic u32 →  keel_buffer_atomic_u32
 | `keel__rv<N>`, `keel__e<N>` | valor de retorno e rótulo de saída da escada de cleanup | §5.5 |
 | `keel__m<N>_<TAG>`, `keel__m<N>_end` | rótulos de braço e de fim de `match` | §5.6 |
 | `keel__end<N>` | saída do worker de `parallel` | §5.9 |
-| `keel__st<N>` | vetor de `arena.from_stack` | §5.4 |
 | `keel__X_size`, `keel__X_align` | parâmetro `type X` apagado | §5.16 |
 | `keel__N` | binder de dimensão `N` | §5.18 |
 | `keel__N_<N>` | `constexpr N` de bloco sob C11, como macro local | §9.2 |
@@ -954,7 +953,7 @@ t->ptr + idx0 * t->steps[0] + idx1 * t->steps[1] + idx2 * t->steps[2]
 
 ### 5.4 `arena`
 
-**Forma:** `arena a;`, os quatro construtores e `arena.alloc` (linguagem §5.2).
+**Forma:** `arena a;`, os três construtores e `arena.alloc` (linguagem §5.2).
 
 **Emissão**
 
@@ -999,7 +998,8 @@ keel_arena a = {0};
 alignas(64) array u8 memo[65536];
 arena a;  arena.from_array(a, memo);
 arena s;  arena.from_parent(s, a, 4096);
-arena t;  arena.from_stack(t, 4096);
+array u8 scratch[4096];
+arena t;  arena.from_array(t, scratch);
 arena h;  arena.from_memory(h, mem, cap);
 ```
 
@@ -1007,8 +1007,8 @@ arena h;  arena.from_memory(h, mem, cap);
 alignas(64) u8 memo[65536];
 keel_arena a = {0};  keel_arena_from_array(&a, memo, sizeof memo);
 keel_arena s = {0};  keel_arena_from_parent(&s, &a, 4096);
-keel_arena t = {0};  alignas(alignof(max_align_t)) unsigned char keel__st0[4096];
-                     keel_arena_from_array(&t, keel__st0, sizeof keel__st0);
+u8 scratch[4096];
+keel_arena t = {0};  keel_arena_from_array(&t, scratch, sizeof scratch);
 keel_arena h = {0};  keel_arena_from_memory(&h, mem, cap);
 ```
 
@@ -1022,8 +1022,8 @@ keel_arena h = {0};  keel_arena_from_memory(&h, mem, cap);
 6. `uintptr_t` só calcula o número de bytes de padding; o endereço devolvido sai de `a->ptr + a->top`, aritmética de ponteiro dentro do vetor. Nenhum ponteiro é fabricado de inteiro.
 7. `alloc` sai com `[[nodiscard]]`: o `NULL` é o único canal de falha.
 8. Toda definição de `arena` sem inicializador recebe `= {0}`, em arquivo e em bloco (linguagem §5.2): vetor de `arena` recebe um, que zera todos os elementos, e vários declaradores recebem um cada, `keel_arena a = {0}, b = {0};`. Declaração `extern` e campo de struct não recebem. Com `cap` zero, todo `alloc` falha limpo.
-9. Os quatro construtores devolvem `bool`, verdadeiro quando a capacidade resultante é maior que zero, e nenhum recebe alinhamento (regra 5).
-10. `from_stack` não tem função própria: gera no frame o vetor `alignas(alignof(max_align_t)) unsigned char keel__st<N>[n]`, de tamanho constante, e chama `keel_arena_from_array`. O `alignas` economiza padding na primeira alocação, e não é correção. Não há VLA.
+9. Os três construtores devolvem `bool`, verdadeiro quando a capacidade resultante é maior que zero, e nenhum recebe alinhamento (regra 5).
+10. Não há `from_stack`: o armazenamento no frame é um `array u8` que o programa escreve e passa a `from_array` (linguagem §5.2). O tamanho é o do vetor declarado, e não há VLA.
 11. `from_parent` recorta a filha com `keel_arena_alloc2(parent, sizeof(u8), alignof(u8), n)`: alinhamento 1, porque a filha alinha as próprias alocações.
 12. `from_memory` toma ponteiro e tamanho crus e assume `max_align_t`, porque a origem é `malloc` ou `mmap`. Região com alinhamento menor é do programa (linguagem §4.4).
 
@@ -1040,9 +1040,9 @@ A linguagem nomeia uma suposição e passa o conserto para cá (linguagem §4.4,
 
 **Regras**
 
-1. Objeto com tipo declarado tem esse tipo como tipo efetivo, e só armazenamento alocado recebe tipo pela escrita. Por isso `from_array` e `from_stack`, que respaldam em objeto declarado, estão fora do que o padrão promete, e `from_memory` sobre `malloc` ou `mmap` está dentro. Não há terceira rota. [D41](#10-decisões-de-emissão)
-2. O backend emite armazenamento de tipo-caractere e nada mais: `unsigned char` em `from_stack`, o `array u8` do usuário em `from_array`. É o tipo de acesso que todo compilador real põe no topo da árvore de aliasing.
-3. O alinhamento está resolvido na alocação (§5.4, regra 5), e `from_stack` ainda sobre-alinha o vetor.
+1. Objeto com tipo declarado tem esse tipo como tipo efetivo, e só armazenamento alocado recebe tipo pela escrita. Por isso `from_array`, que respalda em objeto declarado, está fora do que o padrão promete, e `from_memory` sobre `malloc` ou `mmap` está dentro. Não há terceira rota. [D41](#10-decisões-de-emissão)
+2. O backend não emite armazenamento: o respaldo de `from_array` é o `array u8` do programa, de tipo-caractere, que é o tipo de acesso que todo compilador real põe no topo da árvore de aliasing.
+3. O alinhamento está resolvido na alocação (§5.4, regra 5).
 4. Para o alvo em que a suposição não se sustente, o remédio de build é `-fno-strict-aliasing` na compilação do C gerado (ferramenta §4.1). Não é padrão. [D42](#10-decisões-de-emissão)
 5. Um backend cujo alvo ofereça armazenamento sem tipo declarado o usa, e a guarda da linguagem §6.3 fica sem uso, sem que a linguagem mude. É a mesma separação do §3. [D23](#10-decisões-de-emissão)
 

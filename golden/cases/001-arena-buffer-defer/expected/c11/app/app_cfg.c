@@ -35,7 +35,8 @@ keel__e0: fclose(keel__c0.fp); return keel__rv0; }
 
 keel_outcome_i32 app_cfg_sum_scratch(const char *path) {
     keel_outcome_i32 result = {0};
-    keel_arena t = {0};  _Alignas(_Alignof(max_align_t)) unsigned char keel__st0[4096];
-    if (!keel_arena_from_array(&t, keel__st0, sizeof keel__st0)) return keel_outcome_i32_fail(&result, 4);
+    u8 storage[4096];
+    keel_arena t = {0};
+    if (!keel_arena_from_array(&t, storage, sizeof storage)) return keel_outcome_i32_fail(&result, 4);
     return app_cfg_sum(&t, path);
 }

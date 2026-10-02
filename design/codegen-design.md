@@ -63,7 +63,7 @@ E uma por construção, na correspondência com as seções do backend §5:
 | `decl.c` | §5.1 | declarações; substituição local de nome |
 | `container.c` | §5.2 | struct de instância e seus verbos |
 | `index.c` | §5.3 | `x[i]`, `x[i,j]`, e o `assert` sob `--checks` |
-| `arena.c` | §5.4 | a reescrita de `alloc(a,T,n)` e `from_stack` |
+| `arena.c` | §5.4 | a reescrita de `alloc(a,T,n)` |
 | `defer.c` | §5.5 | varredura de saídas e injeção do corpo |
 | `match.c` | §5.6 | `tags` e o despacho |
 | `loop.c` | §5.7 | `foreach` |

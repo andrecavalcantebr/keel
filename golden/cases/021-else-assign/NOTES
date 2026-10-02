@@ -26,7 +26,10 @@ A variável de módulo é `pub`: `extern` aqui, definição no `.c` (backend §4
 
 **`keel/keel_slice_const_char.h`** (c23, c11)
 
-instância recortada ao que o caso usa: `from` e `length`.
+a instância sai inteira (codegen §7.2), menos os dois verbos que `const char`
+remove (spec §4.3): `set`, que escreve o valor constante, e `at`, que chama o
+`win` de `outcome const char`, que o escreve. `clone` fica: a cópia vai para a
+memória da arena, que nunca é constante, pelo `memcpy((void *)data, …)` da base.
 
 **`keel/keel_outcome_keel_slice_const_char.h`** (c23, c11)
 

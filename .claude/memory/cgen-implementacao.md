@@ -53,7 +53,8 @@ os contadores de linha (decisão E4).
    e as sementes vindas de chamada (`keel.array`, função sobre protocolo). As
    espécies `parallel`, `worker-exit`, `else`, `extent`, `column` e as linhas
    `closure`/`unavailable` (`cgen-tool.md` §5.2) esperam a revisão do André.
-   C2: `keel_slice_const_char.h` do golden omite `clone`, que pelo contrato fica.
+   C2 resolvida: `clone` copia por `memcpy((void *)data, …)` na base, e o
+   `keel_slice_const_char.h` do 021 o tem nos dois perfis.
 2. **Análise de papéis** (spec §4.12: `region-escape`,
    `child-region-after-invalidation`) e o parâmetro de protocolo fora da
    primeira posição.

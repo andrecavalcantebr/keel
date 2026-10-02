@@ -69,7 +69,7 @@ static inline keel_outcome_keel_slice_i32 keel_slice_i32_clone(keel_arena *a, ke
     keel_outcome_keel_slice_i32 r = {0};
     i32 *data = (i32 *)keel_arena_alloc2(a, sizeof(i32), alignof(i32), s.len);
     if (!data) return keel_outcome_keel_slice_i32_none(&r);
-    if (s.len > 0) memcpy(data, s.ptr, s.len * sizeof(i32));
+    if (s.len > 0) memcpy((void *)data, s.ptr, s.len * sizeof(i32));
     return keel_outcome_keel_slice_i32_win1(&r, (keel_slice_i32){ s.len, data });
 }
 #line 68 "keel/slice.k"

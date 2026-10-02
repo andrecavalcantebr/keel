@@ -116,7 +116,7 @@ static inline keel_outcome_keel_buffer_size_t keel_buffer_size_t_clone(keel_aren
     keel_outcome_keel_buffer_size_t r = {0};
     size_t *data = (size_t *)keel_arena_alloc2(a, sizeof(size_t), _Alignof(size_t), b->cap);
     if (!data) return keel_outcome_keel_buffer_size_t_none(&r);
-    if (b->len > 0) memcpy(data, b->ptr, b->len * sizeof(size_t));
+    if (b->len > 0) memcpy((void *)data, b->ptr, b->len * sizeof(size_t));
     return keel_outcome_keel_buffer_size_t_win1(&r, (keel_buffer_size_t){ b->cap, b->len, data });
 }
 #line 92 "keel/buffer.k"

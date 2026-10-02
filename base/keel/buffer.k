@@ -78,12 +78,12 @@ pub inline slice as_slice(buffer *b, size_t a, size_t c) {
 // `x[r]`-style view by a `range`: `slice.of(b, r)` over a buffer (spec §5.3).
 pub inline slice as_slice(buffer *b, range r) { return as_slice(b, r.first, r.limit); }
 
-// allocates in `a`, copies the source's length (spec §5.3).
+// allocates in `a`, copies the source's length (spec §5.3); the arena's memory is never const.
 pub inline child outcome buffer clone(parent arena *a, buffer *b) {
     outcome buffer r = {0};
     T *data = arena.alloc(a, T, b->cap);
     if (!data) return outcome.none(r);
-    if (b->len > 0) memcpy(data, b->ptr, b->len * sizeof(T));
+    if (b->len > 0) memcpy((void *)data, b->ptr, b->len * sizeof(T));
     return outcome.win(r, (buffer){ b->cap, b->len, data });
 }
 

@@ -55,12 +55,12 @@ pub inline C.view of(Sliceable C x) { return as_slice(x, 0, length(x)); }
 pub inline C.view of(Sliceable C x, range r) { return as_slice(x, r.first, r.limit); }
 pub inline C.view of(Sliceable C x, size_t a, size_t b) { return as_slice(x, a, b); }
 
-// allocates in `a`, copies the source's length (spec §5.3).
+// allocates in `a`, copies the source's length (spec §5.3); the arena's memory is never const.
 pub inline child outcome slice clone(parent arena *a, slice s) {
     outcome slice r = {0};
     T *data = arena.alloc(a, T, s.len);
     if (!data) return outcome.none(r);
-    if (s.len > 0) memcpy(data, s.ptr, s.len * sizeof(T));
+    if (s.len > 0) memcpy((void *)data, s.ptr, s.len * sizeof(T));
     return outcome.win(r, (slice){ s.len, data });
 }
 

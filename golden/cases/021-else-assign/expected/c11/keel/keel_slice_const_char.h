@@ -3,6 +3,9 @@
 #define KEEL_KEEL_SLICE_CONST_CHAR_H
 #include "keel/keel_slice_const_char.type.h"
 #include "keel/keel_slice.type.h"
+#include "keel/keel_outcome_keel_slice_const_char.type.h"
+
+typedef struct keel_arena keel_arena;
 
 #line 26 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_from(const char *p, size_t n);
@@ -16,6 +19,8 @@ static inline const char   *keel_slice_const_char_ptr (keel_slice_const_char s);
 static inline const char   *keel_slice_const_char_ptr1(keel_slice_const_char s, size_t i);
 #line 45 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_as_slice(keel_slice_const_char s, size_t a, size_t b);
+#line 59 "keel/slice.k"
+static inline keel_outcome_keel_slice_const_char keel_slice_const_char_clone(keel_arena *a, keel_slice_const_char s);
 #line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_const_char_begin(keel_slice_const_char s);
 #line 69 "keel/slice.k"
@@ -24,6 +29,8 @@ static inline bool keel_slice_const_char_has_next(keel_slice_const_char s, keel_
 static inline const char *keel_slice_const_char_next(keel_slice_const_char s, keel_slice_cursor *c);
 #line 74 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_partition(keel_slice_const_char s, size_t k, size_t w);
+#include "keel/keel_arena.h"
+#include "keel/keel_outcome_keel_slice_const_char.h"
 
 #line 26 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_from(const char *p, size_t n) {
@@ -43,6 +50,14 @@ static inline keel_slice_const_char keel_slice_const_char_as_slice(keel_slice_co
     if (b > s.len) b = s.len;
     if (a > b) a = b;
     return (keel_slice_const_char){ b - a, s.ptr + a };
+}
+#line 59 "keel/slice.k"
+static inline keel_outcome_keel_slice_const_char keel_slice_const_char_clone(keel_arena *a, keel_slice_const_char s) {
+    keel_outcome_keel_slice_const_char r = {0};
+    const char *data = (const char *)keel_arena_alloc2(a, sizeof(const char), _Alignof(const char), s.len);
+    if (!data) return keel_outcome_keel_slice_const_char_none(&r);
+    if (s.len > 0) memcpy((void *)data, s.ptr, s.len * sizeof(const char));
+    return keel_outcome_keel_slice_const_char_win1(&r, (keel_slice_const_char){ s.len, data });
 }
 #line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_const_char_begin(keel_slice_const_char s) { (void)s; return (keel_slice_cursor){0}; }

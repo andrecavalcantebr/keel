@@ -69,7 +69,7 @@ static inline keel_outcome_keel_slice_size_t keel_slice_size_t_clone(keel_arena 
     keel_outcome_keel_slice_size_t r = {0};
     size_t *data = (size_t *)keel_arena_alloc2(a, sizeof(size_t), alignof(size_t), s.len);
     if (!data) return keel_outcome_keel_slice_size_t_none(&r);
-    if (s.len > 0) memcpy(data, s.ptr, s.len * sizeof(size_t));
+    if (s.len > 0) memcpy((void *)data, s.ptr, s.len * sizeof(size_t));
     return keel_outcome_keel_slice_size_t_win1(&r, (keel_slice_size_t){ s.len, data });
 }
 #line 68 "keel/slice.k"

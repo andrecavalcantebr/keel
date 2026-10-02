@@ -575,6 +575,7 @@ Diagnósticos do lexer e do parser, emitidos por keel durante a tradução. Os d
 | Alias de módulo e tipo de origens distintas têm a mesma grafia no arquivo | `alias-type-collision` | `error` |
 
 Para o diagnóstico `symbol-redeclaration`, keel reconhece os padrões `IDENT IDENT` e `IDENT '*' IDENT` no início de statement, quando o segundo identificador é um símbolo keel conhecido. A verificação recusa a possível redeclaração sem precisar resolver o primeiro identificador como tipo C. [Justificativa: recusa de possíveis redeclarações](keel-rationale.md#por-que-a-redeclaração-é-recusada-em-vez-de-classificada).
+As palavras de papel (`parent`, `child`, `invalidates`, `consumes`, §4.12) ficam fora de `define-over-keel-name` e de `keel-name-shadowed`: valem só na posição de papel e não chegam ao C emitido, e um `#define` ou um símbolo com esse nome não interfere com elas.
 Para o diagnóstico `define-over-keel-name`, keel lê o nome alvo de `#define` ou `#undef`. Essa inspeção é adicional à classificação pela palavra da diretiva; não examina semanticamente o corpo da macro, não o expande e não altera a diretiva. A preservação do conteúdo não exclui essa verificação lexical.
 
 Referências: [Rationale](keel-rationale.md): “Fronteira com C e conflitos léxicos”, “Prelúdio e base mínima”, “Por que `<opaque>` é o terminal central”, “Por que a contagem é por alternativa” e “Por que a redeclaração é recusada em vez de classificada”; [Backend](keel-c-backend.md): §§2, 5, 6 e 9.
@@ -1041,6 +1042,7 @@ Acessar elementos e delimitar fatias a partir de contêineres conhecidos.
 12. Sobre `array`, cada índice é verificado contra a dimensão declarada correspondente. Quando índice e dimensão são decimais conhecidos, a verificação é da tradução e recusa; nos demais casos é de execução em perfil debug.
 13. Na dimensão 0 de um parâmetro `array`, o número declarado é o contrato, e não a extensão do vetor que o chamador entregou.
 14. `inverted-range-index` e `array-index-above-dimension` admitem literais e `constexpr` de valor decimal conhecido. Não calculam expressões C.
+15. Os papéis do verbo chamado valem como numa chamada escrita (§4.12, regras 14 e 15).
 
 **Observação.** A forma de vários índices sobre modificador (regra 1) é escrita para o `tensor` da biblioteca v1+, e tem um custo que ainda não se paga: o `dim` é parte do tipo, então `tensor(N)` aparece a cada uso. Ela é provisória, e a regra de vários índices pode mudar. O índice de N dimensões e a vista multidimensional (`index(N)`, `box(N)`, `v[box]`) estão em `possibilidades.md`, também para v1+.
 
@@ -1167,6 +1169,7 @@ Percorrer elementos ou valores contáveis em ordem sequencial, por índice ou po
 
 12. `break`, `continue` e `return` conservam o significado C no laço resultante, com o cleanup da §4.6.
 13. A travessia é linear. Escrever nos elementos não muda o comprimento; operações estruturais sobre o contêiner percorrido são recusadas.
+14. O binder por ponteiro e o cursor dependem do contêiner percorrido, pelos papéis de `ptr`, `begin` e `next` (§4.12, regras 14 e 15).
 
 Referências: [Rationale: acesso e travessia](keel-rationale.md#acesso-e-travessia); [Rationale: cursor explícito](keel-rationale.md#cursor-explícito); [Backend: foreach](keel-c-backend.md#57-foreach).
 
@@ -1242,6 +1245,7 @@ Distribuir um contêiner em partes disjuntas, executar um corpo de worker sobre 
 14. Capturas escalares são cópias por worker; instâncias `byref` são passadas por ponteiro. Objetos de arquivo permanecem acessíveis segundo C.
 15. `win` e `fail` deixam todos os escopos do worker, inclusive os de travessias aninhadas, e executam seus `defer`. Laços C escritos no corpo preservam seus `break` e `continue`.
 16. Uma travessia escrita no corpo do worker segue a §4.7 sobre a parte, e não sobre o todo.
+17. O binder de partição depende do contêiner particionado, pelos papéis de `partition` (§4.12, regras 14 e 15).
 
 Referências: [Rationale: políticas e sinalização](keel-rationale.md#políticas-e-sinalização-de-interrupção); [Rationale: particionável e percorrível](keel-rationale.md#particionável-e-percorrível); [Backend: parallel](keel-c-backend.md#59-parallel).
 
@@ -1308,8 +1312,8 @@ Os valores das tags são opcionais. Quando presentes, são literal decimal com s
 - `match` é seguido de `(`; o operando ocupa posição de contêiner. O corpo é um bloco de rótulos.
 - Dentro do corpo, os rótulos externos identificam tags, e cada braço abre um escopo até o próximo rótulo ou até a chave final. Rótulos consecutivos sem statements entre eles compartilham o braço seguinte.
 - O tipo declarado do operando é um conjunto `tags`, ou um tipo que declara a operação `tag` (§5.1). keel não deduz o conjunto de uma expressão C arbitrária.
-- O conjunto exaustivo vem de um de três lugares, nesta ordem: o tipo declarado do operando, quando é um conjunto; o argumento `tags` escrito na instância, quando o tipo é instância de modificador cujo módulo tem parâmetro `tags` (em `tagged Cycle void`, `Cycle`); ou o conjunto declarado pelo módulo do operando, como em `corot`.
-- No terceiro caso, o módulo declara exatamente um conjunto. Com dois, é `ambiguous-match-tags`; com nenhum, é `match-without-tags`.
+- O conjunto exaustivo é o tipo declarado do operando, quando é um conjunto; senão, o tipo que `tag` devolve, o `tagset` de `Taggable` (§5.1). Em `tagged Cycle void`, `tag` devolve `Cycle`; em `corot`, `Status`.
+- Um `tag` cujo retorno declarado não é conjunto `tags` é `match-without-tags`.
 - A verificação de exaustividade alcança os rótulos presentes antes do pré-processamento C. Rótulos ocultos por macro não satisfazem o contrato.
 
 #### 2. Regras
@@ -1395,7 +1399,7 @@ void ast_eval(keel_tagged_ast_Kind_ast_NodeRef t) {
 
 #### 4. Erros
 
-Condições no [catálogo](#62-catálogo). De keel, na tradução: `unnamed-tags`, `duplicate-tags-name`, `duplicate-tag`, `partial-tag-values`, `nonconstant-tag-value`, `empty-tags`, `protocol-not-satisfied`, `match-without-tags`, `ambiguous-match-tags`, `tag-not-in-set`, `tag-without-label`, `tag-from-other-set`, `enum-constant-without-type`. Do backend, em execução debug: `tag-out-of-range`.
+Condições no [catálogo](#62-catálogo). De keel, na tradução: `unnamed-tags`, `duplicate-tags-name`, `duplicate-tag`, `partial-tag-values`, `nonconstant-tag-value`, `empty-tags`, `protocol-not-satisfied`, `match-without-tags`, `tag-not-in-set`, `tag-without-label`, `tag-from-other-set`, `enum-constant-without-type`. Do backend, em execução debug: `tag-out-of-range`.
 
 #### 5. Casos especiais
 
@@ -1620,6 +1624,14 @@ Registrar a origem do armazenamento de um símbolo e as operações que o invali
 12. Papéis de assinaturas de outros módulos valem no ponto de chamada. keel não
     confere o corpo da função contra os papéis declarados.
 13. Papéis não acrescentam campos, parâmetros nem código ao C emitido.
+14. Uma construção que chama um verbo com papéis vale como a chamada escrita:
+    `x[a..b]` chama `as_slice`; `foreach` de binder por ponteiro, `ptr`;
+    `walk`, `begin` e `next`; `parallel`, `partition`. O contêiner ocupa a
+    posição `parent`.
+15. O produto da construção é o binder por ponteiro de `foreach` e de `walk`,
+    o cursor de `walk`, o binder de partição de `parallel` e o símbolo
+    inicializado ou atribuído por `x[a..b]`. O binder por valor é cópia e não é
+    produto; `x[i]` dentro de expressão não tem símbolo que o receba.
 
 Referências: [Rationale: papéis e núcleo mínimo](keel-rationale.md#papéis-e-núcleo-mínimo).
 
@@ -2697,9 +2709,9 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `unmatched-delimiter` | Chave, parêntese ou colchete sem par — inclusive dentro de `extern_c` | `error` | keel | §2.5 |
 | `unexpected-eof` | Fim de arquivo durante o reconhecimento de uma forma candidata, sem token de terminação nem delimitador aberto | `error` | keel | §2.5 |
 | `delimiter-mismatch-across-branches` | Alternativas de um grupo condicional que discordam na contagem de delimitadores | `error` | keel | §2.5 |
-| `define-over-keel-name` | `#define` ou `#undef` de palavra contextual keel ou nome `keel_` ou `KEEL_` | `error` | keel | §2.5 |
+| `define-over-keel-name` | `#define` ou `#undef` de palavra contextual keel, exceto as de papel, ou nome `keel_` ou `KEEL_` | `error` | keel | §2.5 |
 | `literal-with-newline` | Literal de string ou char com newline não-emendado | `error` | keel | §2.5 |
-| `keel-name-shadowed` | Sombreamento de palavra contextual, de verbo ou de nome de módulo | `warning` | keel | §2.5 |
+| `keel-name-shadowed` | Sombreamento de palavra contextual, exceto as de papel, de verbo ou de nome de módulo | `warning` | keel | §2.5 |
 | `byref-assignment` | Atribuição entre instâncias de modificador `byref`, nomeando o aliasing | `warning` | keel | §4.3 |
 | `defer-in-control-block` | `defer` registrado em corpo de `if`, `else` ou `switch` | `warning` | keel | §4.6 |
 | `instance-field-access` | Acesso direto a campo de instância de modificador | `warning` | Backend / compilador C | §4.4 |
@@ -2723,8 +2735,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `undeclared-tags` | Argumento de parâmetro `tags` que não nomeia conjunto declarado | `error` | keel | §4.3 |
 | `tag-from-other-set` | Tag escrita que não pertence ao conjunto exigido — rótulo de `match`, ou constante em verbo com parâmetro `tags` | `error` | keel | §4.9 |
 | `duplicate-tag` | Tag repetida no mesmo conjunto, ou rótulo repetido no mesmo `match` | `error` | keel | §4.9 |
-| `match-without-tags` | Operando cujo módulo não declara conjunto de tags | `error` | keel | §4.9 |
-| `ambiguous-match-tags` | Operando cujo módulo declara mais de um conjunto, sem parâmetro `tags` que decida | `error` | keel | §4.9 |
+| `match-without-tags` | Operando de `match` cujo `tag` não devolve conjunto `tags` | `error` | keel | §4.9 |
 | `invalid-fault-code` | `corot.fault(r,c)` com código conhecido zero ou negativo | `error` | keel | §5.5 |
 | `tag-out-of-range` | Etiqueta fora da lista declarada | `debug` | Backend, em execução | §4.9 |
 | `no-ptr-for-arity` | Índice de dois ou mais valores sobre modificador sem `ptr` de vetor, ou cujo `dim` difere do número de índices — a mensagem diz o que o módulo declara | `error` | keel | §4.5 |

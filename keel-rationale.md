@@ -906,14 +906,12 @@ escrito continuam sendo dois nomes, e cada uma exige seu rótulo — a alternati
 seria comparar valores, o que exigiria avaliação, e faria a exaustividade
 depender de uma aritmética que o programa não escreveu.
 
-**De onde vem o conjunto, quando o operando não é `tagged`.** A resposta natural
-— "do módulo do operando" — só funciona enquanto o módulo declarar um conjunto
-só, e nada obriga isso. Por isso a regra tem duas etapas: primeiro o argumento
-escrito na instância, quando o módulo tem parâmetro `tags`; depois, o conjunto
-único do módulo. Com dois conjuntos e sem parâmetro que decida, não existe
-critério, e inventar um — o primeiro declarado, o de mesmo nome do tipo —
-esconderia a ambiguidade num lugar em que o programa não a veria. A recusa é
-`ambiguous-match-tags`, e a saída é escrever o parâmetro.
+**De onde vem o conjunto, quando o operando não é um conjunto.** Do tipo que
+`tag` devolve. A resposta "do módulo do operando" só funcionaria enquanto o
+módulo declarasse um conjunto só, e nada obriga isso. O retorno de `tag` não
+tem essa ambiguidade, porque cada instância declara o seu: em `tagged Cycle
+void`, `tag` devolve `Cycle`; em `corot`, `Status`. Um `tag` que devolve inteiro
+não diz o conjunto, e a recusa é `match-without-tags`.
 
 **A escrita da etiqueta é verificada; a leitura, não.** Parece assimétrico e é
 deliberado. A etiqueta armazenada pode não pertencer ao conjunto — veio de

@@ -78,6 +78,12 @@ static const char *const messages[K_DIAG_COUNT] = {
         "the partition binder is `%s`, and the `partition` of `%s` produces `%s`",
     [K_DIAG_MUTATION_DURING_TRAVERSAL] =
         "`%s` changes `%s` while the `%s` goes over it: change the container before or after",
+    [K_DIAG_ELSE_WITHOUT_INITIALIZER] =
+        "the `else` of a result tests the value just stored, and this declaration stores none: write `T x = e else ...`",
+    [K_DIAG_ELSE_ON_COMPLEX_TARGET] =
+        "the `else` of a result needs a name declared with a keel type as its target, and `%s` is not one: store the result in a local first",
+    [K_DIAG_ELSE_MULTIPLE_DECLARATORS] =
+        "the `else` of a result takes one declarator: declare the others in their own statement",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

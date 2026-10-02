@@ -1,12 +1,7 @@
-# Hand-written from app/reg.k and its expected/ C. Covers the levels up
-# to `inst`; the `ilha` lines are NOT written, which is what the `inst`
-# in cases.txt records.
-#
-# They cannot be written yet, and not for lack of work: design/cgen-tool.md
-# §5.2's island table has no kind for the `else` tail (spec §2.2's
-# `else-tail`/`assign-else`, §4.10) — and the `else` tail on an assignment
-# is the whole point of this case. Adding that row is a normative change,
-# proposed to André on 2026-09-27 and not yet decided.
+# Hand-written from app/reg.k and its expected/ C, checked line by line
+# against it: the three `else` tails on assignments (spec §4.10) are the
+# point of the case, and the `else` island (design/cgen-tool.md §5.2) gives
+# for each the target, its type, the form and the verbs of the test.
 module	app.reg	app/reg.k:1:1
 import	keel.slice as slice types	app/reg.k:3:1
 import	keel.outcome as outcome types	app/reg.k:4:1
@@ -26,3 +21,41 @@ decl	pub func	load	app_reg_load	app/reg.k:46:1
 inst	slice const char	keel_slice_const_char	app/reg.k:9:5
 inst	outcome slice const char	keel_outcome_keel_slice_const_char	app/reg.k:23:6
 inst	outcome f64	keel_outcome_f64	app/reg.k:35:6
+ilha	array	people [4]	app/reg.k:14:5
+ilha	type	Person → app_reg_Person	app/reg.k:14:11
+ilha	type	outcome slice const char → keel_outcome_keel_slice_const_char	app/reg.k:23:6
+ilha	type	outcome slice const char → keel_outcome_keel_slice_const_char	app/reg.k:24:5
+ilha	call	outcome.none/1 → keel_outcome_keel_slice_const_char_none &1	app/reg.k:25:24
+ilha	call	outcome.win/2 → keel_outcome_keel_slice_const_char_win1 &1	app/reg.k:26:12
+ilha	call	slice.from/3 → keel_slice_const_char_from	app/reg.k:26:27
+ilha	name	NAMES → app_reg_NAMES	app/reg.k:26:50
+ilha	name	LENS → app_reg_LENS	app/reg.k:26:60
+ilha	type	outcome slice const char → keel_outcome_keel_slice_const_char	app/reg.k:29:6
+ilha	type	outcome slice const char → keel_outcome_keel_slice_const_char	app/reg.k:30:5
+ilha	name	ADDRLENS → app_reg_ADDRLENS	app/reg.k:31:19
+ilha	call	outcome.none/1 → keel_outcome_keel_slice_const_char_none &1	app/reg.k:31:44
+ilha	call	outcome.win/2 → keel_outcome_keel_slice_const_char_win1 &1	app/reg.k:32:12
+ilha	call	slice.from/3 → keel_slice_const_char_from	app/reg.k:32:27
+ilha	name	ADDRS → app_reg_ADDRS	app/reg.k:32:50
+ilha	name	ADDRLENS → app_reg_ADDRLENS	app/reg.k:32:60
+ilha	type	outcome f64 → keel_outcome_f64	app/reg.k:35:6
+ilha	type	outcome f64 → keel_outcome_f64	app/reg.k:36:5
+ilha	call	outcome.none/1 → keel_outcome_f64_none &1	app/reg.k:37:34
+ilha	call	outcome.win/2 → keel_outcome_f64_win1 &1	app/reg.k:38:12
+ilha	name	BIRTHS → app_reg_BIRTHS	app/reg.k:38:27
+ilha	type	outcome slice const char → keel_outcome_keel_slice_const_char	app/reg.k:47:5
+ilha	type	outcome slice const char → keel_outcome_keel_slice_const_char	app/reg.k:48:5
+ilha	type	outcome f64 → keel_outcome_f64	app/reg.k:49:5
+ilha	call	read_name/1 → app_reg_read_name	app/reg.k:53:16
+ilha	else	name (outcome slice const char) exit → keel_outcome_keel_slice_const_char_failed	app/reg.k:53:29
+ilha	call	read_address/1 → app_reg_read_address	app/reg.k:54:19
+ilha	else	address (outcome slice const char) default → keel_outcome_keel_slice_const_char_failed keel_outcome_keel_slice_const_char_win1 &1	app/reg.k:54:35
+ilha	call	slice.from/3 → keel_slice_const_char_from	app/reg.k:54:40
+ilha	call	read_birth/1 → app_reg_read_birth	app/reg.k:55:17
+ilha	else	birth (outcome f64) default → keel_outcome_f64_failed keel_outcome_f64_win1 &1	app/reg.k:55:31
+ilha	array-index	people rank 1	app/reg.k:57:9
+ilha	call	outcome.value/1 → keel_outcome_keel_slice_const_char_value	app/reg.k:57:29
+ilha	array-index	people rank 1	app/reg.k:58:9
+ilha	call	outcome.value/1 → keel_outcome_keel_slice_const_char_value	app/reg.k:58:29
+ilha	array-index	people rank 1	app/reg.k:59:9
+ilha	call	outcome.value/1 → keel_outcome_f64_value	app/reg.k:59:29

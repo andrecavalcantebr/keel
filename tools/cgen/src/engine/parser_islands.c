@@ -2352,6 +2352,100 @@ static bool worker_flow(Ctx *c, size_t i) {
     return false;
 }
 
+/* ---- the else of a result (stage 4g) ----------------------------------- */
+
+/* `T x = e else …;` and `x = e else …;` (spec §4.10). The `else` of an `if`
+   follows a statement, so a ';' or a '}' stands before it; the `else` of a
+   result follows an expression. The detail is the target, its keel type, the
+   form, and the verbs the test calls: `failed`, and `win` for a default
+   (cgen-tool §5.2). */
+static void else_island(Ctx *c, const KAstNode *n, size_t at) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    size_t s = at, depth = 0;
+    while (s > n->first) {
+        size_t j = s - 1;
+        if (punct(a, j, ")") || punct(a, j, "]")) depth++;
+        else if (punct(a, j, "(") || punct(a, j, "[")) { if (!depth) break; depth--; }
+        else if (!depth && (punct(a, j, ";") || punct(a, j, "{") || punct(a, j, "}"))) break;
+        s = j;
+    }
+    size_t eq = SIZE_MAX, commas = 0;
+    depth = 0;
+    for (size_t j = s; j < at; j++) {
+        if (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{")) depth++;
+        else if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) depth--;
+        else if (!depth && punct(a, j, "=") && eq == SIZE_MAX) eq = j;
+        else if (!depth && punct(a, j, ",")) commas++;
+    }
+    KLexer lexer;
+    TKPpKind pp;
+    KSpecifier spec;
+    KToken next = {0};
+    size_t head = s;
+    while (head < at && (word(a, head, "const") || word(a, head, "volatile") || word(a, head, "static") ||
+                         word(a, head, "register")))
+        head++;
+    KToken first = enter(a, head, &lexer, &pp);
+    bool keel_decl = k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind != K_SPEC_NONE;
+    if (keel_decl && !(spec.kind == K_SPEC_NAMED_TYPE && k_primitive_name(spec.type_name))) {
+        if (commas) { diag3(c, K_DIAG_ELSE_MULTIPLE_DECLARATORS, tok(a, at), none, none, none); return; }
+        if (eq == SIZE_MAX) { diag3(c, K_DIAG_ELSE_WITHOUT_INITIALIZER, tok(a, at), none, none, none); return; }
+    } else if (eq == SIZE_MAX) {
+        diag3(c, K_DIAG_ELSE_WITHOUT_INITIALIZER, tok(a, at), none, none, none);
+        return;
+    } else if (eq != s + 1 || !ident(a, s)) {
+        /* a C declaration — two names before the '=' — takes no `else`: its type
+           is not keel's to test; anything else is a target that is not a name */
+        bool c_decl = eq >= s + 2 && (ident(a, s) || k_token_is_c_word(tok(a, s))) && ident(a, eq - 1) &&
+                      (ident(a, eq - 2) || k_token_is_c_word(tok(a, eq - 2)) ||
+                                                            punct(a, eq - 2, "*"));
+        for (size_t j = s; c_decl && j < eq; j++)
+            if (punct(a, j, ".") || punct(a, j, "->") || punct(a, j, "[") || punct(a, j, "(")) c_decl = false;
+        if (c_decl) diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, eq - 1), range_text(a, (Range){ head, eq - 1 }),
+                          k_diag_text("Failable"), k_diag_text("failed"));
+        else diag3(c, K_DIAG_ELSE_ON_COMPLEX_TARGET, tok(a, s), range_text(a, (Range){ s, eq }), none, none);
+        return;
+    }
+    if (!ident(a, eq - 1)) return;
+    Range target = { eq - 1, eq };
+    const Local *l = find_local(c, tok(a, eq - 1));
+    if (!keel_decl && (!l || !l->spec.text.len)) {
+        diag3(c, K_DIAG_ELSE_ON_COMPLEX_TARGET, tok(a, s), range_text(a, target), none, none);
+        return;
+    }
+    bool exit = punct(a, at + 1, "{") || word(a, at + 1, "return") || word(a, at + 1, "break") ||
+                word(a, at + 1, "continue") || word(a, at + 1, "goto");
+
+    Text d = { .ok = true };
+    put(&d, tok(a, eq - 1).ptr, tok(a, eq - 1).len);
+    if (l && l->spec.text.len) { put_str(&d, " ("); put(&d, l->spec.text.ptr, l->spec.text.len); put_str(&d, ")"); }
+    put_str(&d, exit ? " exit" : " default");
+    Text missing = { .ok = true };
+    resolution_begin(c);
+    int t = type_of(c, target);
+    const KType *k = t >= 0 ? kt(c, t) : NULL;
+    if (!meets(c, target, "Failable", &missing))
+        diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, eq - 1), range_text(a, target), k_diag_text("Failable"),
+              keep(c, &missing));
+    else if (!exit && (missing = (Text){ .ok = true }, !meets(c, target, "Winnable", &missing)))
+        diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, tok(a, eq - 1), range_text(a, target), k_diag_text("Winnable"),
+              keep(c, &missing));
+    else if (k && (k->kind == KT_MODIFIER || k->kind == KT_NAMED) && k->module && ast_of(c, k->module)) {
+        const KAst *home = ast_of(c, k->module);
+        Text sym = { .ok = true };
+        bool adapt = false, win_adapt = false;
+        if (container_verb(k, home, k_diag_text("failed"), 1, &sym, &adapt) &&
+            (exit || (put_str(&sym, " "), container_verb(k, home, k_diag_text("win"), 2, &sym, &win_adapt)))) {
+            put_str(&d, " \xe2\x86\x92 ");
+            put(&d, sym.s, sym.n);
+            if (win_adapt) put_str(&d, " &1");
+        }
+    }
+    resolution_end(c);
+    emit(c, K_ISLAND_ELSE, at, &d);
+}
+
 static void walk(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
     memcpy(c->locals, c->globals, c->global_count * sizeof *c->globals);
@@ -2371,6 +2465,11 @@ static void walk(Ctx *c, const KAstNode *n) {
         }
         if (punct(a, i, ";")) { c->has_target = false; continue; }
         if (word(a, i, "constexpr") && !signature_of(n, i)) { block_constexpr(c, i); continue; }
+        if (!signature_of(n, i) && word(a, i, "else") && i > n->first && !punct(a, i - 1, ";") &&
+            !punct(a, i - 1, "}")) {
+            else_island(c, n, i);
+            continue;
+        }
         if (word(a, i, "return") && inside_parallel(c, i)) {      /* a C word, not an identifier */
             diag3(c, K_DIAG_RETURN_IN_PARALLEL, tok(a, i), c->par_name, (keel_slice_char){0}, (keel_slice_char){0});
             continue;

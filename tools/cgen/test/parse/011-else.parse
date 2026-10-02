@@ -1,0 +1,36 @@
+module	app.el	app/el.k:1:1
+import	keel.slice as slice types	app/el.k:2:1
+import	keel.outcome as outcome types	app/el.k:3:1
+import_c	<stdio.h>	app/el.k:4:1
+decl	priv func	read	app_el_read	app/el.k:6:1
+decl	priv func	view	app_el_view	app/el.k:12:1
+decl	pub func	twice	app_el_twice	app/el.k:19:1
+decl	pub func	twice_log	app_el_twice_log	app/el.k:25:1
+decl	pub func	size	app_el_size	app/el.k:31:1
+inst	outcome i32	keel_outcome_i32	app/el.k:6:6
+inst	outcome slice i32	keel_outcome_keel_slice_i32	app/el.k:12:6
+inst	slice i32	keel_slice_i32	app/el.k:12:14
+ilha	type	outcome i32 → keel_outcome_i32	app/el.k:6:6
+ilha	type	outcome i32 → keel_outcome_i32	app/el.k:7:5
+ilha	call	outcome.fail/2 → keel_outcome_i32_fail &1	app/el.k:8:23
+ilha	call	outcome.none/1 → keel_outcome_i32_none &1	app/el.k:9:24
+ilha	call	outcome.win/2 → keel_outcome_i32_win1 &1	app/el.k:10:12
+ilha	type	outcome slice i32 → keel_outcome_keel_slice_i32	app/el.k:12:6
+ilha	type	outcome slice i32 → keel_outcome_keel_slice_i32	app/el.k:13:5
+ilha	call	outcome.none/1 → keel_outcome_keel_slice_i32_none &1	app/el.k:14:24
+ilha	call	outcome.win/2 → keel_outcome_keel_slice_i32_win1 &1	app/el.k:15:12
+ilha	call	slice.from/3 → keel_slice_i32_from	app/el.k:15:27
+ilha	type	outcome i32 → keel_outcome_i32	app/el.k:20:5
+ilha	call	read/1 → app_el_read	app/el.k:20:21
+ilha	else	v (outcome i32) exit → keel_outcome_i32_failed	app/el.k:20:29
+ilha	call	outcome.value/1 → keel_outcome_i32_value	app/el.k:21:12
+ilha	type	outcome i32 → keel_outcome_i32	app/el.k:26:5
+ilha	call	read/1 → app_el_read	app/el.k:26:21
+ilha	else	v (outcome i32) exit → keel_outcome_i32_failed	app/el.k:26:29
+ilha	call	outcome.value/1 → keel_outcome_i32_value	app/el.k:27:12
+ilha	type	outcome slice i32 → keel_outcome_keel_slice_i32	app/el.k:32:5
+ilha	call	view/2 → app_el_view	app/el.k:32:27
+ilha	else	s (outcome slice i32) default → keel_outcome_keel_slice_i32_failed keel_outcome_keel_slice_i32_win1 &1	app/el.k:32:41
+ilha	call	slice.from/3 → keel_slice_i32_from	app/el.k:32:46
+ilha	call	slice.length/1 → keel_slice_i32_length	app/el.k:33:12
+ilha	call	outcome.value/1 → keel_outcome_keel_slice_i32_value	app/el.k:33:25

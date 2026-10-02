@@ -504,6 +504,14 @@ static void diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, kee
 /* Whether the module `own` declares every verb of `pd` (spec §5.1, rule 3),
    naming the ones it lacks in `missing`; a verb whose roles differ from the
    prototype's is protocol-role-mismatch (rule 10). */
+/* the last name of the type a function returns, without its stars */
+static keel_slice_char return_name(const KAst *home, const KAstNode *fn) {
+    size_t e = fn->name_first;
+    while (e > fn->first && punct(home, e - 1, "*")) e--;
+    return e > fn->first && (ident(home, e - 1) || k_token_is_c_word(tok(home, e - 1))) ? tok(home, e - 1)
+                                                                                       : (keel_slice_char){0};
+}
+
 static bool satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtocolDecl *pd, Text *missing, KToken at) {
     bool ok = true;
     for (size_t i = 0; i < pd->verb_count; i++) {
@@ -526,6 +534,27 @@ static bool satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const K
         }
         if (written && differ)
             diag3(c, K_DIAG_PROTOCOL_ROLE_MISMATCH, at, v->name, pd->name, (keel_slice_char){0});
+    }
+    /* an associated type binds once: every required verb that returns it
+       returns the same type in the implementer (spec §5.1, rule 7) */
+    for (size_t t = 0; ok && t < pd->assoc_count; t++) {
+        bool again = false;                     /* the same name from two components */
+        for (size_t u = 0; u < t; u++) if (k_symtab_same_name(pd->assoc[u], pd->assoc[t])) again = true;
+        if (again) continue;
+        keel_slice_char bound = {0};
+        for (size_t i = 0; i < pd->verb_count; i++) {
+            const KProtocolVerb *v = &pd->verbs[i];
+            if (!k_symtab_same_name(v->returns, pd->assoc[t])) continue;
+            Sig sig = find_verb(own, v->name, v->arity);
+            if (!sig.found) continue;
+            keel_slice_char r = return_name(own, sig.fn);
+            if (!r.len) continue;
+            if (!bound.len) bound = r;
+            else if (!k_symtab_same_name(bound, r)) {
+                diag3(c, K_DIAG_ASSOCIATED_TYPE_CONFLICT, at, pd->assoc[t], bound, r);
+                break;
+            }
+        }
     }
     return ok;
 }

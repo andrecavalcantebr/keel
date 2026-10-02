@@ -238,6 +238,8 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` skips the level of the set: from outside the module, write `M.Set.%s`",
     [K_DIAG_HIDDEN_DECLARATOR] =
         "the name `%s` is not the last token of its declarator, and keel has to rebuild the declaration here: name the type with a `typedef`",
+    [K_DIAG_ASSOCIATED_TYPE_CONFLICT] =
+        "the associated type `%s` binds to `%s` through one verb and to `%s` through another: it binds once",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

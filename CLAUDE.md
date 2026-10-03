@@ -8,7 +8,7 @@ para C11/C23. O `README.md` apresenta o projeto.
 - **A memória do projeto está em [`.claude/memory/`](.claude/memory/MEMORY.md).**
   Leia o `MEMORY.md` primeiro: é o índice, e cada linha aponta para um fato.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code, e
-  atualizada em 2026-10-02; o
+  atualizada em 2026-10-03 (parser do cgen completo); o
   que diverge do repositório vale menos que o repositório.
 - **Nenhuma pendência em aberto nos normativos.** P16 (visibilidade do C que
   atravessa um módulo) foi resolvida em 2026-09-21; o registro está em

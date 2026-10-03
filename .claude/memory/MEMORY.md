@@ -2,8 +2,8 @@
 - [keel: quatro documentos](keel-quatro-documentos.md) — divisão de propriedade entre spec, rationale, backend e ferramenta.
 - [golden: perfis são autorais](golden-perfis-autorais.md) — c11 e c23 escritos à mão, nunca derivados um do outro.
 - [/base e a P15](base-real-keel-em-progresso.md) — os 11 arquivos; golden re-derivado dela, "a emissão segue o .k sempre".
-- [protocolos estruturais](protocolos-estruturais-2026-10-02.md) — 2026-10-02: sem `implement`, papéis herdados, diagnósticos unificados, §4.14 na v0, `slice.of` sobre `Sliceable`, `from_stack` fora.
+- [protocolos estruturais](protocolos-estruturais-2026-10-02.md) — 2026-10-02: sem `implement`, papéis herdados, diagnósticos unificados, §4.14 na v0, `slice.of` sobre `Sliceable`, `from_stack` fora; e as decisões de nomes de 10-02/03 (cursor, `types`, `keel-name-shadowed`, §2.3).
 - [ideias pendentes: soa e cooperativo](ideias-pendentes-soa-e-cooperativo.md) — soa struct concreto (linha mais madura), buffer(N)/slice(N), strbuf/string, bitbuffer/bitslice, atomic/chan/barrier.; traits sobre o `T` opaco (v2); protocolos nomeados já existem.
 - [biblioteca padrão: catálogo](biblioteca-padrao-planejamento.md) — histórico; a fonte agora é design/possibilidades.md (v0 núcleo+base, v1 stdlib, v2+ protocolos).
-- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; M0 e M1 fechados, M2 até a etapa 4i (fecho de instâncias); tool/ e engine/ com `make boundary`.
+- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; M0 e M1 fechados, parser (M2) completo em 2026-10-03, falta a emissão; tool/ e engine/ com `make boundary`.
 - [Código em inglês](codigo-em-ingles.md) — docs pt-BR, código em inglês; as 4 etapas concluídas (commits 36ca188, 14c4d9a, 1c249c7, 1ae845d).

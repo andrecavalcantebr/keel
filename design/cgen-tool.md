@@ -844,6 +844,7 @@ Cada marco termina com o seu teste passando e o anterior intacto.
 | **M0** driver | `args.c`, modo transparente, `--cgen-version`/`--cgen-help`, erros de invocação, resolução da base | tabela de `argv` → (opções do cgen, repasse, fonte) em teste de unidade; §8.1, §8.2, e os três primeiros de §8.8 |
 | **M1** lexer | `lexer.c` + `--stop-after=lex` | os casos do [lexer-design §8](lexer-design.md#8-casos-de-aceitação) e §8.4; toda a `/base` e todo `.k` de `golden/cases` lexam sem diagnóstico |
 | **M2** módulos | `paths.c`, `tool.c`, parser de nível de arquivo (`module`, `import`, `import_c`, `extern_c`, assinaturas), `--stop-after=parse` sem ilhas | raízes, `missing-module`, `module-path-mismatch`, `circular-import`, `module-not-found`, `generic-source-without-instance`; `test/parse_dump.sh decl` (§5.2) |
+| | **Estado em 2026-10-03:** M0, M1 e M2 fechados; o M2 foi além do aceite e cobre as ilhas, o fecho de instâncias e os diagnósticos do parser (parser §3.2, §7). O próximo é o M3. | |
 | **M3** geração sem ilhas | `emit.c`, `writer.c`, `#line`, mangling de nível de arquivo, `--main` | §8.3 byte a byte; segunda execução não muda `mtime` |
 | **M4** cc e depfile | `cc.c`, `depfile.c`, critério de atualização | §8.6; editar `geom.k` faz `main` regerar os headers de `geom` e não escrever `gen/geom.c` |
 | **M5** base | módulos genéricos, instâncias de modificador embutido, `--instance`, despacho de builtin, `defer` | `golden/cases/001`; §8.7 |

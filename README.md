@@ -29,12 +29,13 @@ int reading_first(const char *path) {
 `FILE`, `fopen`, `fgetc` e `EOF` keel não conhece, e não precisa: ela reconheceu
 `module`, `pub` e `defer`, e o resto atravessou. É essa a ideia inteira.
 
-> **Estado: a linguagem está fechada, o compilador não existe.** Os quatro
-> documentos normativos estão completos e sem questão em aberto, a biblioteca
-> base está escrita em keel, e há 21 casos de teste com a saída C esperada nos
-> dois perfis. O `cgen` — a ferramenta que faria essa tradução — está em fase de
-> desenho. Hoje o repositório é uma especificação com um oráculo executável, não
-> um compilador que você possa rodar.
+> **Estado: a linguagem está fechada, e o compilador lê keel mas ainda não
+> emite C.** Os quatro documentos normativos estão completos, a biblioteca base
+> está escrita em keel, e há 25 casos de teste com a saída C esperada nos dois
+> perfis (três em construção). O `cgen` já tem o lexer e o parser completos: lê
+> um `.k`, resolve os imports, reconhece toda a gramática, verifica as regras de
+> keel e imprime a árvore (`--stop-after=parse`). A emissão de C é o próximo
+> marco.
 
 ---
 

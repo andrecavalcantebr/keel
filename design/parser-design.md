@@ -275,11 +275,15 @@ quebrar as anteriores.
 | 4h | `ilha` | `decl-extent`, `extent-column` | espécie(s) de coluna de `extent` | golden 020 |
 | 4i | `ilha` (fecho) | resolução completa de instância por fecho de genérico (§5) | `KInstanceUse` fechado, não só direto | golden 007, base inteira |
 
-**Estado em 2026-10-02:** as etapas 1, 2, 3 e 4a–4i estão acesas, com oráculo
+**Estado em 2026-10-03:** as etapas 1, 2, 3 e 4a–4i estão acesas, com oráculo
 de dump e casos de falha (`tools/cgen/src/engine/README.md`). As espécies novas
 da 4e, da 4g e da 4h são `parallel`, `worker-exit`, `else`, `extent` e
-`column`; a 4i acrescenta ao dump as linhas `closure` e `unavailable`
-([`cgen-tool.md`](cgen-tool.md) §5.2) e emite `verb-not-in-instance`.
+`column`; a 4i acrescenta as linhas `closure` e `unavailable`
+([`cgen-tool.md`](cgen-tool.md) §5.2), e o fecho fica como dado em
+`KAst.closure`. Os diagnósticos do §7 estão todos emitidos, inclusive a análise
+de papéis (spec §4.12), salvo `dim-generates-declaration`, que espera
+definição; os delimitadores são pareados por alternativa de `#if` numa
+passagem própria (`parser_delimiters.c`), na carga, antes do parse.
 
 4a–4i seguem a ordem dos casos golden, no espírito do M6 do
 [`cgen-tool.md`](cgen-tool.md) §9 ("uma construção por vez, na ordem dos casos
@@ -437,7 +441,7 @@ que a implementação precisa saber:
 
 | Passagem | Diagnósticos |
 | --- | --- |
-| lexer | `literal-with-newline`, `unmatched-delimiter`, `delimiter-mismatch-across-branches`, `define-over-keel-name`, `define-over-keel-word` |
+| lexer | `literal-with-newline`, `define-over-keel-name`, `define-over-keel-word`; e, no consumidor estrutural que pareia os delimitadores por alternativa (`parser_delimiters.c`, na carga), `unmatched-delimiter` e `delimiter-mismatch-across-branches` |
 | 1 cabeçalho | `missing-module`, `module-path-mismatch`, `invalid-stem`, `circular-import`, `symbol-collision`, `duplicate-alias`, `import-clause-order`, `duplicate-injected-name`, `nested-extern-c`, `alias-type-collision` |
 | 2 coleta | `modifier-outside-generic`, `parameter-name-reuse`, `modifier-named-instance`, `pub-static`, `inline-without-visibility`, `static-on-type`, `canonical-name-collision`, `undeclared-tags`, `duplicate-tag`, `unnamed-tags`, `nonconstant-dim`, `dim-below-one` |
 | 3 resolução | todo o resto: contêiner, aridade, protocolo, `else`, `match`, `parallel`, `array`, `ref`, `constexpr`, `verb-not-in-instance` |

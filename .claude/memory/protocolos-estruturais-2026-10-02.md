@@ -63,3 +63,21 @@ nomes chegam a todo módulo pelo `import keel types;`.
 
 Ver [[base-real-keel-em-progresso]], [[cgen-implementacao]],
 [[discutir-antes-de-editar-spec]].
+
+**Decisões de 2026-10-02/03 sobre nomes e diagnósticos.**
+
+- `keel.buffer` e `keel.slice` exportam ambos `cursor`: um dos imports entra
+  sem `types` e o nome vai qualificado (`buffer.cursor`). A própria base faz
+  isso (`keel.buffer` importa `keel.slice` sem `types` e escreve
+  `slice.slice`), e os golden 004, 012, 013, 019, 025, o README e a spec §5.3
+  também. `duplicate-injected-name` (error) e `shadowed-injected-name` (warning)
+  ficam como estão no catálogo.
+- `info` sai por padrão, no stderr (R1); warning também vai ao stderr.
+- `keel-name-shadowed` é só aviso: declaração com nome de palavra contextual
+  (exceto papéis) ou de qualificador de import. Verbos ficam fora, porque são
+  sempre qualificados. Onde o nome está em posição de construção keel, keel lê
+  a construção; a §2.3 foi reescrita assim (um local com nome de qualificador
+  não esconde o qualificador).
+- `define-over-keel-word` é aviso; `define-over-keel-name` (`keel_`/`KEEL_`) é
+  erro.
+- O esperado do 021 ganhou `clone` em `slice const char` (C2).

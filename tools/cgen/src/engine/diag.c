@@ -246,6 +246,10 @@ static const char *const messages[K_DIAG_COUNT] = {
         "`%s` over `%s`, whose type is a parameter of the module: inside the generic that type is opaque, and takes no keel construction",
     [K_DIAG_LAYOUT_CYCLE] =
         "the type holds itself by value, through an instance: %s; hold it by pointer somewhere in the chain",
+    [K_DIAG_REGION_ESCAPE] =
+        "`%s` is returned, and its storage comes from an `array` local to the function: it ends with the function",
+    [K_DIAG_CHILD_REGION_AFTER_INVALIDATION] =
+        "`%s` is used after `%s` invalidated the storage it comes from",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

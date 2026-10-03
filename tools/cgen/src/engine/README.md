@@ -369,3 +369,30 @@ e o golden 007 escreve `s.cap = 4` de propósito; a análise de papéis
 `enum-constant-without-type`, `hidden-declarator`, `from-without-target`,
 `associated-type-conflict`, `instance-depth`; os sete de molde são v1
 (`not-in-v0` já recusa); `specific-format-unavailable` é do backend.
+
+## Papéis e o resto da passagem 3 (2026-10-03)
+
+**Análise de papéis** (spec §4.12): cada símbolo conhecido guarda, no próprio
+`Local`, os símbolos de que depende, se vem de um `array` automático da
+função e se está inválido. Uma chamada resolvida aplica os papéis da sua
+assinatura (`roles_at_call`): os produtos `child` — o argumento nessa posição,
+ou o símbolo que recebe o retorno `child` — passam a depender dos argumentos
+`parent`; `invalidates` invalida os descendentes do argumento, `consumes` o
+argumento também. As construções valem como as chamadas que traduzem: o
+símbolo que recebe `x[a..b]`, o binder por ponteiro e o cursor de `walk`, e o
+binder de partição de `parallel` dependem do contêiner. Uma atribuição sem
+papel zera o estado. `return x` com origem local é `region-escape`; o uso de
+um símbolo inválido é `child-region-after-invalidation`, uma vez por
+invalidação. A análise é lexical: não segue cópia, campo nem fluxo C.
+
+**Ainda na passagem 3**: `enum-constant-without-type` (`M.VALOR` de fora do
+módulo), `hidden-declarator` (entrada de `[now]` sem o nome no fim, retorno sob
+`defer` com o nome dentro do declarador), `from-without-target`,
+`associated-type-conflict`, `circular-generic` (`stack stack T` no genérico),
+`protocol-on-parameter` (construção keel sobre valor de tipo parâmetro, dentro
+do genérico) e `layout-cycle` (struct que se contém por valor através de
+instância).
+
+Fora: `dim-generates-declaration` espera definição; os sete de molde, v1;
+`instance-depth`, de especialização; `specific-format-unavailable`, do backend;
+`indirect-import`, que pede resolução por import transitivo.

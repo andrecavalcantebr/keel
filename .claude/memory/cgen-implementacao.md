@@ -26,7 +26,7 @@ Os cinco designs em `design/`, um por peça de `cgen-tool.md` §3.1:
 **Estado em 2026-10-02:** o M0 (driver) e o M1 (lexer) estão fechados. O M2
 (parser) reconhece módulos, imports, declarações (inclusive `decl-protocol`,
 papéis e `typedef … byref`) e as ilhas das etapas 4a–4i (com o fecho de instâncias e a superfície degenerada)
-(`--stop-after=parse`, com `-o` no sentido do gcc). Há 38 casos de falha (123 dos 148 diagnósticos do catálogo emitidos) em
+(`--stop-after=parse`, com `-o` no sentido do gcc). Há 43 casos de falha (136 dos 148 diagnósticos do catálogo com caso) em
 `tools/cgen/test/diag/`, e o catálogo de diagnósticos é gerado da spec §6.2
 (`gen-diags.py`), com as mensagens escritas em `diag.c` à medida que o motor
 passa a emitir cada id. Ainda não há emissão de C. O detalhe por etapa está em

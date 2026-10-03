@@ -37,6 +37,14 @@ typedef struct {
     bool is_ref;                /* declared with `ref` */
     bool is_constexpr;          /* a block-level `constexpr` */
     keel_slice_char value;      /* its initializer, as written */
+    /* provenance (spec §4.12): the symbols it depends on, by index among the
+       locals, and its two states */
+    int deps[8];
+    int ndeps;
+    bool local_origin;          /* depends on an automatic `array` of the function */
+    bool invalid;
+    bool told;                  /* its use after invalidation was reported */
+    keel_slice_char invalid_by; /* the verb that invalidated it */
 } Local;
 
 #define K_TYPES_MAX 256
@@ -93,6 +101,8 @@ typedef struct {
     } later[16];
     size_t later_count;
     const KAstNode *fn;         /* the declaration being walked */
+    struct { keel_slice_char name; int parent; size_t until; } pending[8];   /* products of a construction */
+    size_t pending_count;
 } Ctx;
 
 /* Whether a verb survives in an instance (spec §4.3, rules 12 and 13; parser
@@ -311,6 +321,14 @@ static void add_local(Ctx *c, Local local) {
         return;
     }
     local.depth = c->depth;
+    /* a binder a construction produces depends on its container (spec §4.12, rule 15) */
+    for (size_t k = 0; k < c->pending_count; k++)
+        if (k_symtab_same_name(c->pending[k].name, local.name) && local.decl_at < c->pending[k].until &&
+            c->pending[k].parent >= 0 && (size_t)c->pending[k].parent < c->local_count) {
+            local.deps[0] = c->pending[k].parent;
+            local.ndeps = 1;
+            local.local_origin = c->locals[c->pending[k].parent].local_origin;
+        }
     c->locals[c->local_count++] = local;
 }
 
@@ -1055,6 +1073,10 @@ static bool first_arg(const KAst *a, size_t open, Range *out) {
 }
 
 static int type_of(Ctx *c, Range r);
+static void roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
+                          keel_slice_char verb);
+static int local_of(const Ctx *c, Range r);
+static void produce(Ctx *c, int p, const int *parents, int np);
 static void record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module);
 static const KModule *ast_module(const Ctx *c, const KAst *home);
 static keel_slice_char alias_of(const KSymbolTable *symbols, const KModule *m);
@@ -1388,6 +1410,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         if (k0 && k0->pointers == 0 && k0->lvalue) put_str(&array_form, " &1");
         put_str(&array_form, " dim:2");
         emit(c, K_ISLAND_CALL, callee, &array_form);
+        roles_at_call(c, home, &sig, args, argc, callee, name);
         return prim_type(c, "bool");
     }
 
@@ -1591,6 +1614,11 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         put(&t, declared.ptr, declared.len);
         if (sig.found && sig.overloaded && argc > 1) put_uint(&t, argc - 1);
     }
+
+    /* a function over a protocol has its own roles, not those of the verb it
+       resolves through */
+    if (proto_of) roles_at_call(c, proto_home, &fsig, args, argc, callee, name);
+    else roles_at_call(c, home, &sig, args, argc, callee, name);
 
     /* a value of a set where the verb's parameter is the module's `tags`
        binder belongs to the instance's set (spec §4.3, rule 6) */
@@ -1909,7 +1937,9 @@ static size_t array_decl(Ctx *c, size_t i, bool signature) {
         }
         add_local(c, (Local){ .name = decl.name, .pointers = decl.pointer_depth + 1,
                               .decl_at = index_at(a, i, decl.name.ptr), .rank = rank_of(dims, end),
-                              .element = element, .dims = { (size_t)(end - dims), (char *)dims } });
+                              .element = element, .dims = { (size_t)(end - dims), (char *)dims },
+                              /* an automatic `array` is a local origin (spec §4.12, rule 3) */
+                              .local_origin = !signature && c->depth > 0 && !(i > 0 && word(a, i - 1, "static")) });
         if (k_token_is_punct(after, "=")) {
             static const char *const stops[] = { ",", ";" };
             size_t which;
@@ -2386,6 +2416,15 @@ static void traversal(Ctx *c, const KAstNode *n, size_t at, bool cursor) {
         }
     }
     if (!literal) mutations(c, close + 1, statement_end(a, close + 1, n->end), box, cursor ? "walk" : "foreach");
+    /* the binder by pointer, and the cursor of `walk`, come from the container
+       (spec §4.12, rules 14 and 15); a binder by value is a copy */
+    int parent = literal ? -1 : local_of(c, box);
+    if (parent >= 0) {
+        if (pointer && b1.end > b1.first && c->pending_count < 8)
+            c->pending[c->pending_count++] = (__typeof__(c->pending[0])){ tok(a, b1.end - 1), parent, close };
+        if (cursor && binders > 1 && b2.end > b2.first && c->pending_count < 8)
+            c->pending[c->pending_count++] = (__typeof__(c->pending[0])){ tok(a, b2.end - 1), parent, close };
+    }
 
     Text missing = { .ok = true };
     if (cursor) {
@@ -2649,6 +2688,11 @@ static void parallel_island(Ctx *c, const KAstNode *n, size_t at) {
     resolution_end(c);
     emit(c, K_ISLAND_PARALLEL, at, &d);
     mutations(c, body, end, box, "parallel");
+    {
+        int parent = local_of(c, box);
+        if (parent >= 0 && c->pending_count < 8)
+            c->pending[c->pending_count++] = (__typeof__(c->pending[0])){ tok(a, c2 - 1), parent, close };
+    }
 
     /* the count of workers and the policy are constants (§4.8) */
     size_t dots = SIZE_MAX;
@@ -3081,6 +3125,7 @@ static void walk(Ctx *c, const KAstNode *n) {
     c->par_count = 0;
     c->later_count = 0;
     c->fn = n;
+    c->pending_count = 0;
     c->cap_first = c->cap_end = 0;
     for (size_t i = n->first; i < n->end && !c->failed; i++) {
         if (!live(a, i)) continue;
@@ -3112,6 +3157,12 @@ static void walk(Ctx *c, const KAstNode *n) {
             else_island(c, n, i);
             continue;
         }
+        /* returning a symbol whose storage is local to the function (rule 5) */
+        if (!signature_of(n, i) && word(a, i, "return") && ident(a, i + 1) && punct(a, i + 2, ";")) {
+            int x = local_of(c, (Range){ i + 1, i + 2 });
+            if (x >= 0 && c->locals[x].local_origin)
+                diag3(c, K_DIAG_REGION_ESCAPE, tok(a, i + 1), tok(a, i + 1), (keel_slice_char){0}, (keel_slice_char){0});
+        }
         if (word(a, i, "return") && inside_parallel(c, i)) {      /* a C word, not an identifier */
             diag3(c, K_DIAG_RETURN_IN_PARALLEL, tok(a, i), c->par_name, (keel_slice_char){0}, (keel_slice_char){0});
             continue;
@@ -3134,6 +3185,31 @@ static void walk(Ctx *c, const KAstNode *n) {
             continue;
         }
         if (i == n->name_first || !ident(a, i)) continue;
+        if (!signature_of(n, i) && !(i > n->first && (punct(a, i - 1, ".") || punct(a, i - 1, "->")))) {
+            int x = local_of(c, (Range){ i, i + 1 });
+            bool assigned = punct(a, i + 1, "=");
+            if (x >= 0 && c->locals[x].decl_at != i) {
+                if (assigned) {
+                    /* an assignment without a role leaves it with no guarantee (rule 10) */
+                    c->locals[x].ndeps = 0;
+                    c->locals[x].local_origin = c->locals[x].invalid = false;
+                } else if (c->locals[x].invalid && !c->locals[x].told) {
+                    diag3(c, K_DIAG_CHILD_REGION_AFTER_INVALIDATION, tok(a, i), tok(a, i), c->locals[x].invalid_by,
+                          (keel_slice_char){0});
+                    c->locals[x].told = true;
+                }
+            }
+            /* `s = x[a..b]` and `T s = x[a..b];`: `s` is the product of `x` (rule 15) */
+            if (x >= 0 && i >= 2 && punct(a, i - 1, "=") && ident(a, i - 2) && punct(a, i + 1, "[")) {
+                size_t close = close_bracket(a, i + 1, n->end);
+                bool range = false;
+                for (size_t j = i + 2; close != SIZE_MAX && j < close; j++) if (punct(a, j, "..")) range = true;
+                if (range && close != SIZE_MAX && punct(a, close + 1, ";")) {
+                    int parent = x;
+                    produce(c, local_of(c, (Range){ i - 2, i - 1 }), &parent, 1);
+                }
+            }
+        }
         /* `corot.fault(r, c)` with a code known to be zero or negative (spec §5.5) */
         if (word(a, i, "fault") && punct(a, i + 1, "(") && i >= 2 && punct(a, i - 1, ".") && ident(a, i - 2)) {
             const KModule *m = module_alias(a->symbols, tok(a, i - 2));
@@ -3521,6 +3597,75 @@ static int kt_deep(Ctx *c, const KType *nodes, int t) {
 
 #define K_CLOSURE_MAX 64
 
+
+/* ---- provenance and invalidation (spec §4.12) ---------------------------- */
+
+/* the local an argument names: a symbol, with `&` or `*` in front */
+static int local_of(const Ctx *c, Range r) {
+    const KAst *a = c->ast;
+    while (r.first < r.end && (punct(a, r.first, "&") || punct(a, r.first, "*"))) r.first++;
+    if (r.end != r.first + 1 || !ident(a, r.first)) return -1;
+    for (size_t i = c->local_count; i-- > 0;)
+        if (k_symtab_same_name(c->locals[i].name, tok(a, r.first))) return (int)i;
+    return -1;
+}
+
+static bool descends(const Ctx *c, int l, int x, int depth) {
+    if (depth > 16 || l < 0 || (size_t)l >= c->local_count) return false;
+    for (int k = 0; k < c->locals[l].ndeps; k++) {
+        int d = c->locals[l].deps[k];
+        if (d == x || descends(c, d, x, depth + 1)) return true;
+    }
+    return false;
+}
+
+/* `x` and, when `self`, `x` itself become invalid with everything that comes from it */
+static void invalidate(Ctx *c, int x, bool self, keel_slice_char by) {
+    for (size_t l = 0; l < c->local_count; l++)
+        if (((int)l == x && self) || descends(c, (int)l, x, 0)) {
+            c->locals[l].invalid = true;
+            c->locals[l].told = false;
+            c->locals[l].invalid_by = by;
+        }
+}
+
+/* `p` is the product of `parents`: new dependencies, valid again (rules 2, 4, 9) */
+static void produce(Ctx *c, int p, const int *parents, int np) {
+    if (p < 0) return;
+    Local *l = &c->locals[p];
+    l->ndeps = 0;
+    l->local_origin = false;
+    l->invalid = l->told = false;
+    for (int k = 0; k < np && l->ndeps < 8; k++) {
+        if (parents[k] < 0 || parents[k] == p) continue;
+        l->deps[l->ndeps++] = parents[k];
+        if (c->locals[parents[k]].local_origin) l->local_origin = true;
+    }
+}
+
+/* the roles of a resolved call, at its arguments (rules 2, 6, 7): `callee` is
+   the first token of the call, where an assignment's `=` stands before it */
+static void roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
+                          keel_slice_char verb) {
+    KAst *a = c->ast;
+    if (c->quiet || !sig->found) return;
+    int parents[K_PARAMS_MAX], np = 0;
+    for (size_t k = 0; k < argc && k < sig->n; k++)
+        if (sig->p[k].role == K_ROLE_PARENT) parents[np++] = local_of(c, args[k]);
+    for (size_t k = 0; k < argc && k < sig->n; k++) {
+        int x = local_of(c, args[k]);
+        if (x < 0) continue;
+        if (sig->p[k].role == K_ROLE_INVALIDATES) invalidate(c, x, false, verb);
+        if (sig->p[k].role == K_ROLE_CONSUMES) invalidate(c, x, true, verb);
+    }
+    for (size_t k = 0; k < argc && k < sig->n; k++)
+        if (sig->p[k].role == K_ROLE_CHILD) produce(c, local_of(c, args[k]), parents, np);
+    bool child_return = false;
+    for (size_t j = sig->fn->first; j < sig->fn->name_first; j++)
+        if (k_token_role(tok(home, j)) == K_ROLE_CHILD) child_return = true;
+    if (child_return && callee >= 2 && punct(a, callee - 1, "=") && ident(a, callee - 2))
+        produce(c, local_of(c, (Range){ callee - 2, callee - 1 }), parents, np);
+}
 
 /* ---- seeds from calls ---------------------------------------------------- */
 

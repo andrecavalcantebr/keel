@@ -20,9 +20,11 @@ decl	pub func	two	ag2_two	ag2.k:50:1
 decl	pub func	impossible	ag2_impossible	ag2.k:60:1
 inst	outcome u32	keel_outcome_u32	ag2.k:17:5
 inst	routine.slot Ag	keel_routine_slot_ag2_Ag	ag2.k:18:11
-closure	keel_outcome_keel_routine_slot_ag2_Ag	keel_slice_keel_routine_slot_ag2_Ag.at/2
+closure	keel_array_keel_routine_slot_ag2_Ag	call
+closure	keel_outcome_keel_routine_slot_ag2_Ag	keel_array_keel_routine_slot_ag2_Ag.at/2
 closure	keel_outcome_keel_slice_keel_routine_slot_ag2_Ag	keel_slice_keel_routine_slot_ag2_Ag.clone/2
 closure	keel_slice_keel_routine_slot_ag2_Ag	keel_routine_slot_ag2_Ag.seq/1
+closure	keel_slice_of_keel_array_keel_routine_slot_ag2_Ag	call function
 ilha	type	corot → keel_corot	ag2.k:10:6
 ilha	type	Ag → ag2_Ag	ag2.k:10:18
 ilha	type	corot → keel_corot	ag2.k:10:33

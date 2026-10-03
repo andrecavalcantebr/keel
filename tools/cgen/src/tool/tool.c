@@ -240,7 +240,9 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     e->ast.islands=keel_buffer_KIsland_from(CGEN_NEW(t->arena,KIsland,count+1),count+1);
     e->ast.island_text=(keel_buffer_char){.ptr=CGEN_NEW(t->arena,char,text),.len=0,.cap=text};
     e->ast.closure_text=(keel_buffer_char){.ptr=CGEN_NEW(t->arena,char,CGEN_CLOSURE_TEXT),.len=0,.cap=CGEN_CLOSURE_TEXT};
-    if(!e->ast.islands.ptr||!e->ast.island_text.ptr||!e->ast.closure_text.ptr||!k_collect_islands(&e->ast,t->diag))
+    e->ast.closure=keel_buffer_KClosure_from(CGEN_NEW(t->arena,KClosure,CGEN_CLOSURE_MAX),CGEN_CLOSURE_MAX);
+    e->ast.unavailable=keel_buffer_KUnavailable_from(CGEN_NEW(t->arena,KUnavailable,CGEN_UNAVAILABLE_MAX),CGEN_UNAVAILABLE_MAX);
+    if(!e->ast.islands.ptr||!e->ast.island_text.ptr||!e->ast.closure_text.ptr||!e->ast.closure.ptr||!e->ast.unavailable.ptr||!k_collect_islands(&e->ast,t->diag))
         return failure(t,e,K_DIAG_CAPACITY,before);
     e->module.ast=&e->ast;e->state=CGEN_DONE;*out=&e->module;
     return K_LOAD_OK;

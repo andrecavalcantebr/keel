@@ -132,7 +132,33 @@ size_t k_dump_ast(const KAst *a, const char *path, keel_slice_char output) {
         for(size_t j=0;j<use->symbol_len;j++)put_c(&o,use->symbol[j]);
         put_c(&o,'\t');put_pos(&o,a,path,use->first);
     }
-    for(size_t i=0;i<a->closure_text.len;i++)put_c(&o,a->closure_text.ptr[i]);
+    /* the closure: the entries the module did not write, then the verbs every
+       entry loses (cgen-tool §5.2) */
+    for(size_t i=0;i<a->closure.len;i++) {
+        const KClosure *e=keel_buffer_KClosure_ptr(&a->closure,i);
+        if(e->origin==K_CLOSURE_WRITTEN)continue;
+        put_s(&o,"closure\t");
+        for(size_t j=0;j<e->symbol_len;j++)put_c(&o,e->symbol[j]);
+        put_c(&o,'\t');
+        if(e->origin==K_CLOSURE_CALL)put_s(&o,e->kind==K_CLOSURE_PROTOCOL_FUNCTION?"call function":"call");
+        else {
+            const KClosure *f=keel_buffer_KClosure_ptr(&a->closure,(size_t)e->from);
+            for(size_t j=0;j<f->symbol_len;j++)put_c(&o,f->symbol[j]);
+            put_c(&o,'.');put_token(&o,e->verb);put_c(&o,'/');put_uint(&o,e->arity);
+        }
+        put_c(&o,'\n');
+    }
+    for(size_t i=0;i<a->closure.len;i++) {
+        const KClosure *e=keel_buffer_KClosure_ptr(&a->closure,i);
+        for(size_t u=0;u<e->unavailable_count;u++) {
+            const KUnavailable *v=keel_buffer_KUnavailable_ptr(&a->unavailable,e->unavailable_first+u);
+            put_s(&o,"unavailable\t");
+            for(size_t j=0;j<e->symbol_len;j++)put_c(&o,e->symbol[j]);
+            put_c(&o,'\t');put_token(&o,v->verb);put_c(&o,'/');put_uint(&o,v->arity);put_c(&o,'\t');
+            for(size_t j=0;j<v->cause_len;j++)put_c(&o,a->closure_text.ptr[v->cause_text+j]);
+            put_c(&o,'\n');
+        }
+    }
     static const char *const island_names[]={"type","name","call","ref","defer",
         "implicit-init","foreach","match","index","range-index","array","array-index","walk",
         "parallel","worker-exit","else","extent","column"};

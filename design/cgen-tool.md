@@ -473,7 +473,7 @@ ilha	<espécie>	<detalhe>	<pos>
 | `decl` | do fonte | a primeira token da declaração | espécie `func`, `var`, `constexpr`, `type`, `modifier`, `tags` ou `protocol`; o símbolo de backend §2, ou `-` para `protocol`, que não emite C |
 | `decl instance` | do fonte | a palavra `instance` | `decl	instance	<tipo como escrito>	<símbolo da instância>`: sem visibilidade, porque `instance` não declara nome (spec §4.3, regra 19); `-` quando o tipo não nomeia instância |
 | `inst` | do primeiro uso | a palavra do modificador, no primeiro uso | o modificador e os argumentos como escritos, separados por um espaço. Só as instâncias que o módulo escreve; as que o fecho acrescenta saem em `closure` |
-| `closure` | pelo símbolo (codegen §9) | — | cada instância que o fecho sobre os verbos do genérico acrescenta às de `inst` (parser §5, codegen §7.3), e o verbo disponível que a mencionou primeiro, na instância que o declara |
+| `closure` | pelo símbolo (codegen §9) | — | cada instância que o fecho acrescenta às de `inst` (parser §5, codegen §7.3), com a origem: `<instância>.<verbo>/<aridade>`, o verbo disponível que a mencionou primeiro; `call`, uma instância que uma chamada toma sem que o módulo a escreva (`keel.array` sobre um tipo de elemento); `call function`, a instância de uma função sobre protocolo para um tipo concreto (backend §5.19), uma por tipo, sem a aridade |
 | `unavailable` | as de `inst`, depois as de `closure`; os verbos na ordem do genérico | — | cada verbo que a instância não mantém (spec §4.3, regras 11 a 13), com a causa: `void-param <parâmetro>`, `void-field <campo>`, `const-write <campo>`, ou `calls <instância>.<verbo>/<aridade>` quando a indisponibilidade veio por chamada |
 | `ilha` | do fonte, pela posição | ver abaixo | ver abaixo |
 

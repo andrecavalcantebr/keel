@@ -9,6 +9,8 @@
 #include "keel/keel_buffer_KAstNode.h"
 #include "keel/keel_buffer_KInstanceUse.h"
 #include "keel/keel_buffer_KIsland.h"
+#include "keel/keel_buffer_KClosure.h"
+#include "keel/keel_buffer_KUnavailable.h"
 #include "keel/keel_buffer_char.h"
 
 typedef struct KAst {
@@ -21,7 +23,9 @@ typedef struct KAst {
     keel_buffer_KInstanceUse instances;
     keel_buffer_KIsland islands;   /* pass 3, sorted by anchor */
     keel_buffer_char island_text;  /* the islands' detail columns */
-    keel_buffer_char closure_text; /* the closure's dump lines (stage 4i) */
+    keel_buffer_KClosure closure;      /* the closed set of instances (stage 4i) */
+    keel_buffer_KUnavailable unavailable;  /* the verbs each of them loses */
+    keel_buffer_char closure_text; /* the closure's strings: arguments, causes */
 } KAst;
 
 /* Both passes return the required count. A NULL/zero output only counts. */

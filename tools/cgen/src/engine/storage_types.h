@@ -66,6 +66,37 @@ typedef struct KInstanceUse {
     size_t symbol_len;
 } KInstanceUse;
 
+/* The closed set of instances (parser-design §5, codegen §7.3): what the
+ * module writes, what its calls take (`keel.array`, functions over a
+ * protocol), and what the available verbs of those bring, until nothing new
+ * appears. Strings (the arguments' symbols, the causes) live in
+ * KAst.closure_text, by offset and length. */
+#define K_CLOSURE_ARGS 4
+typedef enum { K_CLOSURE_WRITTEN, K_CLOSURE_CALL, K_CLOSURE_VERB } KClosureOrigin;
+typedef enum { K_CLOSURE_INSTANCE, K_CLOSURE_PROTOCOL_FUNCTION } KClosureKind;
+typedef struct KClosure {
+    KClosureKind kind;
+    char symbol[K_INSTANCE_NAME_CAP];
+    size_t symbol_len;
+    const struct KModule *module;       /* the generic module; the protocol's module for a function */
+    keel_slice_char modifier;           /* the modifier's name, empty for a module of verbs */
+    size_t argc;
+    size_t arg_text[K_CLOSURE_ARGS], arg_len[K_CLOSURE_ARGS];   /* each argument's C symbol */
+    int arg_instance[K_CLOSURE_ARGS];   /* the closure entry of an argument that is an instance, or -1 */
+    KClosureOrigin origin;
+    int from;                           /* K_CLOSURE_VERB: the entry whose verb brought it */
+    keel_slice_char verb;               /* that verb, as its module spells it */
+    size_t arity;
+    size_t unavailable_first, unavailable_count;   /* in KAst.unavailable */
+} KClosure;
+
+/* a verb an instance does not keep (spec §4.3, rules 11 to 13) */
+typedef struct KUnavailable {
+    keel_slice_char verb;
+    size_t arity;
+    size_t cause_text, cause_len;       /* in KAst.closure_text */
+} KUnavailable;
+
 /* Islands (parser-design §2.3, cgen-tool §5.2): what pass 3 recognizes in
  * signatures and bodies. The detail column lives in KAst.island_text
  * (`text`, `text_len`), already formatted the way the dump prints it. */

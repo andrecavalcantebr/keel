@@ -675,6 +675,15 @@ static void kt_set_symbol(KType *k, const char *s, size_t n) {
 /* the module's own AST; the file being read has no KModule yet */
 static const KAst *ast_of(const Ctx *c, const KModule *m) { return m && m->ast ? m->ast : c->ast; }
 
+/* the module whose retained tree is `home`, through the file's table */
+static const KModule *ast_module(const Ctx *c, const KAst *home) {
+    for (size_t i = 0; i < c->ast->symbols->len; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(c->ast->symbols, i);
+        if (s->kind == K_SYM_MODULE && s->origin && s->origin->ast == home) return s->origin;
+    }
+    return NULL;
+}
+
 /* the C symbol of a modifier's instance: the modifier's name and its arguments' */
 static void kt_compose(Ctx *c, int t, const KSymbol *modifier) {
     KType *k = kt(c, t);
@@ -1046,6 +1055,8 @@ static bool first_arg(const KAst *a, size_t open, Range *out) {
 }
 
 static int type_of(Ctx *c, Range r);
+static void record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module);
+static const KModule *ast_module(const Ctx *c, const KAst *home);
 static keel_slice_char alias_of(const KSymbolTable *symbols, const KModule *m);
 static bool tags_decl(const KAst *where, keel_slice_char name, KTagsDecl *out);
 static bool tag_of_some_set(const KAst *where, keel_slice_char name);
@@ -1513,6 +1524,28 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             if (inst < 0 || kt(c, inst)->module != module) return -1;
         }
         if (inst < 0 || kt(c, inst)->kind != KT_MODIFIER) return -1;
+        {
+            /* the instance the call takes, for the closure */
+            Text own = { .ok = true };
+            if (*kt(c, inst)->symbol) put_str(&own, kt(c, inst)->symbol);
+            else module_instance_prefix(c, home, inst, &own);
+            if (own.ok && own.n < K_SYMBOL_MAX) {
+                own.s[own.n] = 0;
+                record_seed(c, inst, own.s, K_CLOSURE_INSTANCE, module);
+                if (proto_of) {
+                    Text fn = { .ok = true };
+                    put_module_prefix(&fn, proto_home);
+                    put_str(&fn, "_");
+                    put(&fn, name.ptr, name.len);
+                    put_str(&fn, "_");
+                    put(&fn, own.s, own.n);
+                    if (fn.ok && fn.n < K_SYMBOL_MAX) {
+                        fn.s[fn.n] = 0;
+                        record_seed(c, -1, fn.s, K_CLOSURE_PROTOCOL_FUNCTION, ast_module(c, proto_home));
+                    }
+                }
+            }
+        }
         if (proto_of) {
             /* keel_slice_of<arity>_<concrete type> (backend §5.19): the concrete
                type's canonical name is the prefix its own verbs carry */
@@ -3488,41 +3521,95 @@ static int kt_deep(Ctx *c, const KType *nodes, int t) {
 
 #define K_CLOSURE_MAX 64
 
-static void put_line(Ctx *c, const Text *t) {
+
+/* ---- seeds from calls ---------------------------------------------------- */
+
+/* The instances the calls of the module take without writing them: a verb of
+   `keel.array` over an element type, and a function over a protocol for a
+   concrete type (spec §4.4, §4.14). Kept as flat type trees, outside the
+   pool, until the closure (one translation at a time). */
+#define K_SEED_MAX 48
+static KType seed_nodes[K_SEED_MAX * 6];
+static size_t seed_node_count;
+static struct { int root; KClosureKind kind; char symbol[K_SYMBOL_MAX]; const KModule *module; } seeds[K_SEED_MAX];
+static size_t seed_count;
+
+static int seed_copy(Ctx *c, int t) {
+    if (t < 0 || seed_node_count == sizeof seed_nodes / sizeof *seed_nodes) return -1;
+    int at = (int)seed_node_count++;
+    seed_nodes[at] = c->types[t];
+    if (c->types[t].kind == KT_MODIFIER)
+        for (int i = 0; i < c->types[t].argc; i++) seed_nodes[at].arg[i] = seed_copy(c, c->types[t].arg[i]);
+    if (c->types[t].kind == KT_ARRAY) seed_nodes[at].elem = seed_copy(c, c->types[t].elem);
+    return at;
+}
+
+static void record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module) {
+    if (c->quiet || !*symbol) return;
+    for (size_t k = 0; k < seed_count; k++) if (!strcmp(seeds[k].symbol, symbol)) return;
+    if (seed_count == K_SEED_MAX) return;
+    int root = kind == K_CLOSURE_INSTANCE ? seed_copy(c, t) : -1;
+    if (kind == K_CLOSURE_INSTANCE && root < 0) return;
+    seeds[seed_count].root = root;
+    seeds[seed_count].kind = kind;
+    seeds[seed_count].module = module;
+    strncpy(seeds[seed_count].symbol, symbol, K_SYMBOL_MAX - 1);
+    seeds[seed_count].symbol[K_SYMBOL_MAX - 1] = 0;
+    seed_count++;
+}
+
+/* a string into the closure's pool */
+static bool pool(Ctx *c, const char *p, size_t n, size_t *at) {
     KAst *a = c->ast;
-    if (!t->ok || t->n + 1 > a->closure_text.cap - a->closure_text.len) {
+    if (n > a->closure_text.cap - a->closure_text.len) {
         if (!c->failed) {
-            KToken at = tok(a, a->module);
-            k_diag_emit(c->diag, K_DIAG_CAPACITY, at, (KDiagArgs){{at}});
+            KToken t = tok(a, a->module);
+            k_diag_emit(c->diag, K_DIAG_CAPACITY, t, (KDiagArgs){{ t }});
             c->failed = true;
         }
-        return;
+        return false;
     }
-    memcpy(a->closure_text.ptr + a->closure_text.len, t->s, t->n);
-    a->closure_text.len += t->n;
-    a->closure_text.ptr[a->closure_text.len++] = '\n';
+    *at = a->closure_text.len;
+    memcpy(a->closure_text.ptr + a->closure_text.len, p, n);
+    a->closure_text.len += n;
+    return true;
 }
 
 /* Parser §5, codegen §7.3: an instance comes out whole, so the instances its
    available verbs mention come with it, until nothing new appears. The seeds
-   are the instances the module writes (`inst`); the dump prints the ones the
-   closure adds, sorted by symbol (codegen §9), and the verbs each instance
-   loses, with the cause (cgen-tool §5.2). */
+   are the instances the module writes (`inst`) and the ones its calls take;
+   the result is KAst.closure, with the verbs each instance loses in
+   KAst.unavailable (cgen-tool §5.2 prints them). */
 static void close_instances(Ctx *c) {
     KAst *a = c->ast;
     c->type_count = 0;
     c->nest = 1;                            /* no resolution resets the pool under the closure */
     int inst[K_CLOSURE_MAX];
-    char origin[K_CLOSURE_MAX][K_SYMBOL_MAX + 64];
-    size_t count = 0, direct = 0;
+    int from[K_CLOSURE_MAX];
+    KClosureOrigin origin[K_CLOSURE_MAX];
+    keel_slice_char verb[K_CLOSURE_MAX];
+    size_t arity[K_CLOSURE_MAX];
+    size_t count = 0;
     for (size_t i = 0; i < a->instances.len && count < K_CLOSURE_MAX; i++) {
         const KInstanceUse *u = keel_buffer_KInstanceUse_ptr(&a->instances, i);
         int t = kt_from_text(c, a->symbols, range_text(a, (Range){ u->first, u->end }));
         if (t < 0 || kt(c, t)->kind != KT_MODIFIER || !*kt(c, t)->symbol) continue;
         inst[count] = t;
-        origin[count++][0] = 0;
+        origin[count] = K_CLOSURE_WRITTEN;
+        from[count++] = -1;
     }
-    direct = count;
+    for (size_t k = 0; k < seed_count && count < K_CLOSURE_MAX; k++) {
+        if (seeds[k].kind != K_CLOSURE_INSTANCE) continue;
+        bool known = false;
+        for (size_t e = 0; e < count; e++) if (!strcmp(kt(c, inst[e])->symbol, seeds[k].symbol)) known = true;
+        if (known) continue;
+        int t = kt_deep(c, seed_nodes, seeds[k].root);
+        if (t < 0) break;
+        kt_set_symbol(kt(c, t), seeds[k].symbol, strlen(seeds[k].symbol));
+        inst[count] = t;
+        origin[count] = K_CLOSURE_CALL;
+        from[count++] = -1;
+    }
     for (size_t q = 0; q < count && !c->failed; q++) {
         const KType *k = kt(c, inst[q]);
         const KAst *home = k->module ? ast_of(c, k->module) : NULL;
@@ -3576,61 +3663,83 @@ static void close_instances(Ctx *c) {
             for (size_t e = 0; e < nr; e++) {
                 int t = kt_deep(c, scratch, roots[e]);
                 if (t < 0) break;
-                Text o = { .ok = true };
-                put_str(&o, k->symbol);
-                put_str(&o, ".");
-                put(&o, tok(home, fn->name_first).ptr, tok(home, fn->name_first).len);
-                put_str(&o, "/");
-                put_uint(&o, np);
-                size_t len = o.n < sizeof origin[0] - 1 ? o.n : sizeof origin[0] - 1;
-                memcpy(origin[count], o.s, len);
-                origin[count][len] = 0;
+                origin[count] = K_CLOSURE_VERB;
+                from[count] = (int)q;
+                verb[count] = tok(home, fn->name_first);
+                arity[count] = np;
                 inst[count++] = t;
             }
         }
     }
-    /* closure lines, by symbol */
-    size_t order[K_CLOSURE_MAX], n = 0;
-    for (size_t q = direct; q < count; q++) order[n++] = q;
-    for (size_t x = 1; x < n; x++)
-        for (size_t y = x; y > 0 && strcmp(kt(c, inst[order[y - 1]])->symbol, kt(c, inst[order[y]])->symbol) > 0; y--) {
+    /* the entries: the written ones in their order, then the others by symbol */
+    size_t order[K_CLOSURE_MAX], n = 0, written = 0;
+    for (size_t q = 0; q < count; q++) if (origin[q] == K_CLOSURE_WRITTEN) order[n++] = q;
+    written = n;
+    for (size_t q = 0; q < count; q++) if (origin[q] != K_CLOSURE_WRITTEN) order[n++] = q;
+    for (size_t x = written + 1; x < n; x++)
+        for (size_t y = x; y > written && strcmp(kt(c, inst[order[y - 1]])->symbol, kt(c, inst[order[y]])->symbol) > 0; y--) {
             size_t tmp = order[y]; order[y] = order[y - 1]; order[y - 1] = tmp;
         }
-    for (size_t x = 0; x < n; x++) {
-        Text line = { .ok = true };
-        put_str(&line, "closure\t");
-        put_str(&line, kt(c, inst[order[x]])->symbol);
-        put_str(&line, "\t");
-        put_str(&line, origin[order[x]]);
-        put_line(c, &line);
-    }
-    /* the verbs each instance loses: the written ones first, then the closure */
-    size_t all[K_CLOSURE_MAX], na = 0;
-    for (size_t q = 0; q < direct; q++) all[na++] = q;
-    for (size_t x = 0; x < n; x++) all[na++] = order[x];
-    for (size_t x = 0; x < na; x++) {
-        const KType *k = kt(c, inst[all[x]]);
+    int slot[K_CLOSURE_MAX];
+    for (size_t x = 0; x < n; x++) slot[order[x]] = (int)x;
+    a->closure.len = 0;
+    a->unavailable.len = 0;
+    for (size_t x = 0; x < n && !c->failed; x++) {
+        size_t q = order[x];
+        const KType *k = kt(c, inst[q]);
+        if (a->closure.len == a->closure.cap) {
+            KToken t = tok(a, a->module);
+            k_diag_emit(c->diag, K_DIAG_CAPACITY, t, (KDiagArgs){{ t }});
+            c->failed = true;
+            break;
+        }
+        KClosure e = { .kind = K_CLOSURE_INSTANCE, .module = k->module, .modifier = k->name, .origin = origin[q],
+                       .from = from[q] >= 0 ? slot[from[q]] : -1, .verb = origin[q] == K_CLOSURE_VERB ? verb[q] : (keel_slice_char){0},
+                       .arity = origin[q] == K_CLOSURE_VERB ? arity[q] : 0 };
+        e.symbol_len = strlen(k->symbol);
+        memcpy(e.symbol, k->symbol, e.symbol_len);
+        for (int g = 0; g < k->argc && g < K_CLOSURE_ARGS; g++) {
+            const char *sym = kt_symbol(c, k->arg[g]);
+            e.arg_instance[e.argc] = -1;
+            for (size_t o = 0; o < count; o++) if (!strcmp(kt(c, inst[o])->symbol, sym) && *sym) e.arg_instance[e.argc] = slot[o];
+            if (!pool(c, sym, strlen(sym), &e.arg_text[e.argc])) break;
+            e.arg_len[e.argc++] = strlen(sym);
+        }
+        /* the verbs the instance loses */
+        e.unavailable_first = a->unavailable.len;
         const KAst *home = k->module ? ast_of(c, k->module) : NULL;
-        if (!home || home == a) continue;
-        for (size_t i = 0; i < home->nodes.len; i++) {
+        for (size_t i = 0; home && home != a && i < home->nodes.len; i++) {
             const KAstNode *fn = node_at(home, i);
             if (fn->kind != K_AST_FUNCTION) continue;
             Param p[K_PARAMS_MAX];
             size_t np = params_of(home, fn, p, K_PARAMS_MAX);
             if (np == SIZE_MAX || (np && p[0].is_protocol)) continue;
             const char *cause = NULL;
-            if (verb_available(c, home, fn, inst[all[x]], &cause)) continue;
-            Text line = { .ok = true };
-            put_str(&line, "unavailable\t");
-            put_str(&line, k->symbol);
-            put_str(&line, "\t");
-            put(&line, tok(home, fn->name_first).ptr, tok(home, fn->name_first).len);
-            put_str(&line, "/");
-            put_uint(&line, np);
-            put_str(&line, "\t");
-            put_str(&line, cause ? cause : "");
-            put_line(c, &line);
+            if (verb_available(c, home, fn, inst[q], &cause)) continue;
+            if (a->unavailable.len == a->unavailable.cap) break;
+            KUnavailable u = { .verb = tok(home, fn->name_first), .arity = np };
+            if (!pool(c, cause ? cause : "", cause ? strlen(cause) : 0, &u.cause_text)) break;
+            u.cause_len = cause ? strlen(cause) : 0;
+            *keel_buffer_KUnavailable_ptr(&a->unavailable, a->unavailable.len++) = u;
         }
+        e.unavailable_count = a->unavailable.len - e.unavailable_first;
+        *keel_buffer_KClosure_ptr(&a->closure, a->closure.len++) = e;
+    }
+    /* the functions over a protocol the calls take, one per concrete type,
+       by symbol (codegen §9) */
+    size_t fns[K_SEED_MAX], nfn = 0;
+    for (size_t k = 0; k < seed_count; k++) if (seeds[k].kind == K_CLOSURE_PROTOCOL_FUNCTION) fns[nfn++] = k;
+    for (size_t x = 1; x < nfn; x++)
+        for (size_t y = x; y > 0 && strcmp(seeds[fns[y - 1]].symbol, seeds[fns[y]].symbol) > 0; y--) {
+            size_t tmp = fns[y]; fns[y] = fns[y - 1]; fns[y - 1] = tmp;
+        }
+    for (size_t f = 0; f < nfn && !c->failed; f++) {
+        size_t k = fns[f];
+        if (a->closure.len == a->closure.cap) continue;
+        KClosure e = { .kind = K_CLOSURE_PROTOCOL_FUNCTION, .module = seeds[k].module, .origin = K_CLOSURE_CALL, .from = -1 };
+        e.symbol_len = strlen(seeds[k].symbol);
+        memcpy(e.symbol, seeds[k].symbol, e.symbol_len);
+        *keel_buffer_KClosure_ptr(&a->closure, a->closure.len++) = e;
     }
     c->nest = 0;
 }
@@ -4524,6 +4633,9 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     a->islands.len = 0;
     a->island_text.len = 0;
     a->closure_text.len = 0;
+    a->closure.len = 0;
+    a->unavailable.len = 0;
+    seed_count = seed_node_count = 0;
     if (!a->symbols) return true;
     static Surface surface[K_SURFACE_MAX];
     Ctx ctx = { .ast = a, .diag = diag, .surface = surface };

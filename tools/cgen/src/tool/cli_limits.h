@@ -17,6 +17,13 @@
 #ifndef CGEN_CLOSURE_TEXT
 #define CGEN_CLOSURE_TEXT 65536
 #endif
+/* entries of the closure of instances, and verbs they lose, per module */
+#ifndef CGEN_CLOSURE_MAX
+#define CGEN_CLOSURE_MAX 128
+#endif
+#ifndef CGEN_UNAVAILABLE_MAX
+#define CGEN_UNAVAILABLE_MAX 512
+#endif
 #ifndef CGEN_ISLAND_TEXT_BASE
 #define CGEN_ISLAND_TEXT_BASE 1024
 #endif

@@ -325,10 +325,14 @@ No dump, `closure` lista as instâncias acrescentadas, com o verbo que as trouxe
 e `unavailable` os verbos perdidos, com a causa. Uma chamada reconhecida a verbo
 perdido é `verb-not-in-instance`, com a causa na mensagem.
 
-Ainda não: o conjunto fechado fica só no texto do dump (`closure_text`); o
-emissor vai precisar dele como dado. As instâncias de `keel.array` e as de
-função sobre protocolo (`keel_slice_of_keel_array_i32`) nascem das chamadas, e
-não de `inst`: não são sementes do fecho ainda.
+O conjunto fechado é dado: `KAst.closure` (`KClosure`: símbolo, módulo,
+modificador, argumentos com o símbolo de cada um e a entrada do fecho quando
+o argumento é instância, origem) e `KAst.unavailable` (`KUnavailable`: verbo,
+aridade, causa), com as cadeias em `closure_text`. As chamadas também semeiam o
+fecho: um verbo de `keel.array` sobre um tipo de elemento (`keel_array_i32`) e
+uma função sobre protocolo para um tipo concreto
+(`keel_slice_of_keel_array_i32`, uma por tipo). Os golden 010 e 025 dão
+exatamente os headers de instância dos esperados.
 
 ## Diagnósticos das passagens 1 a 3 (2026-10-02)
 

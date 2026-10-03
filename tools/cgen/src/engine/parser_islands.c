@@ -3669,10 +3669,101 @@ static void instance_decl(Ctx *c, const KAstNode *n) {
    parameter and no modifier belongs to the module and is emitted once, so it
    is a type, a `constexpr` or an `inline` function — never one out of line
    nor a variable (nonparametric-out-of-line). */
+static bool own_modifier(const KAst *a, size_t j) {
+    if (!ident(a, j)) return false;
+    for (size_t k = 0; k < a->nodes.len; k++) {
+        const KAstNode *d = node_at(a, k);
+        if (d->kind == K_AST_MODIFIER && k_symtab_same_name(tok(a, j), tok(a, d->name_first))) return true;
+    }
+    return false;
+}
+
+static bool type_binder(const KAst *a, KToken t) {
+    const KAstNode *m = module_node(a);
+    for (size_t k = m->type_first; k < m->type_end; k++) if (ident(a, k) && k_symtab_same_name(tok(a, k), t)) return true;
+    return false;
+}
+
+/* Spec §4.3, rule 7: inside the generic, a value of a parameter type, or a
+   pointer to one, takes no keel construction — it is opaque until the
+   substitution (protocol-on-parameter). */
+static void check_opaque(Ctx *c, const KAstNode *fn) {
+    KAst *a = c->ast;
+    keel_slice_char none = {0};
+    if (fn->body_first == SIZE_MAX) return;
+    keel_slice_char names[32];
+    size_t nn = 0;
+    Param p[K_PARAMS_MAX];
+    size_t np = params_of(a, fn, p, K_PARAMS_MAX);
+    for (size_t k = 0; np != SIZE_MAX && k < np && nn < 32; k++) {
+        Range r = param_type(a, &p[k]);
+        if (!p[k].is_type && r.end == r.first + 1 && type_binder(a, tok(a, r.first)) && ident(a, p[k].end - 1))
+            names[nn++] = tok(a, p[k].end - 1);
+    }
+    for (size_t j = fn->body_first; j + 1 < fn->body_end && nn < 32; j++) {
+        if (!type_binder(a, tok(a, j)) || !(punct(a, j - 1, ";") || punct(a, j - 1, "{") || punct(a, j - 1, "}") ||
+                                            punct(a, j - 1, "(")))
+            continue;
+        size_t d = j + 1;
+        while (punct(a, d, "*")) d++;
+        if (ident(a, d)) names[nn++] = tok(a, d);
+    }
+    if (!nn) return;
+    for (size_t j = fn->body_first; j < fn->body_end; j++) {
+        const char *what = NULL;
+        size_t at = j, x = SIZE_MAX;
+        if ((word(a, j, "foreach") || word(a, j, "walk")) && punct(a, j + 1, "(")) {
+            size_t close = close_paren(a, j + 1, fn->body_end);
+            if (close != SIZE_MAX && punct(a, close - 2, ":")) { x = close - 1; what = word(a, j, "foreach") ? "foreach" : "walk"; }
+        } else if (word(a, j, "match") && punct(a, j + 1, "(") && punct(a, j + 3, ")")) {
+            x = j + 2; what = "match";
+        } else if (ident(a, j) && punct(a, j + 1, "[")) {
+            size_t close = close_bracket(a, j + 1, fn->body_end);
+            for (size_t k = j + 2; close != SIZE_MAX && k < close; k++) if (punct(a, k, "..")) { x = j; what = "range-index"; }
+        } else if (ident(a, j) && punct(a, j + 1, ".") && ident(a, j + 2) && punct(a, j + 3, "(") &&
+                   module_alias(a->symbols, tok(a, j))) {
+            size_t arg = j + 4;
+            while (punct(a, arg, "&") || punct(a, arg, "*")) arg++;
+            if (punct(a, arg + 1, ",") || punct(a, arg + 1, ")")) { x = arg; what = "qualified call"; }
+        } else if (word(a, j, "else") && !punct(a, j - 1, ";") && !punct(a, j - 1, "}")) {
+            for (size_t k = j; k > fn->body_first && !punct(a, k - 1, ";") && !punct(a, k - 1, "{"); k--)
+                if (punct(a, k, "=") && ident(a, k - 1)) { x = k - 1; what = "else"; break; }
+        }
+        if (x == SIZE_MAX || !ident(a, x)) continue;
+        for (size_t k = 0; k < nn; k++)
+            if (k_symtab_same_name(names[k], tok(a, x))) {
+                diag3(c, K_DIAG_PROTOCOL_ON_PARAMETER, tok(a, at), k_diag_text(what), tok(a, x), none);
+                break;
+            }
+    }
+}
+
 static void check_generic(Ctx *c) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
     const KAstNode *m = module_node(a);
+    /* the module instantiating itself without end: its own modifier applied
+       over its own modifier, `stack stack T`, in a signature or a field
+       (circular-generic) */
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (n->kind != K_AST_FUNCTION && n->kind != K_AST_MODIFIER) continue;
+        size_t end = n->kind == K_AST_FUNCTION && n->body_first != SIZE_MAX ? n->body_first : n->end;
+        size_t from = n->kind == K_AST_MODIFIER ? n->name_end : n->first;
+        for (size_t j = from; j + 1 < end; j++)
+            if (own_modifier(a, j) && own_modifier(a, j + 1)) {
+                Text chain = { .ok = true };
+                put_range(&chain, a, j, j + 2);
+                put_str(&chain, " needs ");
+                put(&chain, tok(a, j).ptr, tok(a, j).len);
+                put_str(&chain, " ");
+                put_range(&chain, a, j, j + 2);
+                put_str(&chain, ", and so on");
+                diag3(c, K_DIAG_CIRCULAR_GENERIC, tok(a, j), keep(c, &chain), none, none);
+                break;
+            }
+        if (n->kind == K_AST_FUNCTION) check_opaque(c, n);
+    }
     for (size_t i = 0; i < a->nodes.len; i++) {
         const KAstNode *n = node_at(a, i);
         if (!((n->kind == K_AST_FUNCTION && !n->is_inline) || n->kind == K_AST_VARIABLE)) continue;
@@ -4274,6 +4365,89 @@ static void check_jumps(Ctx *c, const KAstNode *fn) {
     }
 }
 
+/* ---- layout (backend §4.3.1) ------------------------------------------- */
+
+/* whether a modifier of `home` holds a field of binder `b` by value */
+static bool binder_by_value(const KAst *home, keel_slice_char b) {
+    for (size_t i = 0; i < home->nodes.len; i++) {
+        const KAstNode *m = node_at(home, i);
+        if (m->kind != K_AST_MODIFIER || m->body_first == SIZE_MAX) continue;
+        for (size_t j = m->body_first; j + 1 < m->body_end; j++)
+            if (k_symtab_same_name(tok(home, j), b) && ident(home, j + 1) &&
+                (j == m->body_first || punct(home, j - 1, ";") || punct(home, j - 1, "{")))
+                return true;
+    }
+    return false;
+}
+
+/* whether the type written as `text` holds `target` by value, through the
+   fields by value of the modifiers it applies */
+static bool holds(const KAst *a, keel_slice_char text, keel_slice_char target, Text *chain, int depth) {
+    if (depth > 8) return false;
+    KLexer lexer;
+    TKPpKind pp;
+    KSpecifier spec;
+    KToken next = {0};
+    KToken first = enter_text(text, &lexer, &pp);
+    if (k_token_spelled(first, "struct")) first = k_lexer_next(&lexer, &pp);
+    if (!first.len || !k_token_is_ident(first)) return false;
+    if (!k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) || spec.kind == K_SPEC_NONE)
+        return k_symtab_same_name(first, target);
+    if (spec.kind == K_SPEC_NAMED_TYPE) return k_symtab_same_name(spec.type_name, target);
+    const KSymbol *m = k_symbol_resolve(a->symbols, spec.modifier_name);
+    const KAst *home = m && m->origin ? m->origin->ast : NULL;
+    if (!home) return false;
+    keel_slice_char binders[8];
+    size_t nb = binders_of(home, binders);
+    for (size_t k = 0; k < nb && k < spec.arg_count; k++)
+        if (binder_by_value(home, binders[k]) && holds(a, spec.args[k], target, chain, depth + 1)) {
+            put_str(chain, " \xe2\x86\x92 ");
+            put(chain, spec.text.ptr, spec.text.len);
+            return true;
+        }
+    return false;
+}
+
+/* a struct of the file that holds itself by value through an instance of a
+   modifier: a type of infinite size (layout-cycle) */
+static void check_layout(Ctx *c) {
+    KAst *a = c->ast;
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        const KAstNode *n = node_at(a, i);
+        if (n->kind != K_AST_TYPE || n->body_first == SIZE_MAX || n->name_first == n->name_end) continue;
+        KToken self = tok(a, n->name_first);
+        for (size_t f = n->body_first; f < n->body_end; ) {
+            size_t e = f, depth = 0;
+            while (e < n->body_end && !(depth == 0 && punct(a, e, ";"))) {
+                if (punct(a, e, "(") || punct(a, e, "[") || punct(a, e, "{")) depth++;
+                else if (punct(a, e, ")") || punct(a, e, "]") || punct(a, e, "}")) depth--;
+                e++;
+            }
+            size_t start = f;
+            if (punct(a, start, "{")) start++;
+            KLexer lexer;
+            TKPpKind pp;
+            KSpecifier spec;
+            KToken next = {0};
+            KToken first = start < e ? enter(a, start, &lexer, &pp) : (KToken){0};
+            if (first.len && k_token_is_ident(first) &&
+                k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind == K_SPEC_MODIFIER &&
+                !k_token_is_punct(next, "*")) {
+                Text chain = { .ok = true };
+                if (holds(a, spec.text, self, &chain, 0)) {
+                    Text all = { .ok = true };
+                    put(&all, self.ptr, self.len);
+                    put(&all, chain.s, chain.n);
+                    put_str(&all, " \xe2\x86\x92 ");
+                    put(&all, self.ptr, self.len);
+                    diag3(c, K_DIAG_LAYOUT_CYCLE, first, keep(c, &all), (keel_slice_char){0}, (keel_slice_char){0});
+                }
+            }
+            f = e + 1;
+        }
+    }
+}
+
 /* ---- extern_c and main (spec §4.1) ------------------------------------ */
 
 /* `priv extern_c [type_h]` asks for the interface and the implementation at
@@ -4362,6 +4536,7 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     }
     check_collisions(&ctx);
     check_alias_types(&ctx);
+    check_layout(&ctx);
     for (size_t i = 0; i < a->nodes.len; i++) {
         const KAstNode *n = node_at(a, i);
         if (n->kind == K_AST_INSTANCE) instance_decl(&ctx, n);

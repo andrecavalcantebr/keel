@@ -39,3 +39,5 @@ typeparams2 sel.k
 arrays2 b.k
 injected j.k
 misc3 m.k
+generic2 coll.k
+layout l.k

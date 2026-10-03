@@ -240,6 +240,12 @@ static const char *const messages[K_DIAG_COUNT] = {
         "the name `%s` is not the last token of its declarator, and keel has to rebuild the declaration here: name the type with a `typedef`",
     [K_DIAG_ASSOCIATED_TYPE_CONFLICT] =
         "the associated type `%s` binds to `%s` through one verb and to `%s` through another: it binds once",
+    [K_DIAG_CIRCULAR_GENERIC] =
+        "the module instantiates itself without end: %s",
+    [K_DIAG_PROTOCOL_ON_PARAMETER] =
+        "`%s` over `%s`, whose type is a parameter of the module: inside the generic that type is opaque, and takes no keel construction",
+    [K_DIAG_LAYOUT_CYCLE] =
+        "the type holds itself by value, through an instance: %s; hold it by pointer somewhere in the chain",
     [K_DIAG_PROTOCOL_NOT_SATISFIED] =
         "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)",
     [K_DIAG_NONCONSTANT_DIM_INDEX] =

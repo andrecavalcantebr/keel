@@ -1632,6 +1632,68 @@ C, incluindo genéricos, aliases, tipos nus, conflitos, dependências e emissão
 única. Esta entrada não altera a spec, o backend nem o escopo atual do
 compilador.
 
+### Intervalo inclusivo: `a..<b` e `a..=b` (2026-10-07)
+
+**Estado: a decidir se vale a pena.** Hoje `a..b` é meio-aberto, `[a, b)`, e
+continua sendo o padrão (spec §4.5, §5.3). O que segue é uma solução pronta, para
+o caso de o intervalo inclusivo se justificar; nada disso altera a spec, o
+backend nem o cgen.
+
+**Origem.** Outra abordagem de keel usa `a..<b` e `a..=b`, porque lá a
+ferramenta atua depois do preprocessador e `0..N`, com `N` macro, não expande.
+Em keel isso não pesa: a ferramenta atua antes do preprocessador, `N` chega como
+região C opaca e sai como está. O que resta é só distinguir inclusivo de
+exclusivo.
+
+**Notação.** O marcador só é exigido onde há limite superior explícito:
+
+| Notação | Significado |
+| --- | --- |
+| `[a..<b]` | de `a` até antes de `b` |
+| `[a..=b]` | de `a` até `b`, inclusive |
+| `[a..]` | de `a` até o fim |
+| `[..<b]` | do início até antes de `b` |
+| `[..=b]` | do início até `b`, inclusive |
+| `[..]` | todo o contêiner |
+
+`a..b` sem marcador passa a ser erro (diagnóstico próprio, por exemplo
+`range-bound-unmarked`, sugerindo `..<` ou `..=`). Assumir limite aberto por
+omissão obrigaria a pôr espaço em `a.. N` quando `N` é macro; o erro evita isso, e
+os espaços passam a ser só estilo.
+
+**Sem mudança no lexer.** `..`, `<` e `=` já são tokens distintos: o
+`k_lexer_scan_number` para antes de `..` (por isso `0..<N` não vira pp-number), e
+`..` já está na tabela de pontuação. Quem junta `..` com o marcador é o parser,
+e `a..<b`, `a.. <b`, `a ..<b`, `a .. < b` e as variantes com `=` são a mesma
+coisa. A regra é inequívoca: depois de `..` só vêm `]`, `)`, `,` ou `;` (limite
+aberto) ou `<` / `=` (marcador). `a..<=b` o lexer separa em `..` e `<=`, e o
+parser rejeita, sem ler como `..<` seguido de `=b`.
+
+**Emissão do inclusivo.** `a..=b` vira limite exclusivo `(b)+1`, com verificação
+em debug de que `b` não é o máximo de `size_t`:
+
+```c
+assert(b != SIZE_MAX);   /* debug only */
+limit = (b) + 1;
+```
+
+Os parênteses são obrigatórios, porque `b` é uma expressão C opaca. Em `x[a..=b]`
+sai `as_slice(x, a, (b)+1)`; no literal, `range.of(a, (b)+1)`; no `foreach`, o
+limite já somado. O `range` continua guardando `limit` exclusivo, e a spec
+precisaria dizer que o intervalo inclusivo completo não é representável.
+
+**Custo da migração, se adotada.** `a..b` aparece em cerca de 45 arquivos: a
+spec (30 ocorrências), o backend, o rationale, este documento, o `base/keel/range.k`
+e o `array.k`, os golden (`004`, `005`, `008`, `012`, `013`, `025`), os testes do
+cgen e o `parser_islands.c`. Os perfis c11 e c23 do golden são escritos à mão.
+
+**Alternativa sem sintaxe.** Um verbo, `range.through(a, b)`, com o mesmo
+`(b)+1` por dentro. Não toca o parser, mas perde `x[a..=b]`.
+
+**Critério para decidir.** Retomar quando aparecer um uso concreto de intervalo
+inclusivo, em exemplos reais de Tensor ou da base, cuja alternativa em C
+(`for (i = a; i <= b; i++)`, ou `a..b+1`) fique pior de ler ou de manter.
+
 ---
 
 ## 3. Leituras e digressões

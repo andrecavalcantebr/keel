@@ -6,5 +6,5 @@
 - [ideias pendentes: soa e cooperativo](ideias-pendentes-soa-e-cooperativo.md) — soa struct concreto (linha mais madura), buffer(N)/slice(N), strbuf/string, bitbuffer/bitslice, atomic/chan/barrier.; traits sobre o `T` opaco (v2); protocolos nomeados já existem.
 - [biblioteca padrão: catálogo](biblioteca-padrao-planejamento.md) — histórico; a fonte agora é design/possibilidades.md (v0 núcleo+base, v1 stdlib, v2+ protocolos).
 - [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; M0 e M1 fechados, parser (M2) completo em 2026-10-03, falta a emissão; tool/ e engine/ com `make boundary`.
-- [ranges: meio-aberto basta](ranges-meio-aberto-basta.md) — 2026-10-07: `a..b` fica só meio-aberto; `..<`/`..=` fazem sentido só depois do PPC (N macro não expande); inclusivo, se vier, é verbo.
+- [ranges: meio-aberto basta](ranges-meio-aberto-basta.md) — 2026-10-07: `a..b` segue o padrão; `a..<b`/`a..=b` (marcador só no limite superior, lexer intacto) é solução pronta, a adotar só se o inclusivo valer a pena (`design/possibilidades.md`).
 - [Código em inglês](codigo-em-ingles.md) — docs pt-BR, código em inglês; as 4 etapas concluídas (commits 36ca188, 14c4d9a, 1c249c7, 1ae845d).

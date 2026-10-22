@@ -23,7 +23,13 @@ temporário, sem `mkstemp`, sem limpeza.
 | `parser_keel.c` | ponto de entrada, `k_parser_keel(input, output, diagnostics)`; por ora, o despejo de tokens do `--stop-after=lex` ([desenho do cgen §5.1](../../../../design/cgen-tool.md#51---stop-afterlex)) |
 | `ast.h`, `ast.c` | AST de nível de arquivo, com spans de tokens e fonte persistente; coleta de `module`, imports e declarações para M2 |
 | `parser_dump.c` | projeta essa AST no formato `--stop-after=parse` (níveis `header`, `decl`, `inst` e `ilha`) |
-| `parser_islands.c`, `islands.h` | passagem 3, etapa 4a: as ilhas `type`, `name`, `call`, `ref` e `implicit-init` ([parser-design §3.2](../../../../design/parser-design.md)) |
+| `parser_islands.c`, `islands.h` | passagem 3, entrada `k_collect_islands`, e as seções de locais, protocolos, chamadas, `seeds from calls` e `extern_c and main`: as ilhas `type`, `name`, `call`, `ref` e `implicit-init` ([parser-design §3.2](../../../../design/parser-design.md)) |
+| `parser_islands_internal.h` | interno à passagem 3: tipos, macros e protótipos que os seis `parser_islands*.c` dividem; não é API do motor |
+| `parser_islands_types.c` | passagem 3: tipos de contêiner, nomes e as declarações lidas antes de imprimir as ilhas |
+| `parser_islands_index.c` | passagem 3, etapa 4b: `array`, `array-index`, `index` e `range-index` |
+| `parser_islands_flow.c` | passagem 3, etapas 4c a 4h: `defer`, `foreach`, `walk`, `match`, `parallel`, `win`, `fail`, `extent` e `the else of a result` |
+| `parser_islands_closure.c` | passagem 3, etapa 4i e spec §4.3, §4.12: fechamento das instâncias, proveniência, invalidação e a `instance` de cada verbo |
+| `parser_islands_checks.c` | passagem 3: nomes entre módulos, declarações da passagem 2, declarações de protocolo, parâmetros e `layout` |
 | `parser.c`, `symtab.c` | [parser-design.md](../../../../design/parser-design.md) |
 | `emit/` | [codegen-design.md](../../../../design/codegen-design.md) |
 | `diag.h`, `diag.c` | [diag-design.md](../../../../design/diag-design.md): o sink, que acumula na memória dada por quem chama; a tabela tem por ora só os diagnósticos do lexer |

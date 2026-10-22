@@ -25,11 +25,11 @@ com os marcos abaixo, siga os **marcos**, não os números.
 
 | Arquivo | Seções (marco de início → até o próximo da tabela) | ~linhas |
 | --- | --- | --- |
-| `parser_islands.c` (fica) | comentário de topo e includes; `the detail column`; `locals`; `the module a call lands in`; `protocols`; `calls`; e, do fim, `extern_c and main (spec §4.1)` com o `k_collect_islands` | ~820 |
+| `parser_islands.c` (fica) | comentário de topo e includes; `the detail column`; `locals`; `the module a call lands in`; `protocols`; `calls`; `seeds from calls` (com os quatro `static` de estado, que o `k_collect_islands` zera); e, do fim, `extern_c and main (spec §4.1)` com o `k_collect_islands` | ~1040 |
 | `parser_islands_types.c` | `container types`; `names`; `declarations` (a primeira, linha ~1765) | ~1220 |
 | `parser_islands_index.c` | `stage 4b: array, array-index, index, range-index` | ~310 |
 | `parser_islands_flow.c` | `defer, foreach, walk, match`; `parallel, win, fail`; `extent`; `the else of a result` | ~1180 |
-| `parser_islands_closure.c` | `the closure of the instances`; `provenance and invalidation`; `seeds from calls`; `instance (spec §4.3)` | ~680 |
+| `parser_islands_closure.c` | `the closure of the instances`; `provenance and invalidation`; `instance (spec §4.3)` | ~460 |
 | `parser_islands_checks.c` | `names across modules`; `declarations (passage 2 …)`; `protocol declarations`; `parameters type and over a protocol`; `layout` | ~650 |
 
 E um header novo, `parser_islands_internal.h`, interno à passagem. Ele
@@ -60,9 +60,11 @@ tipos pedem (`islands.h`, `instances.h`, `names.h`, `parser.h`, `<stdint.h>`,
      registre no relatório, sem transformá-los em `extern`;
    - protótipos adiantados de função `static` que hoje existam no arquivo
      vão para onde a função for.
-2. Se uma seção depender de tantas funções de outra que o corte obrigue a
-   exportar mais de uns 40 nomes de um arquivo só, pode juntar duas seções
-   vizinhas num arquivo. Diga qual e por quê no relatório.
+2. Quantos nomes cada arquivo exporta é dado do relatório, não limite: não
+   junte seções por causa disso. (Revisão de 2026-10-22: a primeira tentativa
+   parou porque `seed_count`/`seed_node_count` são zerados em
+   `k_collect_islands`; a seção `seeds from calls` passou para o
+   `parser_islands.c`.)
 3. A ordem das funções dentro de cada arquivo novo é a ordem do arquivo
    antigo.
 4. Atualize a tabela de `tools/cgen/src/engine/README.md` (uma linha por

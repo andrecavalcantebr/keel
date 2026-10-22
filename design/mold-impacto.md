@@ -149,7 +149,7 @@ Isso é estimativa da forma, e não um projeto de função a função.
   `st` no molde, reproduz `keel__st0`. Só a linha da ilha no oráculo de parse
   muda. Um caso novo (por exemplo `026-mold`) cobre parâmetro de valor, dois moldes no
   mesmo bloco e o prelúdio em posição de statement. Os dois perfis são escritos à
-  mão; a skill `cgen-harness-task` cobre o esperado do parser.
+  mão; o esperado do parser é escrito à mão (skill `haiku-task`).
 
 ## 5. Fases e aceitação
 

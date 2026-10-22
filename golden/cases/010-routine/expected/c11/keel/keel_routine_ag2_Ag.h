@@ -7,7 +7,6 @@
 
 #line 27 "keel/routine.k"
 static inline keel_corot keel_routine_slot_ag2_Ag_state(const keel_routine_slot_ag2_Ag *s);
-#line 28 "keel/routine.k"
 static inline i32        keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s);
 
 #line 33 "keel/routine.k"
@@ -24,7 +23,6 @@ static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s
 
 #line 27 "keel/routine.k"
 static inline keel_corot keel_routine_slot_ag2_Ag_state(const keel_routine_slot_ag2_Ag *s) { return s->state; }
-#line 28 "keel/routine.k"
 static inline i32        keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s) { return s->state.code; }
 
 #line 33 "keel/routine.k"

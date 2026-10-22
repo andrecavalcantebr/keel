@@ -5,9 +5,7 @@
 
 #line 9 "app/loop.k"
 int  app_loop_live_now(void);
-#line 10 "app/loop.k"
 int  app_loop_released_now(void);
-#line 11 "app/loop.k"
 void app_loop_reset(void);
 #line 16 "app/loop.k"
 int  app_loop_run(int n);

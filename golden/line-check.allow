@@ -1,0 +1,85 @@
+# Lines that golden/line-check.py --check accepts as MISSING: code with no .k line of its
+# own (backend §6: injected code resyncs after). Reviewed by hand on 2026-10-22.
+# Key: path<TAB>C text. Regenerate the candidates with --allow, and review each one.
+golden/c11/keel/keel_corot.type.h	} keel_corot_Status;
+golden/c11/keel/keel_corot.type.h	keel_corot_Status_FAILED = 1
+golden/c11/keel/keel_corot.type.h	keel_corot_Status_ONGOING = 0,
+golden/c11/keel/keel_corot.type.h	keel_corot_Status_SUCCESS = -1,
+golden/c11/keel/keel_outcome.type.h	static const i32 keel_outcome_NONE__chk = (-2147483647 - 1);
+golden/c11/keel/keel_outcome.type.h	static const i32 keel_outcome_OK__chk = 0;
+golden/c11/keel/keel_parallel.type.h	typedef struct keel_parallel_control {
+golden/c23/keel/keel_corot.type.h	} keel_corot_Status;
+golden/c23/keel/keel_corot.type.h	keel_corot_Status_FAILED = 1
+golden/c23/keel/keel_corot.type.h	keel_corot_Status_ONGOING = 0,
+golden/c23/keel/keel_corot.type.h	keel_corot_Status_SUCCESS = -1,
+golden/c23/keel/keel_parallel.type.h	typedef struct keel_parallel_control {
+golden/cases/001-arena-buffer-defer/expected/c11/app/app_cfg.type.h	static const size_t app_cfg_MAX__chk = 256;
+golden/cases/004-parallel/expected/c11/app/app_val.c	for (size_t w = 0; w < 4; w++) {
+golden/cases/004-parallel/expected/c11/app/app_val.c	{ keel_buffer_i32 *keel__c0 = xs;
+golden/cases/004-parallel/expected/c23/app/app_val.c	for (size_t w = 0; w < 4; w++) {
+golden/cases/004-parallel/expected/c23/app/app_val.c	{ keel_buffer_i32 *keel__c0 = xs;
+golden/cases/006-dim/expected/c11/app/app_g.type.h	static const i8 app_g_DIM__chk = 3;
+golden/cases/007-instance/expected/c11/coll.type.h	static const i32 coll_EMPTY__chk = -1;
+golden/cases/008-block-constexpr/expected/c11/app/app_cx.type.h	static const size_t app_cx_MAX__chk = 4;
+golden/cases/009-match-tags/expected/c11/ag.c	case ag_Cycle_ST2: goto keel__m0_ST2;
+golden/cases/009-match-tags/expected/c11/ag.c	case ag_Cycle_ST3: goto keel__m0_ST3;
+golden/cases/009-match-tags/expected/c23/ag.c	case ag_Cycle_ST2: goto keel__m0_ST2;
+golden/cases/009-match-tags/expected/c23/ag.c	case ag_Cycle_ST3: goto keel__m0_ST3;
+golden/cases/010-routine/expected/c11/keel/keel_routine_ag2_Ag.type.h	ag2_Ag *ctx;
+golden/cases/010-routine/expected/c11/keel/keel_routine_ag2_Ag.type.h	keel_routine_ag2_Ag f;
+golden/cases/010-routine/expected/c11/keel/keel_routine_ag2_Ag.type.h	} keel_routine_slot_ag2_Ag;
+golden/cases/010-routine/expected/c11/keel/keel_routine_ag2_Ag.type.h	typedef struct keel_routine_slot_ag2_Ag {
+golden/cases/010-routine/expected/c11/keel/keel_slice_keel_routine_slot_ag2_Ag.type.h	keel_routine_slot_ag2_Ag *ptr;
+golden/cases/010-routine/expected/c11/keel/keel_slice_keel_routine_slot_ag2_Ag.type.h	} keel_slice_keel_routine_slot_ag2_Ag;
+golden/cases/010-routine/expected/c11/keel/keel_slice_keel_routine_slot_ag2_Ag.type.h	size_t len;
+golden/cases/010-routine/expected/c11/keel/keel_slice_keel_routine_slot_ag2_Ag.type.h	typedef struct keel_slice_keel_routine_slot_ag2_Ag {
+golden/cases/010-routine/expected/c23/keel/keel_routine_ag2_Ag.type.h	ag2_Ag *ctx;
+golden/cases/010-routine/expected/c23/keel/keel_routine_ag2_Ag.type.h	keel_routine_ag2_Ag f;
+golden/cases/010-routine/expected/c23/keel/keel_routine_ag2_Ag.type.h	} keel_routine_slot_ag2_Ag;
+golden/cases/010-routine/expected/c23/keel/keel_routine_ag2_Ag.type.h	typedef struct keel_routine_slot_ag2_Ag {
+golden/cases/010-routine/expected/c23/keel/keel_slice_keel_routine_slot_ag2_Ag.type.h	keel_routine_slot_ag2_Ag *ptr;
+golden/cases/010-routine/expected/c23/keel/keel_slice_keel_routine_slot_ag2_Ag.type.h	} keel_slice_keel_routine_slot_ag2_Ag;
+golden/cases/010-routine/expected/c23/keel/keel_slice_keel_routine_slot_ag2_Ag.type.h	size_t len;
+golden/cases/010-routine/expected/c23/keel/keel_slice_keel_routine_slot_ag2_Ag.type.h	typedef struct keel_slice_keel_routine_slot_ag2_Ag {
+golden/cases/012-parallel-any/expected/c11/app/app_bs.c	{ keel_buffer_i32 *keel__c0 = xs;
+golden/cases/012-parallel-any/expected/c11/app/app_bs.c	keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
+golden/cases/012-parallel-any/expected/c23/app/app_bs.c	{ keel_buffer_i32 *keel__c0 = xs;
+golden/cases/012-parallel-any/expected/c23/app/app_bs.c	keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
+golden/cases/018-corot-outcome/expected/c11/results.c	keel_corot keel__rv0;
+golden/cases/018-corot-outcome/expected/c23/results.c	keel_corot keel__rv0;
+golden/cases/020-extent/expected/c11/app/app_pos.h	}
+golden/cases/020-extent/expected/c11/app/app_pos.h	KEEL_CHECK(i0 < p->len && p->len <= p->cap, "extent-index-out-of-bounds");
+golden/cases/020-extent/expected/c11/app/app_pos.h	return &p->g[i0][i1];
+golden/cases/020-extent/expected/c11/app/app_pos.h	return &p->v[i0 * p->ccap + i1];
+golden/cases/020-extent/expected/c11/app/app_pos.h	return &p->x[i0];
+golden/cases/020-extent/expected/c11/app/app_pos.h	return &p->y[i0];
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline f32 *app_pos_position_x_ptr(struct app_pos_position *p, size_t i0) {
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline f32 *app_pos_position_x_ptr(struct app_pos_position *p, size_t i0);
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline f32 *app_pos_position_y_ptr(struct app_pos_position *p, size_t i0) {
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline f32 *app_pos_position_y_ptr(struct app_pos_position *p, size_t i0);
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline i32 *app_pos_grid_v_ptr(struct app_pos_grid *p, size_t i0, size_t i1) {
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline i32 *app_pos_grid_v_ptr(struct app_pos_grid *p, size_t i0, size_t i1);
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline u8 *app_pos_image_g_ptr(struct app_pos_image *p, size_t i0, size_t i1) {
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline u8 *app_pos_image_g_ptr(struct app_pos_image *p, size_t i0, size_t i1);
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline u8 *app_pos_image_r_ptr(struct app_pos_image *p, size_t i0, size_t i1) {
+golden/cases/020-extent/expected/c11/app/app_pos.h	static inline u8 *app_pos_image_r_ptr(struct app_pos_image *p, size_t i0, size_t i1);
+golden/cases/020-extent/expected/c11/app/app_pos.type.h	static const size_t app_pos_H__chk = 2;
+golden/cases/020-extent/expected/c11/app/app_pos.type.h	static const size_t app_pos_W__chk = 3;
+golden/cases/020-extent/expected/c23/app/app_pos.h	}
+golden/cases/020-extent/expected/c23/app/app_pos.h	KEEL_CHECK(i0 < p->len && p->len <= p->cap, "extent-index-out-of-bounds");
+golden/cases/020-extent/expected/c23/app/app_pos.h	return &p->g[i0][i1];
+golden/cases/020-extent/expected/c23/app/app_pos.h	return &p->v[i0 * p->ccap + i1];
+golden/cases/020-extent/expected/c23/app/app_pos.h	return &p->x[i0];
+golden/cases/020-extent/expected/c23/app/app_pos.h	return &p->y[i0];
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline f32 *app_pos_position_x_ptr(struct app_pos_position *p, size_t i0) {
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline f32 *app_pos_position_x_ptr(struct app_pos_position *p, size_t i0);
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline f32 *app_pos_position_y_ptr(struct app_pos_position *p, size_t i0) {
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline f32 *app_pos_position_y_ptr(struct app_pos_position *p, size_t i0);
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline i32 *app_pos_grid_v_ptr(struct app_pos_grid *p, size_t i0, size_t i1) {
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline i32 *app_pos_grid_v_ptr(struct app_pos_grid *p, size_t i0, size_t i1);
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline u8 *app_pos_image_g_ptr(struct app_pos_image *p, size_t i0, size_t i1) {
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline u8 *app_pos_image_g_ptr(struct app_pos_image *p, size_t i0, size_t i1);
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline u8 *app_pos_image_r_ptr(struct app_pos_image *p, size_t i0, size_t i1) {
+golden/cases/020-extent/expected/c23/app/app_pos.h	static inline u8 *app_pos_image_r_ptr(struct app_pos_image *p, size_t i0, size_t i1);
+golden/cases/021-else-assign/expected/c11/app/app_reg.type.h	typedef struct app_reg_Person {
+golden/cases/021-else-assign/expected/c23/app/app_reg.type.h	typedef struct app_reg_Person {

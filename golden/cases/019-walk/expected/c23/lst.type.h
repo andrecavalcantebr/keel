@@ -5,8 +5,6 @@
 
 #line 8 "lst.k"
 typedef struct lst_Node { i32 v; struct lst_Node *link; } lst_Node;
-#line 9 "lst.k"
 typedef struct lst_List { lst_Node *head; } lst_List;
-#line 10 "lst.k"
 typedef struct lst_cursor { lst_Node *current; } lst_cursor;
 #endif /* LST_TYPE_H */

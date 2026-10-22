@@ -145,5 +145,11 @@ for case_dir in cases/*/; do
     fi
   done
 done
+# line mapping (backend §6): no redundant #line, and no unexplained drift
+if out=$(python3 -I "$(dirname "$0")/line-check.py" --check 2>&1); then
+  printf 'ok     %-24s       (backend §6)\n' line-check; ok=$((ok+1))
+else
+  printf 'FAIL   %-24s\n' line-check; printf '%s\n' "$out" | head -8 | sed 's/^/         /'; fail=$((fail+1))
+fi
 printf '\n%d ok, %d fail, %d xfail, %d xpass, %d wip\n' $ok $fail $xfail $xpass $wip
 [ $fail -eq 0 ] && [ $xpass -eq 0 ]

@@ -350,7 +350,26 @@ Quatro consequências que o emissor tem que honrar:
 
 **Declaração sintetizada não leva `#line`**: a declaração adiantada de um campo
 por ponteiro, o `#include` do próprio `.type.h`. Falha ali é bug de ferramenta,
-não erro do usuário, e apontar para o `.k` mentiria.
+não erro do usuário, e apontar para o `.k` mentiria. Os `#include` sintéticos
+de perfil (`<stdbool.h>`, `<assert.h>` sob C11) vêm antes do primeiro
+`#line`, para não herdarem a linha de um `import_c`.
+
+**Ao pé da letra (decisão do André, 2026-10-22).** O golden segue a invariante
+e mais nada: um `#line` sai quando, e só quando, os contadores divergem. A
+regra antiga de "um `#line` antes de cada declaração de header" pôs 703
+diretivas redundantes no golden (44,6% do total), e elas saíram. A auditoria
+(`tools/agents/reports/T1-line-audit.md`) mapeou de onde vêm as divergências
+reais, que são o que o `KWriter` tem de produzir:
+
+| Divergência | Exemplo |
+| --- | --- |
+| linhas do `.k` que não saem (em branco, comentário, `module`, o que foi para outro arquivo) | a declaração seguinte de um header, depois de um corpo que foi para o `.c` |
+| a saída reordena o `.k` | uma instância emite os verbos do genérico; o lowering de `parallel`/`match` |
+| uma linha do `.k` vira várias | struct de instância, enum de `tags`: ressincroniza depois |
+| uma linha injetada no meio de um corpo | o `KEEL_CHECK` do `as_slice` (backend §5.17, 7a): `#line` logo depois dele |
+
+Com `k_emit_at`, todas são o mesmo caso: a linha pedida não é a que o contador
+da saída daria.
 
 ### 8.1 A nota de instanciação
 
@@ -445,6 +464,10 @@ O que falta acrescentar quando o emissor existir:
    comparar.
 3. **O caso do `#line`**: o 016 já afirma posições sem escrever número nenhum,
    lendo os marcadores `/* ERROR */` do próprio fonte. É o molde para os demais.
+   Para o golden inteiro, o runner já roda `golden/line-check.py --check`
+   (desde 2026-10-22): nenhum `#line` redundante, e nenhuma linha fora do
+   lugar além das revisadas em `golden/line-check.allow`. A comparação byte a
+   byte do item 1 herda isso sem custo.
 
 ---
 

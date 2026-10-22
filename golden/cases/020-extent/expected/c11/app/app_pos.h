@@ -6,13 +6,11 @@
 typedef struct keel_arena keel_arena;
 #line 12 "app/pos.k"
 static inline f32 *app_pos_position_x_ptr(struct app_pos_position *p, size_t i0);
-#line 13 "app/pos.k"
 static inline f32 *app_pos_position_y_ptr(struct app_pos_position *p, size_t i0);
 #line 20 "app/pos.k"
 static inline i32 *app_pos_grid_v_ptr(struct app_pos_grid *p, size_t i0, size_t i1);
 #line 26 "app/pos.k"
 static inline u8 *app_pos_image_r_ptr(struct app_pos_image *p, size_t i0, size_t i1);
-#line 27 "app/pos.k"
 static inline u8 *app_pos_image_g_ptr(struct app_pos_image *p, size_t i0, size_t i1);
 #line 31 "app/pos.k"
 bool app_pos_reserve(struct app_pos_position *p, keel_arena *a, size_t n);

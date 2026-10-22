@@ -72,6 +72,27 @@ mata os ciclos. Então `run.sh` começa por asserções estruturais:
 
 Falha estrutural sai como `STRUCT` e conta como falha.
 
+Depois dos casos, o runner confere o **mapeamento de linhas** (backend §6) com
+`line-check.py --check`. O golden segue a invariante dos dois contadores ao pé
+da letra, desde 2026-10-22: um `#line` sai **quando, e só quando,** a linha da
+saída e a do `.k` divergem. Não há `#line` "por declaração". Uma declaração
+na linha seguinte à anterior, no `.k` e na saída, não leva `#line`. A
+ferramenta simula o contador do compilador e falha em dois casos:
+
+- um `#line` **redundante**: o contador já valia aquele número;
+- uma linha de código que aponta para uma linha do `.k` que não é a dela
+  (`MISSING`), a menos que esteja em `line-check.allow`. A lista é revisada à
+  mão e tem só código sem linha própria no `.k`: acessores de `extent`, o
+  despacho de `match`, o gestor de `parallel`, a struct de instância, o enum
+  de `tags`, o `__chk` do `constexpr` em C11 e o temporário do `return`. Por
+  isso ela fica fora da conta e só ressincroniza depois.
+
+Código injetado no meio de um corpo, como o `KEEL_CHECK` que o backend §5.17
+(7a) põe no início do `as_slice`, pede `#line` logo depois dele, de volta à
+linha seguinte do `.k`. `python3 golden/line-check.py --verbose` mostra a
+classificação de cada `#line`. `--allow` lista as linhas candidatas à lista,
+para revisão.
+
 ## Para o editor achar os headers
 
 Os headers fixos vivem em `c23/keel/` e `c11/keel/`; os gerados de cada caso,

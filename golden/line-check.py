@@ -223,6 +223,32 @@ def audit(path, case_dir, profile, rep):
             rep['counts'][profile]['MISSING'] += 1
 
 
+ALLOW = os.path.join(GOLDEN, 'line-check.allow')
+
+
+def allow_key(rel, text):
+    return f"{rel}\t{' '.join(text.split())}"
+
+
+def check(rep):
+    """--check (golden/run.sh): no REDUNDANT #line, and every MISSING line is
+    one reviewed by hand and listed in line-check.allow (code that has no .k
+    line of its own: extent accessors, lowerings, instance structs). The key is
+    the file and the C text, so the list survives a #line moving."""
+    allowed = set()
+    if os.path.exists(ALLOW):
+        with open(ALLOW) as f:
+            allowed = {l.rstrip('\n') for l in f if l.strip() and not l.startswith('#')}
+    bad = [(prof, rel, e) for prof, rel, e in rep['events'] if e['cls'] == 'REDUNDANT']
+    for prof, rel, e in bad:
+        print(f"line-check: {rel}:{e['idx'] + 1}: redundant #line {e['n']}")
+    new = [(rel, it) for prof, rel, it, why in rep['missing'] if allow_key(rel, it['text']) not in allowed]
+    for rel, it in new:
+        print(f"line-check: {rel}:{it['line']}: maps to {it['kfile']}:{it['kline']}, "
+              f"which does not match (not in line-check.allow)")
+    return 1 if bad or new or rep['missing_k'] else 0
+
+
 def main():
     verbose = '--verbose' in sys.argv[1:]
     rep = dict(files=collections.Counter(), events=[], missing=[], missing_k=[],
@@ -237,6 +263,13 @@ def main():
             jobs.append((p, None, prof))
     for p, case_dir, prof in jobs:
         audit(p, case_dir, prof, rep)
+
+    if '--check' in sys.argv[1:]:
+        return check(rep)
+    if '--allow' in sys.argv[1:]:
+        for prof, rel, it, why in rep['missing']:
+            print(allow_key(rel, it['text']))
+        return 0
 
     print('== totals per profile ==')
     for prof in ('c11', 'c23'):
@@ -265,4 +298,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

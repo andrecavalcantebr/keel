@@ -5,7 +5,6 @@
 
 #line 6 "app/pos.k"
 constexpr size_t app_pos_H = 2;
-#line 7 "app/pos.k"
 constexpr size_t app_pos_W = 3;
 #line 11 "app/pos.k"
 struct app_pos_position {

@@ -355,6 +355,7 @@ app/cfg.k  →  app/app_cfg.type.h                tipos
 | `extern_c [type_h] { … }` / `pub extern_c [type_h] { … }` | o conteúdo, intacto | — | — |
 | `priv extern_c { … }` | — | — | o conteúdo, intacto |
 | diretiva de topo | — | preservada | — |
+| C de topo que não é diretiva nem construção keel (`static_assert`) | o conteúdo, intacto | — | — |
 
 8. O `.type.h` recebe os `import_c`, as definições de tipo, públicas e `priv`, as declarações adiantadas dos campos por ponteiro e os `constexpr` de módulo. [D29](#10-decisões-de-emissão)
 9. O `.h` recebe os protótipos e as declarações `extern`, depois os corpos `static inline`, e inclui o `.type.h`: é o arquivo que se inclui para usar o módulo.

@@ -36,6 +36,12 @@ static void put_spelled(KOut *o, const KAst *a, size_t first, size_t end) {
 }
 static void put_symbol(KOut *o, const KAst *a, const KAstNode *node) {
     const KAstNode *module = keel_buffer_KAstNode_ptr(&a->nodes, a->module);
+    /* the prelude's names keep their spelling in C (backend §4.2, rule 1) */
+    if (module->name_end == module->name_first + 1 &&
+        k_token_is_ident_named(keel_buffer_KLexeme_ptr(&a->tokens, module->name_first)->token, "keel")) {
+        put_name(o, a, node->name_first, node->name_end);
+        return;
+    }
     for (size_t i = module->name_first; i < module->name_end; i++) {
         KToken t = keel_buffer_KLexeme_ptr(&a->tokens, i)->token;
         if (k_token_is_punct(t, ".")) put_c(o, '_');

@@ -3,12 +3,12 @@
 #define KEEL_KEEL_COROT_TYPE_H
 #include "keel.type.h"
 
-#line 18 "keel/corot.k"
-typedef struct keel_corot { i32 code; } keel_corot;
 #line 12 "keel/corot.k"
 typedef enum keel_corot_Status {
     keel_corot_Status_SUCCESS = -1,
     keel_corot_Status_ONGOING =  0,
     keel_corot_Status_FAILED  =  1
 } keel_corot_Status;
+#line 18 "keel/corot.k"
+typedef struct keel_corot { i32 code; } keel_corot;
 #endif /* KEEL_KEEL_COROT_TYPE_H */

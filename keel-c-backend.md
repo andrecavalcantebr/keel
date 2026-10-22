@@ -1860,15 +1860,18 @@ static inline keel_slice_i32 keel_slice_of1_keel_buffer_i32(keel_buffer_i32 *x, 
 
 > O gerador mantém dois contadores — a linha do `.k` que está sendo traduzida e a linha do arquivo de saída. **Sempre que os dois divergem, emite-se `#line`.** Enquanto andam juntos, nada é necessário.
 
+A invariante vale nos dois sentidos: quando os contadores andam juntos, o gerador não emite `#line`. Um `#line` a mais não muda o mapeamento, mas a saída deixa de ser função só da invariante, e o golden, que se compara byte a byte, teria de fixar onde cada diretiva redundante cai.
+
 Daí decorre o comportamento de cada região:
 
 | Região | Diverge? | `#line` |
 | --- | --- | --- |
 | Texto copiado — corpo de função, bloco `extern_c` | não, se as quebras forem preservadas | uma na entrada da região |
 | Transliteração 1:1 — `import`, `import_c` viram `#include` | não, se as linhas em branco forem preservadas | uma na entrada da região |
-| Declaração levada a header — tipo, protótipo, `extern`, `constexpr` de módulo | sim: o header as reúne fora da ordem e do espaçamento do fonte | uma antes de cada declaração que não seja a linha seguinte da anterior |
+| Declaração levada a header — tipo, protótipo, `extern`, `constexpr` de módulo | sim: o header as reúne fora da ordem e do espaçamento do fonte | uma antes de cada declaração cuja linha no `.k` não seja a que o contador da saída daria |
 | Expansão de builtin ocupando mais de uma linha | sim | ressincroniza depois |
 | Código injetado — struct de instância, cleanup de `defer`, temporário de `return` | sim | ressincroniza depois |
+| Linha injetada num corpo — o `KEEL_CHECK` do `as_slice` (§5.17, 7a) | sim | uma logo depois dela, de volta à linha seguinte do `.k` |
 | Gestor de `parallel` | sim | uma antes do corpo do worker, e uma depois do bloco (§5.9) |
 | Despacho de `match` | sim | uma antes de cada rótulo de braço, e uma depois do fim (§5.6) |
 | Cláusula `else` — declaração mais `if`, nas duas formas | não, cabe numa linha | nenhuma |
@@ -1881,9 +1884,10 @@ A linha de `import_c` merece nota, porque é o caso que o critério "copiado ver
 
 1. Texto copiado nunca é reindentado nem reformatado: reformatar destruiria a posição de todo diagnóstico do compilador C naquela região. Na região de imports, as linhas em branco são preservadas, e uma diretiva só cobre o bloco inteiro.
 2. Em corpo de função, o lowering de uma linha de fonte ocupa uma linha de saída: uma chamada de verbo longa sai numa linha só, e uma expansão de dois statements também. É a única concessão deliberada ao princípio 2 da linguagem. [D61](#10-decisões-de-emissão)
-3. O `.c` preserva a estrutura de linhas do fonte: toda linha do `.k` tem a sua no `.c`, e o que vai para header — tipos, protótipos, `constexpr` de módulo —, os `import` e `import_c`, a linha `module` e os comentários deixam linha vazia. Os `#include` sintéticos vêm antes, um único `#line 1` abre o fonte, e só as expansões de várias linhas pedem ressincronização.
-4. Comentários não chegam ao C: cada um vira espaços da mesma largura, com as quebras preservadas, e o espaço que sobra no fim da linha é cortado. A exceção é `extern_c`, cujo conteúdo é C e atravessa intacto (linguagem §2.4).
-5. A string do arquivo no `#line` é o caminho normalizado do módulo, com a extensão `.k`.
+3. O `.c` preserva a estrutura de linhas do fonte: toda linha do `.k` tem a sua no `.c`, e o que vai para header — tipos, protótipos, `constexpr` de módulo —, os `import` e `import_c`, a linha `module` e os comentários deixam linha vazia. Um único `#line 1` abre o fonte, e só as expansões de várias linhas pedem ressincronização.
+4. Em todo arquivo, os `#include` sintéticos (do próprio `.type.h`, do prelúdio e os de perfil, como `<stdbool.h>` sob C11) vêm antes do primeiro `#line`.
+5. Comentários não chegam ao C: cada um vira espaços da mesma largura, com as quebras preservadas, e o espaço que sobra no fim da linha é cortado. A exceção é `extern_c`, cujo conteúdo é C e atravessa intacto (linguagem §2.4).
+6. A string do arquivo no `#line` é o caminho normalizado do módulo, com a extensão `.k`.
 
 
 ### 6.1 Diagnóstico dentro de instância

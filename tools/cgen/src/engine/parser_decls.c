@@ -142,7 +142,8 @@ bool k_scan_decl_typedef(KLexer *lexer, KToken typedef_kw, KSymbolTable *symtab,
 
 /* ---- k_scan_decl_array ---- */
 
-/* Written by the local model (tools/harness, m2-parser-decl-array), then
+/* Written by the local model (task m2-parser-decl-array of the harness retired on
+   2026-10-22), then
    finished by hand: the run blocked at 5 attempts, with the same three
    faults in every one — the stars looked for after the name instead of
    before it, the lexer never advanced past the name, and `*next_out`
@@ -340,7 +341,8 @@ bool k_scan_modifier_decl(KLexer *lexer, int module_arity,
 
 /* ---- k_scan_extent_decl ---- */
 
-/* Written by the local model (tools/harness, m2-parser-extent-decl), then
+/* Written by the local model (task m2-parser-extent-decl of the harness retired on
+   2026-10-22), then
    finished by hand: the run blocked at 5 attempts on three assertions,
    and only two of them were the code's fault (see below). */
 

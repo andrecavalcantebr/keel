@@ -421,8 +421,8 @@ bool k_scan_decl_typedef(KLexer *lexer, KToken typedef_kw, KSymbolTable *symtab,
  * — like every other recognizer, the terminator has already been read
  * from `lexer`, so the caller uses it instead of reading it again.
  *
- * EOF safety (tools/harness/README.md, "um oráculo tem que sobreviver a
- * um travamento"): if `first`, or any token read afterward, is empty
+ * EOF safety (.claude/skills/haiku-task: oracles must survive a hang): if
+ * `first`, or any token read afterward, is empty
  * (`.len == 0`, meaning end of file), stop immediately as if it matched
  * `terminators[0]` — well-formed input never actually reaches this, but
  * looping on EOF forever is exactly the kind of hang a wrong recognizer

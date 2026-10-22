@@ -1,7 +1,7 @@
 /* Oracle for k_scan_tags_decl (keel-spec §2.2, §4.9). Expected values are
  * hand-derived from the grammar, not from running a solving
- * implementation (tools/harness/README.md, "O oráculo não pode ser
- * resolvido escrevendo a resposta"). Not model-generated.
+ * implementation (.claude/skills/haiku-task, "The oracle comes first
+ * and is written by hand"). Not model-generated.
  *
  *   tags-list ::= '[' tag-item { ',' tag-item } ']'
  *   tag-item  ::= IDENT [ '=' tag-value ]

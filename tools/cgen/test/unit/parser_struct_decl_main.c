@@ -1,7 +1,7 @@
 /* Minimal oracle for the m2-parser-struct-decl task. Expected values are
  * hand-derived from the grammar, not from a solving implementation
- * (tools/harness/README.md, "O oráculo não pode ser resolvido escrevendo
- * a resposta"). Not model-generated.
+ * (.claude/skills/haiku-task, "The oracle comes first and is written by
+ * hand"). Not model-generated.
  *
  * Trace for "struct Person { i32 age; }; ok" ('struct' already consumed):
  *   tok = k_lexer_next()        -> "Person" (IDENT) -> tag_name = "Person"

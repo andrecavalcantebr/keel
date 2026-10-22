@@ -1,7 +1,7 @@
 /* Oracle for k_scan_extent_decl (keel-spec §2.2, §4.11). Expected values
  * are hand-derived from the grammar, not from running a solving
- * implementation (tools/harness/README.md, "O oráculo não pode ser
- * resolvido escrevendo a resposta"). Not model-generated.
+ * implementation (.claude/skills/haiku-task, "The oracle comes first
+ * and is written by hand"). Not model-generated.
  *
  *   decl-extent ::= 'extent' 'struct' IDENT extent-dim { extent-dim }
  *                   '{' { extent-field } '}' ';'

@@ -36,7 +36,7 @@ static inline bool k_symtab_same_name(keel_slice_char a, keel_slice_char b) {
 }
 
 /* Linear search by spelling (parser-design §2.1: the search is by grafia,
- * not by hash — lesson 3 of tools/harness/README.md applies here too, and
+ * not by hash — a linear scan is also the safer form for a small table, and
  * a keel module's own symbol count never approaches where it would
  * matter). Returns the first match in insertion order, or NULL. */
 static inline const KSymbol *k_symtab_lookup(const KSymbolTable *t, keel_slice_char name) {

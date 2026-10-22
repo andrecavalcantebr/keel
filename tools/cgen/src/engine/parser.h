@@ -34,7 +34,7 @@ bool k_scan_ident_list(KLexer *lexer, KToken first, KToken *out, size_t cap,
 
 /* decl-module (keel-spec §2.2):
  *   'module' module-name [dim-binder] [tags-binder] [type-binder] ';'
- * `module_kw` is the already-consumed 'module' token. The three binders
+ * The 'module' token is already consumed by the caller. The three binders
  * are each optional and, when present, appear in this exact order.
  * Consumes through the terminating ';' and hands back the token after it,
  * same lookahead convention as k_scan_qualified_name. */
@@ -45,11 +45,11 @@ typedef struct {
     KToken types[8]; size_t type_count;
 } KModuleHeader;
 
-bool k_scan_module_decl(KLexer *lexer, KToken module_kw, KModuleHeader *out,
-                         KToken *next_out, TKPpKind *next_pp_kind_out);
+bool k_scan_module_decl(KLexer *lexer, KModuleHeader *out,
+                        KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* import (keel-spec §2.2): 'import' module-name ['as' IDENT] ['types'] ';'
- * `import_kw` is the already-consumed 'import' token. `as` and `types` are
+ * The 'import' token is already consumed by the caller. `as` and `types` are
  * each optional and, when present, appear in this order. `alias.len == 0`
  * means no `as` clause was written. Consumes through ';' and hands back the
  * token after it. */
@@ -60,18 +60,18 @@ typedef struct {
     bool swapped;               /* `types as A`: read, so import-clause-order can name it */
 } KImportDecl;
 
-bool k_scan_import(KLexer *lexer, KToken import_kw, KImportDecl *out,
-                    KToken *next_out, TKPpKind *next_pp_kind_out);
+bool k_scan_import(KLexer *lexer, KImportDecl *out,
+                   KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* import_c (keel-spec §2.2): 'import_c' (system-header | STRING) ';'
- * `import_c_kw` is the already-consumed 'import_c' token. `header` is the
+ * The 'import_c' token is already consumed by the caller. `header` is the
  * raw text of whichever form was written, delimiters included:
  * `<stdio.h>` or `"foo.h"`. Consumes through ';' and hands back the token
  * after it. */
 typedef struct { keel_slice_char header; } KImportCDecl;
 
-bool k_scan_import_c(KLexer *lexer, KToken import_c_kw, KImportCDecl *out,
-                      KToken *next_out, TKPpKind *next_pp_kind_out);
+bool k_scan_import_c(KLexer *lexer, KImportCDecl *out,
+                     KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* Scans a balanced '{' ... '}' region — the shape behind extern-c's body
  * (below), and later a modifier's body (§4.3), a struct's body, and any
@@ -97,25 +97,23 @@ keel_slice_char k_scan_braced_opaque(KLexer *lexer, KToken open,
                                       KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* extern-c (keel-spec §2.2): [ 'pub' | 'priv' ] 'extern_c' [ '[' 'type_h' ']' ] '{' <opaque> '}'
- * `extern_c_kw` is the already-consumed 'extern_c' token — any 'pub'/'priv'
- * before it was already consumed by the caller too, same convention as
- * `module_kw`/`import_kw`/`import_c_kw` above; this function does not read
- * either. `body` is exactly what `k_scan_braced_opaque` returns. Consumes
+ * The 'extern_c' token, and any 'pub'/'priv' before it, are already consumed
+ * by the caller, same convention as the declarations above; this function
+ * does not read either. `body` is exactly what `k_scan_braced_opaque` returns. Consumes
  * through the closing '}' and hands back the token after it. */
 typedef struct {
     bool has_type_h;
     keel_slice_char body;
 } KExternCDecl;
 
-void k_scan_extern_c(KLexer *lexer, KToken extern_c_kw, KExternCDecl *out,
-                      KToken *next_out, TKPpKind *next_pp_kind_out);
+void k_scan_extern_c(KLexer *lexer, KExternCDecl *out,
+                     KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* decl-modifier (keel-spec §2.2): 'modifier' IDENT ['byref'] '{' <opaque> '}'
  * — the first recognizer of etapa 2 ("coleta", parser-design §3.2): it
- * registers a symbol, not just recognizes syntax. `modifier_kw` is the
- * already-consumed 'modifier' token (any 'pub'/'priv' before it, too,
- * already consumed by the caller — same convention as every `..._kw`
- * above). `module_arity` is the sum of the declaring module's own
+ * registers a symbol, not just recognizes syntax. The 'modifier' token
+ * (and any 'pub'/'priv' before it) is already consumed by the caller, same
+ * convention as the declarations above. `module_arity` is the sum of the declaring module's own
  * dim/tags/type binder counts (`KModuleHeader.dim_count + tag_count +
  * type_count` from k_scan_module_decl) — every modifier of a module
  * shares that one arity (keel-spec §4.3: "a assinatura do módulo fixa a
@@ -135,9 +133,9 @@ typedef struct {
     keel_slice_char body;
 } KModifierDecl;
 
-bool k_scan_modifier_decl(KLexer *lexer, KToken modifier_kw, int module_arity,
-                           KSymbolTable *symtab, KModifierDecl *out,
-                           KToken *next_out, TKPpKind *next_pp_kind_out);
+bool k_scan_modifier_decl(KLexer *lexer, int module_arity,
+                          KSymbolTable *symtab, KModifierDecl *out,
+                          KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* decl-tags (keel-spec §2.2), the whole production:
  *   decl-tags ::= 'tags' IDENT tags-list ';'
@@ -318,28 +316,8 @@ bool k_scan_argument(KLexer *lexer, KToken first, const KSymbolTable *symtab,
                       keel_slice_char *out, KToken *next_out,
                       TKPpKind *next_pp_kind_out);
 
-/* The common case of keel-spec §2.2's `declarator`:
- *   declarator ::= { '*' { qual-c } } direct-declarator
- *   direct-declarator ::= IDENT { suffix }
- * — just `{ '*' } IDENT`, no `qual-c` between stars (`const`, `ref`, ...)
- * and no trailing `suffix` (array brackets, function parameter groups)
- * yet; both are later tasks. `first` is already read — it is either the
- * declarator's leading `'*'`, or, if there is none, the `IDENT` itself.
- * Counts every leading `'*'` into `out->pointer_depth`, then the next
- * token is the name. Consumes one token past the name and hands it back
- * via next_out/next_pp_kind_out, same convention as every recognizer in
- * this file. */
-typedef struct {
-    int pointer_depth;
-    keel_slice_char name;
-} KDeclaratorHead;
-
-bool k_scan_declarator_head(KLexer *lexer, KToken first, KDeclaratorHead *out,
-                             KToken *next_out, TKPpKind *next_pp_kind_out);
-
 /* The whole of keel-spec §2.2's `declarator`, suffixes and nesting
- * included — what `k_scan_declarator_head` above covers only the common
- * case of:
+ * included:
  *   declarator        ::= { '*' { qual-c } } direct-declarator
  *   direct-declarator ::= IDENT { suffix } | '(' declarator ')' { suffix }
  *   suffix            ::= '[' [ <opaque> ] ']' | '(' [ <opaque> ] ')'
@@ -378,9 +356,6 @@ typedef struct {
 
 bool k_scan_declarator(KLexer *lexer, KToken first, KDeclarator *out,
                         KToken *next_out, TKPpKind *next_pp_kind_out);
-
-/* qual-c (keel-spec §2.2), shared with decl-typedef's lookahead. */
-bool k_token_is_qual_c(KToken t);
 
 /* Where the `declarator` of a declaration begins — the one thing no
  * token marks. Every declaration of keel-spec §2.2 that has a declarator

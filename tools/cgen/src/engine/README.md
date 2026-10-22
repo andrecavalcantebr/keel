@@ -198,7 +198,7 @@ marcado. A última linha do teste é a cobertura do catálogo;
 
 A gramática acompanha a revisão de 2026-10-02 da spec (§§2.2, 4.12, 4.14, 5.1).
 
-- **`decl-protocol`** (`parser_protocol_decl.c`): a forma com chaves lê o
+- **`decl-protocol`** (`parser_decls.c`): a forma com chaves lê o
   implementador, os tipos associados e, de cada protótipo, nome, aridade,
   posição do receptor, papéis e o nome do retorno; a de composição lê os
   componentes. O nó é `K_AST_PROTOCOL`, o símbolo `K_SYM_PROTOCOL`, exportado e
@@ -254,7 +254,7 @@ que o montou já retornou.
 
 - **Protocolos no prelúdio.** Os protocolos da base moram em `base/keel.k` e
   chegam a todo módulo pelo `import keel types` implícito (spec §5.1);
-  `inject_types` (`parser_imports.c`) injeta `K_SYM_PROTOCOL` junto dos tipos.
+  `inject_types` (`parser_header.c`) injeta `K_SYM_PROTOCOL` junto dos tipos.
   Não há carga à parte de outro módulo de protocolos.
 - **`-o`** (ferramenta §4.2): com `--stop-after=lex` ou `--stop-after=parse`, o
   dump vai para o arquivo de `-o` em vez de `stdout`, escrito por
@@ -344,7 +344,7 @@ que cria os arquivos em tempo de execução).
   `tags [...]` sem nome e `constexpr` sem nome viram nós, para que a coleta diga
   o porquê. Os delimitadores são pareados por alternativa de `#if`
   (`parser_delimiters.c`, na carga, antes do parse).
-- **Passagem 1** (ferramenta e `parser_imports.c`): `missing-module`,
+- **Passagem 1** (ferramenta e `parser_header.c`): `missing-module`,
   `invalid-stem`, `case-ambiguous-stem`, `import-clause-order`,
   `duplicate-alias`; e, já com a tabela completa, `symbol-collision`,
   `alias-type-collision`, `extern_c` aninhado ou `priv [type_h]`, e `main`.

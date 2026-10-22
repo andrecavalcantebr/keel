@@ -111,11 +111,11 @@ static bool parse(KAst *a,
 
     KLexer lexer;
     TKPpKind pp;
-    KToken module_kw = reenter(a, i, &lexer, &pp);
+    reenter(a, i, &lexer, &pp);
     KModuleHeader header;
     KToken next;
     TKPpKind next_pp;
-    if (!k_scan_module_decl(&lexer, module_kw, &header, &next, &next_pp)) return false;
+    if (!k_scan_module_decl(&lexer, &header, &next, &next_pp)) return false;
     int module_arity = (int)(header.dim_count + header.tag_count + header.type_count);
 
     KAstNode mod = { .kind = K_AST_MODULE, .first = i, .anchor = i,
@@ -170,16 +170,16 @@ static bool parse(KAst *a,
 
         if (named(a, i, "import") || named(a, i, "import_c")) {
             bool c = named(a, i, "import_c");
-            KToken kw = reenter(a, i, &lexer, &pp);
+            reenter(a, i, &lexer, &pp);
             if (c) {
                 KImportCDecl imp;
-                if (!k_scan_import_c(&lexer, kw, &imp, &next, &next_pp)) return false;
+                if (!k_scan_import_c(&lexer, &imp, &next, &next_pp)) return false;
                 node.kind = K_AST_IMPORT_C;
                 node.name_first = index_at(a, i, imp.header.ptr);
                 node.name_end = index_at(a, node.name_first, imp.header.ptr + imp.header.len);
             } else {
                 KImportDecl imp;
-                if (!k_scan_import(&lexer, kw, &imp, &next, &next_pp)) return false;
+                if (!k_scan_import(&lexer, &imp, &next, &next_pp)) return false;
                 node.kind = K_AST_IMPORT;
                 node.name_first = index_at(a, i, imp.module_name.ptr);
                 node.name_end = index_at(a, node.name_first, imp.module_name.ptr + imp.module_name.len);
@@ -193,17 +193,17 @@ static bool parse(KAst *a,
             node.end = declaration_end(a, i, &node.body_first, &node.body_end);
             if (node.end > n) return false;
         } else if (named(a, i, "extern_c")) {
-            KToken kw = reenter(a, i, &lexer, &pp);
+            reenter(a, i, &lexer, &pp);
             KExternCDecl ext;
-            k_scan_extern_c(&lexer, kw, &ext, &next, &next_pp);
+            k_scan_extern_c(&lexer, &ext, &next, &next_pp);
             node.kind = K_AST_EXTERN_C;
             node.body_first = index_at(a, i, ext.body.ptr);
             node.body_end = index_at(a, node.body_first, ext.body.ptr + ext.body.len);
             node.end = index_at(a, node.body_end, next.ptr);
         } else if (named(a, i, "modifier")) {
-            KToken kw = reenter(a, i, &lexer, &pp);
+            reenter(a, i, &lexer, &pp);
             KModifierDecl mdef;
-            if (!k_scan_modifier_decl(&lexer, kw, module_arity, symtab, &mdef, &next, &next_pp))
+            if (!k_scan_modifier_decl(&lexer, module_arity, symtab, &mdef, &next, &next_pp))
                 return false;
             keel_buffer_KSymbol_ptr(symtab, symtab->len-1)->dim_arity=(int)header.dim_count;
             node.kind = K_AST_MODIFIER;

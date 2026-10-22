@@ -1,11 +1,10 @@
 #!/bin/sh
 # Oracle for the m2-parser-decl-keel task. Not model-generated.
 #
-# Depends on parser_declarator_head.c and parser_opaque_until.c — run
-# m2-parser-declarator-head and m2-parser-opaque-until first; this task
-# composes them and will not even compile until both exist.
+# Depends on k_scan_declarator (parser_declarator.c) and k_scan_opaque_until
+# (parser_scan.c): this task composes them.
 set -u
-SRC=tools/cgen/src/engine/parser_decl_keel.c
+SRC=tools/cgen/src/engine/parser_decls.c
 TESTMAIN=tools/cgen/test/unit/parser_decl_keel_main.c
 # Every engine source except the one(s) under test. A hand-written list
 # is not what this oracle checks — it only mirrors the call graph, and it

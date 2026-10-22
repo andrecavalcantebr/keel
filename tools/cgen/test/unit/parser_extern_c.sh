@@ -1,7 +1,7 @@
 #!/bin/sh
 # Oracle for the m2-parser-extern-c task. Not model-generated.
 set -u
-SRC=tools/cgen/src/engine/parser_extern_c.c
+SRC=tools/cgen/src/engine/parser_decls.c
 TESTMAIN=tools/cgen/test/unit/parser_extern_c_main.c
 # Every engine source except the one(s) under test. A hand-written list
 # is not what this oracle checks — it only mirrors the call graph, and it

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Minimal oracle for the m2-parser-modifier-decl task. Not model-generated.
 set -u
-SRC=tools/cgen/src/engine/parser_modifier_decl.c
+SRC=tools/cgen/src/engine/parser_decls.c
 TESTMAIN=tools/cgen/test/unit/parser_modifier_decl_main.c
 # Every engine source except the one(s) under test. A hand-written list
 # is not what this oracle checks — it only mirrors the call graph, and it

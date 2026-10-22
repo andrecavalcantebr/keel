@@ -1,7 +1,7 @@
 #!/bin/sh
 # Minimal oracle for the m2-parser-known-type task. Not model-generated.
 set -u
-SRC=tools/cgen/src/engine/parser_known_type.c
+SRC=tools/cgen/src/engine/parser_declarator.c
 TESTMAIN=tools/cgen/test/unit/parser_known_type_main.c
 # Every engine source except the one(s) under test. A hand-written list
 # is not what this oracle checks — it only mirrors the call graph, and it

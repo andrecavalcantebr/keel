@@ -1,21 +1,21 @@
 /* Minimal oracle for the m2-parser-decl-keel task. Expected values
  * hand-derived by tracing the composition of k_scan_known_type +
- * k_scan_declarator_head + k_scan_opaque_until. Not model-generated.
+ * k_scan_declarator + k_scan_opaque_until. Not model-generated.
  *
  * Trace for "buffer i32 xs; ok" (symtab: "buffer" = MODIFIER, arity 1):
  *   k_scan_known_type("buffer") -> MODIFIER, arg[0]="i32", next="xs"
- *   k_scan_declarator_head("xs") -> name="xs", next=";"
+ *   k_scan_declarator("xs") -> name="xs", next=";"
  *   register "xs" as VARIABLE; ';' is not '=' and not ',' -> done
  *   one more read past ';' -> next_out = "ok"
  *
  * Trace for "arena a = f(1,2), b; ok2" (symtab: "arena" = TYPE):
  *   k_scan_known_type("arena") -> NAMED_TYPE, next="a"
- *   k_scan_declarator_head("a") -> name="a", next="="
+ *   k_scan_declarator("a") -> name="a", next="="
  *   register "a"; sees '=' -> read initializer's first token "f", then
  *     k_scan_opaque_until("f", {",",";"}) skips "(1,2)" as one balanced
  *     unit (the comma inside it is at depth 1, not a match) and stops at
  *     the SECOND ',' (depth 0) -> that ',' means another init-decl follows
- *   k_scan_declarator_head("b") -> name="b", next=";"
+ *   k_scan_declarator("b") -> name="b", next=";"
  *   register "b"; ';' ends it -> one more read past ';' -> next_out = "ok2"
  *
  * Trace for "unregistered rest" (not in symtab at all):

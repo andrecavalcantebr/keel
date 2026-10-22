@@ -27,9 +27,9 @@ int main(void) {
     k_symtab_init(&symtab, storage, 4);
 
     /* modifier buffer byref { size_t cap, len; T *ptr; } ok */
-    KToken kw = first_token("modifier buffer byref { size_t cap, len; T *ptr; } ok\n", &lexer);
+    first_token("modifier buffer byref { size_t cap, len; T *ptr; } ok\n", &lexer);
     KModifierDecl md;
-    bool inserted = k_scan_modifier_decl(&lexer, kw, 1, &symtab, &md, &next, &pp);
+    bool inserted = k_scan_modifier_decl(&lexer, 1, &symtab, &md, &next, &pp);
 
     if (!inserted) { fprintf(stderr, "FAIL: k_scan_modifier_decl returned false\n"); failures++; }
     if (!EQ(md.name, "buffer")) { fprintf(stderr, "FAIL: name = \"%.*s\"\n", (int)md.name.len, md.name.ptr); failures++; }

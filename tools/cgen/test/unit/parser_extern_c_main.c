@@ -52,17 +52,17 @@ int main(void) {
     check_next("nested body", next);
 
     /* extern_c { fclose(fp); } ok  -- no type_h */
-    KToken ekw1 = first_token("extern_c { fclose(fp); } ok\n", &lexer);
+    first_token("extern_c { fclose(fp); } ok\n", &lexer);
     KExternCDecl ec1;
-    k_scan_extern_c(&lexer, ekw1, &ec1, &next, &pp);
+    k_scan_extern_c(&lexer, &ec1, &next, &pp);
     if (ec1.has_type_h) { fprintf(stderr, "FAIL: no type_h — has_type_h = true\n"); failures++; }
     if (!EQ(ec1.body, "fclose(fp);")) { fprintf(stderr, "FAIL: extern_c body = \"%.*s\"\n", (int)ec1.body.len, ec1.body.ptr); failures++; }
     check_next("extern_c, no type_h", next);
 
     /* extern_c [type_h] { typedef int t; } ok  -- with type_h */
-    KToken ekw2 = first_token("extern_c [type_h] { typedef int t; } ok\n", &lexer);
+    first_token("extern_c [type_h] { typedef int t; } ok\n", &lexer);
     KExternCDecl ec2;
-    k_scan_extern_c(&lexer, ekw2, &ec2, &next, &pp);
+    k_scan_extern_c(&lexer, &ec2, &next, &pp);
     if (!ec2.has_type_h) { fprintf(stderr, "FAIL: with type_h — has_type_h = false\n"); failures++; }
     if (!EQ(ec2.body, "typedef int t;")) { fprintf(stderr, "FAIL: extern_c[type_h] body = \"%.*s\"\n", (int)ec2.body.len, ec2.body.ptr); failures++; }
     check_next("extern_c, with type_h", next);

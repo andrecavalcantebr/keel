@@ -4,7 +4,7 @@
 # path to the generated C file by loop.py.
 set -u
 
-SRC=tools/cgen/src/engine/parser_scan_qualified_name.c
+SRC=tools/cgen/src/engine/parser_scan.c
 TESTMAIN=tools/cgen/test/unit/parser_scan_qualified_name_main.c
 # Every engine source except the one(s) under test. A hand-written list
 # is not what this oracle checks — it only mirrors the call graph, and it

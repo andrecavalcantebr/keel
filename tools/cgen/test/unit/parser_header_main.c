@@ -34,34 +34,34 @@ int main(void) {
     KToken next;
 
     /* module app.cfg; ok */
-    KToken kw = first_token("module app.cfg; ok\n", &lexer); /* kw = the 'module' token itself */
+    first_token("module app.cfg; ok\n", &lexer); /* the 'module' token itself */
     KModuleHeader mh;
-    k_scan_module_decl(&lexer, kw, &mh, &next, &pp);
+    k_scan_module_decl(&lexer, &mh, &next, &pp);
     if (!EQ(mh.module_name, "app.cfg")) { fprintf(stderr, "FAIL: module_name = \"%.*s\"\n", (int)mh.module_name.len, mh.module_name.ptr); failures++; }
     check_next("module", next);
 
     /* module coll dim N tags Cycle type T; ok -- all three binders */
-    KToken kw2 = first_token("module coll dim N tags Cycle type T; ok\n", &lexer);
+    first_token("module coll dim N tags Cycle type T; ok\n", &lexer);
     KModuleHeader mh2;
-    k_scan_module_decl(&lexer, kw2, &mh2, &next, &pp);
+    k_scan_module_decl(&lexer, &mh2, &next, &pp);
     if (mh2.dim_count != 1 || !EQ(mh2.dims[0], "N")) { fprintf(stderr, "FAIL: dims\n"); failures++; }
     if (mh2.tag_count != 1 || !EQ(mh2.tags[0], "Cycle")) { fprintf(stderr, "FAIL: tags\n"); failures++; }
     if (mh2.type_count != 1 || !EQ(mh2.types[0], "T")) { fprintf(stderr, "FAIL: types\n"); failures++; }
     check_next("module with binders", next);
 
     /* import keel.buffer as buffer types; ok */
-    KToken ikw = first_token("import keel.buffer as buffer types; ok\n", &lexer);
+    first_token("import keel.buffer as buffer types; ok\n", &lexer);
     KImportDecl imp;
-    k_scan_import(&lexer, ikw, &imp, &next, &pp);
+    k_scan_import(&lexer, &imp, &next, &pp);
     if (!EQ(imp.module_name, "keel.buffer")) { fprintf(stderr, "FAIL: import module_name = \"%.*s\"\n", (int)imp.module_name.len, imp.module_name.ptr); failures++; }
     if (!EQ(imp.alias, "buffer")) { fprintf(stderr, "FAIL: import alias = \"%.*s\"\n", (int)imp.alias.len, imp.alias.ptr); failures++; }
     if (!imp.has_types) { fprintf(stderr, "FAIL: import has_types = false\n"); failures++; }
     check_next("import", next);
 
     /* import_c <stdio.h>; ok */
-    KToken ckw = first_token("import_c <stdio.h>; ok\n", &lexer);
+    first_token("import_c <stdio.h>; ok\n", &lexer);
     KImportCDecl ic;
-    k_scan_import_c(&lexer, ckw, &ic, &next, &pp);
+    k_scan_import_c(&lexer, &ic, &next, &pp);
     if (!EQ(ic.header, "<stdio.h>")) { fprintf(stderr, "FAIL: import_c header = \"%.*s\"\n", (int)ic.header.len, ic.header.ptr); failures++; }
     check_next("import_c", next);
 

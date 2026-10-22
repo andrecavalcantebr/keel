@@ -2,20 +2,20 @@
 
 #include "engine/parser_islands_internal.h"
 
-void roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
+void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
                           keel_slice_char verb);
-int local_of(const Ctx *c, Range r);
-void produce(Ctx *c, int p, const int *parents, int np);
-bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause);
+int isl_local_of(const Ctx *c, Range r);
+void isl_produce(Ctx *c, int p, const int *parents, int np);
+bool isl_verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause);
 /* ---- the closure of the instances (stage 4i) --------------------------- */
 
 static bool qualified_const(const char *symbol) { return !strncmp(symbol, "const_", 6); }
 
 /* the type written for parameter `p`, without its name, role and stars */
-Range param_type(const KAst *home, const Param *p) {
+Range isl_param_type(const KAst *home, const Param *p) {
     Range r = { p->first, p->end ? p->end - 1 : p->first };
     if (p->role != K_ROLE_NONE) r.first++;
-    while (r.end > r.first && punct(home, r.end - 1, "*")) r.end--;
+    while (r.end > r.first && isl_punct(home, r.end - 1, "*")) r.end--;
     return r;
 }
 
@@ -23,23 +23,23 @@ Range param_type(const KAst *home, const Param *p) {
    declaration in the body before token `before` */
 static bool declared_type(const KAst *home, const KAstNode *fn, KToken name, size_t before, keel_slice_char *out) {
     Param p[K_PARAMS_MAX];
-    size_t n = params_of(home, fn, p, K_PARAMS_MAX);
+    size_t n = isl_params_of(home, fn, p, K_PARAMS_MAX);
     for (size_t k = 0; n != SIZE_MAX && k < n; k++)
-        if (p[k].end > p[k].first && k_symtab_same_name(tok(home, p[k].end - 1), name)) {
-            Range r = param_type(home, &p[k]);
+        if (p[k].end > p[k].first && k_symtab_same_name(isl_tok(home, p[k].end - 1), name)) {
+            Range r = isl_param_type(home, &p[k]);
             if (r.end <= r.first) return false;
-            *out = range_text(home, r);
+            *out = isl_range_text(home, r);
             return true;
         }
     for (size_t j = fn->body_first; j < before && j < fn->body_end; j++) {
-        if (!k_symtab_same_name(tok(home, j), name) || !(punct(home, j + 1, "=") || punct(home, j + 1, ";"))) continue;
+        if (!k_symtab_same_name(isl_tok(home, j), name) || !(isl_punct(home, j + 1, "=") || isl_punct(home, j + 1, ";"))) continue;
         size_t st = j;
-        while (st > fn->body_first && !punct(home, st - 1, ";") && !punct(home, st - 1, "{") && !punct(home, st - 1, "}"))
+        while (st > fn->body_first && !isl_punct(home, st - 1, ";") && !isl_punct(home, st - 1, "{") && !isl_punct(home, st - 1, "}"))
             st--;
         size_t e = j;
-        while (e > st && punct(home, e - 1, "*")) e--;
+        while (e > st && isl_punct(home, e - 1, "*")) e--;
         if (e <= st) return false;
-        *out = range_text(home, (Range){ st, e });
+        *out = isl_range_text(home, (Range){ st, e });
         return true;
     }
     return false;
@@ -49,13 +49,13 @@ static bool declared_type(const KAst *home, const KAstNode *fn, KToken name, siz
    (`T value`) or as the pointee (`T *ptr`) */
 static bool binder_field(const KAst *home, keel_slice_char b, keel_slice_char field, bool *pointer) {
     for (size_t i = 0; i < home->nodes.len; i++) {
-        const KAstNode *m = node_at(home, i);
+        const KAstNode *m = isl_node_at(home, i);
         if (m->kind != K_AST_MODIFIER || m->body_first == SIZE_MAX) continue;
         for (size_t j = m->body_first; j + 2 < m->body_end; j++) {
-            if (!k_symtab_same_name(tok(home, j), b)) continue;
-            if (j > m->body_first && !punct(home, j - 1, ";") && !punct(home, j - 1, "{")) continue;
-            if (ident(home, j + 1) && k_symtab_same_name(tok(home, j + 1), field)) { *pointer = false; return true; }
-            if (punct(home, j + 1, "*") && ident(home, j + 2) && k_symtab_same_name(tok(home, j + 2), field)) {
+            if (!k_symtab_same_name(isl_tok(home, j), b)) continue;
+            if (j > m->body_first && !isl_punct(home, j - 1, ";") && !isl_punct(home, j - 1, "{")) continue;
+            if (isl_ident(home, j + 1) && k_symtab_same_name(isl_tok(home, j + 1), field)) { *pointer = false; return true; }
+            if (isl_punct(home, j + 1, "*") && isl_ident(home, j + 2) && k_symtab_same_name(isl_tok(home, j + 2), field)) {
                 *pointer = true;
                 return true;
             }
@@ -64,16 +64,16 @@ static bool binder_field(const KAst *home, keel_slice_char b, keel_slice_char fi
     return false;
 }
 
-bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause);
+bool isl_verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause);
 
 /* the arguments of the call whose '(' is `open`, up to `close` */
-size_t call_args(const KAst *a, size_t open, size_t close, Range *first) {
+size_t isl_call_args(const KAst *a, size_t open, size_t close, Range *first) {
     size_t n = 0, depth = 0, st = open + 1;
     if (close == open + 1) return 0;
     for (size_t j = open + 1; j <= close; j++) {
-        if (j < close && (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{"))) depth++;
-        else if (j < close && (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}"))) depth--;
-        else if (j == close || (!depth && punct(a, j, ","))) {
+        if (j < close && (isl_punct(a, j, "(") || isl_punct(a, j, "[") || isl_punct(a, j, "{"))) depth++;
+        else if (j < close && (isl_punct(a, j, ")") || isl_punct(a, j, "]") || isl_punct(a, j, "}"))) depth--;
+        else if (j == close || (!depth && isl_punct(a, j, ","))) {
             if (n == 0) *first = (Range){ st, j };
             n++;
             st = j + 1;
@@ -87,87 +87,87 @@ size_t call_args(const KAst *a, size_t open, size_t close, Range *first) {
    type `T` by value; one whose argument is `const` loses the writes to the
    constant value; and a verb that calls a lost verb is lost with it. */
 static bool compute_surface(Ctx *c, const KAst *home, const KAstNode *fn, int t, Text *why) {
-    const KType *k = kt(c, t);
+    const KType *k = isl_kt(c, t);
     keel_slice_char binders[8];
-    size_t nb = binders_of(home, binders);
+    size_t nb = isl_binders_of(home, binders);
     bool is_void[8] = {0}, is_const[8] = {0};
     for (size_t b = 0; b < nb && b < (size_t)k->argc; b++) {
-        const char *sym = kt_symbol(c, k->arg[b]);
+        const char *sym = isl_kt_symbol(c, k->arg[b]);
         is_void[b] = !strcmp(sym, "void");
         is_const[b] = qualified_const(sym);
     }
     Param p[K_PARAMS_MAX];
-    size_t np = params_of(home, fn, p, K_PARAMS_MAX);
+    size_t np = isl_params_of(home, fn, p, K_PARAMS_MAX);
     for (size_t q = 0; np != SIZE_MAX && q < np; q++) {
-        Range r = param_type(home, &p[q]);
+        Range r = isl_param_type(home, &p[q]);
         if (r.end != r.first + 1 || p[q].pointer) continue;
         for (size_t b = 0; b < nb; b++)
-            if (is_void[b] && k_symtab_same_name(tok(home, r.first), binders[b])) {
-                put_str(why, "void-param ");
-                put(why, tok(home, p[q].end - 1).ptr, tok(home, p[q].end - 1).len);
+            if (is_void[b] && k_symtab_same_name(isl_tok(home, r.first), binders[b])) {
+                isl_put_str(why, "void-param ");
+                isl_put(why, isl_tok(home, p[q].end - 1).ptr, isl_tok(home, p[q].end - 1).len);
                 return false;
             }
     }
     if (fn->body_first == SIZE_MAX) return true;
     for (size_t j = fn->body_first; j < fn->body_end; j++) {
         /* a field of the instance: `x->value`, `x.ptr[i] = v` */
-        if (ident(home, j) && j > fn->body_first && (punct(home, j - 1, "->") || punct(home, j - 1, ".")) &&
-            !punct(home, j + 1, "(")) {
+        if (isl_ident(home, j) && j > fn->body_first && (isl_punct(home, j - 1, "->") || isl_punct(home, j - 1, ".")) &&
+            !isl_punct(home, j + 1, "(")) {
             for (size_t b = 0; b < nb; b++) {
                 bool pointer;
-                if ((!is_void[b] && !is_const[b]) || !binder_field(home, binders[b], tok(home, j), &pointer)) continue;
+                if ((!is_void[b] && !is_const[b]) || !binder_field(home, binders[b], isl_tok(home, j), &pointer)) continue;
                 if (is_void[b] && !pointer) {
-                    put_str(why, "void-field ");
-                    put(why, tok(home, j).ptr, tok(home, j).len);
+                    isl_put_str(why, "void-field ");
+                    isl_put(why, isl_tok(home, j).ptr, isl_tok(home, j).len);
                     return false;
                 }
                 if (!is_const[b]) continue;
                 size_t after = j + 1;
                 if (pointer) {
-                    if (!punct(home, after, "[")) continue;
-                    after = close_bracket(home, after, fn->body_end);
+                    if (!isl_punct(home, after, "[")) continue;
+                    after = isl_close_bracket(home, after, fn->body_end);
                     if (after == SIZE_MAX) continue;
                     after++;
                 }
-                if (assignment_op(home, after) || (j >= 3 && (punct(home, j - 3, "++") || punct(home, j - 3, "--")))) {
-                    put_str(why, "const-write ");
-                    put(why, tok(home, j).ptr, tok(home, j).len);
+                if (isl_assignment_op(home, after) || (j >= 3 && (isl_punct(home, j - 3, "++") || isl_punct(home, j - 3, "--")))) {
+                    isl_put_str(why, "const-write ");
+                    isl_put(why, isl_tok(home, j).ptr, isl_tok(home, j).len);
                     return false;
                 }
             }
             continue;
         }
         /* a known keel call: `alias.verb(x, ...)` or `verb(x, ...)` of the module */
-        if (!ident(home, j) || !punct(home, j + 1, "(")) continue;
-        if (j > fn->body_first && punct(home, j - 1, "->")) continue;
+        if (!isl_ident(home, j) || !isl_punct(home, j + 1, "(")) continue;
+        if (j > fn->body_first && isl_punct(home, j - 1, "->")) continue;
         const KAst *callee = home;
-        if (j > fn->body_first + 1 && punct(home, j - 1, ".")) {
-            if (!ident(home, j - 2)) continue;
-            const KModule *m = module_alias(home->symbols, tok(home, j - 2));
-            callee = m ? ast_of(c, m) : NULL;
+        if (j > fn->body_first + 1 && isl_punct(home, j - 1, ".")) {
+            if (!isl_ident(home, j - 2)) continue;
+            const KModule *m = isl_module_alias(home->symbols, isl_tok(home, j - 2));
+            callee = m ? isl_ast_of(c, m) : NULL;
             if (!callee) continue;
         }
-        size_t close = close_paren(home, j + 1, fn->body_end);
+        size_t close = isl_close_paren(home, j + 1, fn->body_end);
         if (close == SIZE_MAX) continue;
         Range first = {0, 0};
-        size_t arity = call_args(home, j + 1, close, &first);
+        size_t arity = isl_call_args(home, j + 1, close, &first);
         if (!arity) continue;
-        while (first.first < first.end && (punct(home, first.first, "&") || punct(home, first.first, "*"))) first.first++;
-        if (first.end != first.first + 1 || !ident(home, first.first)) continue;
+        while (first.first < first.end && (isl_punct(home, first.first, "&") || isl_punct(home, first.first, "*"))) first.first++;
+        if (first.end != first.first + 1 || !isl_ident(home, first.first)) continue;
         keel_slice_char text;
-        if (!declared_type(home, fn, tok(home, first.first), j, &text)) continue;
+        if (!declared_type(home, fn, isl_tok(home, first.first), j, &text)) continue;
         int saved = c->type_count;
-        int obj = kt_from_home(c, home, text, t);
-        if (obj >= 0 && kt(c, obj)->kind == KT_MODIFIER && kt(c, obj)->module && ast_of(c, kt(c, obj)->module) == callee) {
-            Sig sig = find_verb(callee, tok(home, j), arity);
+        int obj = isl_kt_from_home(c, home, text, t);
+        if (obj >= 0 && isl_kt(c, obj)->kind == KT_MODIFIER && isl_kt(c, obj)->module && isl_ast_of(c, isl_kt(c, obj)->module) == callee) {
+            Sig sig = isl_find_verb(callee, isl_tok(home, j), arity);
             const char *inner = NULL;
-            if (sig.found && !sig.p[0].is_protocol && !verb_available(c, callee, sig.fn, obj, &inner)) {
-                put_str(why, "calls ");
-                put_str(why, kt(c, obj)->symbol);
-                put_str(why, ".");
-                put(why, tok(home, j).ptr, tok(home, j).len);
-                put_str(why, "/");
-                put_uint(why, arity);
+            if (sig.found && !sig.p[0].is_protocol && !isl_verb_available(c, callee, sig.fn, obj, &inner)) {
+                isl_put_str(why, "calls ");
+                isl_put_str(why, isl_kt(c, obj)->symbol);
+                isl_put_str(why, ".");
+                isl_put(why, isl_tok(home, j).ptr, isl_tok(home, j).len);
+                isl_put_str(why, "/");
+                isl_put_uint(why, arity);
                 c->type_count = saved;
                 return false;
             }
@@ -177,8 +177,8 @@ static bool compute_surface(Ctx *c, const KAst *home, const KAstNode *fn, int t,
     return true;
 }
 
-bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause) {
-    const char *inst = kt_symbol(c, t);
+bool isl_verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const char **cause) {
+    const char *inst = isl_kt_symbol(c, t);
     if (!*inst) return true;
     for (size_t i = 0; i < c->surface_count; i++) {
         Surface *s = &c->surface[i];
@@ -204,27 +204,27 @@ bool verb_available(Ctx *c, const KAst *home, const KAstNode *fn, int t, const c
 }
 
 /* the instances inside type `t`: itself and its arguments, at any depth */
-size_t instances_in(Ctx *c, int t, int *out, size_t n, size_t cap, int depth) {
+size_t isl_instances_in(Ctx *c, int t, int *out, size_t n, size_t cap, int depth) {
     if (t < 0 || depth > 8) return n;
-    const KType *k = kt(c, t);
+    const KType *k = isl_kt(c, t);
     if (k->kind == KT_MODIFIER && *k->symbol && n < cap) out[n++] = t;
     if (k->kind == KT_MODIFIER)
-        for (int i = 0; i < k->argc; i++) n = instances_in(c, k->arg[i], out, n, cap, depth + 1);
+        for (int i = 0; i < k->argc; i++) n = isl_instances_in(c, k->arg[i], out, n, cap, depth + 1);
     return n;
 }
 
 /* a copy of the type tree `t` at the top of the pool */
-int kt_deep(Ctx *c, const KType *nodes, int t) {
-    int copy = kt_new(c);
+int isl_kt_deep(Ctx *c, const KType *nodes, int t) {
+    int copy = isl_kt_new(c);
     if (copy < 0) return -1;
     c->types[copy] = nodes[t];
     if (nodes[t].kind == KT_MODIFIER)
         for (int i = 0; i < nodes[t].argc; i++) {
-            int arg = kt_deep(c, nodes, nodes[t].arg[i]);
+            int arg = isl_kt_deep(c, nodes, nodes[t].arg[i]);
             if (arg < 0) return -1;
             c->types[copy].arg[i] = arg;
         }
-    if (nodes[t].kind == KT_ARRAY && nodes[t].elem >= 0) c->types[copy].elem = kt_deep(c, nodes, nodes[t].elem);
+    if (nodes[t].kind == KT_ARRAY && nodes[t].elem >= 0) c->types[copy].elem = isl_kt_deep(c, nodes, nodes[t].elem);
     return copy;
 }
 
@@ -233,12 +233,12 @@ int kt_deep(Ctx *c, const KType *nodes, int t) {
 /* ---- provenance and invalidation (spec §4.12) ---------------------------- */
 
 /* the local an argument names: a symbol, with `&` or `*` in front */
-int local_of(const Ctx *c, Range r) {
+int isl_local_of(const Ctx *c, Range r) {
     const KAst *a = c->ast;
-    while (r.first < r.end && (punct(a, r.first, "&") || punct(a, r.first, "*"))) r.first++;
-    if (r.end != r.first + 1 || !ident(a, r.first)) return -1;
+    while (r.first < r.end && (isl_punct(a, r.first, "&") || isl_punct(a, r.first, "*"))) r.first++;
+    if (r.end != r.first + 1 || !isl_ident(a, r.first)) return -1;
     for (size_t i = c->local_count; i-- > 0;)
-        if (k_symtab_same_name(c->locals[i].name, tok(a, r.first))) return (int)i;
+        if (k_symtab_same_name(c->locals[i].name, isl_tok(a, r.first))) return (int)i;
     return -1;
 }
 
@@ -262,7 +262,7 @@ static void invalidate(Ctx *c, int x, bool self, keel_slice_char by) {
 }
 
 /* `p` is the product of `parents`: new dependencies, valid again (rules 2, 4, 9) */
-void produce(Ctx *c, int p, const int *parents, int np) {
+void isl_produce(Ctx *c, int p, const int *parents, int np) {
     if (p < 0) return;
     Local *l = &c->locals[p];
     l->ndeps = 0;
@@ -277,26 +277,26 @@ void produce(Ctx *c, int p, const int *parents, int np) {
 
 /* the roles of a resolved call, at its arguments (rules 2, 6, 7): `callee` is
    the first token of the call, where an assignment's `=` stands before it */
-void roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
+void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
                           keel_slice_char verb) {
     KAst *a = c->ast;
     if (c->quiet || !sig->found) return;
     int parents[K_PARAMS_MAX], np = 0;
     for (size_t k = 0; k < argc && k < sig->n; k++)
-        if (sig->p[k].role == K_ROLE_PARENT) parents[np++] = local_of(c, args[k]);
+        if (sig->p[k].role == K_ROLE_PARENT) parents[np++] = isl_local_of(c, args[k]);
     for (size_t k = 0; k < argc && k < sig->n; k++) {
-        int x = local_of(c, args[k]);
+        int x = isl_local_of(c, args[k]);
         if (x < 0) continue;
         if (sig->p[k].role == K_ROLE_INVALIDATES) invalidate(c, x, false, verb);
         if (sig->p[k].role == K_ROLE_CONSUMES) invalidate(c, x, true, verb);
     }
     for (size_t k = 0; k < argc && k < sig->n; k++)
-        if (sig->p[k].role == K_ROLE_CHILD) produce(c, local_of(c, args[k]), parents, np);
+        if (sig->p[k].role == K_ROLE_CHILD) isl_produce(c, isl_local_of(c, args[k]), parents, np);
     bool child_return = false;
     for (size_t j = sig->fn->first; j < sig->fn->name_first; j++)
-        if (k_token_role(tok(home, j)) == K_ROLE_CHILD) child_return = true;
-    if (child_return && callee >= 2 && punct(a, callee - 1, "=") && ident(a, callee - 2))
-        produce(c, local_of(c, (Range){ callee - 2, callee - 1 }), parents, np);
+        if (k_token_role(isl_tok(home, j)) == K_ROLE_CHILD) child_return = true;
+    if (child_return && callee >= 2 && isl_punct(a, callee - 1, "=") && isl_ident(a, callee - 2))
+        isl_produce(c, isl_local_of(c, (Range){ callee - 2, callee - 1 }), parents, np);
 }
 
 /* ---- instance (spec §4.3) ---------------------------------------------- */
@@ -304,29 +304,29 @@ void roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, 
 /* `instance M.mod args;`: the type is a modifier of a generic module
    (instance-not-modifier), and that module has a body to place: a generic
    that is `inline` all through needs none (redundant-instance). */
-void instance_decl(Ctx *c, const KAstNode *n) {
+void isl_instance_decl(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
-    keel_slice_char text = range_text(a, (Range){ n->name_first, n->name_end });
+    keel_slice_char text = isl_range_text(a, (Range){ n->name_first, n->name_end });
     KLexer lexer;
     TKPpKind pp;
     KSpecifier spec;
     KToken next = {0};
-    KToken first = enter(a, n->name_first, &lexer, &pp);
+    KToken first = isl_enter(a, n->name_first, &lexer, &pp);
     if (!k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) || spec.kind != K_SPEC_MODIFIER ||
         (next.len && next.ptr < text.ptr + text.len)) {
-        diag3(c, K_DIAG_INSTANCE_NOT_MODIFIER, tok(a, n->name_first), text, none, none);
+        isl_diag3(c, K_DIAG_INSTANCE_NOT_MODIFIER, isl_tok(a, n->name_first), text, none, none);
         return;
     }
-    check_arguments(c, &spec, tok(a, n->name_first));
+    isl_check_arguments(c, &spec, isl_tok(a, n->name_first));
     const KSymbol *m = k_symbol_resolve(a->symbols, spec.modifier_name);
-    const KAst *home = m && m->origin ? ast_of(c, m->origin) : NULL;
+    const KAst *home = m && m->origin ? isl_ast_of(c, m->origin) : NULL;
     if (!home) return;
     for (size_t i = 0; i < home->nodes.len; i++) {
-        const KAstNode *fn = node_at(home, i);
+        const KAstNode *fn = isl_node_at(home, i);
         if ((fn->kind == K_AST_FUNCTION && !fn->is_inline) || fn->kind == K_AST_VARIABLE) return;
     }
-    diag3(c, K_DIAG_REDUNDANT_INSTANCE, tok(a, n->first), text, none, none);
+    isl_diag3(c, K_DIAG_REDUNDANT_INSTANCE, isl_tok(a, n->first), text, none, none);
 }
 
 /* Spec §4.3, rule 20: in a generic module, a declaration that mentions no
@@ -334,17 +334,17 @@ void instance_decl(Ctx *c, const KAstNode *n) {
    is a type, a `constexpr` or an `inline` function — never one out of line
    nor a variable (nonparametric-out-of-line). */
 static bool own_modifier(const KAst *a, size_t j) {
-    if (!ident(a, j)) return false;
+    if (!isl_ident(a, j)) return false;
     for (size_t k = 0; k < a->nodes.len; k++) {
-        const KAstNode *d = node_at(a, k);
-        if (d->kind == K_AST_MODIFIER && k_symtab_same_name(tok(a, j), tok(a, d->name_first))) return true;
+        const KAstNode *d = isl_node_at(a, k);
+        if (d->kind == K_AST_MODIFIER && k_symtab_same_name(isl_tok(a, j), isl_tok(a, d->name_first))) return true;
     }
     return false;
 }
 
 static bool type_binder(const KAst *a, KToken t) {
-    const KAstNode *m = module_node(a);
-    for (size_t k = m->type_first; k < m->type_end; k++) if (ident(a, k) && k_symtab_same_name(tok(a, k), t)) return true;
+    const KAstNode *m = isl_module_node(a);
+    for (size_t k = m->type_first; k < m->type_end; k++) if (isl_ident(a, k) && k_symtab_same_name(isl_tok(a, k), t)) return true;
     return false;
 }
 
@@ -358,105 +358,105 @@ static void check_opaque(Ctx *c, const KAstNode *fn) {
     keel_slice_char names[32];
     size_t nn = 0;
     Param p[K_PARAMS_MAX];
-    size_t np = params_of(a, fn, p, K_PARAMS_MAX);
+    size_t np = isl_params_of(a, fn, p, K_PARAMS_MAX);
     for (size_t k = 0; np != SIZE_MAX && k < np && nn < 32; k++) {
-        Range r = param_type(a, &p[k]);
-        if (!p[k].is_type && r.end == r.first + 1 && type_binder(a, tok(a, r.first)) && ident(a, p[k].end - 1))
-            names[nn++] = tok(a, p[k].end - 1);
+        Range r = isl_param_type(a, &p[k]);
+        if (!p[k].is_type && r.end == r.first + 1 && type_binder(a, isl_tok(a, r.first)) && isl_ident(a, p[k].end - 1))
+            names[nn++] = isl_tok(a, p[k].end - 1);
     }
     for (size_t j = fn->body_first; j + 1 < fn->body_end && nn < 32; j++) {
-        if (!type_binder(a, tok(a, j)) || !(punct(a, j - 1, ";") || punct(a, j - 1, "{") || punct(a, j - 1, "}") ||
-                                            punct(a, j - 1, "(")))
+        if (!type_binder(a, isl_tok(a, j)) || !(isl_punct(a, j - 1, ";") || isl_punct(a, j - 1, "{") || isl_punct(a, j - 1, "}") ||
+                                            isl_punct(a, j - 1, "(")))
             continue;
         size_t d = j + 1;
-        while (punct(a, d, "*")) d++;
-        if (ident(a, d)) names[nn++] = tok(a, d);
+        while (isl_punct(a, d, "*")) d++;
+        if (isl_ident(a, d)) names[nn++] = isl_tok(a, d);
     }
     if (!nn) return;
     for (size_t j = fn->body_first; j < fn->body_end; j++) {
         const char *what = NULL;
         size_t at = j, x = SIZE_MAX;
-        if ((word(a, j, "foreach") || word(a, j, "walk")) && punct(a, j + 1, "(")) {
-            size_t close = close_paren(a, j + 1, fn->body_end);
-            if (close != SIZE_MAX && punct(a, close - 2, ":")) { x = close - 1; what = word(a, j, "foreach") ? "foreach" : "walk"; }
-        } else if (word(a, j, "match") && punct(a, j + 1, "(") && punct(a, j + 3, ")")) {
+        if ((isl_word(a, j, "foreach") || isl_word(a, j, "walk")) && isl_punct(a, j + 1, "(")) {
+            size_t close = isl_close_paren(a, j + 1, fn->body_end);
+            if (close != SIZE_MAX && isl_punct(a, close - 2, ":")) { x = close - 1; what = isl_word(a, j, "foreach") ? "foreach" : "walk"; }
+        } else if (isl_word(a, j, "match") && isl_punct(a, j + 1, "(") && isl_punct(a, j + 3, ")")) {
             x = j + 2; what = "match";
-        } else if (ident(a, j) && punct(a, j + 1, "[")) {
-            size_t close = close_bracket(a, j + 1, fn->body_end);
-            for (size_t k = j + 2; close != SIZE_MAX && k < close; k++) if (punct(a, k, "..")) { x = j; what = "range-index"; }
-        } else if (ident(a, j) && punct(a, j + 1, ".") && ident(a, j + 2) && punct(a, j + 3, "(") &&
-                   module_alias(a->symbols, tok(a, j))) {
+        } else if (isl_ident(a, j) && isl_punct(a, j + 1, "[")) {
+            size_t close = isl_close_bracket(a, j + 1, fn->body_end);
+            for (size_t k = j + 2; close != SIZE_MAX && k < close; k++) if (isl_punct(a, k, "..")) { x = j; what = "range-index"; }
+        } else if (isl_ident(a, j) && isl_punct(a, j + 1, ".") && isl_ident(a, j + 2) && isl_punct(a, j + 3, "(") &&
+                   isl_module_alias(a->symbols, isl_tok(a, j))) {
             size_t arg = j + 4;
-            while (punct(a, arg, "&") || punct(a, arg, "*")) arg++;
-            if (punct(a, arg + 1, ",") || punct(a, arg + 1, ")")) { x = arg; what = "qualified call"; }
-        } else if (word(a, j, "else") && !punct(a, j - 1, ";") && !punct(a, j - 1, "}")) {
-            for (size_t k = j; k > fn->body_first && !punct(a, k - 1, ";") && !punct(a, k - 1, "{"); k--)
-                if (punct(a, k, "=") && ident(a, k - 1)) { x = k - 1; what = "else"; break; }
+            while (isl_punct(a, arg, "&") || isl_punct(a, arg, "*")) arg++;
+            if (isl_punct(a, arg + 1, ",") || isl_punct(a, arg + 1, ")")) { x = arg; what = "qualified call"; }
+        } else if (isl_word(a, j, "else") && !isl_punct(a, j - 1, ";") && !isl_punct(a, j - 1, "}")) {
+            for (size_t k = j; k > fn->body_first && !isl_punct(a, k - 1, ";") && !isl_punct(a, k - 1, "{"); k--)
+                if (isl_punct(a, k, "=") && isl_ident(a, k - 1)) { x = k - 1; what = "else"; break; }
         }
-        if (x == SIZE_MAX || !ident(a, x)) continue;
+        if (x == SIZE_MAX || !isl_ident(a, x)) continue;
         for (size_t k = 0; k < nn; k++)
-            if (k_symtab_same_name(names[k], tok(a, x))) {
-                diag3(c, K_DIAG_PROTOCOL_ON_PARAMETER, tok(a, at), k_diag_text(what), tok(a, x), none);
+            if (k_symtab_same_name(names[k], isl_tok(a, x))) {
+                isl_diag3(c, K_DIAG_PROTOCOL_ON_PARAMETER, isl_tok(a, at), k_diag_text(what), isl_tok(a, x), none);
                 break;
             }
     }
 }
 
-void check_generic(Ctx *c) {
+void isl_check_generic(Ctx *c) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
-    const KAstNode *m = module_node(a);
+    const KAstNode *m = isl_module_node(a);
     /* the module instantiating itself without end: its own modifier applied
        over its own modifier, `stack stack T`, in a signature or a field
        (circular-generic) */
     for (size_t i = 0; i < a->nodes.len; i++) {
-        const KAstNode *n = node_at(a, i);
+        const KAstNode *n = isl_node_at(a, i);
         if (n->kind != K_AST_FUNCTION && n->kind != K_AST_MODIFIER) continue;
         size_t end = n->kind == K_AST_FUNCTION && n->body_first != SIZE_MAX ? n->body_first : n->end;
         size_t from = n->kind == K_AST_MODIFIER ? n->name_end : n->first;
         for (size_t j = from; j + 1 < end; j++)
             if (own_modifier(a, j) && own_modifier(a, j + 1)) {
                 Text chain = { .ok = true };
-                put_range(&chain, a, j, j + 2);
-                put_str(&chain, " needs ");
-                put(&chain, tok(a, j).ptr, tok(a, j).len);
-                put_str(&chain, " ");
-                put_range(&chain, a, j, j + 2);
-                put_str(&chain, ", and so on");
-                diag3(c, K_DIAG_CIRCULAR_GENERIC, tok(a, j), keep(c, &chain), none, none);
+                isl_put_range(&chain, a, j, j + 2);
+                isl_put_str(&chain, " needs ");
+                isl_put(&chain, isl_tok(a, j).ptr, isl_tok(a, j).len);
+                isl_put_str(&chain, " ");
+                isl_put_range(&chain, a, j, j + 2);
+                isl_put_str(&chain, ", and so on");
+                isl_diag3(c, K_DIAG_CIRCULAR_GENERIC, isl_tok(a, j), isl_keep(c, &chain), none, none);
                 break;
             }
         if (n->kind == K_AST_FUNCTION) check_opaque(c, n);
     }
     for (size_t i = 0; i < a->nodes.len; i++) {
-        const KAstNode *n = node_at(a, i);
+        const KAstNode *n = isl_node_at(a, i);
         if (!((n->kind == K_AST_FUNCTION && !n->is_inline) || n->kind == K_AST_VARIABLE)) continue;
         bool mentions = false;
         size_t end = n->body_first != SIZE_MAX ? n->body_first : n->end;
         for (size_t j = n->first; j < end && !mentions; j++) {
-            if (!ident(a, j)) continue;
+            if (!isl_ident(a, j)) continue;
             for (size_t k = m->dim_first; k < m->type_end; k++)
-                if (ident(a, k) && k_symtab_same_name(tok(a, j), tok(a, k))) mentions = true;
+                if (isl_ident(a, k) && k_symtab_same_name(isl_tok(a, j), isl_tok(a, k))) mentions = true;
             for (size_t k = 0; k < a->nodes.len && !mentions; k++) {
-                const KAstNode *d = node_at(a, k);
-                if (d->kind == K_AST_MODIFIER && k_symtab_same_name(tok(a, j), tok(a, d->name_first))) mentions = true;
+                const KAstNode *d = isl_node_at(a, k);
+                if (d->kind == K_AST_MODIFIER && k_symtab_same_name(isl_tok(a, j), isl_tok(a, d->name_first))) mentions = true;
             }
         }
         if (!mentions)
-            diag3(c, K_DIAG_NONPARAMETRIC_OUT_OF_LINE, tok(a, n->name_first), tok(a, n->name_first), none, none);
+            isl_diag3(c, K_DIAG_NONPARAMETRIC_OUT_OF_LINE, isl_tok(a, n->name_first), isl_tok(a, n->name_first), none, none);
     }
 }
 
 /* a modifier is named `instance` (modifier-named-instance), or stands in a
    module with no parameters (modifier-outside-generic) */
-void check_modifiers(Ctx *c) {
+void isl_check_modifiers(Ctx *c) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
     for (size_t i = 0; i < a->nodes.len; i++) {
-        const KAstNode *n = node_at(a, i);
+        const KAstNode *n = isl_node_at(a, i);
         if (n->kind != K_AST_MODIFIER) continue;
-        KToken name = tok(a, n->name_first);
-        if (k_token_spelled(name, "instance")) diag3(c, K_DIAG_MODIFIER_NAMED_INSTANCE, name, name, none, none);
-        if (!generic(a)) diag3(c, K_DIAG_MODIFIER_OUTSIDE_GENERIC, name, name, none, none);
+        KToken name = isl_tok(a, n->name_first);
+        if (k_token_spelled(name, "instance")) isl_diag3(c, K_DIAG_MODIFIER_NAMED_INSTANCE, name, name, none, none);
+        if (!isl_generic(a)) isl_diag3(c, K_DIAG_MODIFIER_OUTSIDE_GENERIC, name, name, none, none);
     }
 }

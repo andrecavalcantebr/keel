@@ -19,43 +19,43 @@
 #include "engine/parser.h"
 #include "engine/parser_islands_internal.h"
 
-KToken tok(const KAst *a, size_t i) { return keel_buffer_KLexeme_ptr(&a->tokens, i)->token; }
-bool live(const KAst *a, size_t i) {
+KToken isl_tok(const KAst *a, size_t i) { return keel_buffer_KLexeme_ptr(&a->tokens, i)->token; }
+bool isl_live(const KAst *a, size_t i) {
     return i < a->tokens.len && !keel_buffer_KLexeme_ptr(&a->tokens, i)->directive;
 }
-bool punct(const KAst *a, size_t i, const char *s) { return live(a, i) && k_token_is_punct(tok(a, i), s); }
-bool word(const KAst *a, size_t i, const char *s) { return live(a, i) && k_token_spelled(tok(a, i), s); }
-bool ident(const KAst *a, size_t i) { return live(a, i) && k_token_is_ident(tok(a, i)); }
+bool isl_punct(const KAst *a, size_t i, const char *s) { return isl_live(a, i) && k_token_is_punct(isl_tok(a, i), s); }
+bool isl_word(const KAst *a, size_t i, const char *s) { return isl_live(a, i) && k_token_spelled(isl_tok(a, i), s); }
+bool isl_ident(const KAst *a, size_t i) { return isl_live(a, i) && k_token_is_ident(isl_tok(a, i)); }
 
 /* The first token whose spelling starts at or after `ptr`. */
-size_t index_at(const KAst *a, size_t from, const char *ptr) {
+size_t isl_index_at(const KAst *a, size_t from, const char *ptr) {
     size_t k = from;
-    while (k < a->tokens.len && tok(a, k).ptr < ptr) k++;
+    while (k < a->tokens.len && isl_tok(a, k).ptr < ptr) k++;
     return k;
 }
 
-KToken enter(const KAst *a, size_t i, KLexer *lexer, TKPpKind *pp) {
-    KToken t = tok(a, i);
+KToken isl_enter(const KAst *a, size_t i, KLexer *lexer, TKPpKind *pp) {
+    KToken t = isl_tok(a, i);
     k_lexer_init(lexer, (keel_slice_char){ (size_t)(a->source.ptr + a->source.len - t.ptr), t.ptr }, NULL);
     return k_lexer_next(lexer, pp);
 }
 
 /* the index of the ')' that closes the '(' at `open`; SIZE_MAX if none in [open, end) */
-size_t close_paren(const KAst *a, size_t open, size_t end) {
+size_t isl_close_paren(const KAst *a, size_t open, size_t end) {
     size_t depth = 0;
     for (size_t j = open; j < end; j++) {
-        if (punct(a, j, "(")) depth++;
-        else if (punct(a, j, ")") && --depth == 0) return j;
+        if (isl_punct(a, j, "(")) depth++;
+        else if (isl_punct(a, j, ")") && --depth == 0) return j;
     }
     return SIZE_MAX;
 }
 
-size_t close_bracket(const KAst *a, size_t open, size_t end) {
+size_t isl_close_bracket(const KAst *a, size_t open, size_t end) {
     size_t depth = 0;
     for (size_t j = open; j < end; j++) {
-        if (punct(a, j, "(") || punct(a, j, "[") || punct(a, j, "{")) depth++;
-        else if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) {
-            if (--depth == 0) return punct(a, j, "]") ? j : SIZE_MAX;
+        if (isl_punct(a, j, "(") || isl_punct(a, j, "[") || isl_punct(a, j, "{")) depth++;
+        else if (isl_punct(a, j, ")") || isl_punct(a, j, "]") || isl_punct(a, j, "}")) {
+            if (--depth == 0) return isl_punct(a, j, "]") ? j : SIZE_MAX;
         }
     }
     return SIZE_MAX;
@@ -63,41 +63,41 @@ size_t close_bracket(const KAst *a, size_t open, size_t end) {
 
 /* ---- the detail column ------------------------------------------------- */
 
-void put(Text *t, const char *p, size_t n) {
+void isl_put(Text *t, const char *p, size_t n) {
     if (n > sizeof t->s - t->n) { t->ok = false; return; }
     memcpy(t->s + t->n, p, n);
     t->n += n;
 }
-void put_str(Text *t, const char *s) { put(t, s, strlen(s)); }
-void put_uint(Text *t, size_t v) {
+void isl_put_str(Text *t, const char *s) { isl_put(t, s, strlen(s)); }
+void isl_put_uint(Text *t, size_t v) {
     char d[24]; size_t k = 0;
     do { d[k++] = (char)('0' + v % 10); v /= 10; } while (v);
-    while (k) put(t, &d[--k], 1);
+    while (k) isl_put(t, &d[--k], 1);
 }
 /* tokens as the dump prints them: one space between, none around `.`, `(`, `)`, `,` */
-void put_tokens(Text *t, const KAst *a, size_t first, size_t end) {
+void isl_put_tokens(Text *t, const KAst *a, size_t first, size_t end) {
     for (size_t j = first; j < end; j++) {
-        KToken k = tok(a, j);
+        KToken k = isl_tok(a, j);
         if (j > first) {
-            KToken p = tok(a, j - 1);
+            KToken p = isl_tok(a, j - 1);
             bool dot = k_token_is_punct(k, ".") || k_token_is_punct(p, ".");
             bool bracket = k_token_is_punct(k, "(") || k_token_is_punct(k, ")") ||
                            k_token_is_punct(k, ",") || k_token_is_punct(p, "(");
-            if (!dot && !bracket) put(t, " ", 1);
+            if (!dot && !bracket) isl_put(t, " ", 1);
         }
-        put(t, k.ptr, k.len);
+        isl_put(t, k.ptr, k.len);
     }
 }
-void put_glued(Text *t, const KAst *a, size_t first, size_t end) {
-    for (size_t j = first; j < end; j++) put(t, tok(a, j).ptr, tok(a, j).len);
+void isl_put_glued(Text *t, const KAst *a, size_t first, size_t end) {
+    for (size_t j = first; j < end; j++) isl_put(t, isl_tok(a, j).ptr, isl_tok(a, j).len);
 }
 /* source text, its white space collapsed to one space and trimmed at both ends */
-void put_source(Text *t, const char *p, const char *end) {
+void isl_put_source(Text *t, const char *p, const char *end) {
     bool space = false, any = false;
     for (; p < end; p++) {
         if (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') { space = any; continue; }
-        if (space) put(t, " ", 1);
-        put(t, p, 1);
+        if (space) isl_put(t, " ", 1);
+        isl_put(t, p, 1);
         space = false;
         any = true;
     }
@@ -108,7 +108,7 @@ void put_source(Text *t, const char *p, const char *end) {
 /* A diagnostic argument built here must outlive the function that built it:
    the sink formats the message later. It is kept in the island text, after
    the details, where nothing reads it but the diagnostic. */
-keel_slice_char keep(Ctx *c, const Text *t) {
+keel_slice_char isl_keep(Ctx *c, const Text *t) {
     KAst *a = c->ast;
     if (!t->ok || t->n > a->island_text.cap - a->island_text.len) return k_diag_text("its verbs");
     char *at = a->island_text.ptr + a->island_text.len;
@@ -117,12 +117,12 @@ keel_slice_char keep(Ctx *c, const Text *t) {
     return (keel_slice_char){ t->n, at };
 }
 
-bool emit(Ctx *c, KIslandKind kind, size_t anchor, const Text *t) {
+bool isl_emit(Ctx *c, KIslandKind kind, size_t anchor, const Text *t) {
     KAst *a = c->ast;
     if (c->quiet) return true;
     if (!t->ok || a->islands.len == a->islands.cap || t->n > a->island_text.cap - a->island_text.len) {
         if (!c->failed) {
-            KToken at = tok(a, anchor);
+            KToken at = isl_tok(a, anchor);
             k_diag_emit(c->diag, K_DIAG_CAPACITY, at, (KDiagArgs){{at}});
             c->failed = true;
         }
@@ -141,7 +141,7 @@ bool emit(Ctx *c, KIslandKind kind, size_t anchor, const Text *t) {
 
 /* ---- locals ------------------------------------------------------------ */
 
-const Local *find_local(const Ctx *c, keel_slice_char name) {
+const Local *isl_find_local(const Ctx *c, keel_slice_char name) {
     for (size_t i = c->local_count; i-- > 0;)
         if (k_symtab_same_name(c->locals[i].name, name)) return &c->locals[i];
     return NULL;
@@ -149,7 +149,7 @@ const Local *find_local(const Ctx *c, keel_slice_char name) {
 
 /* The value of a decimal literal, or of a name whose initializer is one (spec
    §4.2, item 14): keel does not calculate expressions. */
-bool digits(keel_slice_char s, long *out) {
+bool isl_digits(keel_slice_char s, long *out) {
     while (s.len && (s.ptr[0] == ' ' || s.ptr[0] == '\t' || s.ptr[0] == '\n')) { s.ptr++; s.len--; }
     while (s.len && (s.ptr[s.len - 1] == ' ' || s.ptr[s.len - 1] == '\t' || s.ptr[s.len - 1] == '\n')) s.len--;
     if (!s.len || s.len > 9) return false;
@@ -162,22 +162,22 @@ bool digits(keel_slice_char s, long *out) {
     return true;
 }
 
-bool decimal_of_token(const Ctx *c, KToken t, long *out) {
-    if (k_token_is_number(t)) return digits(t, out);
+bool isl_decimal_of_token(const Ctx *c, KToken t, long *out) {
+    if (k_token_is_number(t)) return isl_digits(t, out);
     if (!k_token_is_ident(t)) return false;
-    const Local *l = find_local(c, t);
-    if (l) return l->is_constexpr && digits(l->value, out);
+    const Local *l = isl_find_local(c, t);
+    if (l) return l->is_constexpr && isl_digits(l->value, out);
     const KSymbol *sym = k_symbol_resolve(c->ast->symbols, t);
-    return sym && sym->kind == K_SYM_CONSTANT && digits(sym->value, out);
+    return sym && sym->kind == K_SYM_CONSTANT && isl_digits(sym->value, out);
 }
 
-bool decimal_of(const Ctx *c, Range r, long *out) {
-    return r.end == r.first + 1 && decimal_of_token(c, tok(c->ast, r.first), out);
+bool isl_decimal_of(const Ctx *c, Range r, long *out) {
+    return r.end == r.first + 1 && isl_decimal_of_token(c, isl_tok(c->ast, r.first), out);
 }
 
 /* The dimensions an `array` declares, in order, from the text `[2,3][4]`; -1 for
    one that is not a known decimal (a binder, an expression). */
-size_t dims_of(const Ctx *c, keel_slice_char text, long out[8]) {
+size_t isl_dims_of(const Ctx *c, keel_slice_char text, long out[8]) {
     KLexer lexer;
     k_lexer_init(&lexer, text, NULL);
     TKPpKind pp;
@@ -188,12 +188,12 @@ size_t dims_of(const Ctx *c, keel_slice_char text, long out[8]) {
         if (open && depth++ == 0) { tokens = 0; continue; }
         if (close && --depth == 0) {
             long v;
-            if (n < 8) out[n++] = tokens == 1 && decimal_of_token(c, only, &v) ? v : -1;
+            if (n < 8) out[n++] = tokens == 1 && isl_decimal_of_token(c, only, &v) ? v : -1;
             continue;
         }
         if (depth == 1 && k_token_is_punct(t, ",")) {
             long v;
-            if (n < 8) out[n++] = tokens == 1 && decimal_of_token(c, only, &v) ? v : -1;
+            if (n < 8) out[n++] = tokens == 1 && isl_decimal_of_token(c, only, &v) ? v : -1;
             tokens = 0;
             continue;
         }
@@ -202,7 +202,7 @@ size_t dims_of(const Ctx *c, keel_slice_char text, long out[8]) {
     return n;
 }
 
-void add_local(Ctx *c, Local local) {
+void isl_add_local(Ctx *c, Local local) {
     if (c->local_count == K_LOCALS_MAX) {
         if (!c->failed) {
             k_diag_emit(c->diag, K_DIAG_CAPACITY, local.name, (KDiagArgs){{local.name}});
@@ -224,7 +224,7 @@ void add_local(Ctx *c, Local local) {
 
 /* The dimensions a `[...]` part declares: one per comma inside a group, one
    per group — `[2,3,4]` and `[2][3][4]` are both rank 3. */
-int rank_of(const char *p, const char *end) {
+int isl_rank_of(const char *p, const char *end) {
     int rank = 0, depth = 0;
     for (; p < end; p++) {
         if (*p == '[' || *p == '(' || *p == '{') { if (depth++ == 0 && *p == '[') rank++; }
@@ -236,71 +236,71 @@ int rank_of(const char *p, const char *end) {
 
 /* ---- the module a call lands in ---------------------------------------- */
 
-const KAstNode *node_at(const KAst *a, size_t i) { return keel_buffer_KAstNode_ptr(&a->nodes, i); }
+const KAstNode *isl_node_at(const KAst *a, size_t i) { return keel_buffer_KAstNode_ptr(&a->nodes, i); }
 
-const KAstNode *module_node(const KAst *a) { return node_at(a, a->module); }
+const KAstNode *isl_module_node(const KAst *a) { return isl_node_at(a, a->module); }
 
-bool generic(const KAst *a) {
-    const KAstNode *m = module_node(a);
+bool isl_generic(const KAst *a) {
+    const KAstNode *m = isl_module_node(a);
     return m->dim_first != m->dim_end || m->tags_first != m->tags_end || m->type_first != m->type_end;
 }
 
 /* `keel.arena` → keel_arena */
-void put_module_prefix(Text *t, const KAst *a) {
-    const KAstNode *m = module_node(a);
+void isl_put_module_prefix(Text *t, const KAst *a) {
+    const KAstNode *m = isl_module_node(a);
     for (size_t j = m->name_first; j < m->name_end; j++) {
-        if (punct(a, j, ".")) put(t, "_", 1);
-        else put(t, tok(a, j).ptr, tok(a, j).len);
+        if (isl_punct(a, j, ".")) isl_put(t, "_", 1);
+        else isl_put(t, isl_tok(a, j).ptr, isl_tok(a, j).len);
     }
 }
 
-bool module_named(const KAst *a, const char *name) {
-    const KAstNode *m = module_node(a);
+bool isl_module_named(const KAst *a, const char *name) {
+    const KAstNode *m = isl_module_node(a);
     char buf[64]; size_t n = 0;
     for (size_t j = m->name_first; j < m->name_end; j++) {
-        KToken k = tok(a, j);
+        KToken k = isl_tok(a, j);
         if (k.len > sizeof buf - n) return false;
         memcpy(buf + n, k.ptr, k.len); n += k.len;
     }
     return n == strlen(name) && memcmp(buf, name, n) == 0;
 }
 
-bool binder(const KAst *a, keel_slice_char name) {
-    const KAstNode *m = module_node(a);
+bool isl_binder(const KAst *a, keel_slice_char name) {
+    const KAstNode *m = isl_module_node(a);
     for (size_t j = m->type_first; j < m->type_end; j++)
-        if (ident(a, j) && k_symtab_same_name(tok(a, j), name)) return true;
+        if (isl_ident(a, j) && k_symtab_same_name(isl_tok(a, j), name)) return true;
     return false;
 }
 
-keel_slice_char modifier_of(const KAst *a) {
+keel_slice_char isl_modifier_of(const KAst *a) {
     for (size_t i = 0; i < a->nodes.len; i++)
-        if (node_at(a, i)->kind == K_AST_MODIFIER)
-            return tok(a, node_at(a, i)->name_first);
+        if (isl_node_at(a, i)->kind == K_AST_MODIFIER)
+            return isl_tok(a, isl_node_at(a, i)->name_first);
     return (keel_slice_char){0};
 }
 
 /* The parameters of the function node `fn`, in `a`. SIZE_MAX if they do not fit. */
-size_t params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap) {
+size_t isl_params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap) {
     size_t open = fn->name_end, n = 0, depth = 0, start = open + 1;
-    if (!punct(a, open, "(")) return 0;
+    if (!isl_punct(a, open, "(")) return 0;
     for (size_t j = open + 1; j < a->tokens.len; j++) {
         bool closing = false;
-        if (punct(a, j, "(") || punct(a, j, "[")) depth++;
-        else if (punct(a, j, "]") || punct(a, j, ")")) {
+        if (isl_punct(a, j, "(") || isl_punct(a, j, "[")) depth++;
+        else if (isl_punct(a, j, "]") || isl_punct(a, j, ")")) {
             if (depth) depth--;
-            else if (punct(a, j, ")")) closing = true;
+            else if (isl_punct(a, j, ")")) closing = true;
         }
-        if (!closing && !(depth == 0 && punct(a, j, ","))) continue;
-        if (j > start && !(j == start + 1 && word(a, start, "void"))) {
+        if (!closing && !(depth == 0 && isl_punct(a, j, ","))) continue;
+        if (j > start && !(j == start + 1 && isl_word(a, start, "void"))) {
             if (n == cap) return SIZE_MAX;
             /* a role leads the parameter, and is not its type (spec §4.12) */
-            KRole role = k_token_role(tok(a, start));
+            KRole role = k_token_role(isl_tok(a, start));
             size_t lead = role != K_ROLE_NONE ? start + 1 : start;
-            Param p = { .is_type = word(a, lead, "type"), .is_array = word(a, lead, "array"),
+            Param p = { .is_type = isl_word(a, lead, "type"), .is_array = isl_word(a, lead, "array"),
                         .role = role, .first = start, .end = j };
             for (size_t k = lead; k < j; k++) {
-                if (punct(a, k, "*") || (punct(a, k, "[") && !p.is_array)) p.pointer = true;
-                if (!p.base.len && ident(a, k) && !((p.is_type || p.is_array) && k == lead)) p.base = tok(a, k);
+                if (isl_punct(a, k, "*") || (isl_punct(a, k, "[") && !p.is_array)) p.pointer = true;
+                if (!p.base.len && isl_ident(a, k) && !((p.is_type || p.is_array) && k == lead)) p.base = isl_tok(a, k);
             }
             if (p.base.len && a->symbols) {
                 const KSymbol *s = k_symtab_lookup(a->symbols, p.base);
@@ -317,14 +317,14 @@ size_t params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap) {
 
 /* The declaration of `verb` in `a` with `arity` parameters (any arity when
    `arity` is SIZE_MAX), and whether the name is declared in several. */
-Sig find_verb(const KAst *a, keel_slice_char verb, size_t arity) {
+Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity) {
     Sig sig = {0};
     uint64_t seen = 0;
     for (size_t i = 0; i < a->nodes.len; i++) {
-        const KAstNode *fn = node_at(a, i);
-        if (fn->kind != K_AST_FUNCTION || !k_symtab_same_name(tok(a, fn->name_first), verb)) continue;
+        const KAstNode *fn = isl_node_at(a, i);
+        if (fn->kind != K_AST_FUNCTION || !k_symtab_same_name(isl_tok(a, fn->name_first), verb)) continue;
         Param p[K_PARAMS_MAX];
-        size_t n = params_of(a, fn, p, K_PARAMS_MAX);
+        size_t n = isl_params_of(a, fn, p, K_PARAMS_MAX);
         if (n == SIZE_MAX) continue;
         seen |= (uint64_t)1 << n;
         if (!sig.found && (arity == SIZE_MAX || n == arity)) {
@@ -332,16 +332,16 @@ Sig find_verb(const KAst *a, keel_slice_char verb, size_t arity) {
             sig.n = n;
             sig.found = true;
             sig.fn = fn;
-            keel_slice_char own = modifier_of(a);
+            keel_slice_char own = isl_modifier_of(a);
             for (size_t j = fn->first; own.len && j < fn->name_first; j++)
-                if (ident(a, j) && k_symtab_same_name(tok(a, j), own)) sig.producer = true;
+                if (isl_ident(a, j) && k_symtab_same_name(isl_tok(a, j), own)) sig.producer = true;
         }
     }
     sig.overloaded = (seen & (seen - 1)) != 0;
     return sig;
 }
 
-const KModule *module_alias(const KSymbolTable *symbols, keel_slice_char name) {
+const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char name) {
     for (size_t i = 0; i < symbols->len; i++) {
         const KSymbol *s = keel_buffer_KSymbol_ptr(symbols, i);
         if (s->kind == K_SYM_MODULE && s->origin && k_symtab_same_name(s->name, name)) return s->origin;
@@ -350,7 +350,7 @@ const KModule *module_alias(const KSymbolTable *symbols, keel_slice_char name) {
 }
 
 /* the module a file imports under its own declared name, whatever the alias */
-const KModule *module_by_name(const KSymbolTable *symbols, const char *name) {
+const KModule *isl_module_by_name(const KSymbolTable *symbols, const char *name) {
     for (size_t i = 0; i < symbols->len; i++) {
         const KSymbol *s = keel_buffer_KSymbol_ptr(symbols, i);
         if (s->kind == K_SYM_MODULE && s->origin && s->origin->name.len == strlen(name) &&
@@ -365,17 +365,17 @@ const KModule *module_by_name(const KSymbolTable *symbols, const char *name) {
 /* The declaration of protocol `name` as `home` sees it — its own, or the one of
    the module its symbol table says the name comes from — with the verbs of its
    components folded in (spec §5.1, rule 7). */
-bool protocol_decl(const Ctx *c, const KAst *home, keel_slice_char name, KProtocolDecl *out, int depth) {
+bool isl_protocol_decl(const Ctx *c, const KAst *home, keel_slice_char name, KProtocolDecl *out, int depth) {
     if (depth > 4) return false;
     const KAst *where = home;
     const KSymbol *s = home->symbols ? k_symtab_lookup(home->symbols, name) : NULL;
     if (s && s->origin && s->origin->ast) where = s->origin->ast;
     for (size_t i = 0; i < where->nodes.len; i++) {
-        const KAstNode *n = node_at(where, i);
-        if (n->kind != K_AST_PROTOCOL || !k_symtab_same_name(tok(where, n->name_first), name)) continue;
+        const KAstNode *n = isl_node_at(where, i);
+        if (n->kind != K_AST_PROTOCOL || !k_symtab_same_name(isl_tok(where, n->name_first), name)) continue;
         size_t kw = n->first;
-        while (kw < n->name_first && !word(where, kw, "protocol")) kw++;
-        KToken t = tok(where, kw);
+        while (kw < n->name_first && !isl_word(where, kw, "protocol")) kw++;
+        KToken t = isl_tok(where, kw);
         KLexer lexer;
         TKPpKind pp;
         k_lexer_init(&lexer, (keel_slice_char){ (size_t)(where->source.ptr + where->source.len - t.ptr), (char *)t.ptr }, NULL);
@@ -386,7 +386,7 @@ bool protocol_decl(const Ctx *c, const KAst *home, keel_slice_char name, KProtoc
         if (!k_scan_decl_protocol(&lexer, first, &none, out, &next, &pp)) return false;
         for (size_t k = 0; k < out->component_count; k++) {
             KProtocolDecl part;
-            if (!protocol_decl(c, where, out->components[k], &part, depth + 1)) return false;
+            if (!isl_protocol_decl(c, where, out->components[k], &part, depth + 1)) return false;
             for (size_t j = 0; j < part.verb_count && out->verb_count < K_PROTOCOL_MAX_ITEMS; j++)
                 out->verbs[out->verb_count++] = part.verbs[j];
             for (size_t j = 0; j < part.assoc_count && out->assoc_count < K_PROTOCOL_MAX_ITEMS; j++)
@@ -397,8 +397,8 @@ bool protocol_decl(const Ctx *c, const KAst *home, keel_slice_char name, KProtoc
     return false;
 }
 
-Sig find_verb(const KAst *a, keel_slice_char verb, size_t arity);
-void diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, keel_slice_char y,
+Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity);
+void isl_diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, keel_slice_char y,
                   keel_slice_char z);
 
 /* Whether the module `own` declares every verb of `pd` (spec §5.1, rule 3),
@@ -407,23 +407,23 @@ void diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, keel_slice
 /* the last name of the type a function returns, without its stars */
 static keel_slice_char return_name(const KAst *home, const KAstNode *fn) {
     size_t e = fn->name_first;
-    while (e > fn->first && punct(home, e - 1, "*")) e--;
-    return e > fn->first && (ident(home, e - 1) || k_token_is_c_word(tok(home, e - 1))) ? tok(home, e - 1)
+    while (e > fn->first && isl_punct(home, e - 1, "*")) e--;
+    return e > fn->first && (isl_ident(home, e - 1) || k_token_is_c_word(isl_tok(home, e - 1))) ? isl_tok(home, e - 1)
                                                                                        : (keel_slice_char){0};
 }
 
-bool satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtocolDecl *pd, Text *missing, KToken at) {
+bool isl_satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtocolDecl *pd, Text *missing, KToken at) {
     bool ok = true;
     for (size_t i = 0; i < pd->verb_count; i++) {
         const KProtocolVerb *v = &pd->verbs[i];
-        Sig sig = find_verb(own, v->name, v->arity);
+        Sig sig = isl_find_verb(own, v->name, v->arity);
         /* the verb must take this type as its receiver, and not another of the module's */
         if (sig.found && receiver.len && v->receiver < sig.n && !sig.p[v->receiver].is_array &&
             !k_symtab_same_name(sig.p[v->receiver].base, receiver))
             sig.found = false;
         if (!sig.found) {
-            if (missing->n) put_str(missing, ", ");
-            put(missing, v->name.ptr, v->name.len);
+            if (missing->n) isl_put_str(missing, ", ");
+            isl_put(missing, v->name.ptr, v->name.len);
             ok = false;
             continue;
         }
@@ -433,7 +433,7 @@ bool satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtoco
             if (sig.p[k].role != v->roles[k]) differ = true;
         }
         if (written && differ)
-            diag3(c, K_DIAG_PROTOCOL_ROLE_MISMATCH, at, v->name, pd->name, (keel_slice_char){0});
+            isl_diag3(c, K_DIAG_PROTOCOL_ROLE_MISMATCH, at, v->name, pd->name, (keel_slice_char){0});
     }
     /* an associated type binds once: every required verb that returns it
        returns the same type in the implementer (spec §5.1, rule 7) */
@@ -445,13 +445,13 @@ bool satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtoco
         for (size_t i = 0; i < pd->verb_count; i++) {
             const KProtocolVerb *v = &pd->verbs[i];
             if (!k_symtab_same_name(v->returns, pd->assoc[t])) continue;
-            Sig sig = find_verb(own, v->name, v->arity);
+            Sig sig = isl_find_verb(own, v->name, v->arity);
             if (!sig.found) continue;
             keel_slice_char r = return_name(own, sig.fn);
             if (!r.len) continue;
             if (!bound.len) bound = r;
             else if (!k_symtab_same_name(bound, r)) {
-                diag3(c, K_DIAG_ASSOCIATED_TYPE_CONFLICT, at, pd->assoc[t], bound, r);
+                isl_diag3(c, K_DIAG_ASSOCIATED_TYPE_CONFLICT, at, pd->assoc[t], bound, r);
                 break;
             }
         }
@@ -463,18 +463,18 @@ bool satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtoco
    its return type is not one. */
 static keel_slice_char returned_associated(const KAst *home, const KAstNode *fn) {
     for (size_t j = fn->first; j + 2 < fn->name_first; j++)
-        if (ident(home, j) && punct(home, j + 1, ".") && ident(home, j + 2)) return tok(home, j + 2);
+        if (isl_ident(home, j) && isl_punct(home, j + 1, ".") && isl_ident(home, j + 2)) return isl_tok(home, j + 2);
     return (keel_slice_char){0};
 }
 
-bool returns_associated(const KAst *home, const KAstNode *fn) {
+bool isl_returns_associated(const KAst *home, const KAstNode *fn) {
     return returned_associated(home, fn).len != 0;
 }
 
 /* The verb of `pd` the call is resolved as: the one whose result is the
    associated type the function returns, or else the first that takes the
    receiver. */
-const KProtocolVerb *verb_for_return(const KAst *home, const KAstNode *fn, const KProtocolDecl *pd) {
+const KProtocolVerb *isl_verb_for_return(const KAst *home, const KAstNode *fn, const KProtocolDecl *pd) {
     keel_slice_char assoc = returned_associated(home, fn);
     for (size_t i = 0; assoc.len && i < pd->verb_count; i++)
         if (k_symtab_same_name(pd->verbs[i].returns, assoc)) return &pd->verbs[i];
@@ -485,20 +485,20 @@ const KProtocolVerb *verb_for_return(const KAst *home, const KAstNode *fn, const
 
 /* ---- calls ------------------------------------------------------------- */
 
-keel_slice_char range_text(const KAst *a, Range r) {
+keel_slice_char isl_range_text(const KAst *a, Range r) {
     if (r.first >= r.end) return (keel_slice_char){0};
-    KToken f = tok(a, r.first), l = tok(a, r.end - 1);
+    KToken f = isl_tok(a, r.first), l = isl_tok(a, r.end - 1);
     return (keel_slice_char){ (size_t)(l.ptr + l.len - f.ptr), f.ptr };
 }
 
-void diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, keel_slice_char y,
+void isl_diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, keel_slice_char y,
                   keel_slice_char z) {
     if (c->quiet) return;
     k_diag_emit(c->diag, id, at, (KDiagArgs){{ x, y, z }});
 }
 
 /* The shortest name a module is imported under: the alias, when there is one. */
-keel_slice_char alias_of(const KSymbolTable *symbols, const KModule *m) {
+keel_slice_char isl_alias_of(const KSymbolTable *symbols, const KModule *m) {
     keel_slice_char best = m->name;
     for (size_t i = 0; i < symbols->len; i++) {
         const KSymbol *s = keel_buffer_KSymbol_ptr(symbols, i);
@@ -508,7 +508,7 @@ keel_slice_char alias_of(const KSymbolTable *symbols, const KModule *m) {
 }
 
 /* the first token of a piece of source text */
-KToken enter_text(keel_slice_char text, KLexer *lexer, TKPpKind *pp) {
+KToken isl_enter_text(keel_slice_char text, KLexer *lexer, TKPpKind *pp) {
     k_lexer_init(lexer, text, NULL);
     return k_lexer_next(lexer, pp);
 }
@@ -518,37 +518,37 @@ KToken enter_text(keel_slice_char text, KLexer *lexer, TKPpKind *pp) {
    identifier, a shape it admits but this pass cannot type (a field, an index,
    a verb over a container), or C — a literal, an operator, a cast, a call of
    anything but a qualified verb — which gives no container identity (§4.4). */
-Shape container_shape(const KAst *a, Range r) {
-    if (r.end == r.first + 1 && ident(a, r.first)) return SHAPE_NAME;
+Shape isl_container_shape(const KAst *a, Range r) {
+    if (r.end == r.first + 1 && isl_ident(a, r.first)) return SHAPE_NAME;
     size_t depth = 0;
     for (size_t j = r.first; j < r.end; j++) {
-        if (punct(a, j, "(")) {
+        if (isl_punct(a, j, "(")) {
             if (depth == 0) {
-                size_t k = close_paren(a, j, r.end);
+                size_t k = isl_close_paren(a, j, r.end);
                 if (k != SIZE_MAX && k + 1 < r.end &&
-                    (ident(a, k + 1) || k_token_is_number(tok(a, k + 1)))) return SHAPE_C;   /* a cast */
-                bool verb = j >= r.first + 3 && ident(a, j - 1) && punct(a, j - 2, ".") && ident(a, j - 3);
-                if (j > r.first && ident(a, j - 1) && !verb) return SHAPE_C;                  /* a C call */
+                    (isl_ident(a, k + 1) || k_token_is_number(isl_tok(a, k + 1)))) return SHAPE_C;   /* a cast */
+                bool verb = j >= r.first + 3 && isl_ident(a, j - 1) && isl_punct(a, j - 2, ".") && isl_ident(a, j - 3);
+                if (j > r.first && isl_ident(a, j - 1) && !verb) return SHAPE_C;                  /* a C call */
             }
             depth++;
-        } else if (punct(a, j, "[") || punct(a, j, "{")) depth++;
-        else if (punct(a, j, ")") || punct(a, j, "]") || punct(a, j, "}")) { if (depth) depth--; }
+        } else if (isl_punct(a, j, "[") || isl_punct(a, j, "{")) depth++;
+        else if (isl_punct(a, j, ")") || isl_punct(a, j, "]") || isl_punct(a, j, "}")) { if (depth) depth--; }
         else if (depth == 0) {
-            KToken t = tok(a, j);
+            KToken t = isl_tok(a, j);
             if (k_token_is_number(t) || k_token_is_string(t) || k_token_is_char(t)) return SHAPE_C;
-            bool prefix = j == r.first && (punct(a, j, "*") || punct(a, j, "&"));
-            if (!(ident(a, j) || punct(a, j, ".") || punct(a, j, "->") || prefix)) return SHAPE_C;
+            bool prefix = j == r.first && (isl_punct(a, j, "*") || isl_punct(a, j, "&"));
+            if (!(isl_ident(a, j) || isl_punct(a, j, ".") || isl_punct(a, j, "->") || prefix)) return SHAPE_C;
         }
     }
     return SHAPE_CONTAINER;
 }
 
-const Local *arg_local(const Ctx *c, Range r) {
-    return r.end == r.first + 1 && ident(c->ast, r.first) ? find_local(c, tok(c->ast, r.first)) : NULL;
+const Local *isl_arg_local(const Ctx *c, Range r) {
+    return r.end == r.first + 1 && isl_ident(c->ast, r.first) ? isl_find_local(c, isl_tok(c->ast, r.first)) : NULL;
 }
 
-void record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module);
-keel_slice_char alias_of(const KSymbolTable *symbols, const KModule *m);
+void isl_record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module);
+keel_slice_char isl_alias_of(const KSymbolTable *symbols, const KModule *m);
 /* ---- seeds from calls ---------------------------------------------------- */
 
 /* The instances the calls of the module take without writing them: a verb of
@@ -571,7 +571,7 @@ static int seed_copy(Ctx *c, int t) {
     return at;
 }
 
-void record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module) {
+void isl_record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module) {
     if (c->quiet || !*symbol) return;
     for (size_t k = 0; k < seed_count; k++) if (!strcmp(seeds[k].symbol, symbol)) return;
     if (seed_count == K_SEED_MAX) return;
@@ -590,7 +590,7 @@ static bool pool(Ctx *c, const char *p, size_t n, size_t *at) {
     KAst *a = c->ast;
     if (n > a->closure_text.cap - a->closure_text.len) {
         if (!c->failed) {
-            KToken t = tok(a, a->module);
+            KToken t = isl_tok(a, a->module);
             k_diag_emit(c->diag, K_DIAG_CAPACITY, t, (KDiagArgs){{ t }});
             c->failed = true;
         }
@@ -619,8 +619,8 @@ static void close_instances(Ctx *c) {
     size_t count = 0;
     for (size_t i = 0; i < a->instances.len && count < K_CLOSURE_MAX; i++) {
         const KInstanceUse *u = keel_buffer_KInstanceUse_ptr(&a->instances, i);
-        int t = kt_from_text(c, a->symbols, range_text(a, (Range){ u->first, u->end }));
-        if (t < 0 || kt(c, t)->kind != KT_MODIFIER || !*kt(c, t)->symbol) continue;
+        int t = isl_kt_from_text(c, a->symbols, isl_range_text(a, (Range){ u->first, u->end }));
+        if (t < 0 || isl_kt(c, t)->kind != KT_MODIFIER || !*isl_kt(c, t)->symbol) continue;
         inst[count] = t;
         origin[count] = K_CLOSURE_WRITTEN;
         from[count++] = -1;
@@ -628,42 +628,42 @@ static void close_instances(Ctx *c) {
     for (size_t k = 0; k < seed_count && count < K_CLOSURE_MAX; k++) {
         if (seeds[k].kind != K_CLOSURE_INSTANCE) continue;
         bool known = false;
-        for (size_t e = 0; e < count; e++) if (!strcmp(kt(c, inst[e])->symbol, seeds[k].symbol)) known = true;
+        for (size_t e = 0; e < count; e++) if (!strcmp(isl_kt(c, inst[e])->symbol, seeds[k].symbol)) known = true;
         if (known) continue;
-        int t = kt_deep(c, seed_nodes, seeds[k].root);
+        int t = isl_kt_deep(c, seed_nodes, seeds[k].root);
         if (t < 0) break;
-        kt_set_symbol(kt(c, t), seeds[k].symbol, strlen(seeds[k].symbol));
+        isl_kt_set_symbol(isl_kt(c, t), seeds[k].symbol, strlen(seeds[k].symbol));
         inst[count] = t;
         origin[count] = K_CLOSURE_CALL;
         from[count++] = -1;
     }
     for (size_t q = 0; q < count && !c->failed; q++) {
-        const KType *k = kt(c, inst[q]);
-        const KAst *home = k->module ? ast_of(c, k->module) : NULL;
+        const KType *k = isl_kt(c, inst[q]);
+        const KAst *home = k->module ? isl_ast_of(c, k->module) : NULL;
         if (!home || home == a) continue;
         for (size_t i = 0; i < home->nodes.len; i++) {
-            const KAstNode *fn = node_at(home, i);
+            const KAstNode *fn = isl_node_at(home, i);
             if (fn->kind != K_AST_FUNCTION) continue;
             Param p[K_PARAMS_MAX];
-            size_t np = params_of(home, fn, p, K_PARAMS_MAX);
+            size_t np = isl_params_of(home, fn, p, K_PARAMS_MAX);
             if (np == SIZE_MAX || (np && p[0].is_protocol)) continue;     /* of the module, not of an instance */
             const char *cause = NULL;
-            if (!verb_available(c, home, fn, inst[q], &cause)) continue;
+            if (!isl_verb_available(c, home, fn, inst[q], &cause)) continue;
             int pinned = c->type_count;
             int found[16];
-            size_t nf = instances_in(c, ret_type(c, home, fn, inst[q]), found, 0, 16, 0);
+            size_t nf = isl_instances_in(c, isl_ret_type(c, home, fn, inst[q]), found, 0, 16, 0);
             for (size_t m = 0; m < np; m++) {
                 if (p[m].is_type || p[m].is_array) continue;
-                Range r = param_type(home, &p[m]);
-                if (r.end > r.first) nf = instances_in(c, kt_from_home(c, home, range_text(home, r), inst[q]), found, nf, 16, 0);
+                Range r = isl_param_type(home, &p[m]);
+                if (r.end > r.first) nf = isl_instances_in(c, isl_kt_from_home(c, home, isl_range_text(home, r), inst[q]), found, nf, 16, 0);
             }
             KType scratch[64];
             int roots[16];
             size_t ns = 0, nr = 0;
             for (size_t f = 0; f < nf; f++) {
                 bool known = false;
-                for (size_t e = 0; e < count; e++) if (!strcmp(kt(c, inst[e])->symbol, kt(c, found[f])->symbol)) known = true;
-                for (size_t e = 0; e < nr; e++) if (!strcmp(scratch[roots[e]].symbol, kt(c, found[f])->symbol)) known = true;
+                for (size_t e = 0; e < count; e++) if (!strcmp(isl_kt(c, inst[e])->symbol, isl_kt(c, found[f])->symbol)) known = true;
+                for (size_t e = 0; e < nr; e++) if (!strcmp(scratch[roots[e]].symbol, isl_kt(c, found[f])->symbol)) known = true;
                 if (known || count + nr >= K_CLOSURE_MAX) continue;
                 /* flatten the tree into scratch, re-indexed */
                 int stack[64], map[64];
@@ -688,11 +688,11 @@ static void close_instances(Ctx *c) {
             }
             c->type_count = pinned;
             for (size_t e = 0; e < nr; e++) {
-                int t = kt_deep(c, scratch, roots[e]);
+                int t = isl_kt_deep(c, scratch, roots[e]);
                 if (t < 0) break;
                 origin[count] = K_CLOSURE_VERB;
                 from[count] = (int)q;
-                verb[count] = tok(home, fn->name_first);
+                verb[count] = isl_tok(home, fn->name_first);
                 arity[count] = np;
                 inst[count++] = t;
             }
@@ -704,7 +704,7 @@ static void close_instances(Ctx *c) {
     written = n;
     for (size_t q = 0; q < count; q++) if (origin[q] != K_CLOSURE_WRITTEN) order[n++] = q;
     for (size_t x = written + 1; x < n; x++)
-        for (size_t y = x; y > written && strcmp(kt(c, inst[order[y - 1]])->symbol, kt(c, inst[order[y]])->symbol) > 0; y--) {
+        for (size_t y = x; y > written && strcmp(isl_kt(c, inst[order[y - 1]])->symbol, isl_kt(c, inst[order[y]])->symbol) > 0; y--) {
             size_t tmp = order[y]; order[y] = order[y - 1]; order[y - 1] = tmp;
         }
     int slot[K_CLOSURE_MAX];
@@ -713,9 +713,9 @@ static void close_instances(Ctx *c) {
     a->unavailable.len = 0;
     for (size_t x = 0; x < n && !c->failed; x++) {
         size_t q = order[x];
-        const KType *k = kt(c, inst[q]);
+        const KType *k = isl_kt(c, inst[q]);
         if (a->closure.len == a->closure.cap) {
-            KToken t = tok(a, a->module);
+            KToken t = isl_tok(a, a->module);
             k_diag_emit(c->diag, K_DIAG_CAPACITY, t, (KDiagArgs){{ t }});
             c->failed = true;
             break;
@@ -726,25 +726,25 @@ static void close_instances(Ctx *c) {
         e.symbol_len = strlen(k->symbol);
         memcpy(e.symbol, k->symbol, e.symbol_len);
         for (int g = 0; g < k->argc && g < K_CLOSURE_ARGS; g++) {
-            const char *sym = kt_symbol(c, k->arg[g]);
+            const char *sym = isl_kt_symbol(c, k->arg[g]);
             e.arg_instance[e.argc] = -1;
-            for (size_t o = 0; o < count; o++) if (!strcmp(kt(c, inst[o])->symbol, sym) && *sym) e.arg_instance[e.argc] = slot[o];
+            for (size_t o = 0; o < count; o++) if (!strcmp(isl_kt(c, inst[o])->symbol, sym) && *sym) e.arg_instance[e.argc] = slot[o];
             if (!pool(c, sym, strlen(sym), &e.arg_text[e.argc])) break;
             e.arg_len[e.argc++] = strlen(sym);
         }
         /* the verbs the instance loses */
         e.unavailable_first = a->unavailable.len;
-        const KAst *home = k->module ? ast_of(c, k->module) : NULL;
+        const KAst *home = k->module ? isl_ast_of(c, k->module) : NULL;
         for (size_t i = 0; home && home != a && i < home->nodes.len; i++) {
-            const KAstNode *fn = node_at(home, i);
+            const KAstNode *fn = isl_node_at(home, i);
             if (fn->kind != K_AST_FUNCTION) continue;
             Param p[K_PARAMS_MAX];
-            size_t np = params_of(home, fn, p, K_PARAMS_MAX);
+            size_t np = isl_params_of(home, fn, p, K_PARAMS_MAX);
             if (np == SIZE_MAX || (np && p[0].is_protocol)) continue;
             const char *cause = NULL;
-            if (verb_available(c, home, fn, inst[q], &cause)) continue;
+            if (isl_verb_available(c, home, fn, inst[q], &cause)) continue;
             if (a->unavailable.len == a->unavailable.cap) break;
-            KUnavailable u = { .verb = tok(home, fn->name_first), .arity = np };
+            KUnavailable u = { .verb = isl_tok(home, fn->name_first), .arity = np };
             if (!pool(c, cause ? cause : "", cause ? strlen(cause) : 0, &u.cause_text)) break;
             u.cause_len = cause ? strlen(cause) : 0;
             *keel_buffer_KUnavailable_ptr(&a->unavailable, a->unavailable.len++) = u;
@@ -780,18 +780,18 @@ static void check_extern_c(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
     size_t kw = n->first;
-    while (kw < n->end && !word(a, kw, "extern_c")) kw++;
+    while (kw < n->end && !isl_word(a, kw, "extern_c")) kw++;
     if (!n->is_public)
         for (size_t j = kw; j < n->end && j < n->body_first; j++)
-            if (word(a, j, "type_h")) { diag3(c, K_DIAG_TYPE_LAYER_ON_PRIV_EXTERN_C, tok(a, kw), none, none, none); break; }
+            if (isl_word(a, j, "type_h")) { isl_diag3(c, K_DIAG_TYPE_LAYER_ON_PRIV_EXTERN_C, isl_tok(a, kw), none, none, none); break; }
     if (n->body_first == SIZE_MAX) return;
-    size_t depth = 0, top = punct(a, n->body_first, "{") ? 1 : 0;   /* the body's span may hold its braces */
+    size_t depth = 0, top = isl_punct(a, n->body_first, "{") ? 1 : 0;   /* the body's span may hold its braces */
     for (size_t j = n->body_first; j < n->body_end; j++) {
-        if (punct(a, j, "{") || punct(a, j, "(")) depth++;
-        else if (punct(a, j, "}") || punct(a, j, ")")) depth--;
-        else if (depth == top && word(a, j, "main") && punct(a, j + 1, "(")) {
-            size_t cp = close_paren(a, j + 1, n->body_end);
-            if (cp != SIZE_MAX && punct(a, cp + 1, "{")) diag3(c, K_DIAG_MAIN_IN_EXTERN_C, tok(a, j), none, none, none);
+        if (isl_punct(a, j, "{") || isl_punct(a, j, "(")) depth++;
+        else if (isl_punct(a, j, "}") || isl_punct(a, j, ")")) depth--;
+        else if (depth == top && isl_word(a, j, "main") && isl_punct(a, j + 1, "(")) {
+            size_t cp = isl_close_paren(a, j + 1, n->body_end);
+            if (cp != SIZE_MAX && isl_punct(a, cp + 1, "{")) isl_diag3(c, K_DIAG_MAIN_IN_EXTERN_C, isl_tok(a, j), none, none, none);
         }
     }
 }
@@ -801,23 +801,23 @@ static void check_extern_c(Ctx *c, const KAstNode *n) {
 static void check_main(Ctx *c, const KAstNode *fn) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
-    KToken name = tok(a, fn->name_first);
+    KToken name = isl_tok(a, fn->name_first);
     if (!k_token_spelled(name, "main")) return;
-    if (!fn->is_public) diag3(c, K_DIAG_PRIVATE_MAIN, name, none, none, none);
+    if (!fn->is_public) isl_diag3(c, K_DIAG_PRIVATE_MAIN, name, none, none, none);
     size_t s = fn->first;
-    while (s < fn->name_first && (word(a, s, "pub") || word(a, s, "priv"))) s++;
-    bool ok = s + 1 == fn->name_first && word(a, s, "int") && punct(a, fn->name_first + 1, "(");
-    size_t open = fn->name_first + 1, close = ok ? close_paren(a, open, fn->end) : SIZE_MAX;
+    while (s < fn->name_first && (isl_word(a, s, "pub") || isl_word(a, s, "priv"))) s++;
+    bool ok = s + 1 == fn->name_first && isl_word(a, s, "int") && isl_punct(a, fn->name_first + 1, "(");
+    size_t open = fn->name_first + 1, close = ok ? isl_close_paren(a, open, fn->end) : SIZE_MAX;
     if (close == SIZE_MAX) ok = false;
-    else if (close == open + 1 || (close == open + 2 && word(a, open + 1, "void"))) { /* () and (void) */ }
+    else if (close == open + 1 || (close == open + 2 && isl_word(a, open + 1, "void"))) { /* () and (void) */ }
     else {
         /* int NAME , char * NAME [ ]   or   int NAME , char * * NAME */
         size_t j = open + 1;
-        ok = word(a, j, "int") && ident(a, j + 1) && punct(a, j + 2, ",") && word(a, j + 3, "char") && punct(a, j + 4, "*");
-        if (ok && punct(a, j + 5, "*")) ok = ident(a, j + 6) && j + 7 == close;
-        else if (ok) ok = ident(a, j + 5) && punct(a, j + 6, "[") && punct(a, j + 7, "]") && j + 8 == close;
+        ok = isl_word(a, j, "int") && isl_ident(a, j + 1) && isl_punct(a, j + 2, ",") && isl_word(a, j + 3, "char") && isl_punct(a, j + 4, "*");
+        if (ok && isl_punct(a, j + 5, "*")) ok = isl_ident(a, j + 6) && j + 7 == close;
+        else if (ok) ok = isl_ident(a, j + 5) && isl_punct(a, j + 6, "[") && isl_punct(a, j + 7, "]") && j + 8 == close;
     }
-    if (!ok) diag3(c, K_DIAG_INVALID_MAIN_SIGNATURE, name, none, none, none);
+    if (!ok) isl_diag3(c, K_DIAG_INVALID_MAIN_SIGNATURE, name, none, none, none);
 }
 
 /* What the v0 grammar recognizes in a signature only to refuse or place it:
@@ -828,18 +828,18 @@ static void check_signature(Ctx *c, const KAstNode *fn) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
     for (size_t j = fn->first; j < fn->name_first; j++) {
-        if (word(a, j, "keel_code")) diag3(c, K_DIAG_NOT_IN_V0, tok(a, j), tok(a, j), none, none);
-        KRole r = k_token_role(tok(a, j));
-        if (r != K_ROLE_NONE && r != K_ROLE_CHILD) diag3(c, K_DIAG_ROLE_POSITION, tok(a, j), tok(a, j), none, none);
+        if (isl_word(a, j, "keel_code")) isl_diag3(c, K_DIAG_NOT_IN_V0, isl_tok(a, j), isl_tok(a, j), none, none);
+        KRole r = k_token_role(isl_tok(a, j));
+        if (r != K_ROLE_NONE && r != K_ROLE_CHILD) isl_diag3(c, K_DIAG_ROLE_POSITION, isl_tok(a, j), isl_tok(a, j), none, none);
     }
     Param p[K_PARAMS_MAX];
-    size_t n = params_of(a, fn, p, K_PARAMS_MAX);
+    size_t n = isl_params_of(a, fn, p, K_PARAMS_MAX);
     for (size_t k = 0; n != SIZE_MAX && k < n; k++) {
         size_t lead = p[k].role != K_ROLE_NONE ? p[k].first + 1 : p[k].first;
-        if (word(a, lead, "keel_code") || (word(a, lead, "dim") && lead + 2 == p[k].end && ident(a, lead + 1)))
-            diag3(c, K_DIAG_NOT_IN_V0, tok(a, lead), tok(a, lead), none, none);
+        if (isl_word(a, lead, "keel_code") || (isl_word(a, lead, "dim") && lead + 2 == p[k].end && isl_ident(a, lead + 1)))
+            isl_diag3(c, K_DIAG_NOT_IN_V0, isl_tok(a, lead), isl_tok(a, lead), none, none);
         if (p[k].role != K_ROLE_NONE && p[k].is_type)
-            diag3(c, K_DIAG_ROLE_POSITION, tok(a, p[k].first), tok(a, p[k].first), none, none);
+            isl_diag3(c, K_DIAG_ROLE_POSITION, isl_tok(a, p[k].first), isl_tok(a, p[k].first), none, none);
     }
 }
 
@@ -853,33 +853,33 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     if (!a->symbols) return true;
     static Surface surface[K_SURFACE_MAX];
     Ctx ctx = { .ast = a, .diag = diag, .surface = surface };
-    check_modifiers(&ctx);
-    check_declarations(&ctx);
-    check_protocols(&ctx);
-    if (generic(a)) {
-        check_generic(&ctx);
+    isl_check_modifiers(&ctx);
+    isl_check_declarations(&ctx);
+    isl_check_protocols(&ctx);
+    if (isl_generic(a)) {
+        isl_check_generic(&ctx);
         return true;
     }
-    check_collisions(&ctx);
-    check_alias_types(&ctx);
-    check_layout(&ctx);
+    isl_check_collisions(&ctx);
+    isl_check_alias_types(&ctx);
+    isl_check_layout(&ctx);
     for (size_t i = 0; i < a->nodes.len; i++) {
-        const KAstNode *n = node_at(a, i);
-        if (n->kind == K_AST_INSTANCE) instance_decl(&ctx, n);
+        const KAstNode *n = isl_node_at(a, i);
+        if (n->kind == K_AST_INSTANCE) isl_instance_decl(&ctx, n);
         if (n->kind == K_AST_EXTERN_C) check_extern_c(&ctx, n);
         if (n->kind == K_AST_FUNCTION && n->name_first != n->name_end) check_main(&ctx, n);
-        if (n->kind == K_AST_FUNCTION) check_jumps(&ctx, n);
+        if (n->kind == K_AST_FUNCTION) isl_check_jumps(&ctx, n);
         {
             size_t f = n->first;
-            while (f < n->end && (word(a, f, "pub") || word(a, f, "priv") || word(a, f, "inline"))) f++;
-            if (n->kind != K_AST_MODULE && word(a, f, "defer"))
-                diag3(&ctx, K_DIAG_DEFER_AT_FILE_SCOPE, tok(a, f), (keel_slice_char){0}, (keel_slice_char){0},
+            while (f < n->end && (isl_word(a, f, "pub") || isl_word(a, f, "priv") || isl_word(a, f, "inline"))) f++;
+            if (n->kind != K_AST_MODULE && isl_word(a, f, "defer"))
+                isl_diag3(&ctx, K_DIAG_DEFER_AT_FILE_SCOPE, isl_tok(a, f), (keel_slice_char){0}, (keel_slice_char){0},
                       (keel_slice_char){0});
         }
         if (n->kind == K_AST_CONSTEXPR) {
             size_t kw = n->first;
-            while (kw < n->end && !word(a, kw, "constexpr")) kw++;
-            check_constexpr(&ctx, kw, n->end);
+            while (kw < n->end && !isl_word(a, kw, "constexpr")) kw++;
+            isl_check_constexpr(&ctx, kw, n->end);
         }
     }
     /* what the file declares at file scope is known to every function, wherever
@@ -887,10 +887,10 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     ctx.quiet = true;
     size_t seen = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
-        const KAstNode *n = node_at(a, i);
+        const KAstNode *n = isl_node_at(a, i);
         if (n->kind != K_AST_VARIABLE || n->first < seen) continue;
         seen = n->end;
-        walk(&ctx, n);
+        isl_walk(&ctx, n);
         for (size_t k = ctx.global_count; k < ctx.local_count && ctx.global_count < K_LOCALS_MAX; k++)
             if (ctx.locals[k].depth == 0) {
                 ctx.globals[ctx.global_count] = ctx.locals[k];
@@ -899,20 +899,20 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     }
     ctx.quiet = false;
     for (size_t i = 0; i < a->nodes.len; i++)
-        if (node_at(a, i)->kind == K_AST_FUNCTION) check_signature(&ctx, node_at(a, i));
+        if (isl_node_at(a, i)->kind == K_AST_FUNCTION) check_signature(&ctx, isl_node_at(a, i));
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++)
-        if (node_at(a, i)->kind == K_AST_TYPE) {
+        if (isl_node_at(a, i)->kind == K_AST_TYPE) {
             ctx.local_count = ctx.global_count;
             memcpy(ctx.locals, ctx.globals, ctx.global_count * sizeof *ctx.globals);
-            extent_island(&ctx, node_at(a, i));
+            isl_extent_island(&ctx, isl_node_at(a, i));
         }
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
-        const KAstNode *n = node_at(a, i);
+        const KAstNode *n = isl_node_at(a, i);
         if (n->kind != K_AST_FUNCTION && n->kind != K_AST_VARIABLE) continue;
         if (n->first < covered) continue;       /* declarators of one declaration share its span */
         covered = n->end;
-        walk(&ctx, n);
+        isl_walk(&ctx, n);
     }
     if (!ctx.failed) close_instances(&ctx);
     return !ctx.failed;

@@ -264,10 +264,10 @@ static bool parse(KAst *a,
                 if(k+1<decl.name_count&&!append(a,node))return false;
             }
         } else if (named(a, i, "constexpr")) {
-            KToken kw = reenter(a, i, &lexer, &pp);
+            reenter(a, i, &lexer, &pp);
             KConstexprDecl cdef;
             node.kind = K_AST_CONSTEXPR;
-            if (!k_scan_decl_constexpr(&lexer, kw, symtab, &cdef, &next, &next_pp)) {
+            if (!k_scan_decl_constexpr(&lexer, symtab, &cdef, &next, &next_pp)) {
                 /* `=` at the top with no name before it: kept unnamed, so the
                    collection can say why (constexpr-name-missing, nonscalar-constexpr) */
                 node.end = declaration_end(a, i, &node.body_first, &node.body_end);

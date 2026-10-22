@@ -1,7 +1,7 @@
 #include "engine/parser.h"
 
-bool k_scan_decl_constexpr(KLexer *lexer, KToken constexpr_kw, KSymbolTable *symtab,
-                            KConstexprDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out) {
+bool k_scan_decl_constexpr(KLexer *lexer, KSymbolTable *symtab,
+                           KConstexprDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out) {
     bool has_prev = false;
     KToken prev = {0};
     KToken cur = k_lexer_next(lexer, next_pp_kind_out);

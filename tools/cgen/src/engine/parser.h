@@ -563,8 +563,8 @@ typedef struct {
     keel_slice_char name;
 } KConstexprDecl;
 
-bool k_scan_decl_constexpr(KLexer *lexer, KToken constexpr_kw, KSymbolTable *symtab,
-                            KConstexprDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
+bool k_scan_decl_constexpr(KLexer *lexer, KSymbolTable *symtab,
+                           KConstexprDecl *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
 /* decl-protocol (keel-spec §2.2, §5.1):
  *   decl-protocol ::= 'protocol' IDENT 'type' IDENT '{' { proto-item } '}'

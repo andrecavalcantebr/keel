@@ -47,9 +47,9 @@ int main(void) {
     k_symtab_init(&symtab, storage, 4);
 
     /* case 1: has a name */
-    KToken kw = first_token("constexpr size_t MAX = 256; ok\n", &lexer); /* kw is 'constexpr' itself */
+    first_token("constexpr size_t MAX = 256; ok\n", &lexer);
     KConstexprDecl c1;
-    bool ok1 = k_scan_decl_constexpr(&lexer, kw, &symtab, &c1, &next, &pp);
+    bool ok1 = k_scan_decl_constexpr(&lexer, &symtab, &c1, &next, &pp);
     if (!ok1) { fprintf(stderr, "FAIL: case1 — returned false\n"); failures++; }
     if (!c1.has_name) { fprintf(stderr, "FAIL: case1 — has_name = false\n"); failures++; }
     if (!EQ(c1.name, "MAX")) { fprintf(stderr, "FAIL: case1 — name = \"%.*s\"\n", (int)c1.name.len, c1.name.ptr); failures++; }
@@ -62,18 +62,18 @@ int main(void) {
     }
 
     /* case 2: no '=' at all — nothing registered, not a failure */
-    KToken kw2 = first_token("constexpr unsigned long flag; ok2\n", &lexer);
+    first_token("constexpr unsigned long flag; ok2\n", &lexer);
     KConstexprDecl c2;
-    bool ok2 = k_scan_decl_constexpr(&lexer, kw2, &symtab, &c2, &next, &pp);
+    bool ok2 = k_scan_decl_constexpr(&lexer, &symtab, &c2, &next, &pp);
     if (!ok2) { fprintf(stderr, "FAIL: case2 — returned false\n"); failures++; }
     if (c2.has_name) { fprintf(stderr, "FAIL: case2 — has_name = true, want false\n"); failures++; }
     if (!EQ(next, "ok2")) { fprintf(stderr, "FAIL: case2 — next_out = \"%.*s\", want \"ok2\"\n", (int)next.len, next.ptr); failures++; }
     if (symtab.len != 1) { fprintf(stderr, "FAIL: case2 — must not register anything, symtab.len = %zu, want 1\n", symtab.len); failures++; }
 
     /* case 3: '=' with no token at all before it — constexpr-name-missing */
-    KToken kw3 = first_token("constexpr = 5; oops\n", &lexer);
+    first_token("constexpr = 5; oops\n", &lexer);
     KConstexprDecl c3;
-    bool ok3 = k_scan_decl_constexpr(&lexer, kw3, &symtab, &c3, &next, &pp);
+    bool ok3 = k_scan_decl_constexpr(&lexer, &symtab, &c3, &next, &pp);
     if (ok3) { fprintf(stderr, "FAIL: case3 — returned true, want false\n"); failures++; }
     if (symtab.len != 1) { fprintf(stderr, "FAIL: case3 — must not register anything, symtab.len = %zu, want 1\n", symtab.len); failures++; }
 

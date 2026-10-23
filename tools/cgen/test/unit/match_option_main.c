@@ -68,6 +68,10 @@ int main(void) {
     expect_no_match("-cc", "cc", "single dash is not a long option");
     expect_no_match("--profile", "cc", "different option entirely");
     expect_no_match("--cc2", "cc", "extra trailing character, no separator");
+    expect_no_match("--ab=1", "cc", "a different name of the same length, glued");
+    expect_no_match("--pro=c23", "cc", "a '=' right after the name's length, other name");
+    expect_no_match("--help", "stop-after", "an argument shorter than the name");
+    expect_no_match("--", "cc", "the bare separator");
 
     if (failures == 0) {
         puts("ok");

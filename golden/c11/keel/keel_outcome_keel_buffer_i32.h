@@ -1,6 +1,7 @@
 /* keel/keel_outcome_keel_buffer_i32.h — generated from keel/outcome.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_OUTCOME_KEEL_BUFFER_I32_H
 #define KEEL_KEEL_OUTCOME_KEEL_BUFFER_I32_H
+
 #include "keel/keel_outcome_keel_buffer_i32.type.h"
 #include "keel/keel_outcome.type.h"
 
@@ -27,4 +28,5 @@ static inline keel_outcome_keel_buffer_i32 keel_outcome_keel_buffer_i32_win (kee
 static inline keel_outcome_keel_buffer_i32 keel_outcome_keel_buffer_i32_win1(keel_outcome_keel_buffer_i32 *r, keel_buffer_i32 v) { r->code = keel_outcome_OK; r->value = v; return *r; }
 static inline keel_outcome_keel_buffer_i32 keel_outcome_keel_buffer_i32_fail(keel_outcome_keel_buffer_i32 *r, i32 c) { r->code = c; return *r; }
 static inline keel_outcome_keel_buffer_i32 keel_outcome_keel_buffer_i32_none(keel_outcome_keel_buffer_i32 *r)        { r->code = keel_outcome_NONE; return *r; }
+
 #endif /* KEEL_KEEL_OUTCOME_KEEL_BUFFER_I32_H */

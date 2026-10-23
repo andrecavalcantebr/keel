@@ -1,10 +1,12 @@
 /* lst.type.h — generated from lst.k by cgen, C11 profile. */
 #ifndef LST_TYPE_H
 #define LST_TYPE_H
+
 #include "keel.type.h"
 
 #line 8 "lst.k"
 typedef struct lst_Node { i32 v; struct lst_Node *link; } lst_Node;
 typedef struct lst_List { lst_Node *head; } lst_List;
 typedef struct lst_cursor { lst_Node *current; } lst_cursor;
+
 #endif /* LST_TYPE_H */

@@ -1,6 +1,7 @@
 /* keel/keel_parallel.h — generated from keel/parallel.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_PARALLEL_H
 #define KEEL_KEEL_PARALLEL_H
+
 #include "keel/keel_parallel.type.h"
 
 #line 28 "keel/parallel.k"
@@ -29,4 +30,5 @@ static inline bool keel_parallel_ok(keel_parallel_control *c) {
     return c->target ? keel_parallel_wins(c) >= c->target
                      : atomic_load_explicit(&c->fails, memory_order_relaxed) == 0;
 }
+
 #endif /* KEEL_KEEL_PARALLEL_H */

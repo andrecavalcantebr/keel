@@ -1,6 +1,7 @@
 /* keel/keel_arena.h — generated from keel/arena.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_ARENA_H
 #define KEEL_KEEL_ARENA_H
+
 #include "keel/keel_arena.type.h"
 
 #line 18 "keel/arena.k"
@@ -70,4 +71,5 @@ static inline void   keel_arena_restore(keel_arena *a, size_t m) { if (m <= a->t
 static inline void   keel_arena_reset(keel_arena *a) { a->top = 0; }
 static inline size_t keel_arena_length(const keel_arena *a) { return a->top; }
 static inline size_t keel_arena_capacity(const keel_arena *a) { return a->cap; }
+
 #endif /* KEEL_KEEL_ARENA_H */

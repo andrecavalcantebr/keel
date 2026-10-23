@@ -1,6 +1,7 @@
 /* app/app_ofr.h — generated from app/ofr.k by cgen, C11 profile. */
 #ifndef APP_APP_OFR_H
 #define APP_APP_OFR_H
+
 #include "app/app_ofr.type.h"
 #include "keel/keel_slice_i32.type.h"
 #include "keel/keel_range.type.h"
@@ -24,4 +25,5 @@ i32 app_ofr_checked(size_t i);
 #line 36 "app/ofr.k"
 size_t app_ofr_inverted(void);
 size_t app_ofr_literal(void);
+
 #endif /* APP_APP_OFR_H */

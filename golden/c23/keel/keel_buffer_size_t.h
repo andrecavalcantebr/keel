@@ -1,6 +1,7 @@
 /* keel/keel_buffer_size_t.h — generated from keel/buffer.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_BUFFER_SIZE_T_H
 #define KEEL_KEEL_BUFFER_SIZE_T_H
+
 #include "keel/keel_buffer_size_t.type.h"
 #include "keel/keel_buffer.type.h"
 #include "keel/keel_slice_size_t.type.h"
@@ -45,6 +46,7 @@ static inline bool   keel_buffer_size_t_has_next(keel_buffer_size_t *b, keel_buf
 static inline size_t   *keel_buffer_size_t_next(keel_buffer_size_t *b, keel_buffer_cursor *c);
 #line 98 "keel/buffer.k"
 static inline keel_slice_size_t keel_buffer_size_t_partition(keel_buffer_size_t *b, size_t k, size_t w);
+
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_size_t.h"
 #include "keel/keel_outcome_keel_buffer_size_t.h"
@@ -122,4 +124,5 @@ static inline keel_slice_size_t keel_buffer_size_t_partition(keel_buffer_size_t 
     if (hi > b->len) hi = b->len;
     return (keel_slice_size_t){ hi - lo, b->ptr + lo };
 }
+
 #endif /* KEEL_KEEL_BUFFER_SIZE_T_H */

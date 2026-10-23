@@ -1,6 +1,7 @@
 /* keel/keel_slice_size_t.h — generated from keel/slice.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_SLICE_SIZE_T_H
 #define KEEL_KEEL_SLICE_SIZE_T_H
+
 #include "keel/keel_slice_size_t.type.h"
 #include "keel/keel_slice.type.h"
 #include "keel/keel_outcome_size_t.type.h"
@@ -28,6 +29,7 @@ static inline bool keel_slice_size_t_has_next(keel_slice_size_t s, keel_slice_cu
 static inline size_t *keel_slice_size_t_next(keel_slice_size_t s, keel_slice_cursor *c);
 #line 74 "keel/slice.k"
 static inline keel_slice_size_t keel_slice_size_t_partition(keel_slice_size_t s, size_t k, size_t w);
+
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_size_t.h"
 #include "keel/keel_outcome_keel_slice_size_t.h"
@@ -77,4 +79,5 @@ static inline keel_slice_size_t keel_slice_size_t_partition(keel_slice_size_t s,
     if (hi > s.len) hi = s.len;
     return (keel_slice_size_t){ hi - lo, s.ptr + lo };
 }
+
 #endif /* KEEL_KEEL_SLICE_SIZE_T_H */

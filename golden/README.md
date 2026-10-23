@@ -87,6 +87,11 @@ ferramenta simula o contador do compilador e falha em dois casos:
   de `tags`, o `__chk` do `constexpr` em C11 e o temporário do `return`. Por
   isso ela fica fora da conta e só ressincroniza depois.
 
+As linhas vazias dos headers também são fixas (`codegen-design.md` §4.2,
+E6): uma depois da guarda, uma depois do bloco de includes sintéticos, uma
+entre as seções do `.h` e uma antes do `#endif`; nenhuma no `.c`.
+`layout-check.py` falha num header fora dessa forma, e `--fix` o reescreve.
+
 Código injetado no meio de um corpo, como o `KEEL_CHECK` que o backend §5.17
 (7a) põe no início do `as_slice`, pede `#line` logo depois dele, de volta à
 linha seguinte do `.k`. `python3 golden/line-check.py --verbose` mostra a

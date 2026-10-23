@@ -1,6 +1,7 @@
 /* lst.h — generated from lst.k by cgen, C11 profile. */
 #ifndef LST_H
 #define LST_H
+
 #include "lst.type.h"
 
 typedef struct keel_buffer_i32 keel_buffer_i32;
@@ -19,4 +20,5 @@ i32 lst_first_even(lst_List *l);
 static inline lst_cursor lst_begin(lst_List *l) { lst_cursor c = { l->head }; return c; }
 static inline bool lst_has_next(lst_List *l, lst_cursor *c) { (void)l; return c->current != NULL; }
 static inline i32 *lst_next(lst_List *l, lst_cursor *c) { (void)l; i32 *p = &c->current->v; c->current = c->current->link; return p; }
+
 #endif /* LST_H */

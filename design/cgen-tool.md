@@ -646,9 +646,12 @@ gen/main_hello.c
 /* hello.type.h — generated from hello.k by cgen, C23 profile. */
 #ifndef HELLO_TYPE_H
 #define HELLO_TYPE_H
+
 #include "keel.type.h"
+
 #line 2 "hello.k"
 #include <stdio.h>
+
 #endif /* HELLO_TYPE_H */
 ```
 
@@ -659,9 +662,12 @@ com a linha dela; nenhum corpo `inline` depois dele:
 /* hello.h — generated from hello.k by cgen, C23 profile. */
 #ifndef HELLO_H
 #define HELLO_H
+
 #include "hello.type.h"
+
 #line 4 "hello.k"
 int hello_main(int argc, char **argv);
+
 #endif /* HELLO_H */
 ```
 

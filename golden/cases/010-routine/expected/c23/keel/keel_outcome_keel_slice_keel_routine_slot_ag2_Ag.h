@@ -1,6 +1,7 @@
 /* keel/keel_outcome_keel_slice_keel_routine_slot_ag2_Ag.h — generated from keel/outcome.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_OUTCOME_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_H
 #define KEEL_KEEL_OUTCOME_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_H
+
 #include "keel/keel_outcome_keel_slice_keel_routine_slot_ag2_Ag.type.h"
 #include "keel/keel_outcome.type.h"
 
@@ -27,4 +28,5 @@ static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_outcome_keel
 static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_outcome_keel_slice_keel_routine_slot_ag2_Ag_win1(keel_outcome_keel_slice_keel_routine_slot_ag2_Ag *r, keel_slice_keel_routine_slot_ag2_Ag v) { r->code = keel_outcome_OK; r->value = v; return *r; }
 static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_outcome_keel_slice_keel_routine_slot_ag2_Ag_fail(keel_outcome_keel_slice_keel_routine_slot_ag2_Ag *r, i32 c) { r->code = c; return *r; }
 static inline keel_outcome_keel_slice_keel_routine_slot_ag2_Ag keel_outcome_keel_slice_keel_routine_slot_ag2_Ag_none(keel_outcome_keel_slice_keel_routine_slot_ag2_Ag *r)        { r->code = keel_outcome_NONE; return *r; }
+
 #endif /* KEEL_KEEL_OUTCOME_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_H */

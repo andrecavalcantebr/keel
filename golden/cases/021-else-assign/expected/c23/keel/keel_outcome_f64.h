@@ -1,6 +1,7 @@
 /* keel/keel_outcome_f64.h — generated from keel/outcome.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_OUTCOME_F64_H
 #define KEEL_KEEL_OUTCOME_F64_H
+
 #include "keel/keel_outcome_f64.type.h"
 #include "keel/keel_outcome.type.h"
 
@@ -27,4 +28,5 @@ static inline keel_outcome_f64 keel_outcome_f64_win (keel_outcome_f64 *r)       
 static inline keel_outcome_f64 keel_outcome_f64_win1(keel_outcome_f64 *r, f64 v) { r->code = keel_outcome_OK; r->value = v; return *r; }
 static inline keel_outcome_f64 keel_outcome_f64_fail(keel_outcome_f64 *r, i32 c) { r->code = c; return *r; }
 static inline keel_outcome_f64 keel_outcome_f64_none(keel_outcome_f64 *r)        { r->code = keel_outcome_NONE; return *r; }
+
 #endif /* KEEL_KEEL_OUTCOME_F64_H */

@@ -1,6 +1,7 @@
 /* app/app_pos.h — generated from app/pos.k by cgen, C11 profile. */
 #ifndef APP_APP_POS_H
 #define APP_APP_POS_H
+
 #include "app/app_pos.type.h"
 
 typedef struct keel_arena keel_arena;
@@ -55,4 +56,5 @@ static inline u8 *app_pos_image_g_ptr(struct app_pos_image *p, size_t i0, size_t
     KEEL_CHECK(i1 < p->w && p->w <= app_pos_W, "extent-index-out-of-bounds");
     return &p->g[i0][i1];
 }
+
 #endif /* APP_APP_POS_H */

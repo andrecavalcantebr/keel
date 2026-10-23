@@ -1,6 +1,7 @@
 /* keel/keel_corot.h — generated from keel/corot.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_COROT_H
 #define KEEL_KEEL_COROT_H
+
 #include "keel/keel_corot.type.h"
 
 #line 20 "keel/corot.k"
@@ -30,4 +31,5 @@ static inline keel_corot_Status keel_corot_tag (keel_corot r) {
 static inline keel_corot keel_corot_win  (keel_corot *r) { r->code = -1; return *r; }
 static inline keel_corot keel_corot_again(keel_corot *r) { r->code =  0; return *r; }
 static inline keel_corot keel_corot_fault(keel_corot *r, i32 c) { r->code = c; return *r; }
+
 #endif /* KEEL_KEEL_COROT_H */

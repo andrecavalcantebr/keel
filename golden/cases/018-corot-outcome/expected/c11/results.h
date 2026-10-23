@@ -1,6 +1,7 @@
 /* results.h — generated from results.k by cgen, C11 profile. */
 #ifndef RESULTS_H
 #define RESULTS_H
+
 #include "results.type.h"
 #include "keel/keel_corot.type.h"
 #include "keel/keel_outcome_void.type.h"
@@ -15,4 +16,5 @@ keel_outcome_void results_final(bool failure, i32 code);
 i32 results_repair(i32 code);
 #line 32 "results.k"
 keel_corot results_evaluate_cleanup(i32 *counter);
+
 #endif /* RESULTS_H */

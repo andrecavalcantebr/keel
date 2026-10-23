@@ -1,6 +1,7 @@
 /* keel/keel_slice_f32.h — generated from keel/slice.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_SLICE_F32_H
 #define KEEL_KEEL_SLICE_F32_H
+
 #include "keel/keel_slice_f32.type.h"
 #include "keel/keel_slice.type.h"
 #include "keel/keel_outcome_f32.type.h"
@@ -28,6 +29,7 @@ static inline bool keel_slice_f32_has_next(keel_slice_f32 s, keel_slice_cursor *
 static inline f32 *keel_slice_f32_next(keel_slice_f32 s, keel_slice_cursor *c);
 #line 74 "keel/slice.k"
 static inline keel_slice_f32 keel_slice_f32_partition(keel_slice_f32 s, size_t k, size_t w);
+
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_f32.h"
 #include "keel/keel_outcome_keel_slice_f32.h"
@@ -77,4 +79,5 @@ static inline keel_slice_f32 keel_slice_f32_partition(keel_slice_f32 s, size_t k
     if (hi > s.len) hi = s.len;
     return (keel_slice_f32){ hi - lo, s.ptr + lo };
 }
+
 #endif /* KEEL_KEEL_SLICE_F32_H */

@@ -189,6 +189,31 @@ pode ter duas.
 Não há data nem versão no cabeçalho: entraria no arquivo e quebraria o
 determinismo.
 
+**[E6] As linhas vazias de um header são fixas** (decisão do André,
+2026-10-23). O golden as tinha de várias formas, e a saída byte a byte exige
+uma só:
+
+```c
+/* … — generated from … */
+#ifndef G
+#define G
+                      ← R0: sempre uma, depois da guarda
+#include "…"          ← o bloco sintético do topo (R2: sem linha vazia dentro)
+                      ← R1: uma, se houver bloco
+…conteúdo…            ← R3: num .h, uma entre seções não vazias
+                      ← R5: sempre uma, antes do #endif
+#endif /* G */
+```
+
+- Linhas vazias sintéticas não se somam: num arquivo só com a guarda e o
+  bloco, a R1 e a R5 são a mesma linha.
+- A R3 separa as seções do §4.1: protótipos | includes da seção 3 | corpos.
+- R4: o `.c` e o `main_*.c` não levam linha vazia sintética. No `.c`, o
+  `#line 1` vem logo depois dos includes (backend §6, regra 3).
+- Fora disso, linha vazia só existe como linha do `.k` (backend §6).
+- Linha vazia sintética é `k_emit_raw`: ela avança o contador, e, se a linha
+  seguinte for mapeada, o `KWriter` decide o `#line` sozinho.
+
 ---
 
 ## 5. Nomes
@@ -447,6 +472,7 @@ do corpo, e descobrir tarde que o escritor de linhas não a suporta custa caro.
 | E3 | A superfície de uma instância é função pura de (genérico, argumentos), calculada pelo parser e entregue ao emissor | o `verb-not-in-instance` é do parser e precisa dela; calcular duas vezes, com dois códigos, é onde a divergência nasce |
 | E4 | Todo `#line` sai por um único ponto do código, o `KWriter` | a invariante do §6 do backend é fácil de enunciar e fácil de furar; concentrá-la num lugar é o que a torna verificável |
 | E5 | Um `.c` por funcionalidade em `engine/emit/`, mais cinco de mecânica comum | um `emit.c` único seria o maior arquivo do projeto e o que mais muda; o corte por construção faz cada mudança do backend §5.x cair num arquivo só |
+| E6 | As linhas vazias de um header são fixas: depois da guarda, depois do bloco sintético, entre seções do `.h` e antes do `#endif`; nenhuma no `.c` | a saída é byte a byte, e o golden tinha as duas formas em cada ponto |
 
 ---
 

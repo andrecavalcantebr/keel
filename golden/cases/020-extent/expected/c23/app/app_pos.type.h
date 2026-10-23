@@ -1,6 +1,7 @@
 /* app/app_pos.type.h — generated from app/pos.k by cgen, C23 profile. */
 #ifndef APP_APP_POS_TYPE_H
 #define APP_APP_POS_TYPE_H
+
 #include "keel.type.h"
 
 #line 6 "app/pos.k"
@@ -24,4 +25,5 @@ struct app_pos_image {
     u8 g[app_pos_H][app_pos_W];
     size_t h, w;
 };
+
 #endif /* APP_APP_POS_TYPE_H */

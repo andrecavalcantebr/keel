@@ -1,6 +1,7 @@
 /* keel/keel_range.h — generated from keel/range.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_RANGE_H
 #define KEEL_KEEL_RANGE_H
+
 #include "keel/keel_range.type.h"
 
 #line 16 "keel/range.k"
@@ -31,4 +32,5 @@ static inline keel_range keel_range_partition(keel_range r, size_t k, size_t w) 
     if (hi > n) hi = n;
     return (keel_range){ r.first + lo, r.first + hi };
 }
+
 #endif /* KEEL_KEEL_RANGE_H */

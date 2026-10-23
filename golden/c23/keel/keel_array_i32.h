@@ -1,6 +1,7 @@
 /* keel/keel_array_i32.h — generated from keel/array.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_ARRAY_I32_H
 #define KEEL_KEEL_ARRAY_I32_H
+
 #include "keel/keel_array_i32.type.h"
 #include "keel/keel_outcome_i32.type.h"
 #include "keel/keel_slice_i32.type.h"
@@ -21,6 +22,7 @@ static inline keel_slice_i32 keel_array_i32_as_slice2(i32 v[], size_t keel__N, s
 static inline keel_slice_i32 keel_array_i32_as_slice1(i32 v[], size_t keel__N, keel_range r);
 #line 49 "keel/array.k"
 static inline size_t keel_array_i32_length(i32 v[], size_t keel__N);
+
 #include "keel/keel_outcome_i32.h"
 
 #line 21 "keel/array.k"
@@ -47,4 +49,5 @@ static inline keel_slice_i32 keel_array_i32_as_slice2(i32 v[], size_t keel__N, s
 static inline keel_slice_i32 keel_array_i32_as_slice1(i32 v[], size_t keel__N, keel_range r) { return keel_array_i32_as_slice2(v, keel__N, r.first, r.limit); }
 #line 49 "keel/array.k"
 static inline size_t keel_array_i32_length(i32 v[], size_t keel__N) { (void)v; return keel__N; }
+
 #endif /* KEEL_KEEL_ARRAY_I32_H */

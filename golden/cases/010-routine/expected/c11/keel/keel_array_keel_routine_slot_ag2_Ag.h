@@ -1,6 +1,7 @@
 /* keel/keel_array_keel_routine_slot_ag2_Ag.h — generated from keel/array.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_ARRAY_KEEL_ROUTINE_SLOT_AG2_AG_H
 #define KEEL_KEEL_ARRAY_KEEL_ROUTINE_SLOT_AG2_AG_H
+
 #include "keel/keel_array_keel_routine_slot_ag2_Ag.type.h"
 #include "keel/keel_outcome_keel_routine_slot_ag2_Ag.type.h"
 #include "keel/keel_slice_keel_routine_slot_ag2_Ag.type.h"
@@ -21,6 +22,7 @@ static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_a
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_as_slice1(keel_routine_slot_ag2_Ag v[], size_t keel__N, keel_range r);
 #line 49 "keel/array.k"
 static inline size_t keel_array_keel_routine_slot_ag2_Ag_length(keel_routine_slot_ag2_Ag v[], size_t keel__N);
+
 #include "keel/keel_outcome_keel_routine_slot_ag2_Ag.h"
 
 #line 21 "keel/array.k"
@@ -47,4 +49,5 @@ static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_a
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_as_slice1(keel_routine_slot_ag2_Ag v[], size_t keel__N, keel_range r) { return keel_array_keel_routine_slot_ag2_Ag_as_slice2(v, keel__N, r.first, r.limit); }
 #line 49 "keel/array.k"
 static inline size_t keel_array_keel_routine_slot_ag2_Ag_length(keel_routine_slot_ag2_Ag v[], size_t keel__N) { (void)v; return keel__N; }
+
 #endif /* KEEL_KEEL_ARRAY_KEEL_ROUTINE_SLOT_AG2_AG_H */

@@ -1,6 +1,7 @@
 /* keel/keel_buffer_i32.h — generated from keel/buffer.k by cgen, C23 profile. */
 #ifndef KEEL_KEEL_BUFFER_I32_H
 #define KEEL_KEEL_BUFFER_I32_H
+
 #include "keel/keel_buffer_i32.type.h"
 #include "keel/keel_buffer.type.h"
 #include "keel/keel_slice_i32.type.h"
@@ -45,6 +46,7 @@ static inline bool   keel_buffer_i32_has_next(keel_buffer_i32 *b, keel_buffer_cu
 static inline i32   *keel_buffer_i32_next(keel_buffer_i32 *b, keel_buffer_cursor *c);
 #line 98 "keel/buffer.k"
 static inline keel_slice_i32 keel_buffer_i32_partition(keel_buffer_i32 *b, size_t k, size_t w);
+
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_i32.h"
 #include "keel/keel_outcome_keel_buffer_i32.h"
@@ -122,4 +124,5 @@ static inline keel_slice_i32 keel_buffer_i32_partition(keel_buffer_i32 *b, size_
     if (hi > b->len) hi = b->len;
     return (keel_slice_i32){ hi - lo, b->ptr + lo };
 }
+
 #endif /* KEEL_KEEL_BUFFER_I32_H */

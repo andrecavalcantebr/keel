@@ -1,6 +1,7 @@
 /* keel/keel_slice_const_char.h — generated from keel/slice.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_SLICE_CONST_CHAR_H
 #define KEEL_KEEL_SLICE_CONST_CHAR_H
+
 #include "keel/keel_slice_const_char.type.h"
 #include "keel/keel_slice.type.h"
 #include "keel/keel_outcome_keel_slice_const_char.type.h"
@@ -25,6 +26,7 @@ static inline bool keel_slice_const_char_has_next(keel_slice_const_char s, keel_
 static inline const char *keel_slice_const_char_next(keel_slice_const_char s, keel_slice_cursor *c);
 #line 74 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_partition(keel_slice_const_char s, size_t k, size_t w);
+
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_keel_slice_const_char.h"
 
@@ -68,4 +70,5 @@ static inline keel_slice_const_char keel_slice_const_char_partition(keel_slice_c
     if (hi > s.len) hi = s.len;
     return (keel_slice_const_char){ hi - lo, s.ptr + lo };
 }
+
 #endif /* KEEL_KEEL_SLICE_CONST_CHAR_H */

@@ -1,6 +1,7 @@
 /* keel/keel_corot.type.h — generated from keel/corot.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_COROT_TYPE_H
 #define KEEL_KEEL_COROT_TYPE_H
+
 #include "keel.type.h"
 
 #line 12 "keel/corot.k"
@@ -11,4 +12,5 @@ typedef enum keel_corot_Status {
 } keel_corot_Status;
 #line 18 "keel/corot.k"
 typedef struct keel_corot { i32 code; } keel_corot;
+
 #endif /* KEEL_KEEL_COROT_TYPE_H */

@@ -1,8 +1,10 @@
 /* keel.type.h — generated from keel.k by cgen, C11 profile. */
 #ifndef KEEL_TYPE_H
 #define KEEL_TYPE_H
+
 #include <stdbool.h>
 #include <assert.h>
+
 #line 12 "keel.k"
 #include <stdint.h>
 #include <stddef.h>
@@ -36,4 +38,5 @@ static inline size_t keel_index(size_t i, size_t d) {
     KEEL_CHECK(i < d, "array-index-out-of-bounds");
     return i;
 }
+
 #endif /* KEEL_TYPE_H */

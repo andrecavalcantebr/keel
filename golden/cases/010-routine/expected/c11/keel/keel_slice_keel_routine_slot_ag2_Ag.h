@@ -1,6 +1,7 @@
 /* keel/keel_slice_keel_routine_slot_ag2_Ag.h — generated from keel/slice.k by cgen, C11 profile. */
 #ifndef KEEL_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_H
 #define KEEL_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_H
+
 #include "keel/keel_slice_keel_routine_slot_ag2_Ag.type.h"
 #include "keel/keel_slice.type.h"
 #include "keel/keel_outcome_keel_routine_slot_ag2_Ag.type.h"
@@ -28,6 +29,7 @@ static inline bool keel_slice_keel_routine_slot_ag2_Ag_has_next(keel_slice_keel_
 static inline keel_routine_slot_ag2_Ag *keel_slice_keel_routine_slot_ag2_Ag_next(keel_slice_keel_routine_slot_ag2_Ag s, keel_slice_cursor *c);
 #line 74 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_partition(keel_slice_keel_routine_slot_ag2_Ag s, size_t k, size_t w);
+
 #include "keel/keel_arena.h"
 #include "keel/keel_outcome_keel_routine_slot_ag2_Ag.h"
 #include "keel/keel_outcome_keel_slice_keel_routine_slot_ag2_Ag.h"
@@ -77,4 +79,5 @@ static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_a
     if (hi > s.len) hi = s.len;
     return (keel_slice_keel_routine_slot_ag2_Ag){ hi - lo, s.ptr + lo };
 }
+
 #endif /* KEEL_KEEL_SLICE_KEEL_ROUTINE_SLOT_AG2_AG_H */

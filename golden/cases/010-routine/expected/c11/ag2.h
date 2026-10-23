@@ -1,6 +1,7 @@
 /* ag2.h — generated from ag2.k by cgen, C11 profile. */
 #ifndef AG2_H
 #define AG2_H
+
 #include "ag2.type.h"
 #include "keel/keel_outcome_u32.type.h"
 
@@ -14,4 +15,5 @@ keel_outcome_u32 ag2_together(ag2_Ag *g);
 keel_outcome_u32 ag2_two(ag2_Ag *g);
 #line 60 "ag2.k"
 keel_outcome_u32 ag2_impossible(ag2_Ag *g);
+
 #endif /* AG2_H */

@@ -8,7 +8,6 @@
 #include "keel/keel_outcome_keel_slice_keel_routine_slot_ag2_Ag.type.h"
 
 typedef struct keel_arena keel_arena;
-
 #line 26 "keel/slice.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_slice_keel_routine_slot_ag2_Ag_from(keel_routine_slot_ag2_Ag *p, size_t n);
 #line 30 "keel/slice.k"

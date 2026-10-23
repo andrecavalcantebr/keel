@@ -10,7 +10,6 @@
 #include "keel/keel_range.type.h"
 
 typedef struct keel_arena keel_arena;
-
 #line 26 "keel/buffer.k"
 static inline keel_buffer_i32 keel_buffer_i32_from(i32 *p, size_t n);
 #line 31 "keel/buffer.k"

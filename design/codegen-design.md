@@ -208,6 +208,12 @@ uma só:
 - Linhas vazias sintéticas não se somam: num arquivo só com a guarda e o
   bloco, a R1 e a R5 são a mesma linha.
 - A R3 separa as seções do §4.1: protótipos | includes da seção 3 | corpos.
+- R6: entre duas declarações de header (tipo, declaração adiantada,
+  `import_c`, protótipo, `extern`, `constexpr` de módulo, corpo `static
+  inline`) não há linha vazia, nem quando o `.k` tem uma na lacuna: a
+  seguinte leva o `#line` que o contador pedir (backend §6). Era a forma de
+  quase todo o golden; os 22 headers que destoavam foram alinhados pelo
+  `layout-check.py --fix`.
 - R4: o `.c` e o `main_*.c` não levam linha vazia sintética. No `.c`, o
   `#line 1` vem logo depois dos includes (backend §6, regra 3).
 - Fora disso, linha vazia só existe como linha do `.k` (backend §6).
@@ -472,7 +478,7 @@ do corpo, e descobrir tarde que o escritor de linhas não a suporta custa caro.
 | E3 | A superfície de uma instância é função pura de (genérico, argumentos), calculada pelo parser e entregue ao emissor | o `verb-not-in-instance` é do parser e precisa dela; calcular duas vezes, com dois códigos, é onde a divergência nasce |
 | E4 | Todo `#line` sai por um único ponto do código, o `KWriter` | a invariante do §6 do backend é fácil de enunciar e fácil de furar; concentrá-la num lugar é o que a torna verificável |
 | E5 | Um `.c` por funcionalidade em `engine/emit/`, mais cinco de mecânica comum | um `emit.c` único seria o maior arquivo do projeto e o que mais muda; o corte por construção faz cada mudança do backend §5.x cair num arquivo só |
-| E6 | As linhas vazias de um header são fixas: depois da guarda, depois do bloco sintético, entre seções do `.h` e antes do `#endif`; nenhuma no `.c` | a saída é byte a byte, e o golden tinha as duas formas em cada ponto |
+| E6 | As linhas vazias de um header são fixas: depois da guarda, depois do bloco sintético, entre seções do `.h` e antes do `#endif`; nenhuma entre declarações (R6) nem no `.c` | a saída é byte a byte, e o golden tinha as duas formas em cada ponto |
 
 ---
 

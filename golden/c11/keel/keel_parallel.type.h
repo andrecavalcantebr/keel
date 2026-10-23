@@ -5,7 +5,6 @@
 #include "keel.type.h"
 
 #include <stdatomic.h>
-
 #line 17 "keel/parallel.k"
 typedef struct keel_parallel_control {
     _Atomic u32  wins;

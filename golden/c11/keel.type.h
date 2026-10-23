@@ -9,14 +9,12 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <float.h>
-
 #line 19 "keel.k"
 typedef int8_t  i8;   typedef uint8_t  u8;
 typedef int16_t i16;  typedef uint16_t u16;
 typedef int32_t i32;  typedef uint32_t u32;
 typedef int64_t i64;  typedef uint64_t u64;
 typedef float   f32;  typedef double   f64;
-
 #line 27 "keel.k"
 _Static_assert(FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128
               && sizeof(f32) == 4, "keel: f32 requires IEEE 754 binary32 on this target");

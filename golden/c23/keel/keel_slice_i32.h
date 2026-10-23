@@ -8,7 +8,6 @@
 #include "keel/keel_outcome_keel_slice_i32.type.h"
 
 typedef struct keel_arena keel_arena;
-
 #line 26 "keel/slice.k"
 static inline keel_slice_i32 keel_slice_i32_from(i32 *p, size_t n);
 #line 30 "keel/slice.k"

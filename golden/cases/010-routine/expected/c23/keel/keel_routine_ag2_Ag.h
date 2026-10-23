@@ -9,13 +9,10 @@
 #line 27 "keel/routine.k"
 static inline keel_corot keel_routine_slot_ag2_Ag_state(const keel_routine_slot_ag2_Ag *s);
 static inline i32        keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s);
-
 #line 33 "keel/routine.k"
 static inline keel_outcome_u32 keel_routine_ag2_Ag_seq(keel_slice_keel_routine_slot_ag2_Ag s);
-
 #line 52 "keel/routine.k"
 static inline keel_outcome_u32 keel_routine_ag2_Ag_par(keel_slice_keel_routine_slot_ag2_Ag s, u32 target);
-
 #line 73 "keel/routine.k"
 static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s);
 
@@ -26,7 +23,6 @@ static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s
 #line 27 "keel/routine.k"
 static inline keel_corot keel_routine_slot_ag2_Ag_state(const keel_routine_slot_ag2_Ag *s) { return s->state; }
 static inline i32        keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s) { return s->state.code; }
-
 #line 33 "keel/routine.k"
 static inline keel_outcome_u32 keel_routine_ag2_Ag_seq(keel_slice_keel_routine_slot_ag2_Ag s) {
     keel_outcome_u32 r = {0};
@@ -43,7 +39,6 @@ static inline keel_outcome_u32 keel_routine_ag2_Ag_seq(keel_slice_keel_routine_s
     }
     return keel_outcome_u32_win1(&r, S);
 }
-
 #line 52 "keel/routine.k"
 static inline keel_outcome_u32 keel_routine_ag2_Ag_par(keel_slice_keel_routine_slot_ag2_Ag s, u32 target) {
     keel_outcome_u32 r = {0};
@@ -63,7 +58,6 @@ static inline keel_outcome_u32 keel_routine_ag2_Ag_par(keel_slice_keel_routine_s
         if (m - F < q) { keel_outcome_u32_value1(&r, S); return keel_outcome_u32_fail(&r, 1); }
     }
 }
-
 #line 73 "keel/routine.k"
 static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s) {
     u64 m = 0;

@@ -162,6 +162,7 @@ const KAstNode *isl_module_node(const KAst *a);
 bool isl_generic(const KAst *a);
 void isl_put_module_prefix(Text *t, const KAst *a);
 bool isl_module_named(const KAst *a, const char *name);
+bool isl_module_in_base(const KAst *a);
 bool isl_binder(const KAst *a, keel_slice_char name);
 keel_slice_char isl_modifier_of(const KAst *a);
 size_t isl_params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap);

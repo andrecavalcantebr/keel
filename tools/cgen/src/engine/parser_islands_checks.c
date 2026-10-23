@@ -133,7 +133,8 @@ void isl_check_alias_types(Ctx *c) {
 void isl_check_name(Ctx *c, KToken name, bool top, bool function) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
-    if (k_token_starts_with(name, "keel_") || k_token_starts_with(name, "KEEL_"))
+    /* the base's own modules own these prefixes (spec §2.5): no reserved-name */
+    if ((k_token_starts_with(name, "keel_") || k_token_starts_with(name, "KEEL_")) && !isl_module_in_base(a))
         isl_diag3(c, K_DIAG_RESERVED_NAME, name, name, none, none);
     /* a contextual word, roles aside (they are not in the list); a function
        named `win` or `fail` is a verb, always written qualified, and shadows

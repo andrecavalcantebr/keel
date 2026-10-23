@@ -265,6 +265,15 @@ bool isl_module_named(const KAst *a, const char *name) {
     return n == strlen(name) && memcmp(buf, name, n) == 0;
 }
 
+/* the base owns the keel_/KEEL_ names (spec §2.5): module `keel` and every
+   `keel.<name>`, that is, a module whose first component is `keel` (`keelx`
+   is not) */
+bool isl_module_in_base(const KAst *a) {
+    const KAstNode *m = isl_module_node(a);
+    return m->kind == K_AST_MODULE && m->name_first < m->name_end &&
+           k_token_spelled(isl_tok(a, m->name_first), "keel");
+}
+
 bool isl_binder(const KAst *a, keel_slice_char name) {
     const KAstNode *m = isl_module_node(a);
     for (size_t j = m->type_first; j < m->type_end; j++)

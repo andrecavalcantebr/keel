@@ -209,7 +209,7 @@ buffer _Atomic u32 →  keel_buffer_atomic_u32
 
 1. Todo nome que o backend cria sem origem no fonte começa por `keel__`. O mangling nunca produz `__` (§2.1), e o programa não declara nada em `keel_`: nenhum nome `keel__` coincide com símbolo do programa ou da base, e o backend os cria sem consultar a tabela de símbolos. [D15](#10-decisões-de-emissão)
 2. `<N>` é um contador por função, na ordem de emissão.
-3. Identificadores começando com `keel_` ou `KEEL_` são reservados: declará-los ou defini-los no fonte do usuário é erro (`reserved-name`, `define-over-keel-name`). Usar os nomes do prelúdio, como `KEEL_CHECK` (§5.17), é permitido. `KEEL_CHECKS` chega pela linha de comando do compilador C, e não por `#define` no fonte.
+3. Identificadores começando com `keel_` ou `KEEL_` são reservados: declará-los ou defini-los fora dos módulos `keel` e `keel.*` (linguagem §2.5) é erro (`reserved-name`, `define-over-keel-name`). Usar os nomes do prelúdio, como `KEEL_CHECK` (§5.17), é permitido. `KEEL_CHECKS` chega pela linha de comando do compilador C; o prelúdio só lhe dá o valor padrão 1 (§5.17).
 
 | Nome gerado | O quê | Onde |
 | --- | --- | --- |

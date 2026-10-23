@@ -51,7 +51,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `nested-extern-c` | `extern_c` stands inside a declaration: it is a file-scope construction | `extern_c` in a nested position, that is, outside file level |
 | `type-layer-on-priv-extern-c` | `priv extern_c [type_h]` is contradictory: `type_h` puts the text in the interface, `priv` in the implementation | `priv extern_c [type_h]`: contradictory qualifiers |
 | `main-in-extern-c` | `main` is defined inside `extern_c`: `main` is a function of the module, which takes its prefix and gets the C wrapper | `main` defined inside `extern_c` |
-| `private-main` | `main` is `priv`: `main` is a public function of the module | `priv` applied to `main` |
+| `private-main` | `main` is `priv`: `main` is a public function of the module; drop `priv` | `priv` applied to `main` |
 | `invalid-main-signature` | `main` has neither form of C: write `int main(void)` or `int main(int argc, char *argv[])` | `main` declared outside the two forms of C |
 | `import-clause-order` | `as` comes before `types`: write `import %s as %s types;` | `import M types as m;`: the message gives the correct form |
 | `duplicate-injected-name` | `%s` comes bare from `%s` and from `%s`: import one of them without `types`, and write the name qualified | Two imports with `types` injecting the same bare name |

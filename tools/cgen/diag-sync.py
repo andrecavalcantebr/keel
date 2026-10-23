@@ -6,6 +6,7 @@ is new or whose condition changed. See --help.
     python3 tools/cgen/diag-sync.py --dry-run   # what would be asked, no API call
     python3 tools/cgen/diag-sync.py             # ask, write the rows, regenerate
     python3 tools/cgen/diag-sync.py --lock      # accept the file as it is now
+    python3 tools/cgen/diag-sync.py --review    # an opinion on each message, nothing written
 """
 import argparse
 import hashlib
@@ -15,6 +16,7 @@ import os
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -57,6 +59,14 @@ how it works:
 
 Review the outcome with `git diff`: the model proposes, the person decides.
 
+--review is a separate mode: it sends every message (or the --id ones) to be
+judged against the rules of [G2], and prints a Markdown report of the ones to
+improve, each with a suggestion that keeps its %s. It writes nothing: a
+suggestion worth taking is copied into diag-messages.md by hand, and then
+gen-diags.py regenerates the code. Redirect the report to keep it:
+
+  .venv/bin/python tools/cgen/diag-sync.py --review > /tmp/diag-review.md
+
 requires the anthropic package and the variable ANTHROPIC_API_KEY, except with
 --dry-run and --lock. Where the system Python is externally managed (PEP 668),
 install the package in a venv and run the script with its Python:
@@ -77,6 +87,12 @@ def parse_args(argv):
                          'the support file, as it is, is declared in step')
     ap.add_argument('--id', action='append', default=[], metavar='IDENT',
                     help='also ask this identifier, even if it is in step (repeatable)')
+    ap.add_argument('--review', action='store_true',
+                    help='ask for an opinion on every message against the rules of [G2] '
+                         '(or only on the --id ones) and print a Markdown report of the ones '
+                         'to improve, with a suggestion; writes nothing')
+    ap.add_argument('--jobs', type=int, default=8, metavar='N',
+                    help='requests in flight with --review (default: %(default)s)')
     ap.add_argument('--model', default=MODEL, help='the model to ask (default: %(default)s)')
     return ap.parse_args(argv)
 
@@ -231,6 +247,142 @@ def render(head, sections):
     return '\n'.join(out) + '\n'
 
 
+def open_client():
+    """(the anthropic module, a client), or (None, None) after saying why not."""
+    if not os.environ.get('ANTHROPIC_API_KEY', '').strip():
+        print('diag-sync.py: ANTHROPIC_API_KEY is empty or unset: export the key, '
+              'or use --dry-run to see what would be asked', file=sys.stderr)
+        return None, None
+    try:
+        import anthropic
+    except ImportError:
+        print('diag-sync.py: the anthropic package is not installed for %s.\n'
+              'Where the system Python is externally managed (PEP 668), use a venv:\n'
+              '  python3 -m venv .venv && .venv/bin/pip install anthropic\n'
+              '  .venv/bin/python tools/cgen/diag-sync.py ...\n'
+              '(.venv/ is ignored by git; a venv outside the tree, such as ~/.venvs/keel, '
+              'works the same)' % sys.executable, file=sys.stderr)
+        return None, None
+    return anthropic, anthropic.Anthropic()
+
+
+REVIEW_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'verdict': {'type': 'string', 'enum': ['ok', 'improve']},
+        'suggestion': {'type': 'string'},
+        'reason': {'type': 'string'},
+    },
+    'required': ['verdict', 'suggestion', 'reason'],
+    'additionalProperties': False,
+}
+
+
+def review_prompt():
+    return f"""You review the diagnostic messages of cgen, the translator of keel, a language of \
+islands of keel in a sea of C, translated to C11/C23. The documents of the project are in \
+Brazilian Portuguese; the messages are in English, as the code is.
+
+For each diagnostic you receive the identifier, its condition (in Portuguese, from the normative \
+table, and in English), the current message, and the section of the specification it belongs to. \
+The message is a printf format string: each `%s` is filled, in order, with text of the source or \
+a short phrase from the tool, and the C code that emits it passes exactly that many arguments.
+
+Judge the message against the rules below, and nothing else: not taste, not a synonym you prefer.
+- `verdict`: `ok` when it follows the rules; `improve` when it breaks one of them.
+- `suggestion`: with `improve`, the message rewritten to follow the rules, with exactly the same \
+number of `%s`, meaning the same things, in the same order; starts in lower case, no final period, \
+no line break. With `ok`, an empty string.
+- `reason`: with `improve`, which rule it breaks and how, in one sentence. With `ok`, empty.
+
+The rules for a message (the design document of the diagnostics, in Portuguese):
+
+{design_rules()}"""
+
+
+def review_one(client, model, system, row, current, section_text):
+    ident, condition, severity, contract = row
+    parts = [f'identifier: `{ident}`', f'severity: {severity}',
+             f'condition (pt-BR): {condition}', f'condition (English): {current[1]}',
+             f'message: {current[0]}', 'number of %%s: %d' % current[0].count('%s')]
+    if section_text:
+        parts.append('the section of the specification:\n\n' + section_text)
+    response = client.messages.create(
+        model=model,
+        max_tokens=4000,
+        system=[{'type': 'text', 'text': system, 'cache_control': {'type': 'ephemeral'}}],
+        messages=[{'role': 'user', 'content': '\n\n'.join(parts)}],
+        output_config={'format': {'type': 'json_schema', 'schema': REVIEW_SCHEMA}},
+    )
+    if response.stop_reason == 'refusal':
+        raise RuntimeError('the model declined this row')
+    if response.stop_reason == 'max_tokens':
+        raise RuntimeError('the answer was cut at max_tokens')
+    answer = json.loads(next(b.text for b in response.content if b.type == 'text'))
+    if answer['verdict'] == 'improve':
+        suggestion = answer['suggestion'].strip()
+        if suggestion.count('%s') != current[0].count('%s'):
+            answer['reason'] += (' [the suggestion has %d %%s and the message %d: '
+                                 'it cannot replace it as written]'
+                                 % (suggestion.count('%s'), current[0].count('%s')))
+    return answer
+
+
+def review(args, rows, current):
+    """--review: asks for an opinion on every message, writes nothing."""
+    chosen = [r for r in rows if r[0] in current and current[r[0]][0]
+              and (not args.id or r[0] in args.id)]
+    print('review %d message(s) with %s; nothing is written' % (len(chosen), args.model),
+          file=sys.stderr)
+    if args.dry_run:
+        for row in chosen:
+            print('review %s' % row[0])
+        return 0
+    anthropic, client = open_client()
+    if client is None:
+        return 2
+    system = review_prompt()
+    results, failures = {}, []
+
+    def one(row):
+        return row[0], review_one(client, args.model, system, row, current[row[0]],
+                                  spec_section(row[3]) if row[3] else '')
+
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        futures = [pool.submit(one, row) for row in chosen]
+        for done, future in enumerate(futures, 1):
+            ident = chosen[done - 1][0]
+            try:
+                results[ident] = future.result()[1]
+            except anthropic.AuthenticationError:
+                print('diag-sync.py: the API refused the key (401): check ANTHROPIC_API_KEY',
+                      file=sys.stderr)
+                pool.shutdown(cancel_futures=True)
+                return 2
+            except anthropic.APIStatusError as e:
+                failures.append((ident, 'API error %d: %s' % (e.status_code, e.message)))
+            except anthropic.APIConnectionError as e:
+                failures.append((ident, 'connection failed: %s' % e))
+            except (RuntimeError, KeyError, json.JSONDecodeError) as e:
+                failures.append((ident, str(e)))
+            print('\r%d/%d' % (done, len(chosen)), end='', file=sys.stderr, flush=True)
+    print(file=sys.stderr)
+
+    improve = [(r[0], results[r[0]]) for r in chosen
+               if r[0] in results and results[r[0]]['verdict'] == 'improve']
+    print('# Review of the diagnostic messages\n')
+    print('%d reviewed, %d ok, %d to improve, %d failed (model: %s).\n'
+          % (len(chosen), len(results) - len(improve), len(improve), len(failures), args.model))
+    for ident, answer in improve:
+        print('## `%s`\n' % ident)
+        print('- now: %s' % current[ident][0])
+        print('- suggested: %s' % answer['suggestion'].strip())
+        print('- why: %s\n' % answer['reason'].strip())
+    for ident, why in failures:
+        print('FAIL  %s: %s' % (ident, why), file=sys.stderr)
+    return 1 if failures else 0
+
+
 def main(argv=None):
     args = parse_args(sys.argv[1:] if argv is None else argv)
     spec_rows = table_rows(gen.SPEC, '### 6.2 Cat', '### 6.3')
@@ -247,6 +399,13 @@ def main(argv=None):
         for ident, message, condition in entries:
             current[ident] = (message, condition)
     lock = json.loads(LOCK.read_text()) if LOCK.exists() else {}
+
+    if args.review:
+        unknown = [i for i in args.id if i not in current]
+        if unknown:
+            print('unknown identifier: %s' % ', '.join(unknown), file=sys.stderr)
+            return 2
+        return review(args, [r for _, rows in wanted for r in rows], current)
 
     if args.lock:
         LOCK.write_text(json.dumps({r[0]: condition_hash(r[1]) for _, rows in wanted for r in rows},
@@ -276,21 +435,9 @@ def main(argv=None):
 
     client = None
     if todo:
-        if not os.environ.get('ANTHROPIC_API_KEY', '').strip():
-            print('diag-sync.py: ANTHROPIC_API_KEY is empty or unset: export the key, '
-                  'or use --dry-run to see what would be asked', file=sys.stderr)
+        anthropic, client = open_client()
+        if client is None:
             return 2
-        try:
-            import anthropic
-        except ImportError:
-            print('diag-sync.py: the anthropic package is not installed for %s.\n'
-                  'Where the system Python is externally managed (PEP 668), use a venv:\n'
-                  '  python3 -m venv .venv && .venv/bin/pip install anthropic\n'
-                  '  .venv/bin/python tools/cgen/diag-sync.py ...\n'
-                  '(.venv/ is ignored by git; a venv outside the tree, such as ~/.venvs/keel, '
-                  'works the same)' % sys.executable, file=sys.stderr)
-            return 2
-        client = anthropic.Anthropic()
 
     can_have = emittable(spec_rows)
     examples = [(i, sev, current[i][0], current[i][1]) for i, _, sev, _ in spec_rows

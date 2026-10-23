@@ -10,7 +10,7 @@
     X(NESTED_EXTERN_C, "`extern_c` stands inside a declaration: it is a file-scope construction") \
     X(TYPE_LAYER_ON_PRIV_EXTERN_C, "`priv extern_c [type_h]` is contradictory: `type_h` puts the text in the interface, `priv` in the implementation") \
     X(MAIN_IN_EXTERN_C, "`main` is defined inside `extern_c`: `main` is a function of the module, which takes its prefix and gets the C wrapper") \
-    X(PRIVATE_MAIN, "`main` is `priv`: `main` is a public function of the module") \
+    X(PRIVATE_MAIN, "`main` is `priv`: `main` is a public function of the module; drop `priv`") \
     X(INVALID_MAIN_SIGNATURE, "`main` has neither form of C: write `int main(void)` or `int main(int argc, char *argv[])`") \
     X(IMPORT_CLAUSE_ORDER, "`as` comes before `types`: write `import %s as %s types;`") \
     X(DUPLICATE_INJECTED_NAME, "`%s` comes bare from `%s` and from `%s`: import one of them without `types`, and write the name qualified") \

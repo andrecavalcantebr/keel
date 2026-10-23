@@ -10,6 +10,8 @@
 #
 # -Werror=vla enforces a normative claim: language §4.4 says keel emits neither
 # VLA nor alloca anywhere.
+# Every path below is relative to golden/, whatever the caller's directory.
+cd "$(dirname "$0")" || exit 2
 CC=${CC:-gcc}
 FLAGS="-pedantic-errors -Wall -Wextra -Wno-unused-parameter -Wvla -Werror=vla"
 ok=0; fail=0; xfail=0; xpass=0; wip=0
@@ -146,13 +148,13 @@ for case_dir in cases/*/; do
   done
 done
 # blank-line layout of the headers (codegen-design §4.2, E6)
-if out=$(python3 -I "$(dirname "$0")/layout-check.py" 2>&1); then
+if out=$(python3 -I ./layout-check.py 2>&1); then
   printf 'ok     %-24s       (codegen E6)\n' layout-check; ok=$((ok+1))
 else
   printf 'FAIL   %-24s\n' layout-check; printf '%s\n' "$out" | head -8 | sed 's/^/         /'; fail=$((fail+1))
 fi
 # line mapping (backend §6): no redundant #line, and no unexplained drift
-if out=$(python3 -I "$(dirname "$0")/line-check.py" --check 2>&1); then
+if out=$(python3 -I ./line-check.py --check 2>&1); then
   printf 'ok     %-24s       (backend §6)\n' line-check; ok=$((ok+1))
 else
   printf 'FAIL   %-24s\n' line-check; printf '%s\n' "$out" | head -8 | sed 's/^/         /'; fail=$((fail+1))

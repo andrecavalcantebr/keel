@@ -60,16 +60,19 @@ E uma por construção, na correspondência com as seções do backend §5:
 
 | Arquivo | Backend | Construção |
 | --- | --- | --- |
-| `decl.c` | §5.1 | declarações; substituição local de nome |
+| `decl.c` | §5.1, §5.4 (regra 8), §5.16 | declarações; substituição local de nome; o `= {0}` implícito de `arena`; o parâmetro `type` apagado |
 | `container.c` | §5.2 | struct de instância e seus verbos |
 | `index.c` | §5.3 | `x[i]`, `x[i,j]`, e o `assert` sob `--checks` |
-| `arena.c` | §5.4 | a reescrita de `alloc(a,T,n)` |
 | `defer.c` | §5.5 | varredura de saídas e injeção do corpo |
 | `match.c` | §5.6 | `tags` e o despacho |
 | `loop.c` | §5.7 | `foreach` |
 | `entry.c` | §5.8 | a unidade de ponto de entrada |
 | `parallel.c` | §5.9 | o gestor, o `#pragma` e os dois lowerings |
 | `result.c` | §5.12–5.14 | `else`, `at`, `outcome` e `corot` |
+| `extent.c` | §5.15 | `extent`: struct de colunas e acesso por coluna |
+| `check.c` | §5.17 | as verificações `debug` (`KEEL_CHECK`); o `assert` de índice continua em `index.c` |
+| `binder.c` | §5.18 | o binder de dimensão |
+| `protocol.c` | §5.19 | as instâncias de função sobre protocolo |
 
 Três observações sobre o corte:
 
@@ -138,7 +141,11 @@ posição(declaração) = f(visibilidade, camada)
 | função `priv` | — | — | corpo, com `static` |
 | variável `pub` | — | `extern T v;` | `T v = …;` |
 | variável `priv` | — | — | definição, com `static` |
-| `extern_c { … }` | — | — | conteúdo intacto |
+| `extern_c { … }` / `pub extern_c { … }` | — | conteúdo intacto | — |
+| `extern_c [type_h] { … }` / `pub extern_c [type_h] { … }` | conteúdo intacto | — | — |
+| `priv extern_c { … }` | — | — | conteúdo intacto |
+| diretiva de topo | — | preservada | — |
+| C de topo que não é diretiva nem construção keel (`static_assert`) | conteúdo intacto | — | — |
 
 Três armadilhas que o backend nomeia e que o emissor tem que acertar na
 primeira vez, porque as três compilam e só falham depois:
@@ -227,7 +234,7 @@ uma só:
 O mangling é do backend §2.1 e se resolve por concatenação, sem tabela:
 
 ```
-símbolo   = <módulo com . → _> [ _ <argumento canônico> ]* [ _<sufixo de aridade> ]
+símbolo   = <nome canônico M.mod, com . → _ e o encurtamento do backend §2.1> [ _ <argumento canônico> ]* [ _<sufixo de aridade> ]
 arquivo   = <componentes-pai do módulo>/<símbolo>.<ext>
 guarda    = <caminho> em maiúsculas, não-alfanumérico → _
 ```
@@ -449,7 +456,7 @@ pronto antes de atacá-las:
 | declaração com modificador | §5.1 | mangling; troca local de nome, sem gramática de declarador C |
 | contêiner (struct + verbos) | §5.2 | instância inteira (§7.2), fecho (§7.3), camadas |
 | açúcar `x[i]`, `x[i,j]` | §5.3 | despacho por aridade; `assert` sob `--checks` |
-| `arena` | §5.4 | reescrita de `alloc(a,T,n)` materializando `sizeof`/`alignof`/cast |
+| `arena` | §5.4 | só o `= {0}` implícito na definição sem inicializador (ilha `implicit-init`); o resto é código comum da base |
 | `defer` | §5.5 | varredura dos pontos de saída do escopo; injeção em cada um, ordem inversa |
 | `tags` e `match` | §5.6 | `switch` com exaustividade já verificada; `tag-out-of-range` sob `--checks` |
 | `foreach` | §5.7 | temporários de contêiner e comprimento, em bloco próprio |
@@ -460,6 +467,11 @@ pronto antes de atacá-las:
 | `else` | §5.12 | declaração mais `if`, numa linha — sem `#line` |
 | `at` | §5.13 | chamada de instância; o `if` é semântica, não verificação |
 | `outcome`, `corot` | §5.14 | instância comum; `outcome void` é degenerada (§7.4) |
+| `extent` | §5.15 | struct de colunas; acesso verificado sob `--checks` |
+| parâmetro `type` | §5.16 | pares `size_t` na assinatura; `sizeof`/`alignof` e o cast no ponto de chamada |
+| verificações `debug` | §5.17 | `KEEL_CHECK` injetado, e o `#line` logo depois dele (§8) |
+| binder de dimensão | §5.18 | o parâmetro de dimensão na assinatura e na chamada |
+| função sobre protocolo | §5.19 | uma instância por combinação de tipos concretos, sem vtable |
 
 **Ordem de implementação sugerida**, que é a ordem em que o golden deixa de
 falhar por mais casos, todas do backend §5: 5.1 → 5.2 → 5.3 → 5.5 → 5.7 → 5.12

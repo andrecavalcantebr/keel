@@ -20,9 +20,10 @@ Onde **decide** algo que os normativos deixam aberto, a decisão vem marcada
 
 ## 1. O que falta hoje, e por que ele vem antes dos testes
 
-O catálogo da spec §6.2 tem 149 identificadores, e para cada um dá a condição, a
-severidade, o responsável e a seção. **Não dá o texto da mensagem.** Nenhuma
-mensagem de diagnóstico do keel existe escrita em lugar nenhum do repositório.
+O catálogo da spec §6.2 tem 157 identificadores (139 `error`, 7 `warning`, 2 `info`, 9 `debug`), e para cada um dá a condição, a
+severidade, o responsável e a seção. **Não dá o texto da mensagem.** As mensagens
+moram em `tools/cgen/diag-messages.md`, uma linha por identificador, e o
+`gen-diags.py` as gera para `src/engine/diag_messages.def`.
 
 Isso trava mais do que parece:
 
@@ -102,13 +103,13 @@ cgen §2.3). `KDiagId` é índice, então o motor nunca compara string.
 
 **Gerada, não escrita à mão.** A spec §6.2 já é uma tabela markdown com
 identificador e severidade; um script (`tools/cgen/gen-diags.py`) extrai as duas
-colunas e gera o `diag_catalog.def`.
+colunas e gera o `diag_catalog.def`. A condição e a mensagem das linhas novas ou alteradas passam pelo `tools/cgen/diag-sync.py`, que pede o texto ao modelo e guarda o hash da condição em `diag-messages.lock.json`; o `gen-diags.py` gera o `.def` em seguida, e o resultado se revisa com `git diff`.
 
 **A mensagem mora num arquivo de apoio, não na spec nem no `.c`.**
 `tools/cgen/diag-messages.md` tem uma linha por identificador da spec §6.2, da
 ferramenta §7.1 e dos que são só da implementação (`K_DIAG_TOOL`), com a
-mensagem e a condição traduzida para o inglês, que é o que o
-`--cgen-help=<classe>` mostra. O script gera dele o `diag_messages.def`, e recusa
+mensagem e a condição traduzida para o inglês. O cgen não tem ajuda
+por classe (`--help=<classe>` vai ao `cc`, ferramenta §4.1). O script gera dele o `diag_messages.def`, e recusa
 o arquivo quando uma seção não tem os identificadores da sua tabela, na mesma
 ordem, ou quando há mensagem para um identificador que a tradução não emite
 (as linhas `debug`). A mensagem é texto da ferramenta, e não da linguagem: na
@@ -283,7 +284,7 @@ Três propriedades disso:
   identificadores cobertos e os compara com o catálogo. É o que diz quantos dos
   135 faltam, a qualquer momento.
 
-**O que não cabe nesse molde:** os 7 `debug`, que são verificações em execução e
+**O que não cabe nesse molde:** os 9 `debug`, que são verificações em execução e
 não recusas de tradução. Esses precisam de caso que **compile**, rode sob
 `--checks=on`, e afirme o `abort`. É outra família, e o runner precisa de um
 modo para ela.
@@ -306,4 +307,4 @@ modo para ela.
 | | Onde | Divergência |
 | --- | --- | --- |
 | R1 | spec §6.1 × este documento | a severidade `info` tem duas entradas no catálogo (`injected-names`, `indirect-import`) e a spec diz que "a apresentação é definida pela ferramenta" — mas não diz se `info` sai por padrão. Sair sempre é ruído; nunca sair torna a entrada decorativa. **Resolvida em 2026-10-02 pelo André: `info` sai por padrão**, no stderr, como warning e erro. O cgen só relata o `info` do módulo traduzido, não o dos módulos que ele carrega (senão cada import da base traria os seus). |
-| R2 | golden × este documento | o runner não tem modo para caso `debug`: compilar, rodar sob `--checks=on` e afirmar o `abort`. Os 7 `debug` do catálogo ficam sem teste até ele existir |
+| R2 | golden × este documento | o runner não tem modo para caso `debug`: compilar, rodar sob `--checks=on` e afirmar o `abort`. Os 9 `debug` do catálogo ficam sem teste até ele existir |

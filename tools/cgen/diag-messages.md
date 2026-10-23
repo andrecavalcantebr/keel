@@ -25,8 +25,8 @@ As regras, que o `gen-diags.py --check` verifica:
   diz isso se chegar a emiti-lo. As linhas `debug` não têm mensagem, porque são
   verificações do programa gerado, não da tradução. Os da §7.1 que o `tool/`
   imprime direto (com mensagem por chamada) também ficam sem;
-- `Condition` é a tradução da condição do normativo, e é o que o
-  `--cgen-help=<classe>` mostra. Quando a condição muda no normativo, muda aqui.
+- `Condition` é a tradução da condição do normativo, e é a descrição do diagnóstico em inglês; o cgen não tem ajuda por classe
+  (`--help=<classe>` vai ao `cc`, ferramenta §4.1). Quando a condição muda no normativo, muda aqui.
 
 A manutenção: quando um normativo ganha, perde ou muda uma linha,
 `tools/cgen/diag-sync.py` pede ao Claude (Haiku 5.5) a condição e a mensagem das

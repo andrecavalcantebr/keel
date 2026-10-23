@@ -116,6 +116,10 @@ Conjunto fechado, o da spec da ferramenta §4.1. Toda opção desta tabela é
 | `--cgen-version` | — | imprime `cgen <versão>` em stdout, sai 0 | — |
 | `--cgen-help`, `--help` | — | imprime a sinopse e esta tabela, sai 0 | — |
 
+`--parallel-lowering=openmp` sem `-fopenmp` entre as opções repassadas é
+`lowering-unavailable` (código 2), e o cgen para antes de compilar
+(ferramenta §4.8).
+
 As duas formas (`=` e argumento separado) valem para toda opção longa com valor
 **[D2]**. Valor fora do enumerado é `invalid-option` (código 2). Opção que
 exige valor e está no fim da linha também é `invalid-option`.
@@ -197,7 +201,9 @@ se fosse sempre raiz, `cgen -I src src/a.k` seria sempre
 | fonte sem `-c`/`-S`/`-E` | idem, e o `cc` compila e linka; com `--main`, a unidade de entrada entra na mesma chamada **[D3]** |
 
 Em modo `--stop-after`, as opções repassadas são **lidas** (perfil, lowering,
-depfile) e o resto é ignorado — `-o` inclusive.
+depfile) e o resto é ignorado, salvo o `-o`: em `lex` e `parse` ele nomeia o
+arquivo da saída (`-o -` é `stdout`); com `gen` é `output-with-gen`
+(código 2), porque a fase escreve vários arquivos.
 
 Com `--main` e `-c`, a unidade de entrada é **gerada mas não compilada**: `-c`
 com `-o` e dois `.c` é erro do gcc, e a unidade tem regra própria no build
@@ -397,7 +403,8 @@ A memória do `cgen` inteiro vem de uma `keel_arena` por invocação; nada é li
 8. Com algum `error` no diagnóstico: nada é escrito, sai 1.
 9. `writer` grava tudo que foi gerado em memória — compara antes; temporário
    `<arquivo>.tmp.<pid>` no mesmo diretório; `rename`.
-10. `--main`: gera `main_<símbolo>.c` (§5.3).
+10. `--main`: gera `main_<símbolo>.c` (§5.3). Se o módulo não tem função de
+    entrada pública, é `missing-entry-point` (código 2), antes de qualquer escrita.
 11. Depfile, se pedido (§7).
 12. Chama o `cc` (§6), salvo `--stop-after`.
 
@@ -472,10 +479,10 @@ ilha	<espécie>	<detalhe>	<pos>
 | `import` | do fonte | a palavra `import` | o módulo, e `as` e `types` quando escritos |
 | `import_c` | do fonte | a palavra `import_c` | as tokens entre `import_c` e `;`, concatenadas: `<stdio.h>` |
 | `decl` | do fonte | a primeira token da declaração | espécie `func`, `var`, `constexpr`, `type`, `modifier`, `tags` ou `protocol`; o símbolo de backend §2, ou `-` para `protocol`, que não emite C |
-| `decl instance` | do fonte | a palavra `instance` | `decl	instance	<tipo como escrito>	<símbolo da instância>`: sem visibilidade, porque `instance` não declara nome (spec §4.3, regra 19); `-` quando o tipo não nomeia instância |
+| `decl instance` | do fonte | a palavra `instance` | `decl	instance	<tipo como escrito>	<símbolo da instância>`: sem visibilidade, porque `instance` não declara nome (linguagem §4.3, regra 19); `-` quando o tipo não nomeia instância |
 | `inst` | do primeiro uso | a palavra do modificador, no primeiro uso | o modificador e os argumentos como escritos, separados por um espaço. Só as instâncias que o módulo escreve; as que o fecho acrescenta saem em `closure` |
 | `closure` | pelo símbolo (codegen §9) | — | cada instância que o fecho acrescenta às de `inst` (parser §5, codegen §7.3), com a origem: `<instância>.<verbo>/<aridade>`, o verbo disponível que a mencionou primeiro; `call`, uma instância que uma chamada toma sem que o módulo a escreva (`keel.array` sobre um tipo de elemento); `call function`, a instância de uma função sobre protocolo para um tipo concreto (backend §5.19), uma por tipo, sem a aridade |
-| `unavailable` | as de `inst`, depois as de `closure`; os verbos na ordem do genérico | — | cada verbo que a instância não mantém (spec §4.3, regras 11 a 13), com a causa: `void-param <parâmetro>`, `void-field <campo>`, `const-write <campo>`, ou `calls <instância>.<verbo>/<aridade>` quando a indisponibilidade veio por chamada |
+| `unavailable` | as de `inst`, depois as de `closure`; os verbos na ordem do genérico | — | cada verbo que a instância não mantém (linguagem §4.3, regras 11 a 13), com a causa: `void-param <parâmetro>`, `void-field <campo>`, `const-write <campo>`, ou `calls <instância>.<verbo>/<aridade>` quando a indisponibilidade veio por chamada |
 | `ilha` | do fonte, pela posição | ver abaixo | ver abaixo |
 
 `ilha` lista toda construção keel reconhecida depois do cabeçalho, em
@@ -489,29 +496,29 @@ viram um espaço só.
 | `name` | o nome | `<nome> → <símbolo>`: constante, variável ou valor de tags do módulo ou de import |
 | `call` | primeira token do chamado | `<chamado>/<aridade escrita> → <símbolo>`, e as marcas de adaptação |
 | `ref` | a palavra `ref` | o nome declarado |
-| `defer` | a palavra `defer` | o conteúdo dos colchetes: `now FILE *fp`; sem colchetes, `later`, a captura implícita (spec §4.6) |
+| `defer` | a palavra `defer` | o conteúdo dos colchetes: `now FILE *fp`; sem colchetes, `later`, a captura implícita (linguagem §4.6) |
 | `implicit-init` | o nome declarado | o nome: `arena` sem inicializador recebe `= {0}` |
 | `foreach` | a palavra `foreach` | `<elemento>[, <índice>] : <contêiner> (<tipo keel do contêiner>)`; sobre literal de intervalo, sem o tipo: `v : 0..4` |
 | `walk` | a palavra `walk` | `<elemento>, <cursor> : <contêiner> (<tipo keel do contêiner>)` |
 | `match` | a palavra `match` | `<expressão> (<tipo keel>): <braço> <braço> …` |
 | `index` | o contêiner | `<contêiner> → <símbolo do acessor>`, e as marcas |
-| `range-index` | o contêiner | `<contêiner> <intervalo como escrito> → <símbolo do as_slice> [core \| <símbolo de length>]`, e as marcas: o verbo de três parâmetros do protocolo (spec §5.1), e o limite da ponta aberta à direita |
+| `range-index` | o contêiner | `<contêiner> <intervalo como escrito> → <símbolo do as_slice> [core \| <símbolo de length>]`, e as marcas: o verbo de três parâmetros do protocolo (linguagem §5.1), e o limite da ponta aberta à direita |
 | `array` | a palavra `array` | `<nome> [<dimensões>]` |
-| `array-index` | o nome | `<nome> rank <n>`: todo `x[…]` sobre símbolo `array`, com `n` os índices escritos, num colchete ou em vários (`v[1,2,3]` e `v[1][2][3]` são `rank 3`); a emissão pode ser a própria escrita, e a ilha existe do mesmo jeito (spec §2.3) |
-| `parallel` | a palavra `parallel` | `<nome> <política> (<worker> : <intervalo>; <parte> : <contêiner> (<tipo keel do contêiner>)[; (<capturas>)]) → <símbolo de partition>`, e as marcas da chamada de `partition` (spec §4.8) |
+| `array-index` | o nome | `<nome> rank <n>`: todo `x[…]` sobre símbolo `array`, com `n` os índices escritos, num colchete ou em vários (`v[1,2,3]` e `v[1][2][3]` são `rank 3`); a emissão pode ser a própria escrita, e a ilha existe do mesmo jeito (linguagem §2.3) |
+| `parallel` | a palavra `parallel` | `<nome> <política> (<worker> : <intervalo>; <parte> : <contêiner> (<tipo keel do contêiner>)[; (<capturas>)]) → <símbolo de partition>`, e as marcas da chamada de `partition` (linguagem §4.8) |
 | `worker-exit` | a palavra `win` ou `fail` | `<win\|fail> → <nome do parallel>`: a saída e o bloco de que ela sai |
-| `else` | a palavra `else` | `<alvo> (<tipo keel>) <exit\|default> → <símbolo de failed> [<símbolo de win>]`, e as marcas do `win`: o `else` de resultado (spec §4.10), na declaração ou na atribuição; `exit` quando o tratamento começa por `{` ou palavra de salto, `default` nos demais |
-| `extent` | a palavra `extent` | `<nome> [<contagem>, <capacidade>]… <embedded\|pointer>: <coluna> <coluna> …` (spec §4.11) |
+| `else` | a palavra `else` | `<alvo> (<tipo keel>) <exit\|default> → <símbolo de failed> [<símbolo de win>]`, e as marcas do `win`: o `else` de resultado (linguagem §4.10), na declaração ou na atribuição; `exit` quando o tratamento começa por `{` ou palavra de salto, `default` nos demais |
+| `extent` | a palavra `extent` | `<nome> [<contagem>, <capacidade>]… <embedded\|pointer>: <coluna> <coluna> …` (linguagem §4.11) |
 | `column` | o início do caminho | `<caminho> rank <n> → <função de acesso>`, e as marcas: todo `P.col[…]` ou `P->col[…]` sobre coluna de `extent`, com `n` os índices escritos; `&1` quando `P` é o objeto (backend §5.15) |
 
 As marcas de adaptação vêm depois dos símbolos, separadas por espaço. `&<k>`: o
 argumento *k*, contado de 1, recebe `&`, porque o parâmetro declarado no
-chamado é ponteiro e o argumento é o objeto (spec §4.4). `type:<k>`: o
+chamado é ponteiro e o argumento é o objeto (linguagem §4.4). `type:<k>`: o
 argumento *k* é um tipo, apagado em tamanho e alinhamento (backend §5.16). `dim:<k>`: o argumento *k* é um `array`, e a
 dimensão 0 dele, vinda da tabela, entra como argumento a mais (backend §5.2, §5.18).
 Quando a ilha nomeia dois verbos — `x[a..]` é o `as_slice` da instância e o `length` dela —,
 os dois símbolos vêm nessa ordem, antes das marcas; sobre `array` o limite é do núcleo e sai
-`core`. `slice.of(v…)` sobre `array` é o `as_slice` de `keel.array` (spec §5.3).
+`core`. `slice.of(v…)` sobre `array` é o `as_slice` de `keel.array` (linguagem §5.3).
 
 Os módulos importados são carregados (é preciso, para resolver) e não são
 impressos. Os despejos esperados de treze casos do golden estão em
@@ -558,6 +565,11 @@ fora de `[A-Z0-9]` virando `_`: `app/app_cfg.type.h` → `APP_APP_CFG_TYPE_H`.
 - A unidade de entrada, quando há e não há `-c`, vai logo depois do `.c` da
   invocação.
 - Depfile: ver §7 — o cgen troca o `-MF` do usuário por um temporário.
+- `--checks=off` acrescenta `-DKEEL_CHECKS=0` à chamada; com `on`, nada:
+  o prelúdio já vale `KEEL_CHECKS 1` quando a macro não existe (backend
+  §5.17).
+- `--line=off` só muda a emissão (backend §6); a chamada ao `cc` é a
+  mesma.
 
 O processo é criado com `posix_spawnp`; `stdin`, `stdout` e `stderr` são
 herdados, então a saída do `cc` chega ao terminal sem passar pelo cgen.
@@ -690,8 +702,7 @@ int hello_main(int argc, char **argv) {
 }
 ```
 
-`gen/main_hello.c` — inclui o `.h` do módulo, como qualquer `.c` (regra 3 do
-backend §4.3.2):
+`gen/main_hello.c` — inclui o `.h` do módulo, como qualquer `.c` (backend §4.3.2, regra 4, e §5.8):
 
 ```c
 /* main_hello.c — entry unit, generated by --main hello. */
@@ -866,8 +877,8 @@ Cada marco termina com o seu teste passando e o anterior intacto.
   e `diff -r` contra `expected/<p>` (os arquivos do módulo) e contra
   `golden/<p>/` (os da base e do prelúdio). O `run.sh` existente continua
   provando que o esperado compila e se comporta; este passo prova que o cgen o
-  produz. Enquanto o golden tiver prosa explicativa nos cabeçalhos (**[P5]**), o
-  diff ignora o comentário de abertura de cada arquivo.
+  produz. O cabeçalho de cada arquivo é a linha de geração (§5.3: uma linha, sem
+  versão nem data), e o diff a compara junto com o resto.
 - **Determinismo**: gerar duas vezes em diretórios diferentes, com a ordem de
   `-I` preservada, e comparar byte a byte.
 
@@ -904,12 +915,12 @@ O que este documento levantou antes, enquanto era escrito, já está nos
 normativos; o registro abaixo fica para que cada decisão seja rastreável até
 onde ela mora hoje.
 
-Resolvida em 2026-09-21: P16 (visibilidade do C que atravessa o módulo). `extern_c` passa a seguir `pub`/`priv` como qualquer construção de arquivo; o modificador `[type_h]` direciona o conteúdo para `.type.h`; `extern_c` sem `[type_h]` vai para `.h`; `priv extern_c` vai para `.c`; `priv extern_c [type_h]` é erro (`type-layer-on-priv-extern-c`). Diretivas de topo vão para `.h`; dentro de construto, seguem o construto. Spec §4.1, backend §4.1.
+Resolvida em 2026-09-21: P16 (visibilidade do C que atravessa o módulo). `extern_c` passa a seguir `pub`/`priv` como qualquer construção de arquivo; o modificador `[type_h]` direciona o conteúdo para `.type.h`; `extern_c` sem `[type_h]` vai para `.h`; `priv extern_c` vai para `.c`; `priv extern_c [type_h]` é erro (`type-layer-on-priv-extern-c`). Diretivas de topo vão para `.h`; dentro de construto, seguem o construto. linguagem §4.1, backend §4.1.
 
 Resolvida em 2026-09-20: P15 (golden derivado da `/base` — `#line` em toda
 declaração levada a header, prosa fora, instâncias inteiras pela regra do
 backend §7.2, `arena` e `routine` seguindo o `.k`). Na mesma rodada, e por
-causa dela: a instanciação degenerada da spec §4.3, o `verb-not-in-instance`
+causa dela: a instanciação degenerada da linguagem §4.3, o `verb-not-in-instance`
 da §4.4, o sufixo de aridade do backend §2.1 e o `keel_arena_alloc` do §5.4.
 
 Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão
@@ -921,4 +932,4 @@ Resolvida em 2026-09-19: P13 (golden no corte em dois, `.type.h` + `.h`); P4 e P
 casos (`import_c` no `.type.h` com `#line`, `#line` em toda declaração levada a
 header, mapeamento de linha 1:1 nos `.c`, tag sintética, prosa e nomes que não
 vêm do fonte, genérico sem `.c`); P14 (parâmetro de tipo opaco no genérico,
-`protocol-on-parameter`, spec §4.3).
+`protocol-on-parameter`, linguagem §4.3).

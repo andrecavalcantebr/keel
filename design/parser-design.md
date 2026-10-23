@@ -119,7 +119,7 @@ estrutura que dá tipo ao `KModuleDecl *decl` que o codegen já assume
  * spec §2.2. Índice em KModuleDecl.decls. */
 typedef enum {
     K_TOP_IMPORT, K_TOP_IMPORT_C, K_TOP_EXTERN_C,
-    K_TOP_MODIFIER, K_TOP_INSTANCE, K_TOP_TAGS, K_TOP_EXTENT,
+    K_TOP_MODIFIER, K_TOP_INSTANCE, K_TOP_TAGS, K_TOP_EXTENT, K_TOP_PROTOCOL,
     K_TOP_TYPEDEF, K_TOP_STRUCT, K_TOP_FUNCTION, K_TOP_KEEL_DECL,
     K_TOP_OPAQUE               /* C que o passo 6 da §4 não classificou */
 } KTopKind;
@@ -142,6 +142,7 @@ struct KTopDecl {
         struct { KTagItem *items; size_t count; } tags;
         struct { KExtentDim *dims; size_t dim_count;
                  KExtentField *fields; size_t field_count; } extent;
+        struct { keel_slice_char name; } protocol;   /* decl-protocol, spec §5.1 */
         struct { keel_slice_char underlying; } typedef_;          /* spelling C, opaco */
         struct { KField *fields; size_t count; } struct_;
         KFunctionDecl function;
@@ -446,7 +447,7 @@ que a implementação precisa saber:
 | 2 coleta | `modifier-outside-generic`, `parameter-name-reuse`, `modifier-named-instance`, `pub-static`, `inline-without-visibility`, `static-on-type`, `canonical-name-collision`, `undeclared-tags`, `duplicate-tag`, `unnamed-tags`, `nonconstant-dim`, `dim-below-one` |
 | 3 resolução | todo o resto: contêiner, aridade, protocolo, `else`, `match`, `parallel`, `array`, `ref`, `constexpr`, `verb-not-in-instance` |
 | emissor | `name-too-long`, `reserved-name` |
-| backend, em execução | os 7 `debug` |
+| backend, em execução | os 9 `debug` |
 
 **`symbol-collision` é da passagem 1 e não da 2** porque compara o módulo
 contra o fecho de imports, e o fecho só existe depois que todos carregaram.

@@ -113,12 +113,12 @@ static const char *const k_contextual_words[] = {
     "ALL", "ANY", "array", "as", "byref", "constexpr", "defer",
     "dim", "else", "extent", "extern_c", "fail", "foreach", "import",
     "import_c", "instance", "later", "match", "modifier", "module", "now",
-    "parallel", "priv", "pub", "ref", "tags", "type", "type_h", "types",
+    "parallel", "priv", "protocol", "pub", "ref", "tags", "type", "type_h", "types",
     "walk", "win"
 };
 ```
 
-A reserva vale para o fonte do usuário (backend §4.2). Os módulos da base,
+A reserva vale para o fonte do usuário (backend §2.3, regra 3). Os módulos da base,
 os que começam por `module keel` ou `module keel.<nome>`, são donos dos nomes
 `KEEL_`: é o prelúdio que define `KEEL_CHECKS` e `KEEL_CHECK` (backend §5.17).
 O lexer reconhece isso nas duas primeiras tokens do fonte, sem parser.

@@ -1,0 +1,26 @@
+usage: cgen [cgen options] [C compiler options] <file.k>
+       cgen [cgen options] [C compiler options] --instance "<M.mod> <args>"
+       cgen [C compiler options] <files>      (no .k: runs the C compiler)
+
+cgen options (consumed, never forwarded to the C compiler):
+  -I <dir>                      module search root; repeatable, order matters;
+                                also forwarded to the C compiler
+  --base-dir <dir>              root of the base (default: <exe>/../lib/base)
+  --instance "<M.mod> <args>"   compile the instance instead of a .k file
+  --dest-dir <dir>              root of the generated output (default: ./gen)
+  --stop-after=<lex|parse|gen>  stop after the given phase
+  --checks=<on|off>             -DKEEL_CHECKS=0 when off (default: on)
+  --line=<on|off>               emit #line for the keel source (default: on)
+  --main <module>               generate the C entry point, calling the module's
+  --cc=<program>                C compiler to invoke (default: cc)
+  --pedantic-names              name ceiling 31 (external) / 63 (other), not 255
+  --parallel-lowering=<auto|serie|openmp>
+                                execution mechanism for parallel (default: auto)
+  --profile=<auto|c11|c23>      C standard of the generated code (default: auto)
+  -f                            force regeneration, ignoring timestamps
+  --cgen-version                print the cgen version and exit
+  --cgen-help                   print this help and exit
+
+Long options with a value accept both --opt=value and --opt value.
+Everything else is forwarded verbatim to the C compiler, in order:
+--help and --version are the C compiler's.

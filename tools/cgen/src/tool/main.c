@@ -28,6 +28,37 @@ static void require_room(size_t used, size_t extra, size_t cap,
 #define ROOT_ROOM() require_room(root_count,1,CGEN_CLI_ROOTS_CAP,"CLI roots","CGEN_CLI_ROOTS_CAP")
 #define ARG_ROOM(n) require_room(passthrough_count,(n),CGEN_CLI_ARGS_CAP,"forwarded arguments","CGEN_CLI_ARGS_CAP")
 
+static void print_help(void) {
+    fputs(
+        "usage: cgen [cgen options] [C compiler options] <file.k>\n"
+        "       cgen [cgen options] [C compiler options] --instance \"<M.mod> <args>\"\n"
+        "       cgen [C compiler options] <files>      (no .k: runs the C compiler)\n"
+        "\n"
+        "cgen options (consumed, never forwarded to the C compiler):\n"
+        "  -I <dir>                      module search root; repeatable, order matters;\n"
+        "                                also forwarded to the C compiler\n"
+        "  --base-dir <dir>              root of the base (default: <exe>/../lib/base)\n"
+        "  --instance \"<M.mod> <args>\"   compile the instance instead of a .k file\n"
+        "  --dest-dir <dir>              root of the generated output (default: ./gen)\n"
+        "  --stop-after=<lex|parse|gen>  stop after the given phase\n"
+        "  --checks=<on|off>             -DKEEL_CHECKS=0 when off (default: on)\n"
+        "  --line=<on|off>               emit #line for the keel source (default: on)\n"
+        "  --main <module>               generate the C entry point, calling the module's\n"
+        "  --cc=<program>                C compiler to invoke (default: cc)\n"
+        "  --pedantic-names              name ceiling 31 (external) / 63 (other), not 255\n"
+        "  --parallel-lowering=<auto|serie|openmp>\n"
+        "                                execution mechanism for parallel (default: auto)\n"
+        "  --profile=<auto|c11|c23>      C standard of the generated code (default: auto)\n"
+        "  -f                            force regeneration, ignoring timestamps\n"
+        "  --cgen-version                print the cgen version and exit\n"
+        "  --cgen-help                   print this help and exit\n"
+        "\n"
+        "Long options with a value accept both --opt=value and --opt value.\n"
+        "Everything else is forwarded verbatim to the C compiler, in order:\n"
+        "--help and --version are the C compiler's.\n",
+        stdout);
+}
+
 int main(int argc, char *argv[]) {
     if (argc == 1) {
         execvp("cc", argv);
@@ -62,6 +93,11 @@ int main(int argc, char *argv[]) {
 
         if (strcmp(w, "--cgen-version") == 0) {
             printf("cgen 0.1.0\n");
+            exit(0);
+        }
+
+        if (strcmp(w, "--cgen-help") == 0) {
+            print_help();
             exit(0);
         }
 

@@ -101,10 +101,19 @@ Ordenada por nome, para que o filtro de `-W` seja busca binária (desenho do
 cgen §2.3). `KDiagId` é índice, então o motor nunca compara string.
 
 **Gerada, não escrita à mão.** A spec §6.2 já é uma tabela markdown com
-identificador e severidade; um script extrai as duas colunas e confere contra
-o `.h`. O que o script **não** extrai é a mensagem — essa é escrita à mão, e o
-script verifica apenas que existe uma para cada identificador, e que não sobra
-nenhuma para identificador que o catálogo não tem.
+identificador e severidade; um script (`tools/cgen/gen-diags.py`) extrai as duas
+colunas e gera o `diag_catalog.def`.
+
+**A mensagem mora num arquivo de apoio, não na spec nem no `.c`.**
+`tools/cgen/diag-messages.md` tem uma linha por identificador da spec §6.2, da
+ferramenta §7.1 e dos que são só da implementação (`K_DIAG_TOOL`), com a
+mensagem e a condição traduzida para o inglês, que é o que o
+`--cgen-help=<classe>` mostra. O script gera dele o `diag_messages.def`, e recusa
+o arquivo quando uma seção não tem os identificadores da sua tabela, na mesma
+ordem, ou quando há mensagem para um identificador que a tradução não emite
+(as linhas `debug`). A mensagem é texto da ferramenta, e não da linguagem: na
+spec, cada ajuste de redação viraria mudança de norma; no `.c`, ela não teria
+como ser conferida contra o catálogo.
 
 Isso dá, de graça, a verificação que hoje eu faço com `grep`: catálogo e
 implementação não podem divergir sem que o build quebre.
@@ -285,7 +294,7 @@ modo para ela.
 
 | | Decisão | Por quê |
 | --- | --- | --- |
-| G1 | O catálogo é tabela estática gerada a partir da spec; só a mensagem é escrita à mão | catálogo e implementação não podem divergir sem quebrar o build, e hoje isso só se verifica com `grep` |
+| G1 | O catálogo é tabela estática gerada a partir da spec; a mensagem é escrita em `tools/cgen/diag-messages.md`, gerada para o código e conferida contra as tabelas | catálogo e implementação não podem divergir sem quebrar o build, e hoje isso só se verifica com `grep` |
 | G2 | A mensagem diz o encontrado, o esperado e a forma correta — não a regra | keel recusa muito de propósito; recusa que não diz o que fazer em seguida é pior que o erro de tipo do C que ela substituiu |
 | G3 | Um caso de falha agrupa vários diagnósticos; o `VERIFY` lê o esperado do próprio fonte | 135 casos não é viável; e o molde do 016 já prova que dá para afirmar sem duplicar o esperado no teste |
 | G4 | A severidade registrada é a da tabela; `-Werror` só afeta o código de saída | se o motor a mudasse, o mesmo fonte daria diagnósticos diferentes conforme a linha de comando |

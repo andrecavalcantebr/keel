@@ -110,9 +110,18 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de execução emitido para `parallel`; ver §4.8 | `auto` |
 | `--profile=<c11\|c23\|auto>` | padrão C a que o gerado se conforma; ver §4.9 | `auto` |
 | `-f` | força regeração, ignorando timestamp | desligado |
-| `--cgen-version`, `--cgen-help` | | |
+| `--cgen-version`, `--cgen-help` | imprime a versão, ou a sinopse e as opções do cgen, e sai 0 | — |
+| `--help` | imprime a ajuda do cgen e, em seguida, a do compilador C (`cc --help`, com o repasse da linha); o código de saída é o do `cc` | — |
 
 `-o` mantém o significado do gcc: nomeia o arquivo da última fase que a invocação executa. Quando essa fase é do compilador C — compilar, ligar —, o `-o` é dele e atravessa verbatim. Quando a invocação para numa fase do cgen (§4.2), não há compilador C a quem repassá-lo, e o cgen o lê, como o gcc lê o `-o` de `-E`. Foi por isso que a saída gerada ganhou `--dest-dir`: `gen` escreve vários arquivos, e `-o` nomeia um.
+
+> **Nota — `--help` é do cgen, e `--version` não.** Quem escreve `cgen --help`
+> quer saber o que o cgen aceita. Como o cgen repassa ao `cc` tudo que não é dele,
+> o que a linha aceita é a união das duas ajudas, e as duas aparecem, a do cgen
+> primeiro. `--version` segue o critério oposto, pela mesma razão: o build que
+> sonda `$(CC) --version` espera a resposta do compilador C, e o cgen não deve se
+> interpor entre o build e essa resposta. `--help=<classe>` e `-h` (o soname do
+> linker) são do gcc e atravessam verbatim.
 
 > **Nota — `-fno-strict-aliasing` é repasse, e é deliberado que seja.** O respaldo
 > de tipo-caractere da arena é uma guarda nomeada da linguagem §6.3, e quem a

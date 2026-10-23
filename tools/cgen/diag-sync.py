@@ -57,8 +57,12 @@ how it works:
 
 Review the outcome with `git diff`: the model proposes, the person decides.
 
-requires the anthropic package (pip install anthropic) and the variable
-ANTHROPIC_API_KEY, except with --dry-run and --lock."""
+requires the anthropic package and the variable ANTHROPIC_API_KEY, except with
+--dry-run and --lock. Where the system Python is externally managed (PEP 668),
+install the package in a venv and run the script with its Python:
+
+  python3 -m venv .venv && .venv/bin/pip install anthropic
+  .venv/bin/python tools/cgen/diag-sync.py --dry-run"""
 
 
 def parse_args(argv):
@@ -279,8 +283,12 @@ def main(argv=None):
         try:
             import anthropic
         except ImportError:
-            print('diag-sync.py: the anthropic package is not installed: pip install anthropic',
-                  file=sys.stderr)
+            print('diag-sync.py: the anthropic package is not installed for %s.\n'
+                  'Where the system Python is externally managed (PEP 668), use a venv:\n'
+                  '  python3 -m venv .venv && .venv/bin/pip install anthropic\n'
+                  '  .venv/bin/python tools/cgen/diag-sync.py ...\n'
+                  '(.venv/ is ignored by git; a venv outside the tree, such as ~/.venvs/keel, '
+                  'works the same)' % sys.executable, file=sys.stderr)
             return 2
         client = anthropic.Anthropic()
 

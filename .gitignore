@@ -16,3 +16,6 @@ compile_commands.json
 # configuração local do Claude Code, por máquina
 /.claude/settings.local.json
 
+
+# o venv do tools/cgen/diag-sync.py (o pacote anthropic)
+/.venv/

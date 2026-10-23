@@ -6,14 +6,16 @@ which has a row for every identifier of keel-spec §6.2, of cgen-tool-spec §7.1
 and of the implementation's own (K_DIAG_TOOL in src/engine/diag.h), and is
 generated into src/engine/diag_messages.def.
 
-    python3 tools/cgen/gen-diags.py            # rewrite the file
-    python3 tools/cgen/gen-diags.py --check    # fail if it is out of date
+    python3 tools/cgen/gen-diags.py            # rewrite the files
+    python3 tools/cgen/gen-diags.py --check    # fail if they are out of date
+    python3 tools/cgen/gen-diags.py --help     # what it reads and writes
 
 The `debug` rows are checks the generated program makes when it runs, not
 diagnostics of the translation: the tool never emits them, so they are not
 in the table. --list prints every identifier of the catalog with its severity,
 for the coverage script.
 """
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -162,14 +164,54 @@ def render(rows):
     return '\n'.join(out) + '\n'
 
 
-def main():
+HELP = """\
+Generates the diagnostic tables of cgen from the documents, so that the
+catalog, the messages and the implementation cannot drift apart without
+breaking the build (diag-design [G1]).
+
+reads:
+  keel-spec.md §6.2             identifiers and severities of the language
+  cgen-tool-spec.md §7.1        identifiers of the tool
+  tools/cgen/diag-messages.md   the message and the English condition of each
+  src/engine/diag.h             K_DIAG_TOOL, the implementation's own
+
+writes:
+  src/engine/diag_catalog.def   X(NAME, "identifier", severity), no `debug` rows
+  src/engine/diag_messages.def  X(NAME, "message"), the rows that have one
+
+diag-messages.md is refused when a section does not have the identifiers of
+its table, in the same order, or when a row that the translation never emits
+(`debug`, or a §7.1 one the tool prints itself) has a message. To bring the
+support file up to date with the documents, use tools/cgen/diag-sync.py.
+
+with no option, rewrites both .def files."""
+
+
+def parse_args(argv):
+    ap = argparse.ArgumentParser(
+        prog='gen-diags.py', add_help=False, description=HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('-h', '--help', '-help', action='help',
+                    help='show this help and exit')
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument('--check', action='store_true',
+                      help='write nothing; exit 1 if a .def file is out of date '
+                           '(make check runs this)')
+    mode.add_argument('--list', action='store_true',
+                      help='print each identifier of keel-spec §6.2 with its severity, '
+                           'debug rows included (for test/diag.py)')
+    return ap.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(sys.argv[1:] if argv is None else argv)
     rows = catalog()
-    if '--list' in sys.argv:
+    if args.list:
         for ident, severity in rows:
             print(ident, severity)
         return 0
     outputs = [(OUT, render(rows)), (OUT_MESSAGES, render_messages(messages(rows)))]
-    if '--check' in sys.argv:
+    if args.check:
         stale = [p.name for p, text in outputs if not p.exists() or p.read_text() != text]
         if stale:
             print('%s out of date: run tools/cgen/gen-diags.py' % ', '.join(stale), file=sys.stderr)
@@ -180,4 +222,5 @@ def main():
     return 0
 
 
-sys.exit(main())
+if __name__ == '__main__':
+    sys.exit(main())

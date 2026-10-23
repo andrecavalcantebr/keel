@@ -28,6 +28,14 @@ As regras, que o `gen-diags.py --check` verifica:
 - `Condition` é a tradução da condição do normativo, e é o que o
   `--cgen-help=<classe>` mostra. Quando a condição muda no normativo, muda aqui.
 
+A manutenção: quando um normativo ganha, perde ou muda uma linha,
+`tools/cgen/diag-sync.py` pede ao Claude (Haiku 5.5) a condição e a mensagem das
+linhas novas ou alteradas, reescreve este arquivo e roda o `gen-diags.py`. O
+`diag-messages.lock.json` guarda o hash da condição em pt-BR com que cada linha
+foi sincronizada, e é por ele que o script sabe o que mudou. Ajustar uma
+mensagem à mão continua valendo: o script só reescreve as linhas que pergunta.
+O resultado se revisa com `git diff`. Os detalhes estão em `diag-sync.py --help`.
+
 O conteúdo das tabelas é em inglês, como o código.
 
 ## keel-spec §6.2

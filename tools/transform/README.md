@@ -50,4 +50,4 @@ transform -m qualified_module_name -i input_dir -d output_dir -t type -n dimensi
 - Nome qualifficado de módulo para nome de arquivo do módulo: subistitui o '.' por '/'; o último nome é substituíido pelo nome do tipo
 - Nome qualificado de módulo para nome do tipo: subistitui o '.' por '_'
 - Nomes dos arquivos: caminho da pasta de entrada/saída + nome do arquivo do módulo + nome do tipo + extensão apropriada
-- Cada marca é substituída no máximo uma vez; o texto produzido pela substituição não contém novas marcas semâ1nticas para o gerador.
+- Cada marca é substituída no máximo uma vez; o texto produzido pela substituição não contém novas marcas semânticas para o gerador.

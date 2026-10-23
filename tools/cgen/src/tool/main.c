@@ -51,11 +51,11 @@ static void print_help(void) {
         "  --profile=<auto|c11|c23>      C standard of the generated code (default: auto)\n"
         "  -f                            force regeneration, ignoring timestamps\n"
         "  --cgen-version                print the cgen version and exit\n"
-        "  --cgen-help                   print this help and exit\n"
+        "  --cgen-help, --help           print this help and exit\n"
         "\n"
         "Long options with a value accept both --opt=value and --opt value.\n"
         "Everything else is forwarded verbatim to the C compiler, in order.\n"
-        "--help prints this help, then the C compiler's; --version is the C compiler's.\n",
+        "The C compiler's help is cc --help; --version is the C compiler's.\n",
         stdout);
 }
 
@@ -79,7 +79,6 @@ int main(int argc, char *argv[]) {
     const char *output = NULL;   /* `-o`: the C compiler's, or the file of a stopping phase (§4.1, §4.2) */
     bool pedantic_names = false;
     bool f_flag = false;
-    bool help = false;   /* `--help`: cgen's help, then the C compiler's (§4.1) */
 
     int root_count = 0;
     const char *roots[CGEN_CLI_ROOTS_CAP];
@@ -97,7 +96,7 @@ int main(int argc, char *argv[]) {
             exit(0);
         }
 
-        if (strcmp(w, "--cgen-help") == 0) {
+        if (strcmp(w, "--cgen-help") == 0 || strcmp(w, "--help") == 0) {
             print_help();
             exit(0);
         }
@@ -220,10 +219,6 @@ int main(int argc, char *argv[]) {
                 pedantic_names = true;
             } else if (strcmp(w, "-f") == 0) {
                 f_flag = true;
-            } else if (strcmp(w, "--help") == 0) {
-                help = true;
-                ARG_ROOM(1);
-                passthrough[passthrough_count++] = w;
             } else if (w[0] == '-' && w[1] != '\0') {
                 ARG_ROOM(1);
                 passthrough[passthrough_count++] = w;
@@ -239,27 +234,18 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (help) {
-        // cgen's help, then the C compiler's: no source is read and nothing is
-        // validated; the forwarded words, `--help` among them, go to the cc
-        print_help();
-        fflush(stdout);
-        k_file_count = 0;
-        instance = NULL;
-    } else {
-        if (checks && strcmp(checks, "on") != 0 && strcmp(checks, "off") != 0)
-            fatal("invalid-option", "invalid value for --checks");
-        if (line && strcmp(line, "on") != 0 && strcmp(line, "off") != 0)
-            fatal("invalid-option", "invalid value for --line");
-        if (profile && strcmp(profile, "auto") != 0 && strcmp(profile, "c11") != 0 && strcmp(profile, "c23") != 0)
-            fatal("invalid-option", "invalid value for --profile");
-        if (parallel_lowering && strcmp(parallel_lowering, "auto") != 0 && strcmp(parallel_lowering, "serie") != 0 && strcmp(parallel_lowering, "openmp") != 0)
-            fatal("invalid-option", "invalid value for --parallel-lowering");
-        if (stop_after && strcmp(stop_after, "lex") != 0 && strcmp(stop_after, "parse") != 0 && strcmp(stop_after, "gen") != 0)
-            fatal("invalid-option", "invalid value for --stop-after");
-        if (stop_after && strcmp(stop_after, "gen") == 0 && output)
-            fatal("output-with-gen", "-o names one file, and --stop-after=gen writes several: use --dest-dir");
-    }
+    if (checks && strcmp(checks, "on") != 0 && strcmp(checks, "off") != 0)
+        fatal("invalid-option", "invalid value for --checks");
+    if (line && strcmp(line, "on") != 0 && strcmp(line, "off") != 0)
+        fatal("invalid-option", "invalid value for --line");
+    if (profile && strcmp(profile, "auto") != 0 && strcmp(profile, "c11") != 0 && strcmp(profile, "c23") != 0)
+        fatal("invalid-option", "invalid value for --profile");
+    if (parallel_lowering && strcmp(parallel_lowering, "auto") != 0 && strcmp(parallel_lowering, "serie") != 0 && strcmp(parallel_lowering, "openmp") != 0)
+        fatal("invalid-option", "invalid value for --parallel-lowering");
+    if (stop_after && strcmp(stop_after, "lex") != 0 && strcmp(stop_after, "parse") != 0 && strcmp(stop_after, "gen") != 0)
+        fatal("invalid-option", "invalid value for --stop-after");
+    if (stop_after && strcmp(stop_after, "gen") == 0 && output)
+        fatal("output-with-gen", "-o names one file, and --stop-after=gen writes several: use --dest-dir");
 
     if (k_file_count == 0 && instance == NULL) {
         // Transparent link

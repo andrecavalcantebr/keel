@@ -114,8 +114,7 @@ Conjunto fechado, o da spec da ferramenta §4.1. Toda opção desta tabela é
 | `--profile` | `=V` ou ` V` | `auto` \| `c11` \| `c23` | `auto` |
 | `-f` | — | força regeração | desligado |
 | `--cgen-version` | — | imprime `cgen <versão>` em stdout, sai 0 | — |
-| `--cgen-help` | — | imprime a sinopse e esta tabela, sai 0 | — |
-| `--help` | — | imprime a sinopse e esta tabela, depois `execvp` do `cc` com o repasse, onde o `--help` fica na posição em que apareceu; o código de saída é o do `cc` | — |
+| `--cgen-help`, `--help` | — | imprime a sinopse e esta tabela, sai 0 | — |
 
 As duas formas (`=` e argumento separado) valem para toda opção longa com valor
 **[D2]**. Valor fora do enumerado é `invalid-option` (código 2). Opção que
@@ -124,9 +123,9 @@ exige valor e está no fim da linha também é `invalid-option`.
 Repetição: a última ocorrência vence, salvo `-I`, que acumula. `--instance`
 repetido é `multiple-sources`.
 
-`--help` é do cgen **e** do `cc` (spec §4.1): a ajuda do cgen sai primeiro, e o
-`--help` atravessa para o `cc`, que imprime a sua. `--version`, `--help=<classe>`
-e `-h` **não são do cgen**: vão para o `cc`. `cgen --version` imprime a versão
+`--help` é do cgen, como `--cgen-help` (spec §4.1); a ajuda do compilador C é
+`cc --help`. `--version`, `--help=<classe>` e `-h` **não são do cgen**: vão para
+o `cc`. `cgen --version` imprime a versão
 do gcc — é o que um build que sonda `$(CC) --version` espera.
 
 ### 2.3 Opções do cc que o cgen também lê
@@ -189,8 +188,7 @@ se fosse sempre raiz, `cgen -I src src/a.k` seria sempre
 
 | Linha | O que o cgen faz |
 | --- | --- |
-| só `--cgen-version`/`--cgen-help` | imprime e sai 0 |
-| `--help` | imprime a ajuda do cgen, depois `execvp` do `cc` com o repasse (que contém o `--help`); não lê fonte; o código de saída é o do `cc` |
+| só `--cgen-version`/`--cgen-help`/`--help` | imprime e sai 0 |
 | sem fonte | `execvp` do `cc` com o repasse, sem acrescentar nada; o código de saída é o do `cc` |
 | fonte + `--stop-after=lex` | lexa **só** o `.k` dado, imprime (§5.1); não carrega import. Com `--instance`, lexa o `.k` do genérico |
 | fonte + `--stop-after=parse` | carrega o fecho de import, imprime o módulo dado (§5.2); não escreve nada |

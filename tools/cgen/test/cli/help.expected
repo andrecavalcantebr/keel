@@ -19,8 +19,8 @@ cgen options (consumed, never forwarded to the C compiler):
   --profile=<auto|c11|c23>      C standard of the generated code (default: auto)
   -f                            force regeneration, ignoring timestamps
   --cgen-version                print the cgen version and exit
-  --cgen-help                   print this help and exit
+  --cgen-help, --help           print this help and exit
 
 Long options with a value accept both --opt=value and --opt value.
 Everything else is forwarded verbatim to the C compiler, in order.
---help prints this help, then the C compiler's; --version is the C compiler's.
+The C compiler's help is cc --help; --version is the C compiler's.

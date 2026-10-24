@@ -46,6 +46,15 @@ for t in tools/cgen/test/unit/*.sh; do
     run "$name" sh "$t"
 done
 for t in tools/cgen/test/cli/*.sh;  do run "cli/$(basename "$t" .sh)"  sh "$t"; done
+# gen.sh exits 3 while --stop-after=gen is not implemented: wip, not failure.
+out=$(sh tools/cgen/test/gen.sh 2>&1); rc=$?
+if [ $rc -eq 3 ]; then
+    printf 'wip    %-16s %s\n' gen "— $(printf '%s\n' "$out" | tail -1)"
+elif [ $rc -eq 0 ]; then
+    printf 'ok     %-16s %s\n' gen "$(printf '%s\n' "$out" | tail -1)"
+else
+    printf 'FAIL   %-16s\n' gen; printf '%s\n' "$out" | tail -15 | sed 's/^/       /'; fail=1
+fi
 run lex_dump sh tools/cgen/test/lex_dump.sh
 run diag sh tools/cgen/test/diag.sh
 PARSE_LEVEL=${PARSE_LEVEL:-ilha}

@@ -12,6 +12,7 @@ bool cgen_source_in_multiple_roots(const char *source, const char *const *roots,
 extern char *cgen_resolve_base_dir(keel_arena *, const char *explicit_base_dir);
 int cgen_stop_after_lex(keel_arena *, const char *path, const char *out);
 int cgen_stop_after_parse(keel_arena *, const char *path,const char *const *roots,int n,const char *base,const char *out);
+int cgen_stop_after_gen(keel_arena *, const char *path, const char *const *roots, int n, const char *base, const char *dest_dir, const char *profile, const char *const *pass, int pass_n, bool line_on, const char *main_module);
 
 static void fatal(const char *diagnostic_id, const char *message) {
     fprintf(stderr, "cgen: error: %s [%s]\n", message, diagnostic_id);
@@ -280,6 +281,9 @@ int main(int argc, char *argv[]) {
         if (!base) result=2;
         else if (stop_after && strcmp(stop_after,"parse") == 0)
             result=cgen_stop_after_parse(&arena,k_file,roots,root_count,base,output);
+        else if (stop_after && strcmp(stop_after,"gen") == 0)
+            result=cgen_stop_after_gen(&arena,k_file,roots,root_count,base,dest_dir,profile,passthrough,passthrough_count,
+                                       !(line && strcmp(line,"off") == 0),main_module);
         else fprintf(stderr,"cgen: not yet implemented\n");
     } else fprintf(stderr,"cgen: not yet implemented\n");
     cgen_memory_destroy(&arena);

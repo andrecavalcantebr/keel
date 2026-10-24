@@ -173,7 +173,7 @@ previstos:
 ## 5. As três famílias de mensagem
 
 O catálogo se divide em três, e cada uma tem uma forma própria — o que ajuda a
-escrever as 135 sem inventar um estilo por vez:
+escrever as 148 sem inventar um estilo por vez:
 
 | Família | Quantos | Forma | Exemplo |
 | --- | --- | --- | --- |
@@ -243,7 +243,7 @@ Cinco regras da implementação:
 ## 7. Os casos de falha
 
 O golden hoje tem **zero** casos de recusa — o runner conta `xfail` e nunca viu
-um. A meta é um caso por identificador, e escrever 135 casos não é viável nem
+um. A meta é um caso por identificador, e escrever 148 casos não é viável nem
 desejável.
 
 > **[G3] Um caso agrupa vários diagnósticos independentes; o `VERIFY` afirma
@@ -282,7 +282,7 @@ Três propriedades disso:
   dois não cabem no mesmo caso.
 - **Cobertura é verificável.** Um script sobre todos os `.k` de falha lista os
   identificadores cobertos e os compara com o catálogo. É o que diz quantos dos
-  135 faltam, a qualquer momento.
+  148 faltam, a qualquer momento.
 
 **O que não cabe nesse molde:** os 9 `debug`, que são verificações em execução e
 não recusas de tradução. Esses precisam de caso que **compile**, rode sob
@@ -297,7 +297,7 @@ modo para ela.
 | --- | --- | --- |
 | G1 | O catálogo é tabela estática gerada a partir da spec; a mensagem é escrita em `tools/cgen/diag-messages.md`, gerada para o código e conferida contra as tabelas | catálogo e implementação não podem divergir sem quebrar o build, e hoje isso só se verifica com `grep` |
 | G2 | A mensagem diz o encontrado, o esperado e a forma correta — não a regra | keel recusa muito de propósito; recusa que não diz o que fazer em seguida é pior que o erro de tipo do C que ela substituiu |
-| G3 | Um caso de falha agrupa vários diagnósticos; o `VERIFY` lê o esperado do próprio fonte | 135 casos não é viável; e o molde do 016 já prova que dá para afirmar sem duplicar o esperado no teste |
+| G3 | Um caso de falha agrupa vários diagnósticos; o `VERIFY` lê o esperado do próprio fonte | 148 casos não é viável; e o molde do 016 já prova que dá para afirmar sem duplicar o esperado no teste |
 | G4 | A severidade registrada é a da tabela; `-Werror` só afeta o código de saída | se o motor a mudasse, o mesmo fonte daria diagnósticos diferentes conforme a linha de comando |
 
 ---

@@ -2571,7 +2571,7 @@ O par completo, com tabela estática, política e leitura do estado por slot, es
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `byref-param`. Do backend, em execução debug: `par-target-above-total`, `mask-above-64-slots`. Tipo de função incompatível com `routine` é do compilador C.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `byref-param`. Da base, em execução debug: `par-target-above-total`, `mask-above-64-slots`. Tipo de função incompatível com `routine` é do compilador C.
 
 #### 5. Casos especiais
 
@@ -2770,8 +2770,8 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `nonconstant-parallel` | `k` ou política de `parallel` que não é constante de compilação | `error` | keel | §4.8 |
 | `tag-not-in-set` | Rótulo que não está na lista declarada do conjunto | `error` | keel | §4.9 |
 | `tag-without-label` | Tag na lista declarada sem rótulo correspondente no corpo | `error` | keel | §4.9 |
-| `par-target-above-total` | Alvo de `routine.par` maior que o número de slots | `debug` | Backend, em execução | §5.6 |
-| `mask-above-64-slots` | `routine.mask` sobre fatia com mais de 64 entradas | `debug` | Backend, em execução | §5.6 |
+| `par-target-above-total` | Alvo de `routine.par` maior que o número de slots | `debug` | Base, em execução | §5.6 |
+| `mask-above-64-slots` | `routine.mask` sobre fatia com mais de 64 entradas | `debug` | Base, em execução | §5.6 |
 | `restrict-on-container` | `restrict` escrito antes de um modificador — a `note` dá a forma com ponteiro | `error` | keel | §4.2 |
 | `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` | Backend / compilador C | §4.2 |
 | `nonconstant-dim` | Argumento de `dim` sem literal decimal ou `constexpr` de inicializador decimal conhecido | `error` | keel | §4.3 |

@@ -7,7 +7,7 @@ Requisitos para que as construções v1 da spec não exijam reescrita:
 2. **Vínculo por identidade.** Cada uso de nome aponta para a declaração no
    seu escopo, não para a grafia.
 3. **Passes em ordem fixa:** coleta, resolução, expansão (vazia na v0),
-   reanálise da AST expandida (vazia na v0), papéis, `defer`, emissão.
+   reanálise da AST expandida (vazia na v0), papéis, baixa, `defer`, emissão.
 4. **Análise sobre a AST.** Papéis e `defer` operam sobre a AST já
    transformada, sem caso especial para origem dos nós.
 5. **Tabela de protocolos.** As construções resolvem verbos por

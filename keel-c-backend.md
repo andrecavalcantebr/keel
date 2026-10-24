@@ -1123,6 +1123,7 @@ app_report(keel__c0.out, keel__c0.fd);
 4. A expansão produz token posicionado, e não texto: a linha do `.k` chega ao `defer` e ao §6.
 5. `return-in-parallel` é verificado pela linguagem antes da expansão, sobre o `return` que o usuário escreveu.
 6. Nenhuma expansão injeta `defer`: o gestor de `parallel`, o despacho de `match` e o `if` de `else` não têm cleanup. A ordem é uma passagem, sem ponto fixo.
+7. A geração tem duas passagens sobre a AST, nesta ordem. Na primeira, a **baixa**, cada construção da tabela vira um dos cinco terminadores do C (`win` e `fail` em `goto keel__end<N>`, o `break` de braço em `goto keel__m<N>_end`, a cláusula `else` em `if (…) return …;`), e os `defer` ficam onde o usuário os escreveu, intocados. Na segunda, o `defer` varre os cinco terminadores, já sem construção intermediária, e emite os corpos pendentes. Só depois vem a emissão do texto. A baixa não registra nem emite `defer`, e o `defer` não conhece construção alguma além dos cinco terminadores.
 
 #### 5.5.2 Duas formas de emissão
 
@@ -1959,7 +1960,7 @@ está no [catálogo da spec](keel-spec.md#62-catálogo), que é a fonte única.
 | --- | --- |
 | `error` | `name-too-long` (§2.4), `reserved-name` (§2.3), `specific-format-unavailable` (§3.2), `layout-cycle` (§4.3.1) |
 | `warning` | `instance-field-access` (§4.5) |
-| `debug` (§5.17) | `index-out-of-length`, `set-out-of-length`, `array-index-out-of-bounds`, `range-index-out-of-bounds`, `extent-index-out-of-bounds`, `tag-out-of-range`, `alloc-overflow` |
+| `debug` (§5.17) | `index-out-of-length`, `set-out-of-length`, `array-index-out-of-bounds`, `range-index-out-of-bounds`, `extent-index-out-of-bounds`, `tag-out-of-range`, `alloc-overflow`, `par-target-above-total`, `mask-above-64-slots` |
 
 ---
 

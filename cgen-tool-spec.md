@@ -147,7 +147,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 
 Opção longa não reconhecida vai para o compilador C, e tem que ir: o próprio gcc tem opções longas (`--param`, `--sysroot`). Consequência aceita: erro de digitação numa opção do cgen chega ao `cc`, que reclama nomeando a opção.
 
-**Quatro opções do compilador C são lidas pelos dois lados**, e nenhuma delas é filtrada: `-I`, para achar módulos; `-std=`, para o perfil (§4.9); `-fopenmp`, para o lowering (§4.8); e as de dependência — `-MMD`, `-MD`, `-MF`, `-MT` —, para o depfile (§4.10). Todas mantêm exatamente o significado do gcc e são repassadas íntegras; o cgen apenas também as lê, sempre pela mesma razão: a decisão já está escrita na linha, e ler é a única forma de os dois lados nunca discordarem. Nada impede que `.c` e `.h` escritos à mão convivam com os `.k` nos mesmos diretórios, e é isso que a passagem íntegra preserva.
+**Quatro opções do compilador C são lidas pelos dois lados**, e nenhuma delas é filtrada: `-I`, para achar módulos; `-std=`, para o perfil (§4.9); `-fopenmp`, para o lowering (§4.8); e as de dependência — `-MMD`, `-MD`, `-MF`, `-MT`, `-MQ` —, para o depfile (§4.10). Todas mantêm exatamente o significado do gcc e são repassadas íntegras; o cgen apenas também as lê, sempre pela mesma razão: a decisão já está escrita na linha, e ler é a única forma de os dois lados nunca discordarem. Nada impede que `.c` e `.h` escritos à mão convivam com os `.k` nos mesmos diretórios, e é isso que a passagem íntegra preserva.
 
 O cgen **acrescenta** um `-I` a mais na chamada ao `cc`: o do `--dest-dir`, que é fonte confiável de C tanto quanto os diretórios do usuário. Sem ele as inclusões do código gerado não resolvem.
 
@@ -402,7 +402,7 @@ rule keel
 
 O gatilho é o do gcc: **sem `-MMD` ou `-MD` na linha, nenhum depfile é escrito.**
 Com um deles, o arquivo sai onde `-MF` disser, ou no nome derivado que o gcc
-usaria, e o alvo é o de `-MT`, ou o `.o`.
+usaria, e o alvo é o de `-MT` ou de `-MQ`, ou o `.o`. `-MQ` difere de `-MT` só porque escapa os caracteres especiais do `make` (`$` vira `$$`, e o espaço ganha barra); o cgen aplica o mesmo escape ao alvo que escreve.
 
 O conteúdo é que é próprio da ferramenta:
 
@@ -557,6 +557,8 @@ Genéricos não abalam isso. O conteúdo de uma instância de genérico depende 
 
 Formato do gcc, que editor e IDE já sabem parsear. Severidades `error`, `warning`, `info`. Contexto adicional em linhas `note:` seguintes — é onde entra, por exemplo, a nota de instanciação de backend §6.1.
 
+A severidade `info` sai por padrão, no stderr, no mesmo formato de `warning` e de `error`, e não altera o código de saída. O cgen relata só os `info` do módulo que traduz, e não os dos módulos que carrega por `import`; senão cada import da base traria os seus. `-Wno-<nome>` os silencia, como a um `warning`, e `-Werror` não os alcança.
+
 Toda posição é no fonte `.k`, nunca no arquivo gerado.
 
 Todo diagnóstico tem nome estável em kebab-case, usado por `-Wno-<nome>`. `error` não se desliga. **A lista de diagnósticos é a [tabela da spec](keel-spec.md#62-catálogo)**; aqui fica só a convenção de formato.
@@ -601,7 +603,7 @@ fonte. Restam os que dependem da invocação, e eles são da ferramenta:
 | `source-not-found` | o `.k` nomeado não existe ou não pode ser lido |
 | `source-outside-roots` | o `.k` não está sob nenhuma raiz `-I` (§4.6) |
 | `source-in-multiple-roots` | o `.k` está sob mais de uma raiz (§4.6) |
-| `module-not-found` | um `import` que nenhuma raiz resolve (§3) |
+| `module-not-found` | um `import`, ou o módulo nomeado por um `--instance`, que nenhuma raiz resolve (§3) |
 | `missing-entry-point` | `--main` sobre módulo sem função de entrada pública (§4.7) |
 | `lowering-unavailable` | `--parallel-lowering=openmp` sem `-fopenmp` na linha (§4.8) |
 | `invalid-option` | opção do cgen com valor fora do enumerado |
@@ -621,7 +623,7 @@ Quatro regras governam a tabela:
   aparece na da spec, e vice-versa; é o que permite ao filtro de `-W` da §7
   decidir olhando uma lista só.
 - **A posição é do fonte quando existe uma.** `module-not-found` e
-  `missing-entry-point` apontam a linha do `import` ou o módulo pedido;
+  `missing-entry-point` apontam a linha do `import` ou o módulo pedido (no `--instance`, o módulo do argumento);
   `implementation-limit` aponta a construção que excedeu a capacidade quando
   essa posição for conhecida. Os demais
   não têm posição, e saem no formato do gcc para erro de invocação:

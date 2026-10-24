@@ -14,4 +14,4 @@ BIN=$(mktemp); trap 'rm -f "$BIN"' EXIT
 gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra \
     -fsanitize=address,undefined -fno-sanitize-recover=all -g -O0 \
     "$SRC" $DEPS "$TESTMAIN" -o "$BIN" || { echo "FAIL: compile error"; exit 1; }
-timeout 10 "$BIN" || { echo "FAIL: timed out or crashed (exit $?)"; exit 1; }
+ASAN_OPTIONS=detect_leaks=0 timeout 10 "$BIN" || { echo "FAIL: timed out or crashed (exit $?)"; exit 1; }

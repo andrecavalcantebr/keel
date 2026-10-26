@@ -15,14 +15,16 @@
 #define LINE_CAP 1024           /* one changed source line, or one prototype */
 #define MAX_EDITS 32            /* the edits of one line */
 
-typedef enum { EDIT_DROP, EDIT_RENAME, EDIT_ASSERT } EditKind;
+typedef enum { EDIT_DROP, EDIT_RENAME, EDIT_ASSERT, EDIT_STATIC, EDIT_TAG } EditKind;
 
 /* source bytes [at, at + skip) are replaced: DROP by nothing, RENAME by the
- * mangled name of `node`, ASSERT by _Static_assert */
+ * mangled name of the declaration whose name is token `name_tok`, ASSERT by
+ * _Static_assert, STATIC by `static`; TAG inserts " <mangled name>" (skip is 0) */
 typedef struct {
     EditKind kind;
     size_t at, skip;
-    const KAstNode *node;
+    size_t name_tok;
+    bool is_type;
 } Edit;
 
 typedef struct {
@@ -91,44 +93,138 @@ static void put_bytes(Emit *e, const char *p, size_t len) {
     }
 }
 
-/* the mangled name of a function, written at the end of buf */
-static void put_mangled(Emit *e, const KAstNode *fn) {
+/* the mangled name of a declaration, written at the end of buf */
+static void put_mangled(Emit *e, size_t name_tok, bool is_type) {
     size_t room = LINE_CAP - e->n;
-    size_t need = k_mangle_decl(e->module, tok(e->ast, fn->name_first), false,
+    size_t need = k_mangle_decl(e->module, tok(e->ast, name_tok), is_type,
                                 (keel_slice_char){ room, e->buf + e->n });
     if (need > room) { e->ok = false; return; }
     e->n += need;
 }
 
 /* Adds the edits that `node` makes inside [a, b) (spec §4.1; backend §4.1).
- * Edits come in source order: a node's pub precedes its name. */
+ * Edits come in source order: a node's visibility precedes its tokens. */
 static void push_edit(Emit *e, Edit *ed, size_t *cnt, Edit x) {
     if (*cnt >= MAX_EDITS) { e->ok = false; return; }
     ed[(*cnt)++] = x;
 }
+
+static bool declares_value(KAstKind k) {
+    return k == K_AST_FUNCTION || k == K_AST_VARIABLE || k == K_AST_CONSTEXPR;
+}
+
+/* The module-level declaration that token `i` names, or NULL. A name after
+ * `.` or `->` is a member, not the declaration. Scope is not tracked: a local
+ * or parameter spelled like a module declaration is renamed too (a limit of
+ * the slice, M5 brings the symbol table). */
+static const KAstNode *declared_at(const Emit *e, size_t i) {
+    const KAst *ast = e->ast;
+    if (i > 0 && (text_is(tok(ast, i - 1), ".") || text_is(tok(ast, i - 1), "->"))) return NULL;
+    KToken t = tok(ast, i);
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (d->kind != K_AST_TYPE && !declares_value(d->kind)) continue;
+        if (d->name_first >= d->name_end) continue;
+        KToken n = tok(ast, d->name_first);
+        if (n.len == t.len && memcmp(n.ptr, t.ptr, t.len) == 0) return d;
+    }
+    return NULL;
+}
+
 static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
-    if (n->kind == K_AST_TYPE || n->kind == K_AST_FUNCTION) {
+    bool value = declares_value(n->kind);
+    if (n->kind == K_AST_TYPE || value) {
         size_t at = tok_off(ast, n->first);
         if (is_visibility(tok(ast, n->first)) && at >= a && at < b) {
-            /* the keyword and the one space after it */
-            size_t skip = tok(ast, n->first).len;
-            if (at + skip < b && (ast->source.ptr[at + skip] == ' ' || ast->source.ptr[at + skip] == '\t'))
-                skip++;
-            push_edit(e, ed, cnt, (Edit){ EDIT_DROP, at, skip, n });
+            if (value && text_is(tok(ast, n->first), "priv")) {
+                /* a priv function or variable is internal linkage in the .c */
+                push_edit(e, ed, cnt, (Edit){ EDIT_STATIC, at, tok(ast, n->first).len, 0, false });
+            } else {
+                /* the keyword and the blanks after it */
+                size_t skip = tok(ast, n->first).len;
+                while (at + skip < b && (ast->source.ptr[at + skip] == ' ' || ast->source.ptr[at + skip] == '\t'))
+                    skip++;
+                push_edit(e, ed, cnt, (Edit){ EDIT_DROP, at, skip, 0, false });
+            }
         }
     }
-    if (n->kind == K_AST_FUNCTION) {
-        size_t at = tok_off(ast, n->name_first);
-        if (at >= a && at < b)
-            push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, n->name_first).len, n });
+    if (!is_keel(e->module)) {   /* the prelude's names are not prefixed (backend §4.2) */
+        if (n->kind == K_AST_TYPE) {
+            /* only the declarator is a module name; the members are not */
+            size_t k = n->first + (is_visibility(tok(ast, n->first)) ? 1 : 0);
+            if (k + 2 < n->end && text_is(tok(ast, k), "typedef") && text_is(tok(ast, k + 1), "struct") &&
+                text_is(tok(ast, k + 2), "{") && n->name_first < n->name_end) {
+                size_t at = tok_end(ast, k + 1);
+                if (at >= a && at < b)
+                    push_edit(e, ed, cnt, (Edit){ EDIT_TAG, at, 0, n->name_first, true });
+            }
+            if (n->name_first < n->name_end) {
+                size_t at = tok_off(ast, n->name_first);
+                if (at >= a && at < b)
+                    push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, n->name_first).len, n->name_first, true });
+            }
+        } else if (value) {
+            for (size_t i = n->first; i < n->end; i++) {
+                size_t at = tok_off(ast, i);
+                if (at < a || at >= b) continue;
+                const KAstNode *d = declared_at(e, i);
+                if (d) push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, i).len, d->name_first, d->kind == K_AST_TYPE });
+            }
+        }
     }
     /* the prelude's static_assert in C11 (backend §4.2, §9): only the keyword changes */
     if (n->kind == K_AST_OPAQUE && !e->opt.c23 && text_is(tok(ast, n->first), "static_assert")) {
         size_t at = tok_off(ast, n->first);
         if (at >= a && at < b)
-            push_edit(e, ed, cnt, (Edit){ EDIT_ASSERT, at, tok(ast, n->first).len, n });
+            push_edit(e, ed, cnt, (Edit){ EDIT_ASSERT, at, tok(ast, n->first).len, 0, false });
     }
+}
+
+/* Comments leave the generated text and their lines stay (backend §6, rule 3):
+ * a comment is dropped, and so are the blanks before it when it ended the
+ * line. Tokens do not include comments, so they sit in the gaps between
+ * tokens, which hold nothing else; that is where they are found. The edits
+ * are merged into `ed` in source order. */
+static void comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    const char *s = ast->source.ptr;
+    size_t ntok = ast->tokens.len;
+    size_t lo = 0, hi = ntok;
+    while (lo < hi) {   /* the first token that ends after a */
+        size_t mid = (lo + hi) / 2;
+        if (tok_end(ast, mid) > a) hi = mid; else lo = mid + 1;
+    }
+    size_t before = *cnt;
+    size_t g0 = lo > 0 ? tok_end(ast, lo - 1) : 0;
+    for (size_t i = lo; g0 < b; i++) {
+        size_t g1 = i < ntok ? tok_off(ast, i) : ast->source.len;
+        for (size_t p = g0 < a ? a : g0; p < g1 && p < b; ) {
+            size_t ce;
+            if (s[p] == '/' && p + 1 < g1 && s[p + 1] == '/') {
+                ce = p;
+                while (ce < g1 && s[ce] != '\n') ce++;
+            } else if (s[p] == '/' && p + 1 < g1 && s[p + 1] == '*') {
+                ce = p + 2;
+                while (ce + 1 < g1 && !(s[ce] == '*' && s[ce + 1] == '/')) ce++;
+                ce = ce + 2 < g1 ? ce + 2 : g1;
+            } else { p++; continue; }
+            size_t cs = p, end = ce < b ? ce : b;
+            if (end > cs && s[end - 1] == '\n') end--;     /* the break stays */
+            size_t rest = end;
+            while (rest < b && (s[rest] == ' ' || s[rest] == '\t')) rest++;
+            if (rest >= b || s[rest] == '\n')              /* the comment ended the line */
+                while (cs > g0 && cs > a && (s[cs - 1] == ' ' || s[cs - 1] == '\t')) cs--;
+            if (end > cs) push_edit(e, ed, cnt, (Edit){ EDIT_DROP, cs, end - cs, 0, false });
+            p = ce > p ? ce : p + 1;
+        }
+        if (i >= ntok) break;
+        g0 = tok_end(ast, i);
+    }
+    for (size_t i = before; i < *cnt; i++)   /* insertion sort: few edits per line */
+        for (size_t j = i; j > 0 && ed[j - 1].at > ed[j].at; j--) {
+            Edit t = ed[j]; ed[j] = ed[j - 1]; ed[j - 1] = t;
+        }
 }
 
 /* Copies source [a, b) into buf, applying the edits (sorted by position). */
@@ -137,8 +233,10 @@ static void copy_edited(Emit *e, size_t a, size_t b, const Edit *ed, size_t cnt)
     size_t pos = a;
     for (size_t k = 0; k < cnt && e->ok; k++) {
         put_bytes(e, s + pos, ed[k].at - pos);
-        if (ed[k].kind == EDIT_RENAME) put_mangled(e, ed[k].node);
+        if (ed[k].kind == EDIT_RENAME) put_mangled(e, ed[k].name_tok, ed[k].is_type);
         else if (ed[k].kind == EDIT_ASSERT) put_bytes(e, "_Static_assert", 14);
+        else if (ed[k].kind == EDIT_STATIC) put_bytes(e, "static", 6);
+        else if (ed[k].kind == EDIT_TAG) { put_bytes(e, " ", 1); put_mangled(e, ed[k].name_tok, true); }
         pos = ed[k].at + ed[k].skip;
     }
     if (e->ok) put_bytes(e, s + pos, b - pos);
@@ -153,6 +251,7 @@ static void emit_line(Emit *e, size_t ln, size_t a, size_t b) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (overlaps(e, n, a, b)) node_edits(e, n, a, b, ed, &cnt);
     }
+    comment_edits(e, a, b, ed, &cnt);
     if (!e->ok) return;
     const char *s = e->ast->source.ptr;
     if (cnt == 0 && b > a && s[b - 1] == '\n') {
@@ -197,11 +296,71 @@ static void emit_proto(Emit *e, const KAstNode *n) {
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
     node_edits(e, n, a, b, ed, &cnt);
+    comment_edits(e, a, b, ed, &cnt);
     if (!e->ok) return;
     e->n = 0;
     copy_edited(e, a, b, ed, cnt);
     put_bytes(e, ";\n", 2);
     if (e->ok && !k_emit_at(&e->w, line_at(e, a), (keel_slice_char){ e->n, e->buf })) e->ok = false;
+}
+
+/* A public variable's declaration for the .h (backend §4.1, rule 13): `extern`,
+ * the declaration without the initializer; the definition stays in the .c. */
+static void emit_extern(Emit *e, const KAstNode *n) {
+    const KAst *ast = e->ast;
+    size_t a = first_off(e, n), b = last_end(e, n);
+    for (size_t i = n->first, depth = 0; i < n->end; i++) {   /* the top-level `=` */
+        KToken t = tok(ast, i);
+        if (text_is(t, "(") || text_is(t, "[") || text_is(t, "{")) depth++;
+        else if (text_is(t, ")") || text_is(t, "]") || text_is(t, "}")) depth--;
+        else if (depth == 0 && (text_is(t, "=") || text_is(t, ";"))) { b = tok_off(ast, i); break; }
+    }
+    while (b > a && (ast->source.ptr[b - 1] == ' ' || ast->source.ptr[b - 1] == '\t')) b--;
+    Edit ed[MAX_EDITS];
+    size_t cnt = 0;
+    node_edits(e, n, a, b, ed, &cnt);
+    comment_edits(e, a, b, ed, &cnt);
+    if (!e->ok) return;
+    e->n = 0;
+    put_bytes(e, "extern ", 7);
+    copy_edited(e, a, b, ed, cnt);
+    put_bytes(e, ";\n", 2);
+    if (e->ok && !k_emit_at(&e->w, line_at(e, a), (keel_slice_char){ e->n, e->buf })) e->ok = false;
+}
+
+/* A module-level constexpr under C11 (backend §9.2, rules 1 and 2): the macro
+ * and the checking object, both on the line of the constexpr. The cast binds
+ * tighter than most operators, so an initializer of more than one token is
+ * parenthesized; a single token (`4`) is not, as in golden 008. */
+static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
+    const KAst *ast = e->ast;
+    size_t k = n->first + (is_visibility(tok(ast, n->first)) ? 1 : 0) + 1;   /* past `constexpr` */
+    size_t ln = line_at(e, first_off(e, n));
+    size_t ts = tok_off(ast, k), te = tok_off(ast, n->name_first);
+    size_t is = tok_off(ast, n->name_first + 2), ie = tok_end(ast, n->end - 2);
+    while (te > ts && (ast->source.ptr[te - 1] == ' ' || ast->source.ptr[te - 1] == '\t')) te--;
+    bool paren = n->end - 2 > n->name_first + 2;   /* more than one token */
+    const char *s = ast->source.ptr;
+    e->n = 0;
+    put_bytes(e, "#define ", 8);
+    put_mangled(e, n->name_first, false);
+    put_bytes(e, " ((", 3);
+    put_bytes(e, s + ts, te - ts);
+    put_bytes(e, ")", 1);
+    if (paren) put_bytes(e, "(", 1);
+    put_bytes(e, s + is, ie - is);
+    if (paren) put_bytes(e, ")", 1);
+    put_bytes(e, ")\n", 2);
+    if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
+    e->n = 0;
+    put_bytes(e, "static const ", 13);
+    put_bytes(e, s + ts, te - ts);
+    put_bytes(e, " ", 1);
+    put_mangled(e, n->name_first, false);
+    put_bytes(e, "__chk = ", 8);
+    put_bytes(e, s + is, ie - is);
+    put_bytes(e, ";\n", 2);
+    if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
 }
 
 /* ---- the header bodies ---- */
@@ -221,6 +380,13 @@ static void type_h_body(Emit *e) {
                 emit_import(e, n, a);
                 e->done = line_end(e, last_end(e, n));
             }
+            break;
+        case K_AST_CONSTEXPR:
+            a = line_start(e, first_off(e, n));
+            b = line_end(e, last_end(e, n));
+            if (e->opt.c23) emit_range(e, a, b);
+            else emit_constexpr_c11(e, n);
+            e->done = b;
             break;
         case K_AST_TYPE:
         case K_AST_OPAQUE:
@@ -246,20 +412,22 @@ static void h_body(Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
+        else if (n->kind == K_AST_VARIABLE && n->is_public) emit_extern(e, n);
     }
 }
 
 static bool type_h_has_content(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         KAstKind k = keel_buffer_KAstNode_ptr(&e->ast->nodes, i)->kind;
-        if (k == K_AST_IMPORT_C || k == K_AST_TYPE || k == K_AST_OPAQUE || k == K_AST_EXTERN_C) return true;
+        if (k == K_AST_IMPORT_C || k == K_AST_TYPE || k == K_AST_OPAQUE || k == K_AST_EXTERN_C ||
+            k == K_AST_CONSTEXPR) return true;
     }
     return false;
 }
 static bool h_has_content(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (n->kind == K_AST_FUNCTION && n->is_public) return true;
+        if ((n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) && n->is_public) return true;
     }
     return false;
 }
@@ -343,7 +511,7 @@ static void emit_c(Emit *e) {
         for (size_t i = 0; i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (!overlaps(e, n, a, b)) continue;
-            if (n->kind == K_AST_FUNCTION) fn = true;
+            if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
             else empty = true;   /* every other kind in the slice has no C in the .c */
         }
         if (fn && empty) { e->ok = false; return; }
@@ -371,8 +539,36 @@ static void emit_entry(Emit *e) {
     raw(e, "(argc, argv); }\n");
 }
 
+/* Whether the islands of the module are the ones a rename covers: a type,
+ * a name or a call whose detail is `<name>[/arity] → <symbol>` and whose name
+ * is declared by this module. Any other island is a construction that needs
+ * lowering (backend §5), which the slice does not have. */
+static bool islands_supported(const KAst *ast) {
+    for (size_t i = 0; i < ast->islands.len; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        if (is->kind != K_ISLAND_TYPE && is->kind != K_ISLAND_NAME && is->kind != K_ISLAND_CALL) return false;
+        const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
+        size_t len = is->text_len, nm = 0;
+        while (nm < len && d[nm] != '/' && d[nm] != ' ') nm++;
+        bool arrow = false;
+        for (size_t k = nm; k + 3 <= len; k++)
+            if (memcmp(d + k, "\xE2\x86\x92", 3) == 0) { arrow = true; break; }
+        if (!arrow) return false;
+        bool declared = false;
+        for (size_t k = 0; k < ast->nodes.len && !declared; k++) {
+            const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+            if (n->name_first >= n->name_end) continue;
+            KToken t = tok(ast, n->name_first);
+            declared = t.len == nm && memcmp(t.ptr, d, nm) == 0;
+        }
+        if (!declared) return false;
+    }
+    return true;
+}
+
 /* Whether the slice of emit.h covers every node of the module. */
 static bool supported(const KAst *ast) {
+    if (!islands_supported(ast)) return false;
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
         if (n->first >= n->end) return false;
@@ -391,9 +587,28 @@ static bool supported(const KAst *ast) {
         case K_AST_TYPE: {
             size_t k = n->first + (is_visibility(tok(ast, n->first)) ? 1 : 0);
             if (k >= n->end || !text_is(tok(ast, k), "typedef")) return false;
-            /* one line: a typedef that spans lines is not in the slice */
+            /* one declarator per typedef: a list shares the span of its nodes */
+            if (i > 0 && keel_buffer_KAstNode_ptr(&ast->nodes, i - 1)->first == n->first) return false;
+            break;
+        }
+        case K_AST_CONSTEXPR: {
+            /* [pub|priv] constexpr T NAME = INIT; on one line, INIT not naming the module */
+            size_t k = n->first + (is_visibility(tok(ast, n->first)) ? 1 : 0);
+            if (n->name_first >= n->name_end || n->name_first + 2 >= n->end - 1 || n->name_first <= k + 1) return false;
+            if (!text_is(tok(ast, k), "constexpr") || !text_is(tok(ast, n->name_first + 1), "=")) return false;
             for (size_t p = tok_off(ast, n->first); p < tok_end(ast, n->end - 1); p++)
                 if (ast->source.ptr[p] == '\n') return false;
+            break;
+        }
+        case K_AST_VARIABLE: {
+            /* one declarator: no top-level comma */
+            size_t depth = 0;
+            for (size_t p = n->first; p < n->end; p++) {
+                KToken t = tok(ast, p);
+                if (text_is(t, "(") || text_is(t, "[") || text_is(t, "{")) depth++;
+                else if (text_is(t, ")") || text_is(t, "]") || text_is(t, "}")) depth--;
+                else if (depth == 0 && text_is(t, ",")) return false;
+            }
             break;
         }
         case K_AST_EXTERN_C: {

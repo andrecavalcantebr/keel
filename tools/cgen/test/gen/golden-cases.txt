@@ -1,5 +1,6 @@
 # case | source of the module the invocation compiles | --main module (or -)
 # Written by hand from golden/cases/*/expected; a case not listed is not checked.
+tools/cgen/test/gen/shapes|shapes.k|-
 003-alignment|app/align.k|app.align
 006-dim|app/g.k|app.g
 007-instance|app/p.k|app.p

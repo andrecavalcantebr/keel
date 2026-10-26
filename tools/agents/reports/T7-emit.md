@@ -1,5 +1,7 @@
 # T7 — relatório: `engine/emit/emit.c` (M3)
 
+**Estado: aceitação passa (atualizado em 2026-10-26; o bloqueio abaixo foi resolvido pela opção 1 em `c337f85`).** Texto original do agente:
+
 **Estado: aceitação NÃO passa.** `emit.c` está escrito e o oráculo de asserções
 passa, mas `tools/cgen/test/unit/emit.sh` falha por LeakSanitizer, que vem do
 próprio oráculo (`tools/cgen/test/unit/emit_main.c`), fora da lista de arquivos

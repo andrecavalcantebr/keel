@@ -6,6 +6,8 @@
 #   unit/        tool/ pieces in isolation: roots, base resolution, long
 #                options, reading the source
 #   cli/         a sanitized cgen: argv partition, invocation errors, --base-dir
+#   gen_golden.sh  --stop-after=gen over golden/cases against expected/ (wip while
+#                the emitter does not cover a case)
 #   lex_dump.sh  --stop-after=lex: fixed dumps, the reference lexer over every
 #                .k of golden/ and base/, and the lexical diagnostics
 #   diag.sh      the catalog table is current with keel-spec §6.2, and each
@@ -55,6 +57,7 @@ elif [ $rc -eq 0 ]; then
 else
     printf 'FAIL   %-16s\n' gen; printf '%s\n' "$out" | tail -15 | sed 's/^/       /'; fail=1
 fi
+run gen_golden sh tools/cgen/test/gen_golden.sh
 run lex_dump sh tools/cgen/test/lex_dump.sh
 run diag sh tools/cgen/test/diag.sh
 PARSE_LEVEL=${PARSE_LEVEL:-ilha}

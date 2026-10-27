@@ -8,7 +8,7 @@
 #include "engine/islands.h"
 #include "engine/instances.h"
 #include "engine/names.h"
-#include "engine/parser.h"
+#include "engine/parser/parser.h"
 
 #define K_LOCALS_MAX 128
 #define K_PARAMS_MAX 16

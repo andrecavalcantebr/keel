@@ -53,11 +53,11 @@ de onde veio e registre no relatório.
 3. **Retirar os parâmetros `*_kw` que não são usados.** O build limpo avisa:
 
    ```
-   src/engine/parser_extern_c.c:46:44: warning: unused parameter ‘extern_c_kw’
-   src/engine/parser_modifier_decl.c:3:49: warning: unused parameter ‘modifier_kw’
-   src/engine/parser_header.c:3:47: warning: unused parameter ‘module_kw’
-   src/engine/parser_header.c:28:42: warning: unused parameter ‘import_kw’
-   src/engine/parser_header.c:61:44: warning: unused parameter ‘import_c_kw’
+   src/engine/parser/parser_extern_c.c:46:44: warning: unused parameter ‘extern_c_kw’
+   src/engine/parser/parser_modifier_decl.c:3:49: warning: unused parameter ‘modifier_kw’
+   src/engine/parser/parser_header.c:3:47: warning: unused parameter ‘module_kw’
+   src/engine/parser/parser_header.c:28:42: warning: unused parameter ‘import_kw’
+   src/engine/parser/parser_header.c:61:44: warning: unused parameter ‘import_c_kw’
    ```
 
    É o mesmo feito no commit `8b0bdf4` para `k_scan_decl_constexpr`. Use

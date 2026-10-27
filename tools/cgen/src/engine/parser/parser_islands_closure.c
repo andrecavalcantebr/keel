@@ -1,6 +1,6 @@
 /* Pass 3: the closure of the instances, provenance and invalidation, and the instance of each verb (spec §4.3). Split from parser_islands.c by T3; the code is unchanged. */
 
-#include "engine/parser_islands_internal.h"
+#include "engine/parser/parser_islands_internal.h"
 
 void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
                           keel_slice_char verb);

@@ -6,7 +6,7 @@
  * those are exactly the ones the old ast.c heuristic got wrong. */
 #include <stdio.h>
 #include <string.h>
-#include "engine/parser.h"
+#include "engine/parser/parser.h"
 
 static int failures = 0;
 /* len 0 short-circuits: a wrong implementation may leave .ptr NULL,

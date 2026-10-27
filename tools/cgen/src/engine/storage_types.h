@@ -1,6 +1,6 @@
 #ifndef CGEN_STORAGE_TYPES_H
 #define CGEN_STORAGE_TYPES_H
-#include "engine/lexer.h"
+#include "engine/lexer/lexer.h"
 typedef enum {
     K_SYM_TYPE,        /* typedef, struct/union/enum nomeado, tipo de módulo */
     K_SYM_MODIFIER,    /* aridade e espécie de cada parâmetro                */

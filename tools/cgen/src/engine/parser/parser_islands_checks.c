@@ -1,6 +1,6 @@
 /* Pass 3: the names across modules, the declarations of passage 2, the protocol declarations, the parameters and the layout. Split from parser_islands.c by T3; the code is unchanged. */
 
-#include "engine/parser_islands_internal.h"
+#include "engine/parser/parser_islands_internal.h"
 
 void isl_check_arguments(Ctx *c, const KSpecifier *spec, KToken at);
 void isl_check_name(Ctx *c, KToken name, bool top, bool function);

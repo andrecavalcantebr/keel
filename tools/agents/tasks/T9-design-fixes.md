@@ -93,7 +93,7 @@ Acrescente, depois da linha `outcome`, `corot`:
 
 - **L1** (perto da linha 116): na lista `k_contextual_words`, insira
   `"protocol",` entre `"priv",` e `"pub",`. Confira a lista contra
-  `tools/cgen/src/engine/lexer.c:22-30` (a lista real); se diferirem em mais
+  `tools/cgen/src/engine/lexer/lexer.c:22-30` (a lista real); se diferirem em mais
   alguma palavra, anote no relatório, não mude.
 - **L2** (perto da linha 121): "(backend §4.2)" → "(backend §2.3, regra 3)".
 

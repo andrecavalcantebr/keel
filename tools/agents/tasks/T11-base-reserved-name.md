@@ -13,9 +13,9 @@ Falta o `reserved-name`, que é do parser e não tem isenção. Medido no T10:
 
 ## Arquivos
 
-- Editar: `tools/cgen/src/engine/parser_islands_checks.c`; se precisar de um
-  helper novo, `tools/cgen/src/engine/parser_islands.c` e
-  `tools/cgen/src/engine/parser_islands_internal.h`.
+- Editar: `tools/cgen/src/engine/parser/parser_islands_checks.c`; se precisar de um
+  helper novo, `tools/cgen/src/engine/parser/parser_islands.c` e
+  `tools/cgen/src/engine/parser/parser_islands_internal.h`.
 - Criar: um caso de falha novo em `tools/cgen/test/diag/<dir>/` (nome a sua
   escolha, por exemplo `base-names`) e a linha dele em
   `tools/cgen/test/diag/cases.txt`.
@@ -24,7 +24,7 @@ Falta o `reserved-name`, que é do parser e não tem isenção. Medido no T10:
 
 ## Contrato
 
-O ponto de emissão, `tools/cgen/src/engine/parser_islands_checks.c:132-136`:
+O ponto de emissão, `tools/cgen/src/engine/parser/parser_islands_checks.c:132-136`:
 
 ```c
 void isl_check_name(Ctx *c, KToken name, bool top, bool function) {
@@ -41,7 +41,7 @@ são. O resto da função (palavras contextuais, `keel-name-shadowed`,
 `shadowed-injected-name`) não muda.
 
 O nome do módulo está no nó `module` da AST. O helper que já existe,
-`tools/cgen/src/engine/parser_islands.c:257-265`, compara o nome inteiro:
+`tools/cgen/src/engine/parser/parser_islands.c:257-265`, compara o nome inteiro:
 
 ```c
 bool isl_module_named(const KAst *a, const char *name) {

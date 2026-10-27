@@ -1,6 +1,6 @@
 /* Pass 3: the `array`, `array-index`, `index` and `range-index` islands. Split from parser_islands.c by T3; the code is unchanged. */
 
-#include "engine/parser_islands_internal.h"
+#include "engine/parser/parser_islands_internal.h"
 
 /* ---- stage 4b: array, array-index, index, range-index ------------------ */
 

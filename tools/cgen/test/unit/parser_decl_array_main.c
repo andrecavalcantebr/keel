@@ -13,7 +13,7 @@
  */
 #include <stdio.h>
 #include <string.h>
-#include "engine/parser.h"
+#include "engine/parser/parser.h"
 
 static int failures = 0;
 #define EQ(s, want) (strlen(want) == (s).len && \

@@ -16,12 +16,12 @@ without breaking that.
 
 | Path | What |
 | --- | --- |
-| `tools/cgen/src/engine/lexer.h` | `KToken`, `TKPpKind`, `KLexer`, every lexer prototype |
-| `tools/cgen/src/engine/lexer.c` | `k_lexer_init`, `k_lexer_next` — one token per call |
+| `tools/cgen/src/engine/lexer/lexer.h` | `KToken`, `TKPpKind`, `KLexer`, every lexer prototype |
+| `tools/cgen/src/engine/lexer/lexer.c` | `k_lexer_init`, `k_lexer_next` — one token per call |
 | `tools/cgen/src/engine/lexer_*.c` | one recognizer per file: `peek`, `skip_trivia`, `scan_directive`, `scan_identifier`, `scan_number`, `scan_quoted`, `scan_punct` |
 | `tools/cgen/src/engine/token_predicates_*.c` | `k_token_is_ident`, `_c_word`, `_number`, `_string`, `_char`, `_punct` |
 | `tools/cgen/src/engine/diag.h`, `diag.c` | the diagnostics sink and table (diag-design §2, §3); storage is the caller's |
-| `tools/cgen/src/engine/parser_keel.c` | `k_parser_keel`: the token dump, and later the parser |
+| `tools/cgen/src/engine/parser/parser_keel.c` | `k_parser_keel`: the token dump, and later the parser |
 | `tools/cgen/src/tool/stop_lex.c` | `--stop-after=lex`: reads the file, sizes the dump and the diagnostics, prefixes the file name |
 | `tools/cgen/src/tool/report.c` | prints diagnostics as `<file>:<line>:<col>: <severity>: <message> [<name>]` |
 | `tools/cgen/test/lex_dump.sh` | the oracle for everything here; each recognizer is tested through the dump, not in isolation |

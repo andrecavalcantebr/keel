@@ -7,7 +7,7 @@
 > licença própria, ver [`LICENSE.md`](../LICENSE.md). Escrita e revisão
 > tiveram auxílio de Claude Opus (Anthropic), sob direção humana.
 
-**Documento de implementação.** Cobre `engine/parser.c` e `engine/symtab.c` da
+**Documento de implementação.** Cobre `engine/parser/parser.c` e `engine/symtab.c` da
 [`cgen-tool.md`](cgen-tool.md) §3.1 — o que fica entre o lexer
 ([`lexer-design.md`](lexer-design.md)) e a emissão
 ([`codegen-design.md`](codegen-design.md)). O contrato é

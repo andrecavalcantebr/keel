@@ -106,7 +106,7 @@ Os avisos de `src/tool/main.c` (quatro `set but not used`) são os do baseline
 **2. Só o prefixo mudou (com bash)**
 
 ```
-$ bash -c 'for f in tools/cgen/src/engine/parser_islands*.c tools/cgen/src/engine/parser_islands_internal.h; do sed "s/\bisl_//g" "$f" | cmp -s - <(git show HEAD:"$f") || echo "DIFF $f"; done'
+$ bash -c 'for f in tools/cgen/src/engine/parser_islands*.c tools/cgen/src/engine/parser/parser_islands_internal.h; do sed "s/\bisl_//g" "$f" | cmp -s - <(git show HEAD:"$f") || echo "DIFF $f"; done'
 (nada)
 ```
 

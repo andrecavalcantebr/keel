@@ -21,7 +21,7 @@ prosa em Markdown, nos arquivos permitidos. Nada commitado.
 ### `design/lexer-design.md`
 
 - **L1 — feito.** `"protocol"` inserido entre `"priv"` e `"pub"`.
-  Diferença restante, não alterada: a lista real de `tools/cgen/src/engine/lexer.c`
+  Diferença restante, não alterada: a lista real de `tools/cgen/src/engine/lexer/lexer.c`
   tem também `"keel_code"` (entre `"instance"` e `"later"`), que o design não
   lista. Só anotado.
 - **L2 — feito.** "(backend §4.2)" → "(backend §2.3, regra 3)".

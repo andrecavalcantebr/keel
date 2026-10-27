@@ -289,8 +289,8 @@ tools/cgen/src/
 
 | `engine/` | Responsabilidade | Não faz |
 | --- | --- | --- |
-| `lexer.c` | [`lexer-design.md`](lexer-design.md) | — |
-| `parser.c` | ilhas, declarações, resolução (linguagem §4.4) | — |
+| `lexer/` | [`lexer-design.md`](lexer-design.md) — `.c` e `.h` lado a lado | — |
+| `parser/` | ilhas, declarações, resolução (linguagem §4.4) — um `.c` por produção | — |
 | `symtab.c` | tabela de símbolos, fecho de imports, instâncias pedidas | — |
 | `emit/` | [`codegen-design.md`](codegen-design.md) — os três artefatos | — |
 | `diag.c` | `KDiagnosticSink`: acumula, classifica, filtra por `-W`, conta `error` | não formata para terminal, não escreve |

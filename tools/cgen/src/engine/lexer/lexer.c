@@ -1,6 +1,6 @@
-/* engine/lexer.c — k_lexer_next: one token per call, built from the
+/* engine/lexer/lexer.c — k_lexer_next: one token per call, built from the
  * recognizers (lexer-design §1, §3, §4). */
-#include "engine/lexer.h"
+#include "engine/lexer/lexer.h"
 
 static bool is_letter(int c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';

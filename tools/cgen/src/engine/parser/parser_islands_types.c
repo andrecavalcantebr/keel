@@ -1,6 +1,6 @@
 /* Pass 3, the container types, the names and the declarations of the file: the pool of `KType`, and the declarations read before the islands are printed. Split from parser_islands.c by T3; the code is unchanged. */
 
-#include "engine/parser_islands_internal.h"
+#include "engine/parser/parser_islands_internal.h"
 
 /* ---- container types ---------------------------------------------------- */
 

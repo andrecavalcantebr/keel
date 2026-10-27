@@ -1,6 +1,6 @@
 /* Pass 3: defer, foreach, walk and match; parallel, win and fail; extent; and the else of a result. Split from parser_islands.c by T3; the code is unchanged. */
 
-#include "engine/parser_islands_internal.h"
+#include "engine/parser/parser_islands_internal.h"
 
 bool isl_tags_decl(const KAst *where, keel_slice_char name, KTagsDecl *out);
 size_t isl_column_access(Ctx *c, size_t i, size_t open, bool *any);

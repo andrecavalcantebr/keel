@@ -84,10 +84,10 @@ As demais funções ficaram `static` no arquivo que as define.
 ## Aceitação (saídas exatas)
 
 ```
-$ python3 tools/agents/check_split.py HEAD:tools/cgen/src/engine/parser_islands.c \
-      tools/cgen/src/engine/parser_islands.c tools/cgen/src/engine/parser_islands_*.c \
-      tools/cgen/src/engine/parser_islands_internal.h
-ok   split: all 4603 non-blank lines of tools/cgen/src/engine/parser_islands.c are in the new files, the rest is glue
+$ python3 tools/agents/check_split.py HEAD:tools/cgen/src/engine/parser/parser_islands.c \
+      tools/cgen/src/engine/parser/parser_islands.c tools/cgen/src/engine/parser_islands_*.c \
+      tools/cgen/src/engine/parser/parser_islands_internal.h
+ok   split: all 4603 non-blank lines of tools/cgen/src/engine/parser/parser_islands.c are in the new files, the rest is glue
 
 $ sh tools/agents/verify.sh compare /tmp/keel-snap-T3
 ok   build (4 warnings, baseline 4)

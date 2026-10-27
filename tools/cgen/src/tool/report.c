@@ -5,7 +5,7 @@
  * physical line (cgen design §4). */
 #include <stdio.h>
 #include "engine/diag.h"
-#include "engine/lexer.h"
+#include "engine/lexer/lexer.h"
 
 static const char *const severity_name[K_SEVERITY_COUNT] = {
     [K_INFO] = "info", [K_WARNING] = "warning", [K_ERROR] = "error",

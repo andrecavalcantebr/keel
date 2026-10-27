@@ -1,6 +1,6 @@
 #include "engine/ast.h"
 #include "engine/loader.h"
-#include "engine/parser.h"
+#include "engine/parser/parser.h"
 #include <string.h>
 
 /* ---- k_scan_module_decl ---- */

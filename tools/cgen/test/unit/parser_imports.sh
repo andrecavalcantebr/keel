@@ -1,7 +1,7 @@
 #!/bin/sh
 # Minimal oracle for the k_resolve_imports recognizer task. Not model-generated.
 set -u
-SRC=tools/cgen/src/engine/parser_header.c
+SRC=tools/cgen/src/engine/parser/parser_header.c
 TESTMAIN=tools/cgen/test/unit/parser_imports_main.c
 # Every engine source except the one(s) under test. A hand-written list
 # is not what this oracle checks — it only mirrors the call graph, and it

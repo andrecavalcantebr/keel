@@ -76,14 +76,14 @@ escritos à mão (`CLAUDE.md`), e "a emissão segue o `.k` sempre". O molde muda
 | `engine/storage_types.h` | `KSymKind`, `KAstNode`, `KIslandKind` (`K_ISLAND_FROM_STACK`), `KLexeme` (`token`, `pp_kind`, `directive`) | `K_SYM_MOLD`; `KAstNode.is_mold` (o `is_inline` existente é o `inline` de C, `ast.c:167`); `K_ISLAND_MOLD` no lugar de `K_ISLAND_FROM_STACK`; em `KLexeme`, a origem (`fonte`, `corpo`, `argumento`), o módulo de origem e o `site` (índice da ficha de chamada) |
 | `engine/ast.h` | `KAst` com `tokens`, `nodes`, `islands`, `island_text`; "Source and token storage outlive the tree" | região de fichas expandidas anexada a `tokens`, e um buffer de texto para as fichas sintetizadas |
 | `engine/loader.h` | `KModule` retém `ast` ("retained source-backed tree") | nada: o corpo do molde é lido de `KModule.ast`, pelos `body_first/body_end` do nó da função. Já há precedente de ler a AST do módulo importado para assinaturas (`parser_islands.c:377`, `:844`) |
-| `engine/parser_islands.c:347` | `params_of` reconhece o marcador `type` e `array` do parâmetro (`Param.is_type`, `.is_array`) | `Param.is_dim` e `.is_code`; os papéis (`child`, `parent`, `invalidates`) |
-| `engine/parser_islands.c:1036-1090` | o `from_stack` é tratado pelo nome (`module_named(home, "keel.arena")`), redirecionado a `from_array`, com `decimal_of` | sai; entra o ramo geral de molde |
-| `engine/parser_islands.c:1693` (`walk`) | uma varredura linear sobre `[n->first, n->end)`, com `depth` de chaves, `has_target`, e a pilha `locals` | refatorar em varredura de intervalo com pilha de expansões; acompanhar profundidade de parênteses para classificar a posição |
-| `engine/parser_islands.c:94` (`live`) | uma ficha é viva se não é diretiva | igual, também para fichas expandidas |
+| `engine/parser/parser_islands.c:347` | `params_of` reconhece o marcador `type` e `array` do parâmetro (`Param.is_type`, `.is_array`) | `Param.is_dim` e `.is_code`; os papéis (`child`, `parent`, `invalidates`) |
+| `engine/parser/parser_islands.c:1036-1090` | o `from_stack` é tratado pelo nome (`module_named(home, "keel.arena")`), redirecionado a `from_array`, com `decimal_of` | sai; entra o ramo geral de molde |
+| `engine/parser/parser_islands.c:1693` (`walk`) | uma varredura linear sobre `[n->first, n->end)`, com `depth` de chaves, `has_target`, e a pilha `locals` | refatorar em varredura de intervalo com pilha de expansões; acompanhar profundidade de parênteses para classificar a posição |
+| `engine/parser/parser_islands.c:94` (`live`) | uma ficha é viva se não é diretiva | igual, também para fichas expandidas |
 | `engine/diag.h` | `KDiagnostic.at` é "a view of the source: position and extent" | diagnóstico dentro de expansão usa a ficha de chamada como `at` (as fichas de outro módulo, ou do buffer de texto, não têm posição neste fonte) |
 | `engine/diag_catalog.def` | gerado por `tools/cgen/gen-diags.py` a partir do catálogo da spec §6.2 | regenerar depois de a spec mudar; as mensagens vão à mão em `diag.c` |
-| `engine/lexer.c:26` | lista de palavras keel | `keel_code` e as palavras de papel |
-| `engine/parser_dump.c` e o oráculo | linha `ilha	from-stack	arena.from_stack/2 → keel_arena_from_array &1` (`test/parse/001-...parse:32`) | linha `ilha	mold ...` e ilhas aninhadas |
+| `engine/lexer/lexer.c:26` | lista de palavras keel | `keel_code` e as palavras de papel |
+| `engine/parser/parser_dump.c` e o oráculo | linha `ilha	from-stack	arena.from_stack/2 → keel_arena_from_array &1` (`test/parse/001-...parse:32`) | linha `ilha	mold ...` e ilhas aninhadas |
 | `tool/tool.c:84`, `names.c`, `instances.c` | constrói `KSymbol` das declarações e exporta pelos `KModule.symbols` | símbolo de molde exportado, com o corpo alcançável pela AST retida |
 
 ### 3.2 A expansão
@@ -125,7 +125,7 @@ grande, e é onde eu esperaria mais casos de falha.
   moldes).
 - **`engine/mold_expand.c`** (novo): substituição, renome, origem, prelúdio e
   `return`, com limites.
-- **`engine/parser_islands.c`** (alterado): o ramo de molde na chamada, a
+- **`engine/parser/parser_islands.c`** (alterado): o ramo de molde na chamada, a
   varredura de intervalo, e a classificação de posição.
 - **`engine/storage_types.h`, `ast.h`, `lexer.c`, `diag.c`, `parser_dump.c`,
   `tool/tool.c`** (alterados, pequenos).

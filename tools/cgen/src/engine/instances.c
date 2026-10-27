@@ -1,5 +1,5 @@
 #include "engine/instances.h"
-#include "engine/parser.h"
+#include "engine/parser/parser.h"
 #include "engine/names.h"
 
 typedef struct {char *ptr;size_t len,cap;bool ok;} Name;

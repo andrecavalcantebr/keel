@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "tool/memory.h"
-#include "engine/lexer.h"
+#include "engine/lexer/lexer.h"
 
 bool cgen_read_source(keel_arena *arena, const char *path, keel_buffer_char *out);
 void cgen_report(const char *path, keel_slice_char source, const KDiagnosticSink *sink);

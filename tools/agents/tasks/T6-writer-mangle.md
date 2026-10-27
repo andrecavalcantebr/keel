@@ -29,7 +29,7 @@ relatório.
   `<stddef.h>` e `<stdbool.h>` podem.
 - Sem alocação. A saída vai para o `keel_slice_char out` de quem chama, e o
   que não cabe é contado e descartado, como no `snprintf`. O modelo é o
-  `KOut` de `tools/cgen/src/engine/parser_dump.c:5-9`:
+  `KOut` de `tools/cgen/src/engine/parser/parser_dump.c:5-9`:
 
   ```c
   typedef struct { keel_slice_char out; size_t n; } KOut;

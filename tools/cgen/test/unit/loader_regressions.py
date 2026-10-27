@@ -28,7 +28,8 @@ with tempfile.TemporaryDirectory() as directory:
     root=Path(directory)
     source=root/'probe.c'; source.write_text(probe)
     binary=root/'probe'
-    files=list(Path('tools/cgen/src/engine').glob('*.c'))
+    engine=Path('tools/cgen/src/engine')
+    files=[f for d in ('.','lexer','parser') for f in (engine/d).glob('*.c')]
     files += [Path('tools/cgen/src/tool')/x for x in ['tool.c','paths.c','read_source.c','report.c']]
     subprocess.run(['gcc','-std=c2x','-Itools/cgen/src','-Itools/cgen/gen',
                     '-fsanitize=address,undefined','-fno-sanitize-recover=all','-g',

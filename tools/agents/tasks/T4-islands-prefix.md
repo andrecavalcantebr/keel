@@ -25,7 +25,7 @@ nm tools/cgen/obj/engine/parser_islands*.o | awk '$2=="T"{print $3}' | grep -v '
 ```
 
 Elas são as mesmas cujos protótipos estão em
-`tools/cgen/src/engine/parser_islands_internal.h`. `k_collect_islands` e
+`tools/cgen/src/engine/parser/parser_islands_internal.h`. `k_collect_islands` e
 qualquer outro `k_*` ficam como estão.
 
 ## Como renomear
@@ -58,7 +58,7 @@ nm tools/cgen/obj/engine/parser_islands*.o | awk '$2=="T"{print $3}' | grep -c '
 
 # 2. o prefixo é a única mudança: tirá-lo reproduz o HEAD byte a byte
 #    (hoje não existe nenhum "isl_" em tools/cgen/src)
-for f in tools/cgen/src/engine/parser_islands*.c tools/cgen/src/engine/parser_islands_internal.h; do
+for f in tools/cgen/src/engine/parser_islands*.c tools/cgen/src/engine/parser/parser_islands_internal.h; do
     sed 's/\bisl_//g' "$f" | cmp -s - <(git show HEAD:"$f") || echo "DIFF $f"
 done                                                                                             # nada
 #    (rode com bash, por causa do <( ))

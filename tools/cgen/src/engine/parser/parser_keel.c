@@ -1,7 +1,7 @@
-/* engine/parser_keel.c — the engine's entry point. For now, the token dump
+/* engine/parser/parser_keel.c — the engine's entry point. For now, the token dump
  * of `--stop-after=lex` (cgen design §5.1). */
 #include <string.h>
-#include "engine/lexer.h"
+#include "engine/lexer/lexer.h"
 
 typedef struct {
     keel_slice_char out;

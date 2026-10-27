@@ -1,11 +1,11 @@
-/* engine/parser.h — the parser's first recognizers, built directly on top of
+/* engine/parser/parser.h — the parser's first recognizers, built directly on top of
  * the lexer (parser-design §3.2, etapa 1: header). No KParserCtx yet — this
  * header grows one production at a time, the same way lexer.h grew through
  * M1's recognizers. */
 #ifndef CGEN_ENGINE_PARSER_H
 #define CGEN_ENGINE_PARSER_H
 
-#include "engine/lexer.h"
+#include "engine/lexer/lexer.h"
 #include "engine/symtab.h"
 
 /* Scans a qualified-name (keel-spec §2.2: `qualified-name ::= IDENT { '.'

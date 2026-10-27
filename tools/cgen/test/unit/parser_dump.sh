@@ -3,7 +3,7 @@
 # synthetic module. Not model-generated (this is Claude-written code, not
 # a harness task — see its own file header).
 set -u
-SRC="tools/cgen/src/engine/ast.c tools/cgen/src/engine/parser_dump.c"
+SRC="tools/cgen/src/engine/ast.c tools/cgen/src/engine/parser/parser_dump.c"
 TESTMAIN=tools/cgen/test/unit/parser_dump_main.c
 # Every engine source except the one(s) under test. A hand-written list
 # is not what this oracle checks — it only mirrors the call graph, and it

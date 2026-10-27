@@ -16,8 +16,8 @@
 #include "engine/islands.h"
 #include "engine/instances.h"
 #include "engine/names.h"
-#include "engine/parser.h"
-#include "engine/parser_islands_internal.h"
+#include "engine/parser/parser.h"
+#include "engine/parser/parser_islands_internal.h"
 
 KToken isl_tok(const KAst *a, size_t i) { return keel_buffer_KLexeme_ptr(&a->tokens, i)->token; }
 bool isl_live(const KAst *a, size_t i) {

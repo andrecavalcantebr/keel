@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include "engine/ast.h"
-#include "engine/parser.h"
+#include "engine/parser/parser.h"
 
 static bool named(const KAst *a, size_t i, const char *s) {
     return i < a->tokens.len && k_token_spelled(keel_buffer_KLexeme_ptr(&a->tokens, i)->token, s);
@@ -37,7 +37,7 @@ static size_t balanced(const KAst *a, size_t i, const char *open, const char *cl
 /* Stop at a file-level semicolon or after a braced definition. Only reached
    for function and variable declarations (below), and for a typedef that
    k_scan_decl_typedef turned down — every other kind has a complete
-   recognizer in engine/parser.h now, and consumes its own terminator
+   recognizer in engine/parser/parser.h now, and consumes its own terminator
    (k_scan_decl_keel does not yet handle a function's parameter group —
    parser.h's own note on it: "no trailing suffix ... yet" — so a declarator
    followed by '(' still has to be found this way). */
@@ -72,7 +72,7 @@ static bool append(KAst *a, KAstNode n) {
 }
 
 /* Re-enters the token stream at (*keel_buffer_KLexeme_ptr(&a->tokens, i)), through a throwaway lexer, so
-   the recognizers of engine/parser.h — each written against a live KLexer,
+   the recognizers of engine/parser/parser.h — each written against a live KLexer,
    one k_lexer_next call at a time — can be called from here without
    re-lexing the file from its start. Diagnostics are NOT re-emitted through
    it (NULL sink): the whole file was already lexed once, with the real

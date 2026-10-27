@@ -2,15 +2,15 @@
 
 ## O diff
 
-- `tools/cgen/src/engine/parser_islands.c`: função nova `isl_module_in_base`,
+- `tools/cgen/src/engine/parser/parser_islands.c`: função nova `isl_module_in_base`,
   logo depois de `isl_module_named`. Devolve verdadeiro quando o nó `module`
   é de fato `K_AST_MODULE` e o primeiro token do nome é `keel`. Assim `keel` e
   `keel.<nome>` são base, e `keelx` ou `mykeel.a` não são. A checagem
   `kind == K_AST_MODULE` cobre o caso de `a->module` apontar para um nó que não
   é módulo (`ast.c:106` deixa `a->module = 0`).
-- `tools/cgen/src/engine/parser_islands_internal.h`: declaração de
+- `tools/cgen/src/engine/parser/parser_islands_internal.h`: declaração de
   `isl_module_in_base`, ao lado de `isl_module_named`.
-- `tools/cgen/src/engine/parser_islands_checks.c`, em `isl_check_name`: o
+- `tools/cgen/src/engine/parser/parser_islands_checks.c`, em `isl_check_name`: o
   `reserved-name` só sai quando o nome começa com `keel_`/`KEEL_` **e** o
   módulo não é da base. O resto da função (palavras contextuais,
   `keel-name-shadowed`, `shadowed-injected-name`) não mudou.
@@ -71,9 +71,9 @@ make: Saindo do diretório '/home/andre/code/cprojects/keel/tools/cgen'
 ```
  M keel-c-backend.md            (orquestrador, anterior a este cartão)
  M keel-spec.md                 (orquestrador, anterior a este cartão)
- M tools/cgen/src/engine/parser_islands.c
- M tools/cgen/src/engine/parser_islands_checks.c
- M tools/cgen/src/engine/parser_islands_internal.h
+ M tools/cgen/src/engine/parser/parser_islands.c
+ M tools/cgen/src/engine/parser/parser_islands_checks.c
+ M tools/cgen/src/engine/parser/parser_islands_internal.h
  M tools/cgen/test/diag/cases.txt
 ?? tools/agents/reports/T10-keel-prefix-audit.md     (anterior)
 ?? tools/agents/tasks/T10-keel-prefix-audit.md       (anterior)

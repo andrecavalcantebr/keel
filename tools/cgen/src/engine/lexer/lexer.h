@@ -1,4 +1,4 @@
-/* engine/lexer.h — the lexer's types and the recognizers it is built from
+/* engine/lexer/lexer.h — the lexer's types and the recognizers it is built from
  * (lexer-design §1, §3). engine/: no I/O, no allocation. */
 #ifndef CGEN_ENGINE_LEXER_H
 #define CGEN_ENGINE_LEXER_H

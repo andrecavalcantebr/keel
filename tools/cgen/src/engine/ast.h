@@ -3,7 +3,7 @@
 #ifndef CGEN_ENGINE_AST_H
 #define CGEN_ENGINE_AST_H
 
-#include "engine/lexer.h"
+#include "engine/lexer/lexer.h"
 #include "engine/loader.h"
 #include "keel/keel_buffer_KLexeme.h"
 #include "keel/keel_buffer_KAstNode.h"

@@ -4,7 +4,7 @@
  * delimits; this pass pairs. */
 #include <string.h>
 #include "engine/ast.h"
-#include "engine/parser.h"
+#include "engine/parser/parser.h"
 
 #define K_OPEN_MAX 256
 #define K_GROUP_MAX 32

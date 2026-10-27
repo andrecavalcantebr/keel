@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-`tools/cgen/src/engine/parser_islands.c` tem 4.850 linhas e 194 funções
+`tools/cgen/src/engine/parser/parser_islands.c` tem 4.850 linhas e 194 funções
 `static`, uns 60% do motor. O próprio arquivo já está dividido em seções
 comentadas (`/* ---- <nome> ---- */`). Esta tarefa o parte em seis arquivos
 seguindo essas seções, **sem mudar uma linha de código**: é mover, não
@@ -20,7 +20,7 @@ sh tools/agents/verify.sh snapshot /tmp/keel-snap-T3
 ## A partição
 
 Os números de linha são os do `HEAD` no início da tarefa. Confira com
-`grep -n '^/\* ----' tools/cgen/src/engine/parser_islands.c`: se não baterem
+`grep -n '^/\* ----' tools/cgen/src/engine/parser/parser_islands.c`: se não baterem
 com os marcos abaixo, siga os **marcos**, não os números.
 
 | Arquivo | Seções (marco de início → até o próximo da tabela) | ~linhas |
@@ -82,9 +82,9 @@ Criar os cinco `parser_islands_*.c` e o `parser_islands_internal.h`; editar
 As três têm de passar:
 
 ```sh
-python3 tools/agents/check_split.py HEAD:tools/cgen/src/engine/parser_islands.c \
-    tools/cgen/src/engine/parser_islands.c tools/cgen/src/engine/parser_islands_*.c \
-    tools/cgen/src/engine/parser_islands_internal.h
+python3 tools/agents/check_split.py HEAD:tools/cgen/src/engine/parser/parser_islands.c \
+    tools/cgen/src/engine/parser/parser_islands.c tools/cgen/src/engine/parser_islands_*.c \
+    tools/cgen/src/engine/parser/parser_islands_internal.h
 #   -> "ok   split: all N non-blank lines ... the rest is glue"
 sh tools/agents/verify.sh compare /tmp/keel-snap-T3          # -> ALL OK
 wc -l tools/cgen/src/engine/parser_islands*.c                 # nenhum acima de 1400

@@ -98,7 +98,7 @@ Nenhum outro `.k` da base tem diretiva com `KEEL_`/`keel_`.
 
 ## 3. O código do cgen
 
-`define-over-keel-name` é emitido só em `tools/cgen/src/engine/lexer.c`
+`define-over-keel-name` é emitido só em `tools/cgen/src/engine/lexer/lexer.c`
 (`grep -rn DEFINE_OVER_KEEL_NAME tools/cgen/src`: `lexer.c:66`). Função
 `check_define`:
 
@@ -128,12 +128,12 @@ static void check_define(KLexer *lexer, KToken directive) {
 - `keel_module` aparece só em `lexer.c:20, 51, 83` e `lexer.h:33`. Nenhum outro
   arquivo do `src/` consulta a isenção.
 - **Fora da isenção:** a declaração com nome `keel_`/`KEEL_` não tem o teste de
-  `keel_module`. `tools/cgen/src/engine/parser_islands_checks.c:136-137`:
+  `keel_module`. `tools/cgen/src/engine/parser/parser_islands_checks.c:136-137`:
   `if (k_token_starts_with(name, "keel_") || k_token_starts_with(name, "KEEL_"))`
   `isl_diag3(c, K_DIAG_RESERVED_NAME, name, name, none, none);`. Chamada a partir
   de `parser_islands_checks.c:271` e `:302`, `parser_islands_types.c:1184` e
   `parser_islands_flow.c:1043`.
-- `keel_code` está em `k_contextual_words`: `tools/cgen/src/engine/lexer.c:27`
+- `keel_code` está em `k_contextual_words`: `tools/cgen/src/engine/lexer/lexer.c:27`
   (`"import_c", "instance", "keel_code", "later", ...`). Sim.
 
 ## 4. Os testes

@@ -75,14 +75,14 @@ Cada linha é uma mudança **proposta**; nenhuma está feita.
 
 | Onde | O que existe hoje | O que muda |
 | --- | --- | --- |
-| `engine/lexer.c:24-28` | `k_contextual_words`, ordenada por `strcmp` | acrescentar `protocol` (na ordem) |
-| `engine/parser.h:41-48` | `KModuleHeader` com `dims`, `tags`, `types` (8 cada) e `k_scan_module_decl` | `protocols[8]`, `protocol_count`; a cláusula lida depois de `type` |
+| `engine/lexer/lexer.c:24-28` | `k_contextual_words`, ordenada por `strcmp` | acrescentar `protocol` (na ordem) |
+| `engine/parser/parser.h:41-48` | `KModuleHeader` com `dims`, `tags`, `types` (8 cada) e `k_scan_module_decl` | `protocols[8]`, `protocol_count`; a cláusula lida depois de `type` |
 | `engine/storage_types.h` | `KSymKind`, `KAstNode` (`dim_first`, `tags_first`, `type_first`), `KAstKind` | `K_SYM_PROTOCOL`; `K_AST_PROTOCOL`; `proto_first/proto_end` no nó do módulo |
-| `engine/parser.h:32` | `k_scan_ident_list`, a lista de identificadores | reaproveitada para a lista entre colchetes do `protocol Nome [lista]` |
-| `engine/parser_islands.c:347` (`params_of`) | reconhece os marcadores `type` e `array` no parâmetro (`Param.is_type`, `.is_array`) | classificar o parâmetro cujo tipo-base é um símbolo `K_SYM_PROTOCOL` |
-| `engine/parser_islands.c:377` (`find_verb`) | acha o verbo no módulo pelo nome e a aridade, e diz se há várias aridades (`Sig`) | reaproveitada pela varredura de exaustividade |
-| `engine/parser_islands.c:789`, `:836` (`ast_of`) | lê a AST do módulo de origem de um símbolo | lê a linha `module` do implementador para a cláusula |
-| `engine/parser_islands.c:1693` (`walk`) | varredura do corpo, `find_local` dá o tipo declarado do símbolo | no corpo de função com parâmetro de protocolo, o tipo do `b` é o protocolo |
+| `engine/parser/parser.h:32` | `k_scan_ident_list`, a lista de identificadores | reaproveitada para a lista entre colchetes do `protocol Nome [lista]` |
+| `engine/parser/parser_islands.c:347` (`params_of`) | reconhece os marcadores `type` e `array` no parâmetro (`Param.is_type`, `.is_array`) | classificar o parâmetro cujo tipo-base é um símbolo `K_SYM_PROTOCOL` |
+| `engine/parser/parser_islands.c:377` (`find_verb`) | acha o verbo no módulo pelo nome e a aridade, e diz se há várias aridades (`Sig`) | reaproveitada pela varredura de exaustividade |
+| `engine/parser/parser_islands.c:789`, `:836` (`ast_of`) | lê a AST do módulo de origem de um símbolo | lê a linha `module` do implementador para a cláusula |
+| `engine/parser/parser_islands.c:1693` (`walk`) | varredura do corpo, `find_local` dá o tipo declarado do símbolo | no corpo de função com parâmetro de protocolo, o tipo do `b` é o protocolo |
 | `engine/instances.c:71` (`k_collect_instances`) | dedupe por nome canônico em `KInstanceUse.symbol`, limite de capacidade | um tipo de uso para função, com o nome da instância de função |
 | `engine/diag_catalog.def`, `gen-diags.py` | gerado do catálogo da spec §6.2 | regenerar; as mensagens vão à mão em `diag.c` |
 | `test/parse/*.parse`, `parse_dump.sh` | oráculo do despejo de parse | linhas novas de declaração e de ilha |

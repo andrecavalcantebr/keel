@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "engine/ast.h"
-#include "engine/parser.h"
+#include "engine/parser/parser.h"
 
 static int failures = 0;
 #define S(lit) ((keel_slice_char){ sizeof(lit) - 1, (char *)(lit) })

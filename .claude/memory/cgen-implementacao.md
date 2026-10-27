@@ -18,8 +18,8 @@ Os cinco designs em `design/`, um por peça de `cgen-tool.md` §3.1:
 | | Cobre |
 | --- | --- |
 | `cgen-tool.md` | o de cima: CLI, arquitetura, fases, bootstrap. Decisões D1–D8 |
-| `lexer-design.md` | `engine/lexer.c` |
-| `parser-design.md` | `engine/parser.c`, `symtab.c`. Decisões P1–P5 |
+| `lexer-design.md` | `engine/lexer/lexer.c` |
+| `parser-design.md` | `engine/parser/parser.c`, `symtab.c`. Decisões P1–P5 |
 | `codegen-design.md` | `engine/emit/`. Decisões E1–E5 |
 | `diag-design.md` | `engine/diag.c`, `tool/report.c`. Decisões G1–G4 |
 

@@ -34,7 +34,7 @@ e não edita nada.**
    com o trecho de código colado e `arquivo:linha`. Diga se `keel_code` está
    na lista de palavras contextuais do `lexer.c`.
 4. **Os testes.** Há caso de falha ou de unidade que afirme a isenção, ou que
-   afirme o erro no fonte do usuário? Liste com caminho (`tools/cgen/test/`,
+   afirme o erro no fonte do usuário? Liste com caminho (`test/cgen/`,
    `golden/cases/`).
 5. **O C gerado.** No golden (`golden/c23/`, `golden/c11/`), liste os
    `#define`/`#ifndef` de `KEEL_*` e de que `.k` e linha vêm (pelo `#line`).

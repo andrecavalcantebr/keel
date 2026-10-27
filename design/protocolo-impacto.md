@@ -136,7 +136,7 @@ de função se apoia nessa passagem.
 
 - **Oráculo de parse:** o despejo de declaração passa a mostrar a cláusula
   `protocol` e a declaração; casos para a composição (losango, ciclo, conflito).
-- **Diagnósticos** (`tools/cgen/test/diag/`): um diretório `protocols/` com um
+- **Diagnósticos** (`test/cgen/diag/`): um diretório `protocols/` com um
   caso de falha por identificador novo. A cobertura do catálogo (hoje 29 de 140)
   sobe.
 - **Unidade:** a varredura de exaustividade com um `KLoader` de mentira, sem

@@ -19,8 +19,8 @@ Só `--cgen-version` foi implementada. Esta tarefa implementa `--cgen-help`.
 
 - Editar: `tools/cgen/src/tool/main.c`.
 - Escrever: o relatório `tools/agents/reports/T7-cgen-help.md`.
-- Nada mais. **Não edite** `tools/cgen/test/cli/help.sh` nem
-  `tools/cgen/test/cli/help.expected` (o oráculo, escrito à mão), nem
+- Nada mais. **Não edite** `test/cgen/cli/help.sh` nem
+  `test/cgen/cli/help.expected` (o oráculo, escrito à mão), nem
   nenhum documento. Os arquivos `tools/cgen/src/engine/emit/writer.c`,
   `mangle.c` e `tools/transform/README.md`, que aparecem no `git status`,
   são de outra tarefa: não mexa neles.
@@ -28,7 +28,7 @@ Só `--cgen-version` foi implementada. Esta tarefa implementa `--cgen-help`.
 ## Contrato
 
 1. `--cgen-help`, em qualquer posição da linha, imprime em **stdout** o
-   texto de `tools/cgen/test/cli/help.expected`, byte a byte (inclusive o
+   texto de `test/cgen/cli/help.expected`, byte a byte (inclusive o
    `\n` final da última linha), e sai com código 0. Nada em stderr, e o
    compilador C não é chamado.
 2. Como `--cgen-version`, a opção age **dentro do laço** de `argv`, no
@@ -52,7 +52,7 @@ Só `--cgen-version` foi implementada. Esta tarefa implementa `--cgen-help`.
 
 ## Passos sugeridos
 
-1. `make -C tools/cgen -j8` e `sh tools/cgen/test/cli/help.sh`: hoje falha
+1. `make -C tools/cgen -j8` e `sh test/cgen/cli/help.sh`: hoje falha
    com `FAIL: help — alone: exit code 1, want 0`.
 2. Escreva `print_help` e o ramo do `--cgen-help`.
 3. Rebuild, e rode `help.sh` até dar `ok`. Se o `cmp` acusar diferença, o
@@ -62,7 +62,7 @@ Só `--cgen-version` foi implementada. Esta tarefa implementa `--cgen-help`.
 
 ```
 make -C tools/cgen -j8                 sem erro e sem aviso novo
-sh tools/cgen/test/cli/help.sh         última linha começa com "ok: help"
+sh test/cgen/cli/help.sh         última linha começa com "ok: help"
 sh tools/agents/verify.sh              termina em "ALL OK"
 git status --short                     só main.c (M) além do que já estava
 ```

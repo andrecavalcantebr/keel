@@ -257,7 +257,7 @@ A passagem 3 é a única que pode criar instância, e é onde o fecho (§5) cres
 As três passagens acima não precisam nascer completas para dar sinal de vida.
 O despejo `--stop-after=parse` já distingue quatro níveis cumulativos
 ([`cgen-tool.md`](cgen-tool.md) §5.2), e o oráculo
-(`tools/cgen/test/parse_dump.sh`) já compara por `diff -u` em cada um —
+(`test/cgen/parse_dump.sh`) já compara por `diff -u` em cada um —
 **cada etapa abaixo é aditiva**: uma vez acesa, faz aparecer linhas novas sem
 quebrar as anteriores.
 

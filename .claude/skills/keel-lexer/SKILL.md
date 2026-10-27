@@ -24,8 +24,8 @@ without breaking that.
 | `tools/cgen/src/engine/parser/parser_keel.c` | `k_parser_keel`: the token dump, and later the parser |
 | `tools/cgen/src/tool/stop_lex.c` | `--stop-after=lex`: reads the file, sizes the dump and the diagnostics, prefixes the file name |
 | `tools/cgen/src/tool/report.c` | prints diagnostics as `<file>:<line>:<col>: <severity>: <message> [<name>]` |
-| `tools/cgen/test/lex_dump.sh` | the oracle for everything here; each recognizer is tested through the dump, not in isolation |
-| `tools/cgen/test/lex/` | fixed cases (`cases.txt`), their expected dumps (`*.tokens`): `edge.k`, `edge2.k`, one small file per EOF and line-ending case (`eof-*.k`, `cr.k`, `nul.k`, `empty.k`); `reference_lexer.py`; and the diagnostics cases `diag.k` → `diag.stderr`, `diag-base.k` |
+| `test/cgen/lex_dump.sh` | the oracle for everything here; each recognizer is tested through the dump, not in isolation |
+| `test/cgen/lex/` | fixed cases (`cases.txt`), their expected dumps (`*.tokens`): `edge.k`, `edge2.k`, one small file per EOF and line-ending case (`eof-*.k`, `cr.k`, `nul.k`, `empty.k`); `reference_lexer.py`; and the diagnostics cases `diag.k` → `diag.stderr`, `diag-base.k` |
 
 ## Read before changing anything
 
@@ -57,7 +57,7 @@ without breaking that.
 
 ```sh
 make -C tools/cgen
-sh tools/cgen/test/lex_dump.sh
+sh test/cgen/lex_dump.sh
 ```
 
 `lex_dump.sh` checks four things: the build, the fixed cases against their
@@ -89,7 +89,7 @@ reference lexer with no diagnostic, and the diagnostics of `diag.k` against
 For anything the lexer should now do differently: add a line to
 `test/lex/edge.k` (before its last line, a `#` with no newline, which tests
 a directive at EOF), regenerate **only** `edge.tokens` with
-`python3 tools/cgen/test/lex/reference_lexer.py tools/cgen/test/lex/edge.k > tools/cgen/test/lex/edge.tokens`,
+`python3 test/cgen/lex/reference_lexer.py test/cgen/lex/edge.k > test/cgen/lex/edge.tokens`,
 and check the new lines by hand against the design. If the reference lexer
 itself lacks the behaviour, extend it first, from the design, not from your C.
 A new diagnostic goes into `diag.k`, and its expected line into `diag.stderr`,

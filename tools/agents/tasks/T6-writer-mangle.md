@@ -11,7 +11,7 @@ estão escritos:
   (backend §2.1, §4.1, §4.2, §5.8; cgen design §5.3).
 
 Os oráculos também já existem e são a aceitação:
-`tools/cgen/test/unit/emit_writer_main.c` e `emit_mangle_main.c`, rodados por
+`test/cgen/unit/emit/emit_writer_main.c` e `emit_mangle_main.c`, rodados por
 `emit_writer.sh` e `emit_mangle.sh`. Hoje os dois `.c` estão vazios, e o
 `make check` mostra os testes como `wip`.
 
@@ -76,8 +76,8 @@ deixa `mapped = 47`. `k_emit_at(46, "    body;\n")`: 47 ≠ 46, então escreve
 ## Aceitação
 
 ```sh
-sh tools/cgen/test/unit/emit_writer.sh     # -> ok
-sh tools/cgen/test/unit/emit_mangle.sh     # -> ok
+sh test/cgen/unit/emit/emit_writer.sh     # -> ok
+sh test/cgen/unit/emit/emit_mangle.sh     # -> ok
 sh tools/agents/verify.sh                  # -> ALL OK (o build não pode ganhar aviso)
 make -C tools/cgen check | grep emit_      # os dois "ok", nenhum "wip"
 ```

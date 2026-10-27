@@ -7,7 +7,7 @@
 #   sh tools/agents/verify.sh compare DIR     the full check, plus: behaviour equal to DIR
 #
 # The snapshot is the oracle of a refactor (no behaviour change): for every .k of
-# golden/cases/* and of tools/cgen/test/diag/*, the stdout, the stderr and the exit
+# golden/cases/* and of test/cgen/diag/*, the stdout, the stderr and the exit
 # code of `cgen --stop-after=parse`, run from the case directory as parse_dump.sh
 # and diag.py do. A refactor takes the snapshot BEFORE touching code.
 set -u
@@ -34,7 +34,7 @@ build() {
 
 snapshot() {
     out=$1; mkdir -p "$out"
-    for root in golden/cases/*/ tools/cgen/test/diag/*/; do
+    for root in golden/cases/*/ test/cgen/diag/*/; do
         [ -d "$root" ] || continue
         (cd "$root" && find . -name '*.k' -not -path './expected/*' | sort) | while read -r k; do
             k=${k#./}

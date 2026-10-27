@@ -28,7 +28,7 @@ Dentro de `tools/cgen/src/engine/`:
 Também podem ser editados: `parser.h` (só as limpezas abaixo e os comentários
 que citam nome de arquivo), `ast.c` (só as chamadas afetadas pelas
 limpezas), `tools/cgen/src/engine/README.md` (a tabela de arquivos), os
-`tools/cgen/test/unit/*.sh` e `*_main.c` dos arquivos movidos, e
+`test/cgen/unit/*.sh` e `*_main.c` dos arquivos movidos, e
 `tools/agents/warnings.baseline`. **Não toque em `parser_islands.c`**: ele é a
 tarefa T3.
 

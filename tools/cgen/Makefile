@@ -40,7 +40,7 @@ run:
 
 # the test suite (cgen design §10); PARSE_LEVEL=header|decl|inst|ilha (default inst)
 check: all
-	@sh test/run.sh
+	@sh ../../test/cgen/run.sh
 
 # A fronteira do motor, verificada sem compilar nada. Mesma espécie de
 # invariante estrutural que o runner do golden aplica ao gerado (I1, I2), e

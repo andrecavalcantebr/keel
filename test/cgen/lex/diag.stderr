@@ -1,0 +1,8 @@
+test/cgen/lex/diag.k:2:11: error: string literal has no closing `"` before the end of the line; write `\n` for a newline inside it [literal-with-newline]
+test/cgen/lex/diag.k:3:2: error: string literal has no closing `"` before the end of the line; write `\n` for a newline inside it [literal-with-newline]
+test/cgen/lex/diag.k:4:10: error: character literal has no closing `'` before the end of the line; write `\n` for a newline inside it [literal-with-newline]
+test/cgen/lex/diag.k:6:9: error: cannot `#define` `keel_x`: names starting with `keel_` or `KEEL_` are reserved to keel [define-over-keel-name]
+test/cgen/lex/diag.k:7:9: error: cannot `#define` `KEEL_CHECKS`: names starting with `keel_` or `KEEL_` are reserved to keel [define-over-keel-name]
+test/cgen/lex/diag.k:8:8: warning: `#undef` of `constexpr`, a keel word: where it stands as a construction, keel reads the construction, not the macro [define-over-keel-word]
+test/cgen/lex/diag.k:9:18: warning: `#undef` of `match`, a keel word: where it stands as a construction, keel reads the construction, not the macro [define-over-keel-word]
+test/cgen/lex/diag.k:10:9: warning: `#define` of `match`, a keel word: where it stands as a construction, keel reads the construction, not the macro [define-over-keel-word]

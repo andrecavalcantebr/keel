@@ -522,7 +522,7 @@ os dois símbolos vêm nessa ordem, antes das marcas; sobre `array` o limite é 
 
 Os módulos importados são carregados (é preciso, para resolver) e não são
 impressos. Os despejos esperados de treze casos do golden estão em
-`tools/cgen/test/parse/`, e o teste `parse_dump.sh` os compara em
+`test/cgen/parse/`, e o teste `parse_dump.sh` os compara em
 quatro níveis cumulativos: `header`, `decl`, `inst`, `ilha`.
 
 ### 5.3 `--stop-after=gen` e os arquivos gerados
@@ -777,7 +777,7 @@ ilha	defer	now FILE *fp	app/cfg.k:15:5
 …
 ```
 
-(O despejo inteiro, e os de 009 e 013, estão em `tools/cgen/test/parse/`.)
+(O despejo inteiro, e os de 009 e 013, estão em `test/cgen/parse/`.)
 
 ### 8.6 Compilação separada com depfile
 
@@ -870,7 +870,7 @@ Cada marco termina com o seu teste passando e o anterior intacto.
 
 ## 10. Testes
 
-- **Unidade** (`tools/cgen/test/`): partição de `argv`, normalização de
+- **Unidade** (`test/cgen/`): partição de `argv`, normalização de
   caminho, mangling, lexer. Um executável por área, sem framework.
 - **Golden**: para cada caso e perfil, `cgen --stop-after=gen --profile=<p>
   --base-dir base -I golden/cases/<c> --dest-dir <tmp> golden/cases/<c>/<m>.k`

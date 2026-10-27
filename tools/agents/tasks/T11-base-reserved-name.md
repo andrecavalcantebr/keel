@@ -16,9 +16,9 @@ Falta o `reserved-name`, que é do parser e não tem isenção. Medido no T10:
 - Editar: `tools/cgen/src/engine/parser/parser_islands_checks.c`; se precisar de um
   helper novo, `tools/cgen/src/engine/parser/parser_islands.c` e
   `tools/cgen/src/engine/parser/parser_islands_internal.h`.
-- Criar: um caso de falha novo em `tools/cgen/test/diag/<dir>/` (nome a sua
+- Criar: um caso de falha novo em `test/cgen/diag/<dir>/` (nome a sua
   escolha, por exemplo `base-names`) e a linha dele em
-  `tools/cgen/test/diag/cases.txt`.
+  `test/cgen/diag/cases.txt`.
 - Criar: `tools/agents/reports/T11-base-reserved-name.md`.
 - Nada mais. Não edite normativos, golden nem os casos existentes. Não commite.
 
@@ -63,7 +63,7 @@ puder, sem módulo não é base.
 
 ## O caso de teste
 
-Leia `tools/cgen/test/diag.sh` e um caso existente (`tools/cgen/test/diag/decls/`
+Leia `test/cgen/diag.sh` e um caso existente (`test/cgen/diag/decls/`
 e `define-keel-name/`) para saber como o runner lê os marcadores
 `/* DIAG: id */` e o que ele exige de um caso. O caso novo tem de afirmar:
 

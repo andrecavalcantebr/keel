@@ -138,24 +138,24 @@ static void check_define(KLexer *lexer, KToken directive) {
 
 ## 4. Os testes
 
-- **Isenção (lexer), positivo:** `tools/cgen/test/lex/diag-base.k` (`module
+- **Isenção (lexer), positivo:** `test/cgen/lex/diag-base.k` (`module
   keel.probe;` seguido de `#ifndef KEEL_CHECKS` / `#define KEEL_CHECKS 1`):
-  "nothing on stderr, exit 0", descrito em `tools/cgen/test/lex_dump.sh:13-15`.
-- **Erro no fonte do usuário, lexer:** `tools/cgen/test/lex/diag.k:6`
+  "nothing on stderr, exit 0", descrito em `test/cgen/lex_dump.sh:13-15`.
+- **Erro no fonte do usuário, lexer:** `test/cgen/lex/diag.k:6`
   (`#define keel_x 1`) e `:7` (`#define KEEL_CHECKS 0`), esperados em
-  `tools/cgen/test/lex/diag.stderr:4-5` como `define-over-keel-name`. Palavras
+  `test/cgen/lex/diag.stderr:4-5` como `define-over-keel-name`. Palavras
   contextuais em `diag.k:8-10` (`define-over-keel-word`, `diag.stderr:6-8`).
-- **Caso de diagnóstico:** `tools/cgen/test/diag/define-keel-name/bad.k:4`
+- **Caso de diagnóstico:** `test/cgen/diag/define-keel-name/bad.k:4`
   `#define keel_code 1 /* DIAG: define-over-keel-name */ /* a keel_ name: the
   error wins */`; `:6` `#define KEEL_X 1`. `bad.k:2-3` (`foreach`, `protocol`) são
   `define-over-keel-word`; `:5` (`#define parent 1`) é papel, sem diagnóstico.
-- **CLI:** `tools/cgen/test/cli/parse_errors.sh:11` e `tools/cgen/test/cli/imports.py:39-40`
+- **CLI:** `test/cgen/cli/parse_errors.sh:11` e `test/cgen/cli/imports.py:39-40`
   (`usebad`, `define-over-keel-name`).
-- **`reserved-name` no usuário:** `tools/cgen/test/diag/decls/d.k:15`
+- **`reserved-name` no usuário:** `test/cgen/diag/decls/d.k:15`
   `pub int keel_count;  /* DIAG: reserved-name */`.
 - **Não há** caso que afirme a isenção de `reserved-name` para a base, nem caso
   de `module keel.*` fora de `base/` com `keel_`/`KEEL_` declarado.
-- `tools/cgen/test/diag/signatures/s.k:3-4` usa `keel_code` em função (`not-in-v0`).
+- `test/cgen/diag/signatures/s.k:3-4` usa `keel_code` em função (`not-in-v0`).
 
 ## 5. O C gerado (golden)
 

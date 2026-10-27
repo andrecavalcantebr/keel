@@ -138,10 +138,10 @@ Isso é estimativa da forma, e não um projeto de função a função.
   loader ("um teste entrega bytes"), sem diretório temporário: substituição
   (`type`, `dim`, `keel_code`, valor), renome, origem, `return`, ciclo,
   profundidade e tamanho.
-- **Oráculo de parse** (`tools/cgen/test/parse/`): o `001` muda a linha da ilha
+- **Oráculo de parse** (`test/cgen/parse/`): o `001` muda a linha da ilha
   do `from_stack`; casos novos para `greet` e para o `from_stack` duas vezes no
   mesmo bloco.
-- **Diagnósticos** (`tools/cgen/test/diag/`): um diretório `molds/` com um caso
+- **Diagnósticos** (`test/cgen/diag/`): um diretório `molds/` com um caso
   de falha por identificador novo. A cobertura do catálogo (hoje 29 de 140) sobe.
 - **Golden:** o caso `001-arena-buffer-defer` usa
   `if (!arena.from_stack(t, 4096)) return ...` (`golden/cases/001-.../app/cfg.k:33`);

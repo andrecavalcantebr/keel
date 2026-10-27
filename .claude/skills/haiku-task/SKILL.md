@@ -17,7 +17,7 @@ what the Haiku agent does. The card is the contract between them.
   a normative document, or a surgical integration whose contract lives only in
   this conversation — write a fuller card or do it yourself.
 - **The oracle comes first and is written by hand.** Expected dumps
-  (`tools/cgen/test/parse/*.parse`), unit-test assertions and golden
+  (`test/cgen/parse/*.parse`), unit-test assertions and golden
   `expected/` are derived by reasoning over the `.k`, the spec and the
   backend — never by running cgen and capturing its output (that tests the
   tool against itself; `golden/README.md`).
@@ -32,7 +32,7 @@ what the Haiku agent does. The card is the contract between them.
 - **A refactor takes the snapshot before anyone edits:**
   `sh tools/agents/verify.sh snapshot /tmp/keel-snap-<id>`.
 - **Oracles must survive a hang:** a unit test wraps its binary in
-  `timeout 10`, as the existing `tools/cgen/test/unit/*.sh` do.
+  `timeout 10`, as the existing `test/cgen/unit/*.sh` do.
 
 ## Orchestrator: the card (`tools/agents/tasks/<id>.md`)
 

@@ -200,7 +200,7 @@ Os casos de falha ficam em `test/diag/` ([G3], `diag-design.md` §7): cada fonte
 marca a linha que deve ser recusada com `/* DIAG: <identificador> */`, e
 `test/diag.py` compara o conjunto (arquivo, linha, identificador) impresso com o
 marcado. A última linha do teste é a cobertura do catálogo;
-`python3 tools/cgen/test/diag.py --coverage -v` lista o que falta.
+`python3 test/cgen/diag.py --coverage -v` lista o que falta.
 
 ## Protocolos, papéis e função sobre protocolo (2026-10-02)
 

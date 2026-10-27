@@ -209,6 +209,6 @@ O `#line` continua exigido e nenhuma linha MAPPED muda de número.
 - `golden/run.sh`: `45 ok, 0 fail, 0 xfail, 0 xpass, 3 wip` (rc 0). Os 3 WIP são
   022, 023 e 024 (linux-list), que o próprio `run.sh` marca.
 - `git status` mostra mudanças que não são minhas e que eu não toquei: `M tools/transform/README.md` e os
-  não rastreados `tools/cgen/src/engine/emit/`, `tools/cgen/test/unit/emit_mangle*`,
-  `tools/cgen/test/unit/emit_writer*`. Não estavam no `git status` do início da
+  não rastreados `tools/cgen/src/engine/emit/`, `test/cgen/unit/emit_mangle*`,
+  `test/cgen/unit/emit_writer*`. Não estavam no `git status` do início da
   sessão; vale ver se outro agente está trabalhando na mesma árvore.

@@ -29,7 +29,7 @@ etapas 4a–4i, o fecho de instâncias como dado (`KAst.closure`, semeado també
 pelas chamadas de `keel.array` e de função sobre protocolo), a superfície
 degenerada, a análise de papéis (§4.12) e os diagnósticos das três passagens
 — 136 dos 148 do catálogo com caso de falha (43 casos em
-`tools/cgen/test/diag/`). `info` sai por padrão, só do módulo traduzido.
+`test/cgen/diag/`). `info` sai por padrão, só do módulo traduzido.
 Ainda não há emissão de C. O detalhe está em `tools/cgen/src/engine/README.md`.
 
 ## As duas decisões de arquitetura de 2026-09-20

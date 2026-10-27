@@ -105,7 +105,7 @@ ok   behaviour identical to /tmp/keel-snap-base
 ALL OK
 ```
 
-Em `sh tools/cgen/test/run.sh`, todos os `unit/parser_*` saíram `ok`
+Em `sh test/cgen/run.sh`, todos os `unit/parser_*` saíram `ok`
 (`parser_declarator_head` deixou de existir).
 
 ## Dúvidas e pontos abertos

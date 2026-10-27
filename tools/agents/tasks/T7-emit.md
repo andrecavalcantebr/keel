@@ -10,8 +10,8 @@ por chamada. A fatia da linguagem é a que dois oráculos exigem, e nada mais:
 - o prelúdio `base/keel.k`: `import_c`, `typedef`, C opaco de topo
   (`static_assert`), `extern_c [type_h]` e protocolos.
 
-O oráculo é `tools/cgen/test/unit/emit_main.c` (rodado por `emit.sh`), escrito
-à mão: o esperado do `hello` está em `tools/cgen/test/gen/hello/expected/<p>/`
+O oráculo é `test/cgen/unit/emit/emit_main.c` (rodado por `emit.sh`), escrito
+à mão: o esperado do `hello` está em `test/cgen/gen/hello/expected/<p>/`
 e o do prelúdio em `golden/<p>/keel.type.h` e `keel.h`. Hoje `emit.c` está
 vazio e o `make check` mostra `wip unit/emit`; quando ele ganhar conteúdo o
 teste passa a valer.
@@ -166,7 +166,7 @@ int hello_main(int argc, char **argv);                           (mapped passa a
 ## Aceitação
 
 ```sh
-sh tools/cgen/test/unit/emit.sh            # -> ok
+sh test/cgen/unit/emit/emit.sh            # -> ok
 sh tools/agents/verify.sh                  # -> ALL OK (o build não pode ganhar aviso)
 make -C tools/cgen check | grep unit/emit  # -> "ok" para emit, emit_mangle, emit_writer; nenhum wip
 ```

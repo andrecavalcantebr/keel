@@ -1,0 +1,3 @@
+test/cgen/lex/eof-escape.k:1:1: ident "x"
+test/cgen/lex/eof-escape.k:1:3: string "\"a\\"
+test/cgen/lex/eof-escape.k:1:6: eof

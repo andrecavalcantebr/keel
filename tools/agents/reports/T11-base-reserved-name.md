@@ -14,11 +14,11 @@
   `reserved-name` só sai quando o nome começa com `keel_`/`KEEL_` **e** o
   módulo não é da base. O resto da função (palavras contextuais,
   `keel-name-shadowed`, `shadowed-injected-name`) não mudou.
-- `tools/cgen/test/diag/cases.txt`: duas linhas novas.
-- `tools/cgen/test/diag/base-names/keel/probe.k` (novo): `module keel.probe;`
+- `test/cgen/diag/cases.txt`: duas linhas novas.
+- `test/cgen/diag/base-names/keel/probe.k` (novo): `module keel.probe;`
   com `pub int keel_count;` e `#define KEEL_PROBE 1`, sem marcador. O caso
   afirma que a base não recebe diagnóstico.
-- `tools/cgen/test/diag/base-names-keelx/keelx/q.k` (novo): `module keelx.q;`
+- `test/cgen/diag/base-names-keelx/keelx/q.k` (novo): `module keelx.q;`
   com `pub int keel_count;  /* DIAG: reserved-name */`. É o controle negativo:
   `keelx` não é base, e o erro continua valendo.
 
@@ -74,12 +74,12 @@ make: Saindo do diretório '/home/andre/code/cprojects/keel/tools/cgen'
  M tools/cgen/src/engine/parser/parser_islands.c
  M tools/cgen/src/engine/parser/parser_islands_checks.c
  M tools/cgen/src/engine/parser/parser_islands_internal.h
- M tools/cgen/test/diag/cases.txt
+ M test/cgen/diag/cases.txt
 ?? tools/agents/reports/T10-keel-prefix-audit.md     (anterior)
 ?? tools/agents/tasks/T10-keel-prefix-audit.md       (anterior)
 ?? tools/agents/tasks/T11-base-reserved-name.md      (este cartão)
-?? tools/cgen/test/diag/base-names-keelx/            (novo)
-?? tools/cgen/test/diag/base-names/                  (novo)
+?? test/cgen/diag/base-names-keelx/            (novo)
+?? test/cgen/diag/base-names/                  (novo)
 ```
 
 ## As duas medições do T10

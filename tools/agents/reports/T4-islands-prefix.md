@@ -61,7 +61,7 @@ linhas com mais de um nome renomeado contam uma vez só).
   justificativas a registrar.
 - **Outros arquivos:** `tools/cgen/src/engine/islands.h` declara só
   `k_collect_islands`. Nenhum outro arquivo chama, declara ou define os 103
-  nomes (grep em `tools/cgen/src` e `tools/cgen/test`, sem achados fora de
+  nomes (grep em `tools/cgen/src` e `test/cgen`, sem achados fora de
   `parser_islands*`). `parser_islands_internal.h` é incluído só pelos seis
   `parser_islands*.c` e por `parser_islands.c`.
 - **Macros:** nenhum `#define` usa um dos 103 nomes.

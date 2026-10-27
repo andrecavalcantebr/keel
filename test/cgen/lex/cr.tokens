@@ -1,0 +1,5 @@
+test/cgen/lex/cr.k:1:1: ident "a"
+test/cgen/lex/cr.k:2:1: ident "b\\\rc"
+test/cgen/lex/cr.k:4:1: pp-if "#if X\r"
+test/cgen/lex/cr.k:5:1: pp-endif "#endif\r"
+test/cgen/lex/cr.k:6:1: eof

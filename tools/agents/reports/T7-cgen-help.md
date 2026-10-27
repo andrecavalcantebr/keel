@@ -5,7 +5,7 @@
 Único arquivo editado: `tools/cgen/src/tool/main.c`.
 
 1. **`static void print_help(void)`**, inserida antes de `int main` (linhas 31–61).
-   O texto foi gerado a partir de `tools/cgen/test/cli/help.expected` por um
+   O texto foi gerado a partir de `test/cgen/cli/help.expected` por um
    script (`sed`: escapa `\` e `"`, acrescenta `\n` ao fim de cada linha), e não
    redigitado. É uma única chamada `fputs(..., stdout)` com uma literal por linha
    do `.expected`. As 26 linhas e o `\n` final batem byte a byte.
@@ -28,7 +28,7 @@ gcc  ./obj/tool/read_source.o ... -lm -o cgen
 make: Saindo do diretório '/home/andre/code/cprojects/keel/tools/cgen'
 ```
 
-`sh tools/cgen/test/cli/help.sh`:
+`sh test/cgen/cli/help.sh`:
 
 ```
 ok: help (26 lines, 5 lines of invocation, --help forwarded)
@@ -48,8 +48,8 @@ ALL OK
 ```
  M tools/cgen/src/tool/main.c
 ?? tools/agents/tasks/T7-cgen-help.md
-?? tools/cgen/test/cli/help.expected
-?? tools/cgen/test/cli/help.sh
+?? test/cgen/cli/help.expected
+?? test/cgen/cli/help.sh
 ```
 
 Além disso, `./tools/cgen/cgen --cgen-help` sai com 0, stderr vazio e stdout

@@ -32,8 +32,9 @@ para cá.
 - `golden/run.sh` é o oráculo, e tem de ficar verde. Caso em construção leva
   `WIP` (ver `golden/README.md`).
 - Trabalho local vai direto no `master`, com um commit local depois de cada
-  alteração. Os dois oráculos (`make -C tools/cgen check` e `golden/run.sh`)
-  rodam antes de cada commit.
+  alteração. Os dois oráculos (`make -C tools/cgen check` e `golden/run.sh`,
+  juntos em `test/run.sh`) rodam antes de cada commit. Os testes do cgen
+  moram em `test/cgen/`, ao lado do `golden/`.
 
 ## Fluxo de trabalho (desde 2026-10-22)
 

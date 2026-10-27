@@ -3,8 +3,8 @@
 **Estado: aceitação passa (atualizado em 2026-10-26; o bloqueio abaixo foi resolvido pela opção 1 em `c337f85`).** Texto original do agente:
 
 **Estado: aceitação NÃO passa.** `emit.c` está escrito e o oráculo de asserções
-passa, mas `tools/cgen/test/unit/emit.sh` falha por LeakSanitizer, que vem do
-próprio oráculo (`tools/cgen/test/unit/emit_main.c`), fora da lista de arquivos
+passa, mas `test/cgen/unit/emit/emit.sh` falha por LeakSanitizer, que vem do
+próprio oráculo (`test/cgen/unit/emit/emit_main.c`), fora da lista de arquivos
 do cartão. Não alterei o oráculo nem o `emit.sh`. Precisa de decisão (ver
 "Bloqueio").
 
@@ -60,7 +60,7 @@ Medido com um programa de `/tmp` (ligado aos fontes de `engine/`, sem `emit.c`):
 
 ## Saída das aceitações
 
-- `sh tools/cgen/test/unit/emit.sh` (rodado sem o detector de vazamento,
+- `sh test/cgen/unit/emit/emit.sh` (rodado sem o detector de vazamento,
   `ASAN_OPTIONS=detect_leaks=0`): `ok     emit: hello (4 files) and the prelude (2 headers), c23 and c11`, exit 0.
   Com o detector normal (o comando da aceitação), falha:
   `LeakSanitizer: ... 73697 byte(s) leaked in 8 allocation(s)`, todos em

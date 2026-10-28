@@ -1168,11 +1168,7 @@ pub void eval(tagged Kind NodeRef t) {
 
 ```c
 //C gerado
-typedef enum ast_Kind {
-    ast_Kind_LIT,            /* 0 — ordinal of the written position */
-    ast_Kind_ADD,
-    ast_Kind_MUL
-} ast_Kind;
+typedef enum ast_Kind {ast_Kind_LIT, ast_Kind_ADD, ast_Kind_MUL} ast_Kind;
 
 void ast_eval(keel_tagged_ast_Kind_ast_NodeRef t) {
     switch (t.tag) {                                  /* jumps only: nothing of the user's here */
@@ -1193,9 +1189,25 @@ void ast_eval(keel_tagged_ast_Kind_ast_NodeRef t) {
 }
 ```
 
+A escrita multilinha do autor é preservada, com os valores:
+
+```keel
+pub tags Status [
+    SUCCESS = -1,
+    ONGOING = 0
+];
+```
+
+```c
+typedef enum keel_corot_Status {
+    keel_corot_Status_SUCCESS = -1,
+    keel_corot_Status_ONGOING = 0
+} keel_corot_Status;
+```
+
 **Regras**
 
-1. O conjunto sai como `enum` nomeado `M_<conjunto>`, com as constantes `M_<conjunto>_<tag>` (§2.1), na ordem da lista declarada; um valor escrito sai literalmente. `pub` põe o `enum` no `.type.h`, `priv` no `.c` (§4.3.2). [D11](#10-decisões-de-emissão)
+1. O conjunto sai como `enum` nomeado `M_<conjunto>`, com as constantes `M_<conjunto>_<tag>` (§2.1), na ordem da lista declarada; um valor escrito sai literalmente. **O `enum` segue a escrita do autor:** `tags Nome [ … ];` vira `typedef enum M_Nome { … } M_Nome;`. O `[` troca-se por `{`, o `]` por `}`, cada nome de tag ganha o prefixo, e todo o resto (espaços, quebras de linha, valores) sai como foi escrito. A declaração ocupa, no C, as mesmas linhas que ocupava no `.k`. `pub` põe o `enum` no `.type.h`, `priv` no `.c` (§4.3.2). [D11](#10-decisões-de-emissão)
 2. O despacho é um `switch` que contém só saltos: um `case` por tag, com `goto` para o rótulo do braço, e `default`. [R: estrutura de controle](keel-rationale.md#estrutura-de-controle-e-máquina-completa)
 3. O operando é lido uma vez: o próprio valor, quando o tipo declarado é o conjunto — `switch (k)`, ou `switch (*app_ast_ast_kind_ptr(&t, i))` sobre coluna de `extent` (§5.15); o campo de etiqueta, sobre instância de `tagged`; a chamada do verbo `tag`, sobre outro tipo que o declare, como `corot`. [R: conjuntos fechados](keel-rationale.md#conjuntos-fechados-e-exaustividade)
 4. Cada braço é um bloco, com o rótulo `keel__m<N>_<TAG>` antes da chave de abertura. Rótulos consecutivos empilham antes da mesma chave: `keel__m0_ADD: keel__m0_MUL: { … }`. [D10](#10-decisões-de-emissão)

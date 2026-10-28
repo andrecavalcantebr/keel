@@ -403,7 +403,7 @@ reais, que são o que o `KWriter` tem de produzir:
 | --- | --- |
 | linhas do `.k` que não saem (em branco, comentário, `module`, o que foi para outro arquivo) | a declaração seguinte de um header, depois de um corpo que foi para o `.c` |
 | a saída reordena o `.k` | uma instância emite os verbos do genérico; o lowering de `parallel`/`match` |
-| uma linha do `.k` vira várias | struct de instância, enum de `tags`: ressincroniza depois |
+| uma linha do `.k` vira várias | struct de instância: ressincroniza depois |
 | uma linha injetada no meio de um corpo | o `KEEL_CHECK` do `as_slice` (backend §5.17, 7a): `#line` logo depois dele |
 
 Com `k_emit_at`, todas são o mesmo caso: a linha pedida não é a que o contador

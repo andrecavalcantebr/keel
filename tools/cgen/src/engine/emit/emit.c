@@ -15,16 +15,23 @@
 #define LINE_CAP 1024           /* one changed source line, or one prototype */
 #define MAX_EDITS 32            /* the edits of one line */
 
-typedef enum { EDIT_DROP, EDIT_RENAME, EDIT_ASSERT, EDIT_STATIC, EDIT_TAG } EditKind;
+typedef enum {
+    EDIT_DROP, EDIT_RENAME, EDIT_ASSERT, EDIT_STATIC, EDIT_TAG,
+    EDIT_TEXT, EDIT_ENUMERATOR, EDIT_ENUM_CLOSE
+} EditKind;
 
 /* source bytes [at, at + skip) are replaced: DROP by nothing, RENAME by the
  * mangled name of the declaration whose name is token `name_tok`, ASSERT by
- * _Static_assert, STATIC by `static`; TAG inserts " <mangled name>" (skip is 0) */
+ * _Static_assert, STATIC by `static`; TAG inserts " <mangled name>" (skip is 0);
+ * TEXT by `text`; ENUMERATOR (a tag of a `tags`) by <mangled set>_<the tag>,
+ * and ENUM_CLOSE by "} <mangled set>", both naming the set by `name_tok` */
 typedef struct {
     EditKind kind;
     size_t at, skip;
     size_t name_tok;
     bool is_type;
+    const char *text;           /* TEXT: a string literal */
+    size_t text_len;
 } Edit;
 
 typedef struct {
@@ -134,20 +141,41 @@ static const KAstNode *declared_at(const Emit *e, size_t i) {
 static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     bool value = declares_value(n->kind);
-    if (n->kind == K_AST_TYPE || value) {
+    if (n->kind == K_AST_TYPE || n->kind == K_AST_TAGS || value) {
         size_t at = tok_off(ast, n->first);
         if (is_visibility(tok(ast, n->first)) && at >= a && at < b) {
             if (value && text_is(tok(ast, n->first), "priv")) {
                 /* a priv function or variable is internal linkage in the .c */
-                push_edit(e, ed, cnt, (Edit){ EDIT_STATIC, at, tok(ast, n->first).len, 0, false });
+                push_edit(e, ed, cnt, (Edit){ .kind = EDIT_STATIC, .at = at, .skip = tok(ast, n->first).len, .name_tok = 0, .is_type = false });
             } else {
                 /* the keyword and the blanks after it */
                 size_t skip = tok(ast, n->first).len;
                 while (at + skip < b && (ast->source.ptr[at + skip] == ' ' || ast->source.ptr[at + skip] == '\t'))
                     skip++;
-                push_edit(e, ed, cnt, (Edit){ EDIT_DROP, at, skip, 0, false });
+                push_edit(e, ed, cnt, (Edit){ .kind = EDIT_DROP, .at = at, .skip = skip, .name_tok = 0, .is_type = false });
             }
         }
+    }
+    if (n->kind == K_AST_TAGS) {
+        /* `tags N [A, B = 3];` -> `typedef enum M_N {M_N_A, M_N_B = 3} M_N;` (backend
+         * §5.6, rule 1): the author's text stays; only the words around it change */
+        size_t k = n->first + (is_visibility(tok(ast, n->first)) ? 1 : 0);
+        size_t open = n->name_first + 1, close = n->end - 2;   /* `[` and `]` */
+        if (tok_off(ast, k) >= a && tok_off(ast, k) < b)
+            push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = tok_off(ast, k), .skip = tok(ast, k).len, .name_tok = 0, .is_type = false, .text = "typedef enum", .text_len = 12 });
+        if (tok_off(ast, n->name_first) >= a && tok_off(ast, n->name_first) < b)
+            push_edit(e, ed, cnt, (Edit){ .kind = EDIT_RENAME, .at = tok_off(ast, n->name_first), .skip = tok(ast, n->name_first).len, .name_tok = n->name_first, .is_type = true });
+        if (tok_off(ast, open) >= a && tok_off(ast, open) < b)
+            push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = tok_off(ast, open), .skip = 1, .name_tok = 0, .is_type = false, .text = "{", .text_len = 1 });
+        for (size_t i = open + 1; i < close; i++) {
+            /* a tag name follows the `[` or a `,`; what follows an `=` is a value */
+            if (!text_is(tok(ast, i - 1), "[") && !text_is(tok(ast, i - 1), ",")) continue;
+            size_t at = tok_off(ast, i);
+            if (at >= a && at < b)
+                push_edit(e, ed, cnt, (Edit){ .kind = EDIT_ENUMERATOR, .at = at, .skip = tok(ast, i).len, .name_tok = n->name_first, .is_type = true });
+        }
+        if (tok_off(ast, close) >= a && tok_off(ast, close) < b)
+            push_edit(e, ed, cnt, (Edit){ .kind = EDIT_ENUM_CLOSE, .at = tok_off(ast, close), .skip = 1, .name_tok = n->name_first, .is_type = true });
     }
     if (!is_keel(e->module)) {   /* the prelude's names are not prefixed (backend §4.2) */
         if (n->kind == K_AST_TYPE) {
@@ -157,7 +185,7 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
                 text_is(tok(ast, k + 2), "{") && n->name_first < n->name_end) {
                 size_t at = tok_end(ast, k + 1);
                 if (at >= a && at < b)
-                    push_edit(e, ed, cnt, (Edit){ EDIT_TAG, at, 0, n->name_first, true });
+                    push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TAG, .at = at, .skip = 0, .name_tok = n->name_first, .is_type = true });
             }
             for (size_t i = n->first; i < n->end; i++) {
                 /* the declarator, and the module types the members use; a member
@@ -166,14 +194,14 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
                 if (at < a || at >= b) continue;
                 const KAstNode *d = declared_at(e, i);
                 if (d && (i == n->name_first || d->kind == K_AST_TYPE || d->kind == K_AST_TAGS))
-                    push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, i).len, d->name_first, true });
+                    push_edit(e, ed, cnt, (Edit){ .kind = EDIT_RENAME, .at = at, .skip = tok(ast, i).len, .name_tok = d->name_first, .is_type = true });
             }
         } else if (value) {
             for (size_t i = n->first; i < n->end; i++) {
                 size_t at = tok_off(ast, i);
                 if (at < a || at >= b) continue;
                 const KAstNode *d = declared_at(e, i);
-                if (d) push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, i).len, d->name_first, d->kind == K_AST_TYPE || d->kind == K_AST_TAGS });
+                if (d) push_edit(e, ed, cnt, (Edit){ .kind = EDIT_RENAME, .at = at, .skip = tok(ast, i).len, .name_tok = d->name_first, .is_type = d->kind == K_AST_TYPE || d->kind == K_AST_TAGS });
             }
         }
     }
@@ -181,7 +209,7 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
     if (n->kind == K_AST_OPAQUE && !e->opt.c23 && text_is(tok(ast, n->first), "static_assert")) {
         size_t at = tok_off(ast, n->first);
         if (at >= a && at < b)
-            push_edit(e, ed, cnt, (Edit){ EDIT_ASSERT, at, tok(ast, n->first).len, 0, false });
+            push_edit(e, ed, cnt, (Edit){ .kind = EDIT_ASSERT, .at = at, .skip = tok(ast, n->first).len, .name_tok = 0, .is_type = false });
     }
 }
 
@@ -219,7 +247,7 @@ static void comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt) {
             while (rest < b && (s[rest] == ' ' || s[rest] == '\t')) rest++;
             if (rest >= b || s[rest] == '\n')              /* the comment ended the line */
                 while (cs > g0 && cs > a && (s[cs - 1] == ' ' || s[cs - 1] == '\t')) cs--;
-            if (end > cs) push_edit(e, ed, cnt, (Edit){ EDIT_DROP, cs, end - cs, 0, false });
+            if (end > cs) push_edit(e, ed, cnt, (Edit){ .kind = EDIT_DROP, .at = cs, .skip = end - cs, .name_tok = 0, .is_type = false });
             p = ce > p ? ce : p + 1;
         }
         if (i >= ntok) break;
@@ -241,6 +269,15 @@ static void copy_edited(Emit *e, size_t a, size_t b, const Edit *ed, size_t cnt)
         else if (ed[k].kind == EDIT_ASSERT) put_bytes(e, "_Static_assert", 14);
         else if (ed[k].kind == EDIT_STATIC) put_bytes(e, "static", 6);
         else if (ed[k].kind == EDIT_TAG) { put_bytes(e, " ", 1); put_mangled(e, ed[k].name_tok, true); }
+        else if (ed[k].kind == EDIT_TEXT) put_bytes(e, ed[k].text, ed[k].text_len);
+        else if (ed[k].kind == EDIT_ENUMERATOR) {
+            put_mangled(e, ed[k].name_tok, true);
+            put_bytes(e, "_", 1);
+            put_bytes(e, s + ed[k].at, ed[k].skip);
+        } else if (ed[k].kind == EDIT_ENUM_CLOSE) {
+            put_bytes(e, "} ", 2);
+            put_mangled(e, ed[k].name_tok, true);
+        }
         pos = ed[k].at + ed[k].skip;
     }
     if (e->ok) put_bytes(e, s + pos, b - pos);
@@ -367,36 +404,6 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
 }
 
-/* `tags N [A, B = 3];` -> the enum (backend §5.6, rule 1): one line when no
- * tag carries a value, else one tag per line, four blanks of indent. */
-static void emit_tags(Emit *e, const KAstNode *n) {
-    const KAst *ast = e->ast;
-    size_t open = n->name_first + 1, close = n->end - 2;   /* `[` and `]` */
-    bool values = false;
-    for (size_t i = open; i < close; i++) if (text_is(tok(ast, i), "=")) values = true;
-    e->n = 0;
-    put_bytes(e, "typedef enum ", 13);
-    put_mangled(e, n->name_first, true);
-    put_bytes(e, values ? " {\n" : " { ", 3);
-    for (size_t i = open + 1; i < close && e->ok; ) {
-        if (values) put_bytes(e, "    ", 4);
-        put_mangled(e, n->name_first, true);
-        put_bytes(e, "_", 1);
-        put_bytes(e, tok(ast, i).ptr, tok(ast, i).len);
-        i++;
-        if (text_is(tok(ast, i), "=")) {
-            put_bytes(e, " = ", 3);
-            for (i++; i < close && !text_is(tok(ast, i), ","); i++)
-                put_bytes(e, tok(ast, i).ptr, tok(ast, i).len);
-        }
-        if (i < close) { put_bytes(e, values ? ",\n" : ", ", 2); i++; }
-    }
-    put_bytes(e, values ? "\n} " : " } ", 3);
-    put_mangled(e, n->name_first, true);
-    put_bytes(e, ";\n", 2);
-    if (e->ok && !k_emit_at(&e->w, line_at(e, first_off(e, n)), (keel_slice_char){ e->n, e->buf })) e->ok = false;
-}
-
 /* ---- the header bodies ---- */
 
 /* .type.h: the typedefs, the opaque C, the import_c lines and the body of
@@ -415,10 +422,6 @@ static void type_h_body(Emit *e) {
                 e->done = line_end(e, last_end(e, n));
             }
             break;
-        case K_AST_TAGS:
-            emit_tags(e, n);
-            e->done = line_end(e, last_end(e, n));
-            break;
         case K_AST_CONSTEXPR:
             a = line_start(e, first_off(e, n));
             b = line_end(e, last_end(e, n));
@@ -426,6 +429,7 @@ static void type_h_body(Emit *e) {
             else emit_constexpr_c11(e, n);
             e->done = b;
             break;
+        case K_AST_TAGS:
         case K_AST_TYPE:
         case K_AST_OPAQUE:
             a = line_start(e, first_off(e, n));
@@ -642,8 +646,6 @@ static bool supported(const KAst *ast) {
                 char c = tok(ast, v).ptr[0];
                 if (c < '0' || c > '9') return false;
             }
-            for (size_t p = tok_off(ast, n->first); p < tok_end(ast, n->end - 1); p++)
-                if (ast->source.ptr[p] == '\n') return false;
             break;
         }
         case K_AST_CONSTEXPR: {

@@ -92,7 +92,37 @@ const KAstNode *k_em_declared_at(const Emit *e, size_t i) {
 
 void k_em_sort_edits(Edit *ed, size_t from, size_t cnt) {
     for (size_t i = from; i < cnt; i++)
-        for (size_t j = i; j > 0 && ed[j - 1].at > ed[j].at; j--) {
+        /* at the same position an insertion (skip 0) goes before a replacement */
+        for (size_t j = i; j > 0 && (ed[j - 1].at > ed[j].at ||
+                (ed[j - 1].at == ed[j].at && ed[j - 1].skip != 0 && ed[j].skip == 0)); j--) {
             Edit t = ed[j]; ed[j] = ed[j - 1]; ed[j - 1] = t;
         }
+}
+
+char *k_em_scratch(Emit *e, size_t n) {
+    if (e->scratch_n + n > sizeof e->scratch) { e->ok = false; return NULL; }
+    char *p = e->scratch + e->scratch_n;
+    e->scratch_n += n;
+    return p;
+}
+
+void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b) {
+    const KAst *ast = e->ast;
+    for (size_t i = tok_a; i < tok_b && e->ok; i++) {
+        if (i > tok_a) {   /* the gap between the two tokens, as written */
+            size_t g0 = k_em_tok_end(ast, i - 1), g1 = k_em_tok_off(ast, i);
+            k_em_put_bytes(e, ast->source.ptr + g0, g1 - g0);
+        }
+        char name[NAME_CAP];
+        size_t len;
+        const KAstNode *d;
+        if (k_em_constblock_rename(e, i, name, sizeof name, &len)) k_em_put_bytes(e, name, len);
+        else if ((d = k_em_declared_at(e, i)) != NULL)
+            k_em_put_mangled(e, d->name_first, d->kind == K_AST_TYPE || d->kind == K_AST_TAGS);
+        else k_em_put_bytes(e, k_em_tok(ast, i).ptr, k_em_tok(ast, i).len);
+    }
+}
+
+bool k_em_overlaps(const Emit *e, const KAstNode *n, size_t a, size_t b) {
+    return k_em_first_off(e, n) < b && k_em_last_end(e, n) > a;
 }

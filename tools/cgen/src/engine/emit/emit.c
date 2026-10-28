@@ -10,10 +10,6 @@
 
 #define EM_DASH "\xE2\x80\x94"  /* U+2014: the dash of every header comment */
 
-static bool overlaps(const Emit *e, const KAstNode *n, size_t a, size_t b) {
-    return k_em_first_off(e, n) < b && k_em_last_end(e, n) > a;
-}
-
 static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     bool value = k_em_declares_value(n->kind);
@@ -153,6 +149,7 @@ static void copy_edited(Emit *e, size_t a, size_t b, const Edit *ed, size_t cnt)
         else if (ed[k].kind == EDIT_STATIC) k_em_put_bytes(e, "static", 6);
         else if (ed[k].kind == EDIT_TAG) { k_em_put_bytes(e, " ", 1); k_em_put_mangled(e, ed[k].name_tok, true); }
         else if (ed[k].kind == EDIT_TEXT) k_em_put_bytes(e, ed[k].text, ed[k].text_len);
+        else if (ed[k].kind == EDIT_TOKS) k_em_put_range(e, ed[k].tok_a, ed[k].tok_b);
         else if (ed[k].kind == EDIT_ENUMERATOR) {
             k_em_put_mangled(e, ed[k].name_tok, true);
             k_em_put_bytes(e, "_", 1);
@@ -164,6 +161,7 @@ static void copy_edited(Emit *e, size_t a, size_t b, const Edit *ed, size_t cnt)
         pos = ed[k].at + ed[k].skip;
     }
     if (e->ok) k_em_put_bytes(e, s + pos, b - pos);
+    e->scratch_n = 0;   /* the edits' text is spent */
 }
 
 /* Writes the source lines [a, b) as the .k line `ln` (one call: a changed
@@ -173,7 +171,7 @@ static void emit_line(Emit *e, size_t ln, size_t a, size_t b) {
     size_t cnt = 0;
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (overlaps(e, n, a, b)) node_edits(e, n, a, b, ed, &cnt);
+        if (k_em_overlaps(e, n, a, b)) node_edits(e, n, a, b, ed, &cnt);
     }
     comment_edits(e, a, b, ed, &cnt);
     if (!e->ok) return;
@@ -437,7 +435,7 @@ static void emit_c(Emit *e) {
         bool empty = false, fn = false;
         for (size_t i = 0; i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-            if (!overlaps(e, n, a, b)) continue;
+            if (!k_em_overlaps(e, n, a, b)) continue;
             if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
             else empty = true;   /* every other kind in the slice has no C in the .c */
         }
@@ -476,8 +474,8 @@ static bool islands_supported(const KAst *ast) {
         if (is->kind != K_ISLAND_TYPE && is->kind != K_ISLAND_NAME && is->kind != K_ISLAND_CALL) {
             /* a construction a file of its own lowers answers for its kind; the
              * rename check below does not apply to it */
-            if (k_em_handles_array(is->kind) || k_em_handles_foreach(is->kind) ||
-                k_em_handles_index(is->kind) || k_em_handles_constblock(is->kind)) continue;
+            if (k_em_handles_array(ast, is) || k_em_handles_foreach(ast, is) ||
+                k_em_handles_index(ast, is) || k_em_handles_constblock(ast, is)) continue;
             return false;
         }
         const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
@@ -595,6 +593,7 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     e.ok = true;
     e.n = 0;
     e.block_ordinal = 0;
+    e.scratch_n = 0;
     k_writer_init(&e.w, out, src_path, opt.line_on);
 
     if (which == K_EMIT_ENTRY) {

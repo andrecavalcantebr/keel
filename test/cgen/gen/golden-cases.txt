@@ -6,3 +6,7 @@ test/cgen/gen/shapes|shapes.k|-
 007-instance|app/p.k|app.p
 008-block-constexpr|app/cx.k|app.cx
 test/cgen/gen/tags|modes.k|-
+test/cgen/gen/array|arr.k|-
+test/cgen/gen/foreach|loop.k|-
+test/cgen/gen/index|idx.k|-
+test/cgen/gen/constblock|cb.k|-

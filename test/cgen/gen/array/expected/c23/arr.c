@@ -9,6 +9,6 @@ size_t arr_bytes(void) {
     return sizeof(v) + sizeof(m);
 }
 
-size_t arr_count(i32 v[static 3]) {
+size_t arr_count(i32 v[static 2][3]) {
     (void)v; return 3;
 }

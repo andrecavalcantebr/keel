@@ -7,6 +7,6 @@
 #line 3 "arr.k"
 size_t arr_bytes(void);
 #line 9 "arr.k"
-size_t arr_count(i32 v[static 3]);
+size_t arr_count(i32 v[static 2][3]);
 
 #endif /* ARR_H */

@@ -6,6 +6,6 @@ pub size_t bytes(void) {
     return sizeof(v) + sizeof(m);
 }
 
-pub size_t count(array i32 v[3]) {
+pub size_t count(array i32 v[2,3]) {
     (void)v; return 3;
 }

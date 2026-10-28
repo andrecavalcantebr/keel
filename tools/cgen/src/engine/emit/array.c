@@ -7,7 +7,7 @@ void k_em_edits_array(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
     (void)e; (void)fn; (void)a; (void)b; (void)ed; (void)cnt;
 }
 
-bool k_em_handles_array(KIslandKind kind) {
-    (void)kind;
+bool k_em_handles_array(const KAst *ast, const KIsland *is) {
+    (void)ast; (void)is;
     return false;
 }

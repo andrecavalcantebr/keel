@@ -7,7 +7,7 @@ void k_em_edits_index(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
     (void)e; (void)fn; (void)a; (void)b; (void)ed; (void)cnt;
 }
 
-bool k_em_handles_index(KIslandKind kind) {
-    (void)kind;
+bool k_em_handles_index(const KAst *ast, const KIsland *is) {
+    (void)ast; (void)is;
     return false;
 }

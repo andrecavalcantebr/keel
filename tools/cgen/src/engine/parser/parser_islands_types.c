@@ -940,7 +940,11 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     if (!proto_of) {
         isl_put_str(&t, "_");
         isl_put(&t, declared.ptr, declared.len);
-        if (sig.found && sig.overloaded && argc > 1) isl_put_uint(&t, argc - 1);
+        if (sig.found) {
+            const KType *ki = inst >= 0 ? isl_kt(c, inst) : NULL;
+            if (sig.rank_binder >= 0 && (!ki || !isl_put_verb_suffix(c, ki, &sig, argc, &t))) return -1;
+            if (sig.rank_binder < 0 && sig.overloaded && argc > 1) isl_put_uint(&t, argc - 1);
+        }
     }
 
     /* a function over a protocol has its own roles, not those of the verb it

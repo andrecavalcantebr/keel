@@ -90,6 +90,9 @@ bool isl_container_verb(const KType *k, const KAst *home, keel_slice_char verb, 
     isl_put_str(tx, k->symbol);
     isl_put_str(tx, "_");
     isl_put(tx, verb.ptr, verb.len);
+    /* the vector accessor (rank suffix) is reached by call_core; the index form of a
+       `dim` modifier does not come here (§5.3.1) */
+    if (sig.rank_binder >= 0) return false;
     if (sig.overloaded && arity > 1) isl_put_uint(tx, arity - 1);
     if (sig.n && sig.p[0].pointer && k->pointers == 0 && k->lvalue) *adapt = true;
     return true;

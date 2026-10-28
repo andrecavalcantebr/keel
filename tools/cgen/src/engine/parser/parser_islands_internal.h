@@ -126,6 +126,8 @@ typedef struct {
     size_t n;
     bool found;
     bool overloaded;            /* declared in more than one arity (backend §2.1.1) */
+    int rank_binder;            /* the vector accessor `size_t idx[static N]`: N's place among the
+                                   `dim` binders, which names the rank suffix `_<N>` (§2.1.1, rule 6); -1 */
     bool producer;              /* returns the module's own type: `of`, `from`, `clone` (spec §4.4, item 1) */
     const KAstNode *fn;         /* the declaration found */
 } Sig;
@@ -167,6 +169,11 @@ bool isl_binder(const KAst *a, keel_slice_char name);
 keel_slice_char isl_modifier_of(const KAst *a);
 size_t isl_params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap);
 Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity);
+/* The suffix of verb `sig` on the container type k (backend §2.1.1): `_<N>` for
+   the vector accessor, with N the value of the instance's `dim`; the arity for an
+   overloaded verb of `arity` arguments; nothing otherwise. False when the rank is
+   not known. */
+bool isl_put_verb_suffix(const Ctx *c, const KType *k, const Sig *sig, size_t arity, Text *t);
 const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char name);
 const KModule *isl_module_by_name(const KSymbolTable *symbols, const char *name);
 bool isl_protocol_decl(const Ctx *c, const KAst *home, keel_slice_char name, KProtocolDecl *out, int depth);

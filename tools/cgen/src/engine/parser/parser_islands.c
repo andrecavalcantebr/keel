@@ -347,7 +347,61 @@ Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity) {
         }
     }
     sig.overloaded = (seen & (seen - 1)) != 0;
+    sig.rank_binder = -1;
+    /* the vector accessor: a second parameter `size_t idx[static N]`, N a `dim` binder */
+    if (sig.found && sig.n == 2) {
+        const Param *p = &sig.p[1];
+        const KAstNode *m = isl_module_node(a);
+        for (size_t k = p->first; k + 3 < p->end; k++) {
+            if (!isl_punct(a, k, "[") || !isl_word(a, k + 1, "static") || !isl_punct(a, k + 3, "]")) continue;
+            int at = 0;
+            for (size_t j = m->dim_first; j < m->dim_end; j++) {
+                if (!isl_ident(a, j) || isl_word(a, j, "dim")) continue;
+                if (k_symtab_same_name(isl_tok(a, j), isl_tok(a, k + 2))) { sig.rank_binder = at; break; }
+                at++;
+            }
+        }
+    }
     return sig;
+}
+
+bool isl_put_verb_suffix(const Ctx *c, const KType *k, const Sig *sig, size_t arity, Text *t) {
+    if (sig->rank_binder < 0) {
+        if (sig->overloaded && arity > 1) isl_put_uint(t, arity - 1);
+        return true;
+    }
+    /* the instance's dimensions are in its symbol, after the modifier and before
+       the type arguments, as decimals: `grids_grid_3_f32` (backend §2.2) */
+    if (k->kind != KT_MODIFIER || !*k->symbol || !k->module) return false;
+    const KAst *home = isl_ast_of(c, k->module);
+    if (!home) return false;
+    const KAstNode *m = isl_module_node(home);
+    int dims = 0;
+    for (size_t j = m->dim_first; j < m->dim_end; j++)
+        if (isl_ident(home, j) && !isl_word(home, j, "dim")) dims++;
+    const char *s = k->symbol;
+    size_t hi = strlen(s);
+    for (int g = k->argc; g-- > 0; ) {
+        const char *as = isl_kt_symbol(c, k->arg[g]);
+        size_t al = strlen(as);
+        if (!al || hi < al + 1 || memcmp(s + hi - al, as, al) != 0 || s[hi - al - 1] != '_') return false;
+        hi -= al + 1;
+    }
+    /* the last `dims` groups are the dimensions; the one wanted is rank_binder */
+    size_t end[8], start[8];
+    int n = 0;
+    while (n < dims && n < 8) {
+        size_t e = hi, b = hi;
+        while (b > 0 && s[b - 1] >= '0' && s[b - 1] <= '9') b--;
+        if (b == e || b == 0 || s[b - 1] != '_') return false;
+        start[n] = b; end[n] = e; n++;
+        hi = b - 1;
+    }
+    if (n != dims || sig->rank_binder >= dims) return false;
+    int g = dims - 1 - sig->rank_binder;      /* collected from the end */
+    isl_put_str(t, "_");
+    isl_put(t, s + start[g], end[g] - start[g]);
+    return true;
 }
 
 const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char name) {

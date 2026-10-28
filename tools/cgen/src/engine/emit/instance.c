@@ -61,6 +61,37 @@ static size_t binders(const KAst *ast, size_t first, size_t end) {
     return k;
 }
 
+/* The rank suffix of a vector accessor (backend §2.1.1, rule 6): the function's
+ * second parameter is `size_t idx[static N]`, with N a `dim` binder, and the
+ * suffix is `_<value of N>`. False for any other function. */
+static bool rank_of(const Emit *e, const KAstNode *fn, keel_slice_char *value) {
+    const KAst *ast = e->ast;
+    if (fn->kind != K_AST_FUNCTION || fn->name_first + 1 >= fn->end || !k_em_text_is(k_em_tok(ast, fn->name_first + 1), "(")) return false;
+    size_t depth = 0, param = 0;
+    for (size_t j = fn->name_first + 2; j + 3 < fn->end; j++) {
+        KToken t = k_em_tok(ast, j);
+        if (k_em_text_is(t, "(")) depth++;
+        else if (k_em_text_is(t, ")")) { if (depth == 0) break; depth--; }
+        else if (depth == 0 && k_em_text_is(t, ",")) param++;
+        else if (param == 1 && k_em_text_is(t, "[") && k_em_text_is(k_em_tok(ast, j + 1), "static") &&
+                 k_em_text_is(k_em_tok(ast, j + 3), "]")) {
+            const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
+            size_t k = 0;
+            for (size_t b = m->dim_first; b < m->dim_end; b++) {
+                KToken x = k_em_tok(ast, b);
+                if (!k_token_is_ident(x) || k_em_text_is(x, "dim")) continue;
+                if (same_text(x, k_em_tok(ast, j + 2))) {
+                    if (k >= e->inst->dimc) return false;
+                    *value = e->inst->dim[k];
+                    return true;
+                }
+                k++;
+            }
+        }
+    }
+    return false;
+}
+
 /* token `i` of the generic source, as the instance spells it; in the fields of
  * the modifier (`fields`) a name is a member, and only a type is renamed */
 static void put_token(Emit *e, size_t i, bool fields) {
@@ -78,6 +109,8 @@ static void put_token(Emit *e, size_t i, bool fields) {
                 put_slice(e, e->inst->symbol);
                 k_em_put_bytes(e, "_", 1);
                 k_em_put_bytes(e, t.ptr, t.len);
+                keel_slice_char rank;
+                if (rank_of(e, d, &rank)) { k_em_put_bytes(e, "_", 1); put_slice(e, rank); }
             } else {
                 k_em_put_mangled(e, d->name_first, d->kind == K_AST_TYPE || d->kind == K_AST_TAGS);
             }

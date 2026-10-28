@@ -87,7 +87,7 @@ Um backend C conforme deve, para cada módulo processado:
 4. Emitir `#line` de modo que todo diagnóstico do compilador C caia na linha do `.k` que o usuário escreveu (§6).
 5. Gerar código que satisfaça o princípio 2 da linguagem: código que um humano assinaria.
 
-A obrigação 5 tem uma única concessão deliberada, registrada no §6.
+A obrigação 5 tem uma concessão deliberada, registrada no §6: a linha de saída longa, em vez de várias linhas com `#line`.
 
 ---
 
@@ -1074,15 +1074,20 @@ priv int process(arena *a, const char *path) {
 static int app_main_process(keel_arena *a, const char *path) {
     FILE *fp = fopen(path, "r");
     if (!fp) return -1;                     /* nothing to clean up: the defer is not registered yet */
-    struct { FILE *fp; } keel__c0 = { fp };  /* [now]: copy at the registration point */
+    struct { FILE *fp; } keel__c0 = { fp }; int keel__rv0;   /* [now]: copy at the registration point */
 
     keel_arena s = {0};
     keel_arena_from_parent(&s, a, 4096);
 
 
-    if (!parse(&s, fp)) { keel_arena_reset(&s); fclose(keel__c0.fp); return -2; }
-    keel_arena_reset(&s); fclose(keel__c0.fp); return 0;
-}
+    if (!parse(&s, fp)) { keel__rv0 = -2; goto keel__e1; }
+    keel__rv0 = 0; goto keel__e1;
+#line 31 "app/main.k"
+keel__e1: keel_arena_reset(&s);
+#line 27 "app/main.k"
+keel__e0: fclose(keel__c0.fp);
+#line 35 "app/main.k"
+    return keel__rv0; }
 ```
 
 ```keel
@@ -1100,7 +1105,7 @@ app_report(keel__c0.out, keel__c0.fd);
 1. O backend varre o escopo, coleta os pontos de saída — fim natural do bloco, `return`, `break` e `continue` que deixam o escopo, `goto` para fora — e emite em cada um os corpos dos `defer` pendentes naquele escopo, em ordem inversa. Não há registro em runtime nem flag.
 2. `defer` sem `[now]` não emite nada no ponto de registro: a linha de fonte vira linha em branco (§6).
 3. Uma saída anterior a um registro não recebe o cleanup dele: no exemplo, o `return -1`.
-4. O cleanup de cada saída sai numa linha só (§6, regra 2).
+4. O corpo de cada `defer` copiado a uma saída sai em linha de saída própria, uma por `defer`, mapeada à linha do `defer` que o escreveu: o `#line` aparece quando o contador diverge (§6). A instrução de saída é partida em torno do cleanup, e as duas partes ficam na linha dela: `if (h == 0) {`, o cleanup, `continue; }`. Assim um erro de tipo no corpo, e o passo do depurador, caem no `defer`, onde o programador o escreveu, e não no `return` que o disparou. [D61](#10-decisões-de-emissão)
 5. Em `return expr;`, `expr` vai para o temporário `keel__rv<N>` antes do cleanup, e o temporário é devolvido depois. Ele é declarado com o tipo de retorno escrito na função, copiado da produção `decl-function` (linguagem §2.2): `size_t f(…)` dá `size_t keel__rv0 = expr;`. Na escada (§5.5.2) o temporário é um só, declarado na linha do primeiro `defer` da função, ao lado da struct de `[now]` se houver; no cleanup inline cada `return` com valor declara o seu dentro do bloco que o substitui: `{ int keel__rv1 = expr; <cleanup> return keel__rv1; }`. O `return;` de função `void` não tem temporário. O lowering é o mesmo nos dois perfis. [D43](#10-decisões-de-emissão)
 6. `[now]` já traz os tipos escritos (linguagem §4.6): cada entrada vira, verbatim, membro de uma struct local `keel__c<N>`, preenchida no ponto de registro, e o corpo referencia as cópias. Sem `[now]`, o corpo referencia as variáveis diretamente, e não há struct.
 
@@ -1143,7 +1148,7 @@ keel__e0: s1(p);
 2. Se alguma saída é `break`, `continue` ou `goto`, o cleanup sai inline em cada uma.
 3. As duas formas só são equivalentes porque a linguagem recusa o sombreamento (`defer-later-shadowed`, linguagem §4.6): a escada emite o corpo uma vez, no fim do escopo do registro, e o inline o cola em cada saída, que pode estar num escopo mais interno. Se a recusa caísse, só a escada seria correta.
 4. A condição é sobre os cinco terminadores do C e não tem caso por construção: depois da expansão (§5.5.1), o corpo de um `parallel` tem saídas `goto`, e sai inline por dedução. O mesmo vale para `match`.
-5. Na escada, o conjunto sai na linha do `}` que fecha a função: os rótulos `keel__e<N>` em ordem inversa de registro (`e0` é o primeiro), cada um seguido do corpo do seu `defer`, e depois `return keel__rv<N>;` e o `}`. `return expr;` com `defer` pendente vira `keel__rv0 = expr; goto keel__e<K>;`, onde `K` é o último registrado até ali; leva chaves só quando o `return` era o corpo de um `if`, `else` ou laço sem chaves. O inline sai sempre entre chaves: `{ <cleanup> continue; }`. Um `return` anterior a qualquer registro não muda. O cleanup que fecha um bloco leva a indentação do `defer`.
+5. A escada sai no lugar do `}` que fecha a função: os rótulos `keel__e<N>` em ordem inversa de registro (`e0` é o primeiro), cada um na linha do corpo do seu `defer` (§5.5, regra 4), e depois, na linha do `}`, `return keel__rv<N>;` e o `}`. `return expr;` com `defer` pendente vira `keel__rv0 = expr; goto keel__e<K>;`, onde `K` é o último registrado até ali; leva chaves só quando o `return` era o corpo de um `if`, `else` ou laço sem chaves. O inline sai sempre entre chaves, com o cleanup em linhas próprias entre as duas metades da instrução: `{`, o cleanup, `continue; }`. Um `return` anterior a qualquer registro não muda. O cleanup que fecha um bloco leva a indentação do `defer`.
 
 ### 5.6 `tags` e `match`
 
@@ -1885,7 +1890,8 @@ Daí decorre o comportamento de cada região:
 | Transliteração 1:1 — `import`, `import_c` viram `#include` | não, se as linhas em branco forem preservadas | uma na entrada da região |
 | Declaração levada a header — tipo, protótipo, `extern`, `constexpr` de módulo | sim: o header as reúne fora da ordem e do espaçamento do fonte | uma antes de cada declaração cuja linha no `.k` não seja a que o contador da saída daria |
 | Expansão de builtin ocupando mais de uma linha | sim | ressincroniza depois |
-| Código injetado — struct de instância, cleanup de `defer`, temporário de `return` | sim | ressincroniza depois |
+| Código injetado — struct de instância, temporário de `return` | sim | ressincroniza depois |
+| Cleanup de `defer` copiado a uma saída | sim | uma antes de cada corpo, com a linha do `defer`, e uma depois, de volta à linha da saída (§5.5, regra 4) |
 | Linha injetada num corpo — o `KEEL_CHECK` do `as_slice` (§5.17, 7a) | sim | uma logo depois dela, de volta à linha seguinte do `.k` |
 | Gestor de `parallel` | sim | uma antes do corpo do worker, e uma depois do bloco (§5.9) |
 | Despacho de `match` | sim | uma antes de cada rótulo de braço, e uma depois do fim (§5.6) |
@@ -1898,7 +1904,7 @@ A linha de `import_c` merece nota, porque é o caso que o critério "copiado ver
 **Regras**
 
 1. Texto copiado nunca é reindentado nem reformatado: reformatar destruiria a posição de todo diagnóstico do compilador C naquela região. Na região de imports, as linhas em branco são preservadas, e uma diretiva só cobre o bloco inteiro.
-2. Em corpo de função, o lowering de uma linha de fonte ocupa uma linha de saída: uma chamada de verbo longa sai numa linha só, e uma expansão de dois statements também. É a única concessão deliberada ao princípio 2 da linguagem. [D61](#10-decisões-de-emissão)
+2. Em corpo de função, o lowering de uma linha de fonte ocupa uma linha de saída: uma chamada de verbo longa sai numa linha só, e uma expansão de dois statements também. É a concessão deliberada ao princípio 2 da linguagem. O cleanup de `defer` é a exceção a esta regra: sai em linhas próprias (§5.5, regra 4). [D61](#10-decisões-de-emissão)
 3. O `.c` preserva a estrutura de linhas do fonte: toda linha do `.k` tem a sua no `.c`, e o que vai para header — tipos, protótipos, `constexpr` de módulo —, os `import` e `import_c`, a linha `module` e os comentários deixam linha vazia. Um único `#line 1` abre o fonte, e só as expansões de várias linhas pedem ressincronização.
 4. Em todo arquivo, os `#include` sintéticos (do próprio `.type.h`, do prelúdio e os de perfil, como `<stdbool.h>` sob C11) vêm antes do primeiro `#line`.
 5. Comentários não chegam ao C: cada um vira espaços da mesma largura, com as quebras preservadas, e o espaço que sobra no fim da linha é cortado. A exceção é `extern_c`, cujo conteúdo é C e atravessa intacto (linguagem §2.4).
@@ -2120,7 +2126,7 @@ alternativa em aberto.
 | 58 | A conferência do `constexpr` sob C11 é um `static const`, e não `_Static_assert(sizeof((T){INIT}) > 0)` | §9.2. O literal composto em escopo de bloco não exige inicializador constante: conferia o tipo e deixava passar `constexpr int K = f();`, que o C23 recusa. O `K + K` do programa chamaria `f()` duas vezes, e o C11 aceitaria o que o C23 nega |
 | 59 | Em bloco, a macro do `constexpr` tem nome gerado, e os usos são reescritos | §9.2. Com o nome do usuário, a macro capturaria toda ocorrência do token no resto do bloco: `s->N` viraria `s->((size_t)8)`, erro do compilador C com mensagem que não aponta a causa. O prefixo `keel__` não colide com símbolo nem com macro de header, o nome do usuário no meio mantém o gerado legível, e o contador por função separa dois blocos irmãos |
 | 60 | A macro do `constexpr` sob C11 não é truque de macro | §9.2. O que a linguagem dispensa é a macro que constrói estrutura — colagem de token, X-Macro, `TRY`/`CATCH` —, que some do depurador e do diagnóstico. Uma constante nomeada não some de lugar nenhum, e `#define MAX ((size_t)4096)` é o que um C99 bem escrito faz |
-| 61 | Uma linha de fonte, uma linha de saída, mesmo quando longa | §6. Quebrar custaria um `#line` por statement, e sem ele todo o resto do corpo apontaria para a linha errada. A linha gerada fica mais longa que a de um humano, e se paga: é o que faz cada erro do compilador C cair na linha certa do `.k`, a razão de o princípio 3 funcionar. Linha vazia a mais no `.c` é C comum; trocar sequências delas por `#line` manteria a invariante |
+| 61 | Uma linha de fonte, uma linha de saída, mesmo quando longa — salvo o cleanup de `defer` | §6. Quebrar custaria um `#line` por statement, e sem ele todo o resto do corpo apontaria para a linha errada. O cleanup de `defer` é a exceção, porque ele é código que o programador escreveu em outra linha: copiado a um `return`, um erro de tipo no corpo apontaria para o `return`, e o depurador pararia nele; com linha própria e `#line` aponta para o `defer`, ao custo de duas diretivas por saída. A linha gerada fica mais longa que a de um humano, e se paga: é o que faz cada erro do compilador C cair na linha certa do `.k`, a razão de o princípio 3 funcionar. Linha vazia a mais no `.c` é C comum; trocar sequências delas por `#line` manteria a invariante |
 | 62 | A verificação de `range-index` é injetada no início do verbo, e não escrita nele | §5.17. Dentro da função, a chamada escrita à mão e o açúcar `x[a..b]` têm o mesmo regime, e o módulo não pode esquecê-la; os argumentos já foram avaliados uma vez (regra 5) |
 
 ---

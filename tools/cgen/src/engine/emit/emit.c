@@ -142,7 +142,48 @@ static void comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt) {
 }
 
 /* Copies source [a, b) into buf, applying the edits (sorted by position). */
-static void copy_edited(Emit *e, size_t a, size_t b, const Edit *ed, size_t cnt) {
+/* EDIT_LINES: the line is cut here (see emit_internal.h for the payload) */
+static void split_line(Emit *e, size_t ln, const char *p, size_t len) {
+    const char *end = p + len;
+    const char *tail = NULL;
+    size_t tail_len = 0;
+    bool flushed = false;
+    while (p < end && e->ok) {
+        const char *nl = memchr(p, '\n', (size_t)(end - p));
+        const char *rec_end = nl ? nl : end;
+        if (*p == 'H') {
+            k_em_put_bytes(e, p + 2, (size_t)(rec_end - (p + 2)));
+        } else {
+            if (!flushed) {   /* the first half goes out now, unless it is only blanks */
+                size_t i = 0;
+                while (i < e->n && (e->buf[i] == ' ' || e->buf[i] == '\t')) i++;
+                if (i < e->n) {
+                    k_em_put_bytes(e, "\n", 1);
+                    if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
+                }
+                e->n = 0;
+                flushed = true;
+            }
+            if (*p == 'L') {
+                size_t n = 0;
+                const char *q = p + 1;
+                while (q < rec_end && *q >= '0' && *q <= '9') n = n * 10 + (size_t)(*q++ - '0');
+                e->n = 0;             /* e->buf is free: the first half was written */
+                k_em_put_bytes(e, q + 1, (size_t)(rec_end - (q + 1)));
+                k_em_put_bytes(e, "\n", 1);
+                if (e->ok && !k_emit_at(&e->w, n, (keel_slice_char){ e->n, e->buf })) e->ok = false;
+                e->n = 0;
+            } else if (*p == 'T') {
+                tail = p + 2;
+                tail_len = (size_t)(rec_end - (p + 2));
+            }
+        }
+        p = nl ? nl + 1 : end;
+    }
+    if (tail) k_em_put_bytes(e, tail, tail_len);
+}
+
+static void copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, size_t cnt) {
     const char *s = e->ast->source.ptr;
     size_t pos = a;
     for (size_t k = 0; k < cnt && e->ok; k++) {
@@ -153,6 +194,7 @@ static void copy_edited(Emit *e, size_t a, size_t b, const Edit *ed, size_t cnt)
         else if (ed[k].kind == EDIT_TAG) { k_em_put_bytes(e, " ", 1); k_em_put_mangled(e, ed[k].name_tok, true); }
         else if (ed[k].kind == EDIT_TEXT) k_em_put_bytes(e, ed[k].text, ed[k].text_len);
         else if (ed[k].kind == EDIT_TOKS) k_em_put_range(e, ed[k].tok_a, ed[k].tok_b);
+        else if (ed[k].kind == EDIT_LINES) split_line(e, ln, ed[k].text, ed[k].text_len);
         else if (ed[k].kind == EDIT_ENUMERATOR) {
             k_em_put_mangled(e, ed[k].name_tok, true);
             k_em_put_bytes(e, "_", 1);
@@ -184,7 +226,7 @@ static void emit_line(Emit *e, size_t ln, size_t a, size_t b) {
         if (!k_emit_at(&e->w, ln, (keel_slice_char){ b - a, (char *)s + a })) e->ok = false;
     } else {
         e->n = 0;
-        copy_edited(e, a, b, ed, cnt);
+        copy_edited(e, ln, a, b, ed, cnt);
         if (e->n == 0 || e->buf[e->n - 1] != '\n') k_em_put_bytes(e, "\n", 1);
         if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
     }
@@ -226,7 +268,7 @@ static void emit_proto(Emit *e, const KAstNode *n) {
     comment_edits(e, a, b, ed, &cnt);
     if (!e->ok) return;
     e->n = 0;
-    copy_edited(e, a, b, ed, cnt);
+    copy_edited(e, k_em_line_at(e, a), a, b, ed, cnt);
     k_em_put_bytes(e, ";\n", 2);
     if (e->ok && !k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ e->n, e->buf })) e->ok = false;
 }
@@ -250,7 +292,7 @@ static void emit_extern(Emit *e, const KAstNode *n) {
     if (!e->ok) return;
     e->n = 0;
     k_em_put_bytes(e, "extern ", 7);
-    copy_edited(e, a, b, ed, cnt);
+    copy_edited(e, k_em_line_at(e, a), a, b, ed, cnt);
     k_em_put_bytes(e, ";\n", 2);
     if (e->ok && !k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ e->n, e->buf })) e->ok = false;
 }

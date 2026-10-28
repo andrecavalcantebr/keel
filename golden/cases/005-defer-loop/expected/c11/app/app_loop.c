@@ -21,10 +21,24 @@ int app_loop_run(int n) {
     for (int i = 0; i < n; i++) {
         int h = app_loop_acquire(i);
         struct { int h; } keel__c0 = { h };
-        if (h == 0) { app_loop_release(keel__c0.h); continue; }
-        if (h < 0)  { app_loop_release(keel__c0.h); break; }
-        if (h > 90) { int keel__rv0 = -1; app_loop_release(keel__c0.h); return keel__rv0; }
+        if (h == 0) {
+#line 20 "app/loop.k"
+        app_loop_release(keel__c0.h);
+        continue; }
+        if (h < 0)  {
+#line 20 "app/loop.k"
+        app_loop_release(keel__c0.h);
+#line 22 "app/loop.k"
+        break; }
+        if (h > 90) { int keel__rv0 = -1;
+#line 20 "app/loop.k"
+        app_loop_release(keel__c0.h);
+#line 23 "app/loop.k"
+        return keel__rv0; }
         total += h;
-        app_loop_release(keel__c0.h); }
+#line 20 "app/loop.k"
+        app_loop_release(keel__c0.h);
+#line 25 "app/loop.k"
+    }
     return total;
 }

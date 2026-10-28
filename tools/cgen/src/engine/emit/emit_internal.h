@@ -16,7 +16,7 @@
 
 typedef enum {
     EDIT_DROP, EDIT_RENAME, EDIT_ASSERT, EDIT_STATIC, EDIT_TAG,
-    EDIT_TEXT, EDIT_ENUMERATOR, EDIT_ENUM_CLOSE, EDIT_TOKS
+    EDIT_TEXT, EDIT_ENUMERATOR, EDIT_ENUM_CLOSE, EDIT_TOKS, EDIT_LINES
 } EditKind;
 
 /* source bytes [at, at + skip) are replaced: DROP by nothing, RENAME by the
@@ -26,7 +26,16 @@ typedef enum {
  * and ENUM_CLOSE by "} <mangled set>", both naming the set by `name_tok`;
  * TOKS by the source text of tokens [tok_a, tok_b) with every name renamed as
  * in the generated C (k_em_put_range), for a copy of source text that a
- * construction moves or repeats (the dimension in `keel_index(i, N)`) */
+ * construction moves or repeats (the dimension in `keel_index(i, N)`);
+ * LINES splits the output line at `at` around lines of their own, each with the
+ * .k line it maps to (backend §5.5, rule 4: the cleanup of a `defer`). `text` is
+ * the payload, one record per line of it:
+ *     H|<text>         appended to the first half (e.g. "{"); optional, first
+ *     L<n>|<text>      an output line of its own, mapped to .k line <n>
+ *     T|<text>         starts the second half (its indentation); last
+ * The first half is written as its own line unless it is only blanks; the
+ * second half continues with the source after the edit and is written by the
+ * caller as the line itself. The payload lives in k_em_scratch. */
 typedef struct {
     EditKind kind;
     size_t at, skip;

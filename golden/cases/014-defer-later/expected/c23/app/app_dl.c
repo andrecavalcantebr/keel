@@ -15,18 +15,27 @@ void app_dl_late(void) {
 
     x = 2;
     x = 3;
-    app_dl_note(x); }
+#line 12 "app/dl.k"
+    app_dl_note(x);
+#line 15 "app/dl.k"
+}
 
 void app_dl_early(void) {
     int x = 1;
     struct { int x; } keel__c0 = { x };
     x = 2;
     x = 3;
-    app_dl_note(keel__c0.x); }
+#line 19 "app/dl.k"
+    app_dl_note(keel__c0.x);
+#line 22 "app/dl.k"
+}
 
 
 void app_dl_late_written(void) {
     int x = 1;
 
     x = 7;
-    app_dl_note(x); }
+#line 27 "app/dl.k"
+    app_dl_note(x);
+#line 29 "app/dl.k"
+}

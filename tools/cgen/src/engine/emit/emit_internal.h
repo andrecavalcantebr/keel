@@ -157,6 +157,7 @@ void k_em_placement_c(Emit *e);
  * module and instance the module uses, for its .c. */
 bool k_em_foreign_island(const KAst *ast, const KIsland *is);
 bool k_em_handles_use(const KAst *ast, const KIsland *is);
+bool k_em_handles_implicit_init(const KAst *ast, const KIsland *is);
 void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
 void k_em_use_includes(Emit *e);
 

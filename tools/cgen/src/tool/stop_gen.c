@@ -118,6 +118,9 @@ static int emit_imports(keel_arena *arena, void *tool, const char *dest, const K
         KModule *dep = NULL;
         KLoadResult r = cgen_load(tool, name_span(ast, n->name_first, n->name_end), &dep);
         if ((r != K_LOAD_OK && r != K_LOAD_ALREADY) || !dep) return 2;
+        /* the base's modules (keel.*) are written with the base, not by their users */
+        keel_slice_char dn = dep->name;
+        if (dn.len > 5 && memcmp(dn.ptr, "keel.", 5) == 0) continue;
         bool done = false;
         for (size_t k = 0; k < w->n; k++) if (w->seen[k] == dep) { done = true; break; }
         if (done) continue;

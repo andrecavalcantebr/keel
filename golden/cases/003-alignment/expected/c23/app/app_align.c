@@ -16,8 +16,8 @@ int app_align_main(int argc, char **argv) {
     for (size_t d = 0; d < 8; d++) {
         keel_arena a = {0};
         if (!keel_arena_from_memory(&a, raw + d, sizeof raw - 8)) return 1;
-        i32  *p = (i32 *)keel_arena_alloc2(&a, sizeof(i32), alignof(i32), 3);
-        f64  *q = (f64 *)keel_arena_alloc2(&a, sizeof(f64), alignof(f64), 2);
+        i32  *p = (i32 *)keel_arena_alloc2(&a, sizeof(i32), alignof(i32),  3);
+        f64  *q = (f64 *)keel_arena_alloc2(&a, sizeof(f64), alignof(f64),  2);
         app_align_Vec8 *v = (app_align_Vec8 *)keel_arena_alloc2(&a, sizeof(app_align_Vec8), alignof(app_align_Vec8), 1);
         if (!p || !q || !v) return 2;
         if ((uintptr_t)p % alignof(i32) || (uintptr_t)q % alignof(f64)

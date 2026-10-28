@@ -14,6 +14,8 @@
  * instances in the order of the closure. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
+#include "engine/names.h"
+#include "engine/symtab.h"
 
 #define NO_TOKEN ((size_t)-1)
 #define ARROW "\xE2\x86\x92"
@@ -76,26 +78,31 @@ static bool declared_here(const KAst *ast, const Detail *d) {
     return false;
 }
 
-/* The marks are `&<k>`, each argument once; out: a bit per argument (1-based). */
-static bool marks_of(const Detail *d, unsigned *amp) {
+/* The marks are `&<k>` (argument k by address) and `type:<k>` (argument k is
+ * a type, erased into its size and alignment: backend §5.16); out: a bit per
+ * argument (1-based) for each. */
+static bool marks_of(const Detail *d, unsigned *amp, unsigned *type) {
     *amp = 0;
+    *type = 0;
     size_t p = 0;
     while (p < d->marks_len) {
         if (d->marks[p] == ' ') { p++; continue; }
-        if (d->marks[p] != '&') return false;
-        p++;
+        unsigned *set = amp;
+        if (d->marks[p] == '&') p++;
+        else if (p + 5 <= d->marks_len && memcmp(d->marks + p, "type:", 5) == 0) { p += 5; set = type; }
+        else return false;
         unsigned k = 0;
         size_t digits = 0;
         while (p < d->marks_len && d->marks[p] >= '0' && d->marks[p] <= '9') { k = k * 10 + (unsigned)(d->marks[p++] - '0'); digits++; }
         if (!digits || k == 0 || k > 16) return false;
-        *amp |= 1u << k;
+        *set |= 1u << k;
     }
     return true;
 }
 
 /* The first token of each argument of the call whose `(` is `open`; false when
  * the call is not well formed. */
-static bool call_args(const KAst *ast, size_t open, size_t first[17], size_t *argc) {
+static bool call_args(const KAst *ast, size_t open, size_t first[17], size_t last[17], size_t *argc) {
     if (open >= ast->tokens.len || !k_em_text_is(k_em_tok(ast, open), "(")) return false;
     size_t depth = 0, start = open + 1;
     *argc = 0;
@@ -107,6 +114,7 @@ static bool call_args(const KAst *ast, size_t open, size_t first[17], size_t *ar
             if (j > start) {
                 if (*argc == 16) return false;
                 first[++*argc] = start;
+                last[*argc] = j;
             }
             start = j + 1;
             if (k_em_text_is(t, ")")) return true;
@@ -122,48 +130,178 @@ bool k_em_foreign_island(const KAst *ast, const KIsland *is) {
     return true;
 }
 
+/* The module a callee names: `M.f` by the alias M, `f` by the symbol table. */
+static const KAst *callee_module(const KAst *ast, size_t anchor, size_t end, size_t *name) {
+    if (!ast->symbols) return NULL;
+    *name = end - 1;
+    if (end - anchor == 3 && k_em_text_is(k_em_tok(ast, anchor + 1), ".")) {
+        KToken m = k_em_tok(ast, anchor);
+        for (size_t i = 0; i < ast->symbols->len; i++) {
+            const KSymbol *s = keel_buffer_KSymbol_ptr(ast->symbols, i);
+            if (s->kind == K_SYM_MODULE && s->origin && s->origin->ast &&
+                k_symtab_same_name(s->name, (keel_slice_char){ m.len, (char *)m.ptr }))
+                return s->origin->ast;
+        }
+        return NULL;
+    }
+    if (end - anchor != 1) return NULL;
+    KToken f = k_em_tok(ast, anchor);
+    const KSymbol *s = k_symbol_resolve(ast->symbols, (keel_slice_char){ f.len, (char *)f.ptr });
+    return s && s->kind == K_SYM_FUNCTION && s->origin ? s->origin->ast : NULL;
+}
+
+/* Whether the verb `name` of module `m` with `argc` parameters returns `X *`,
+ * X the `type X` parameter k (backend §5.16, rule 2: the call gets the cast).
+ * 1 yes, 0 no, -1 the declaration was not found. */
+static int returns_type_pointer(const KAst *m, KToken name, size_t argc, size_t k) {
+    for (size_t i = 0; i < m->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&m->nodes, i);
+        if (n->kind != K_AST_FUNCTION || n->name_first >= n->name_end || n->name_first < 2) continue;
+        KToken t = k_em_tok(m, n->name_first);
+        if (t.len != name.len || memcmp(t.ptr, name.ptr, t.len) != 0) continue;
+        size_t open = n->name_first + 1;
+        if (open >= n->end || !k_em_text_is(k_em_tok(m, open), "(")) continue;
+        /* the parameters: their first tokens, top-level */
+        size_t pf[17], count = 0, depth = 0, start = open + 1;
+        for (size_t j = open + 1; j < n->end; j++) {
+            KToken x = k_em_tok(m, j);
+            if (k_em_text_is(x, "(") || k_em_text_is(x, "[")) depth++;
+            else if (depth > 0 && (k_em_text_is(x, ")") || k_em_text_is(x, "]"))) depth--;
+            else if (depth == 0 && (k_em_text_is(x, ",") || k_em_text_is(x, ")"))) {
+                if (j > start && !(j == start + 1 && k_em_text_is(k_em_tok(m, start), "void"))) {
+                    if (count == 16) break;
+                    pf[++count] = start;
+                }
+                start = j + 1;
+                if (k_em_text_is(x, ")")) break;
+            }
+        }
+        if (count != argc || k > count) continue;
+        if (!k_em_text_is(k_em_tok(m, pf[k]), "type")) continue;
+        KToken x = k_em_tok(m, pf[k] + 1);
+        bool ptr = k_em_text_is(k_em_tok(m, n->name_first - 1), "*");
+        KToken r = k_em_tok(m, n->name_first - 2);
+        return ptr && r.len == x.len && memcmp(r.ptr, x.ptr, x.len) == 0;
+    }
+    return -1;
+}
+
+/* whether a foreign island anchors in the tokens [a, b) */
+static bool foreign_in(const KAst *ast, size_t a, size_t b) {
+    for (size_t i = 0; i < ast->islands.len; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        if (is->anchor >= a && is->anchor < b && k_em_foreign_island(ast, is)) return true;
+    }
+    return false;
+}
+
 bool k_em_handles_use(const KAst *ast, const KIsland *is) {
     Detail d;
     if (!k_em_foreign_island(ast, is) || !detail_of(ast, is, &d)) return false;
     if (d.sym_len == 4 && memcmp(d.sym, "core", 4) == 0) return false;   /* lowered by the core: not a rename */
-    unsigned amp;
-    if (!marks_of(&d, &amp)) return false;
+    unsigned amp, type;
+    if (!marks_of(&d, &amp, &type)) return false;
     size_t end = span_end(ast, is->anchor, &d);
     if (end == NO_TOKEN) return false;
-    if (is->kind != K_ISLAND_CALL) return amp == 0;
-    size_t first[17], argc;
-    if (!call_args(ast, end, first, &argc)) return false;
-    for (unsigned k = 1; k <= 16; k++) if ((amp & (1u << k)) && k > argc) return false;
+    if (is->kind != K_ISLAND_CALL) return amp == 0 && type == 0;
+    size_t first[17], last[17], argc;
+    if (!call_args(ast, end, first, last, &argc)) return false;
+    for (unsigned k = 1; k <= 16; k++) {
+        if (((amp | type) & (1u << k)) && k > argc) return false;
+        if (!(type & (1u << k))) continue;
+        /* the type argument is copied twice: it must not hold another rename */
+        if (foreign_in(ast, first[k], last[k])) return false;
+        size_t name;
+        const KAst *m = callee_module(ast, is->anchor, end, &name);
+        if (!m || returns_type_pointer(m, k_em_tok(ast, name), argc, k) < 0) return false;
+    }
     return true;
+}
+
+/* the implicit `= {0}` of an `arena` defined without initializer (backend §5.2,
+ * rule 8): the island's anchor is the declarator's name */
+bool k_em_handles_implicit_init(const KAst *ast, const KIsland *is) {
+    if (is->kind != K_ISLAND_IMPLICIT_INIT || is->anchor + 1 >= ast->tokens.len) return false;
+    KToken next = k_em_tok(ast, is->anchor + 1);
+    return k_em_text_is(next, ";") || k_em_text_is(next, ",");
+}
+
+/* removes the edits whose position is in [lo, hi) (a span copied again) */
+static void drop_edits(Edit *ed, size_t *cnt, size_t lo, size_t hi) {
+    size_t j = 0;
+    for (size_t k = 0; k < *cnt; k++)
+        if (ed[k].at < lo || ed[k].at >= hi) ed[j++] = ed[k];
+    *cnt = j;
 }
 
 void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
-    size_t before = *cnt;
+    const char *align = e->opt.c23 ? "alignof(" : "_Alignof(";
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         if (is->anchor < n->first || is->anchor >= n->end) continue;
+        if (k_em_handles_implicit_init(ast, is)) {
+            size_t at = k_em_tok_end(ast, is->anchor);
+            if (at > a && at <= b)
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 0, .text = " = {0}", .text_len = 6 });
+            continue;
+        }
         if (!k_em_handles_use(ast, is)) continue;
         Detail d;
         detail_of(ast, is, &d);
         size_t end = span_end(ast, is->anchor, &d);
         size_t at = k_em_tok_off(ast, is->anchor);
-        if (at >= a && at < b)
+        unsigned amp = 0, type = 0;
+        size_t first[17], last[17], argc = 0;
+        if (is->kind == K_ISLAND_CALL) {
+            marks_of(&d, &amp, &type);
+            call_args(ast, end, first, last, &argc);
+        }
+        if (at >= a && at < b) {
+            /* the cast of a `X *` result, before the call (backend §5.16, rule 2) */
+            for (size_t k = 1; k <= argc; k++) {
+                if (!(type & (1u << k))) continue;
+                size_t name;
+                const KAst *m = callee_module(ast, is->anchor, end, &name);
+                if (m && returns_type_pointer(m, k_em_tok(ast, name), argc, k) == 1) {
+                    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 0, .text = "(", .text_len = 1 });
+                    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TOKS, .at = at, .skip = 0, .tok_a = first[k], .tok_b = last[k] });
+                    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 0, .text = " *)", .text_len = 3 });
+                }
+            }
             k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok_end(ast, end - 1) - at,
                 .text = d.sym, .text_len = d.sym_len });
-        if (is->kind != K_ISLAND_CALL) continue;
-        unsigned amp;
-        size_t first[17], argc;
-        marks_of(&d, &amp);
-        call_args(ast, end, first, &argc);
+        }
         for (size_t k = 1; k <= argc; k++) {
-            if (!(amp & (1u << k))) continue;
-            size_t p = k_em_tok_off(ast, first[k]);
-            if (p >= a && p < b)
+            size_t p = k_em_tok_off(ast, first[k]), q = k_em_tok_end(ast, last[k] - 1);
+            if (p < a || p >= b) continue;
+            if (amp & (1u << k))
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "&", .text_len = 1 });
+            if (type & (1u << k)) {
+                /* T -> sizeof(T), alignof(T): the type is copied twice, with its renames */
+                if (q > b) { e->ok = false; return; }
+                drop_edits(ed, cnt, p, q);
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "sizeof(", .text_len = 7 });
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TOKS, .at = p, .skip = q - p, .tok_a = first[k], .tok_b = last[k] });
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = "), ", .text_len = 3 });
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = align, .text_len = strlen(align) });
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TOKS, .at = q, .skip = 0, .tok_a = first[k], .tok_b = last[k] });
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = ")", .text_len = 1 });
+            }
         }
     }
-    k_em_sort_edits(ed, before, *cnt);
+    /* C11 spells the C23 keywords of alignment with an underscore (backend §9.1) */
+    if (!e->opt.c23)
+        for (size_t i = n->first; i < n->end && e->ok; i++) {
+            KToken t = k_em_tok(ast, i);
+            size_t at = k_em_tok_off(ast, i);
+            if (at < a || at >= b) continue;
+            if (k_em_text_is(t, "alignof"))
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = t.len, .text = "_Alignof", .text_len = 8 });
+            else if (k_em_text_is(t, "alignas"))
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = t.len, .text = "_Alignas", .text_len = 8 });
+        }
+    k_em_sort_edits(ed, 0, *cnt);
 }
 
 /* ---- the includes of the .c (rule 4) ---- */

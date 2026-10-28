@@ -1,14 +1,24 @@
 /* engine/emit/defer.c — `defer` of a function body (emit_internal.h; codegen
- * design E5, backend §5.5, degree D1). Lowered here: a `defer` whose scope ends
- * by the natural end of its block. The registration goes out (an empty line
- * for `defer` and `defer [later]`; a struct copy for `defer [now ...]`), and the
- * body of every `defer` registered in a block is written before the `}` that
- * closes the block, in reverse order of registration, on the line of that `}`.
+ * design E5, backend §5.5, degrees D1 and D2). The registration goes out (an
+ * empty line for `defer` and `defer [later]`; a struct copy for `defer [now ...]`),
+ * and every exit of the function runs the bodies of the defers registered before
+ * it, in reverse order of registration (backend §5.5, rules 1 and 4):
  *
- * Refused (k_em_handles_defer answers false, and the module is refused with
- * implementation-limit): a function with `return`, `break`, `continue` or `goto`
- * (degrees D2 and D3), a `defer` statement that spans lines, has a comment, a
- * body with braces or an index, or a `}` that is not the first token of its line. */
+ *   - the natural end of a block: its `}` gets one line per defer (D1);
+ *   - a `return` that is the only exit of the function (RET_INLINE): the
+ *     cleanup goes in the `return`'s own line, between braces (backend §5.5.2);
+ *   - two exits or more (RET_LADDER): the `return` stores its value in
+ *     keel__rv0 and jumps to a label, and the labels of the defers are a ladder
+ *     before the closing `}` of the function (backend §5.5.2).
+ *
+ * Each cleanup line is mapped to the line of the `defer` that wrote it, through
+ * EDIT_LINES (backend §5.5, rule 4; D61). Refused (k_em_handles_defer answers
+ * false, and the module is refused with implementation-limit): `break`,
+ * `continue` and `goto` in the function (D3); a `defer` statement that spans
+ * lines, has a comment, a body with braces or an index; a `defer` in a nested
+ * block of a function that has a `return`; a `}` that is not the first token of
+ * its line; a `void` function with two exits; and a `return` that does not fit
+ * its mode (multi-line or with an index, for RET_INLINE). */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -26,6 +36,14 @@ typedef struct {
     Cap cap[MAX_CAP];
     size_t ncap;
 } Defer;
+
+/* how the exits of a function with defers are lowered */
+typedef enum { RET_NONE, RET_INLINE, RET_LADDER } RetMode;
+
+typedef struct {
+    RetMode mode;
+    bool ok;                /* false: the function is refused */
+} Plan;
 
 static bool word(const KAst *ast, size_t i, const char *s) {
     return i < ast->tokens.len && k_em_text_is(k_em_tok(ast, i), s);
@@ -63,10 +81,10 @@ static const KAstNode *fn_of(const KAst *ast, size_t tok) {
     return NULL;
 }
 
-/* whether the body of fn has a jump that leaves a scope (D2 and D3: refused for now) */
+/* whether the body of fn has a jump out of a loop or to a label (D3: refused for now) */
 static bool jumps(const KAst *ast, const KAstNode *fn) {
     for (size_t i = fn->body_first; i < fn->body_end; i++)
-        if (word(ast, i, "return") || word(ast, i, "break") || word(ast, i, "continue") || word(ast, i, "goto"))
+        if (word(ast, i, "break") || word(ast, i, "continue") || word(ast, i, "goto"))
             return true;
     return false;
 }
@@ -104,6 +122,26 @@ static bool first_on_line(const KAst *ast, size_t tok) {
     size_t p = k_em_tok_off(ast, tok);
     while (p > 0 && (s[p - 1] == ' ' || s[p - 1] == '\t')) p--;
     return p == 0 || s[p - 1] == '\n';
+}
+
+/* whether the source bytes [from, to) are one line, with no comment in them */
+static bool plain_span(const KAst *ast, size_t from, size_t to) {
+    const char *s = ast->source.ptr;
+    for (size_t p = from; p < to; p++) {
+        if (s[p] == '\n') return false;
+        if (s[p] == '/' && p + 1 < to && (s[p + 1] == '/' || s[p + 1] == '*')) return false;
+    }
+    return true;
+}
+
+/* The `;` that ends the statement starting at tok, before the body's `}`; NO_TOKEN
+ * when a brace comes first (a block, or a compound literal, is not a simple statement). */
+static size_t stmt_semi(const KAst *ast, const KAstNode *fn, size_t tok) {
+    for (size_t j = tok; j < fn->body_end; j++) {
+        if (word(ast, j, ";")) return j;
+        if (word(ast, j, "{") || word(ast, j, "}")) return NO_TOKEN;
+    }
+    return NO_TOKEN;
 }
 
 /* Reads the `defer` at token kw: `defer [later] body;`, `defer body;` or
@@ -145,12 +183,7 @@ static bool analyze(const KAst *ast, size_t kw, Defer *d) {
     }
     if (semi == NO_TOKEN || semi <= body) return false;
     /* one line, no comment (the copy would carry it into a line of C), no index */
-    const char *s = ast->source.ptr;
-    size_t from = k_em_tok_off(ast, kw), to = k_em_tok_end(ast, semi);
-    for (size_t p = from; p < to; p++) {
-        if (s[p] == '\n') return false;
-        if (s[p] == '/' && p + 1 < to && (s[p + 1] == '/' || s[p + 1] == '*')) return false;
-    }
+    if (!plain_span(ast, k_em_tok_off(ast, kw), k_em_tok_end(ast, semi))) return false;
     d->body = body;
     d->semi = semi;
     return true;
@@ -164,6 +197,25 @@ static size_t indent_before(const KAst *ast, size_t kw) {
     return n;
 }
 
+/* the blanks at the start of the line holding tok: their count, and the offset of the line */
+static size_t line_blanks(const KAst *ast, size_t tok, size_t *start) {
+    const char *s = ast->source.ptr;
+    size_t p = k_em_tok_off(ast, tok), q = p;
+    while (q > 0 && s[q - 1] != '\n') q--;
+    size_t n = 0;
+    while (q + n < p && (s[q + n] == ' ' || s[q + n] == '\t')) n++;
+    *start = q;
+    return n;
+}
+
+/* the .k line of token tok (1-based, as the writer counts) */
+static size_t line_no(const KAst *ast, size_t tok) {
+    const char *s = ast->source.ptr;
+    size_t p = k_em_tok_off(ast, tok), n = 1;
+    for (size_t i = 0; i < p; i++) if (s[i] == '\n') n++;
+    return n;
+}
+
 /* the captures `keel__c<N>` of the function: the [now] defers before kw, from the
  * start of the body (backend §2.3, rule 2: a counter per function) */
 static size_t capture_ordinal(const KAst *ast, const KAstNode *fn, size_t kw) {
@@ -172,6 +224,81 @@ static size_t capture_ordinal(const KAst *ast, const KAstNode *fn, size_t kw) {
         if (word(ast, i, "defer") && word(ast, i + 1, "[") && word(ast, i + 2, "now")) k++;
     return k;
 }
+
+/* the number of defers of the body that start before token t: the ordinal of
+ * the last one of them is this number minus one (keel__e<N>, backend §5.5.2) */
+static size_t defers_before(const KAst *ast, const KAstNode *fn, size_t t) {
+    size_t k = 0;
+    for (size_t i = 0; i < ast->islands.len; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        if (is->kind == K_ISLAND_DEFER && is->anchor >= fn->body_first && is->anchor < fn->body_end &&
+            is->anchor < t) k++;
+    }
+    return k;
+}
+
+/* the first token of the return type: the visibility word, if any, is not part of it */
+static size_t ret_first(const KAst *ast, const KAstNode *fn) {
+    return k_em_is_visibility(k_em_tok(ast, fn->first)) ? fn->first + 1 : fn->first;
+}
+
+static bool is_void(const KAst *ast, const KAstNode *fn) {
+    size_t t = ret_first(ast, fn);
+    return t + 1 == fn->name_first && word(ast, t, "void");
+}
+
+/* whether the body ends in a `return` that is a statement of the body itself (the
+ * natural end is then not an exit); r is the last `return` of the body */
+static bool ends_in_return(const KAst *ast, const KAstNode *fn, size_t r) {
+    size_t lo = fn->body_first - 1;
+    if (r == NO_TOKEN || block_open(ast, r, lo) != lo) return false;
+    if (!(word(ast, r - 1, ";") || word(ast, r - 1, "}") || word(ast, r - 1, "{"))) return false;
+    size_t semi = stmt_semi(ast, fn, r);
+    return semi != NO_TOKEN && semi + 1 == fn->body_end;
+}
+
+/* How the exits of fn are lowered (backend §5.5.2). A `return` is an exit; the
+ * natural end is one too unless the body ends in a `return`. One exit is an
+ * inline cleanup; two or more are the ladder. Also checks the shape of each
+ * `return` for its mode. */
+static Plan plan_of(const KAst *ast, const KAstNode *fn) {
+    Plan p = { RET_NONE, true };
+    size_t lo = fn->body_first - 1;
+    bool any = false, nested = false;
+    for (size_t i = 0; i < ast->islands.len; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        if (is->kind != K_ISLAND_DEFER || is->anchor < fn->body_first || is->anchor >= fn->body_end) continue;
+        any = true;
+        if (block_open(ast, is->anchor, lo) != lo) nested = true;
+    }
+    if (!any) return p;
+    size_t nret = 0, last = NO_TOKEN;
+    for (size_t i = fn->body_first; i < fn->body_end; i++)
+        if (word(ast, i, "return")) { nret++; last = i; }
+    if (nret == 0) return p;            /* no exit but the natural end: the D1 cleanup */
+    if (nested) { p.ok = false; return p; }
+    bool void_fn = is_void(ast, fn);
+    if (nret == 1 && ends_in_return(ast, fn, last)) p.mode = RET_INLINE;
+    else {
+        p.mode = RET_LADDER;
+        if (void_fn) { p.ok = false; return p; }   /* the ladder returns keel__rv0: a value */
+    }
+    for (size_t r = fn->body_first; r < fn->body_end; r++) {
+        if (!word(ast, r, "return")) continue;
+        size_t semi = stmt_semi(ast, fn, r);
+        if (semi == NO_TOKEN) { p.ok = false; return p; }
+        /* `return;` in a void function, `return expr;` in any other */
+        if ((semi == r + 1) != void_fn) { p.ok = false; return p; }
+        if (p.mode == RET_INLINE) {
+            if (!plain_span(ast, k_em_tok_off(ast, r), k_em_tok_end(ast, semi))) { p.ok = false; return p; }
+            for (size_t j = r; j <= semi; j++)     /* the expression is rebuilt from its tokens */
+                if (word(ast, j, "[")) { p.ok = false; return p; }
+        }
+    }
+    return p;
+}
+
+/* ---- text built into e->buf (the line builder; empty while edits are computed) ---- */
 
 static void put_uint(Emit *e, size_t v) {
     char dig[24];
@@ -185,9 +312,15 @@ static void put_name(Emit *e, size_t tok) {
     k_em_put_bytes(e, t.ptr, t.len);
 }
 
-/* The body of a defer into e->buf: the tokens of the statement, with the gaps
- * between them as written, every name renamed as in the C text (k_em_put_range);
- * and under [now], a captured name becomes keel__c<n>.<name> (not after `.` or `->`). */
+/* the return type of fn, renamed as in the C text (k_em_put_range) */
+static void put_rettype(Emit *e, const KAstNode *fn) {
+    k_em_put_range(e, ret_first(e->ast, fn), fn->name_first);
+}
+
+/* The body of a defer into e->buf, with the `;` that ends it: the tokens of the
+ * statement, with the gaps between them as written, every name renamed as in the
+ * C text (k_em_put_range); and under [now], a captured name becomes
+ * keel__c<n>.<name> (not after `.` or `->`). */
 static void put_body(Emit *e, const Defer *d, size_t n) {
     const KAst *ast = e->ast;
     for (size_t i = d->body; i < d->semi && e->ok; i++) {
@@ -209,6 +342,26 @@ static void put_body(Emit *e, const Defer *d, size_t n) {
             k_em_put_range(e, i, i + 1);
         }
     }
+    k_em_put_bytes(e, ";", 1);
+}
+
+/* one cleanup record of an EDIT_LINES payload: `L<line>|` for the .k line of the
+ * defer at kw; the caller writes the text and then close_record */
+static void open_record(Emit *e, size_t kw) {
+    k_em_put_bytes(e, "L", 1);
+    put_uint(e, line_no(e->ast, kw));
+    k_em_put_bytes(e, "|", 1);
+}
+
+static void close_record(Emit *e) { k_em_put_bytes(e, "\n", 1); }
+
+/* the defer's cleanup line, with the indentation of its `defer` */
+static void put_cleanup(Emit *e, const KAstNode *fn, size_t kw, const Defer *d) {
+    size_t ind = indent_before(e->ast, kw);
+    open_record(e, kw);
+    k_em_put_bytes(e, e->ast->source.ptr + k_em_tok_off(e->ast, kw) - ind, ind);
+    put_body(e, d, capture_ordinal(e->ast, fn, kw));
+    close_record(e);
 }
 
 /* Moves the text in e->buf into a scratch copy that the edit points to, and
@@ -236,9 +389,188 @@ static void push_in_line(Emit *e, Edit *ed, size_t *cnt, size_t a, size_t b, Edi
     if (x.at >= a && x.at < b) k_em_push_edit(e, ed, cnt, x);
 }
 
+/* the registration of a defer (its line becomes empty, or a struct copy for
+ * [now]); with `temp`, the line also declares keel__rv0 (the ladder's temporary) */
+static void edit_registration(Emit *e, const KAstNode *fn, size_t kw, const Defer *d, bool temp,
+                              size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t at = k_em_tok_off(ast, kw), semi_end = k_em_tok_end(ast, d->semi);
+    if (!d->now && !temp) {
+        /* the statement and its indentation leave the line: the line is empty */
+        size_t from = at - indent_before(ast, kw);
+        drop_edits(ed, cnt, from, semi_end);
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_DROP, .at = from, .skip = semi_end - from });
+        return;
+    }
+    /* the statement becomes the registration text, and the indentation stays */
+    drop_edits(ed, cnt, at, semi_end);
+    e->n = 0;
+    if (d->now) {
+        /* struct { T1 a; T2 b; } keel__c<N> = { a, b }; */
+        k_em_put_bytes(e, "struct { ", 9);
+        for (size_t c = 0; c < d->ncap; c++) {
+            k_em_put_range(e, d->cap[c].type_first, d->cap[c].type_end);
+            k_em_put_bytes(e, " ", 1);
+            put_name(e, d->cap[c].name);
+            k_em_put_bytes(e, "; ", 2);
+        }
+        k_em_put_bytes(e, "} keel__c", 9);
+        put_uint(e, capture_ordinal(ast, fn, kw));
+        k_em_put_bytes(e, " = { ", 5);
+        for (size_t c = 0; c < d->ncap; c++) {
+            if (c) k_em_put_bytes(e, ", ", 2);
+            put_name(e, d->cap[c].name);
+        }
+        k_em_put_bytes(e, " };", 3);
+        if (temp) k_em_put_bytes(e, " ", 1);
+    }
+    if (temp) {
+        put_rettype(e, fn);
+        k_em_put_bytes(e, " keel__rv0;", 11);
+    }
+    size_t len;
+    char *text = take_buf(e, &len);
+    if (!e->ok || !text) { e->ok = false; return; }
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = semi_end - at,
+        .text = text, .text_len = len });
+}
+
+/* A `return` of a ladder function (RET_LADDER): `return expr;` becomes
+ * `keel__rv0 = expr; goto keel__e<k>;`, the `return` keyword is replaced, and the
+ * goto goes after the `;`. A `return` after `)` or `else` (a body without braces)
+ * gets braces. k is the ordinal of the last defer registered before it. */
+static void ladder_return(Emit *e, const KAstNode *fn, size_t r, size_t k, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t semi = stmt_semi(ast, fn, r);
+    bool braces = word(ast, r - 1, ")") || word(ast, r - 1, "else");
+    size_t at = k_em_tok_off(ast, r), end = k_em_tok_end(ast, semi);
+    if (braces)
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 0, .text = "{ ", .text_len = 2 });
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, r).len,
+        .text = "keel__rv0 =", .text_len = 11 });
+    e->n = 0;
+    k_em_put_bytes(e, " goto keel__e", 13);
+    put_uint(e, k);
+    k_em_put_bytes(e, ";", 1);
+    if (braces) k_em_put_bytes(e, " }", 2);
+    size_t len;
+    char *text = take_buf(e, &len);
+    if (!e->ok || !text) { e->ok = false; return; }
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = end, .skip = 0, .text = text, .text_len = len });
+}
+
+/* A `return` that is the only exit (RET_INLINE, backend §5.5.2): the statement
+ * is one edit, split between braces, with the cleanup in between:
+ *   return;        ->  { <cleanup> return; }
+ *   return expr;   ->  { T keel__rv0 = expr; <cleanup> return keel__rv0; }
+ * The statement is one line and has no index (plan_of). The only inline
+ * temporary of a function is keel__rv0, since such a function has one exit. */
+static void inline_return(Emit *e, const KAstNode *fn, size_t r, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t semi = stmt_semi(ast, fn, r);
+    size_t at = k_em_tok_off(ast, r), end = k_em_tok_end(ast, semi);
+    bool void_fn = is_void(ast, fn);
+    size_t lb;
+    size_t blanks = line_blanks(ast, r, &lb);
+    e->n = 0;
+    if (void_fn) {
+        k_em_put_bytes(e, "H|{\n", 4);
+    } else {
+        k_em_put_bytes(e, "H|{ ", 4);
+        put_rettype(e, fn);
+        k_em_put_bytes(e, " keel__rv0 = ", 13);
+        k_em_put_range(e, r + 1, semi);
+        k_em_put_bytes(e, ";\n", 2);
+    }
+    for (size_t j = r; j-- > fn->body_first; ) {       /* the defers before it, last first */
+        if (!word(ast, j, "defer")) continue;
+        Defer d;
+        if (!analyze(ast, j, &d)) { e->ok = false; return; }
+        put_cleanup(e, fn, j, &d);
+    }
+    k_em_put_bytes(e, "T|", 2);
+    k_em_put_bytes(e, ast->source.ptr + lb, blanks);
+    if (!void_fn) k_em_put_bytes(e, "return keel__rv0; }", 19);
+    size_t len;
+    char *text = take_buf(e, &len);
+    if (!e->ok || !text) { e->ok = false; return; }
+    if (void_fn) {
+        /* `return` stays in the second half; the brace closes after its `;` */
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = at, .skip = 0, .text = text, .text_len = len });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = end, .skip = 0, .text = " }", .text_len = 2 });
+    } else {
+        drop_edits(ed, cnt, at, end);     /* the expression is copied again, with its renames */
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = at, .skip = end - at,
+            .text = text, .text_len = len });
+    }
+}
+
+/* The ladder of labels at the closing `}` of a RET_LADDER function (backend
+ * §5.5.2): one line per defer, last registered first, `keel__e<k>: <body>`,
+ * mapped to the defer's line; then the return of the value, with the
+ * indentation of the first defer. The `}` follows it on the same line. */
+static void close_ladder(Emit *e, const KAstNode *fn, size_t c, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t first = NO_TOKEN;
+    e->n = 0;
+    for (size_t j = c; j-- > fn->body_first; ) {
+        if (!word(ast, j, "defer")) continue;
+        Defer d;
+        if (!analyze(ast, j, &d)) { e->ok = false; return; }
+        open_record(e, j);
+        k_em_put_bytes(e, "keel__e", 7);
+        put_uint(e, defers_before(ast, fn, j));
+        k_em_put_bytes(e, ": ", 2);
+        put_body(e, &d, capture_ordinal(ast, fn, j));
+        close_record(e);
+        first = j;
+    }
+    if (first == NO_TOKEN) { e->ok = false; return; }
+    size_t ind = indent_before(ast, first);
+    k_em_put_bytes(e, "T|", 2);
+    k_em_put_bytes(e, ast->source.ptr + k_em_tok_off(ast, first) - ind, ind);
+    k_em_put_bytes(e, "return keel__rv0; ", 18);
+    size_t len;
+    char *text = take_buf(e, &len);
+    if (!e->ok || !text) { e->ok = false; return; }
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = k_em_tok_off(ast, c), .skip = 0,
+        .text = text, .text_len = len });
+}
+
+/* The natural end of a block (D1, backend §5.5 rule 4): at its `}`, one line per
+ * defer of the block that is still pending, last registered first, then the
+ * `}` after the blanks it started with. */
+static void close_block(Emit *e, const KAstNode *fn, size_t c, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t open = block_open(ast, c, fn->body_first - 1);
+    if (open == NO_TOKEN) { e->ok = false; return; }
+    e->n = 0;
+    bool any = false;
+    for (size_t j = c; j-- > open + 1; ) {
+        if (!word(ast, j, "defer")) continue;
+        Defer d;
+        if (!analyze(ast, j, &d)) { e->ok = false; return; }
+        if (block_open(ast, j, fn->body_first - 1) != open) continue;
+        put_cleanup(e, fn, j, &d);
+        any = true;
+    }
+    if (!any) return;
+    size_t lb;
+    size_t blanks = line_blanks(ast, c, &lb);
+    k_em_put_bytes(e, "T|", 2);
+    k_em_put_bytes(e, ast->source.ptr + lb, blanks);
+    size_t len;
+    char *text = take_buf(e, &len);
+    if (!e->ok || !text) { e->ok = false; return; }
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = k_em_tok_off(ast, c), .skip = 0,
+        .text = text, .text_len = len });
+}
+
 void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     if (fn->body_first == NO_TOKEN || fn->body_end == NO_TOKEN) return;
+    Plan p = plan_of(ast, fn);
+    if (!p.ok) { e->ok = false; return; }
 
     /* the registrations that start on this line */
     for (size_t k = 0; k < ast->islands.len && e->ok; k++) {
@@ -249,71 +581,32 @@ void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         if (at < a || at >= b) continue;
         Defer d;
         if (!analyze(ast, kw, &d)) { e->ok = false; return; }
-        size_t semi_end = k_em_tok_end(ast, d.semi);
-        size_t ind = indent_before(ast, kw);
-        if (!d.now) {
-            /* the statement and its indentation leave the line: the line is empty */
-            drop_edits(ed, cnt, at - ind, semi_end);
-            push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_DROP, .at = at - ind, .skip = semi_end - (at - ind) });
-        } else {
-            /* the registration: struct { T1 a; T2 b; } keel__c<N> = { a, b }; */
-            drop_edits(ed, cnt, at, semi_end);
-            e->n = 0;
-            k_em_put_bytes(e, "struct { ", 9);
-            for (size_t c = 0; c < d.ncap; c++) {
-                k_em_put_range(e, d.cap[c].type_first, d.cap[c].type_end);
-                k_em_put_bytes(e, " ", 1);
-                put_name(e, d.cap[c].name);
-                k_em_put_bytes(e, "; ", 2);
-            }
-            k_em_put_bytes(e, "} keel__c", 9);
-            put_uint(e, capture_ordinal(ast, fn, kw));
-            k_em_put_bytes(e, " = { ", 5);
-            for (size_t c = 0; c < d.ncap; c++) {
-                if (c) k_em_put_bytes(e, ", ", 2);
-                put_name(e, d.cap[c].name);
-            }
-            k_em_put_bytes(e, " };", 3);
-            size_t len;
-            char *text = take_buf(e, &len);
-            if (!e->ok || !text) { e->ok = false; return; }
-            push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = semi_end - at,
-                .text = text, .text_len = len });
+        /* the first defer declares the ladder's temporary on its line (backend §5.5, rule 5) */
+        bool temp = p.mode == RET_LADDER && defers_before(ast, fn, kw) == 0;
+        edit_registration(e, fn, kw, &d, temp, a, b, ed, cnt);
+    }
+
+    /* the exits that run cleanups: a `return` after a defer */
+    if (p.mode != RET_NONE) {
+        for (size_t r = fn->body_first; r < fn->body_end && e->ok; r++) {
+            if (!word(ast, r, "return")) continue;
+            size_t at = k_em_tok_off(ast, r);
+            if (at < a || at >= b) continue;
+            size_t nd = defers_before(ast, fn, r);
+            if (nd == 0) continue;              /* no defer before it: the return stays */
+            if (p.mode == RET_LADDER) ladder_return(e, fn, r, nd - 1, a, b, ed, cnt);
+            else inline_return(e, fn, r, a, b, ed, cnt);
         }
     }
 
-    /* the cleanups: at each `}` on this line, the bodies of the defers that the
-     * block holds, in reverse order of registration, then a space and the `}` */
+    /* the closing braces: the ladder at the function's `}`, the natural end of a block at its `}` */
     for (size_t c = fn->body_first; c <= fn->body_end && c < ast->tokens.len && e->ok; c++) {
         if (!word(ast, c, "}")) continue;
         size_t at = k_em_tok_off(ast, c);
         if (at < a || at >= b) continue;
-        size_t open = block_open(ast, c, fn->body_first - 1);
-        if (open == NO_TOKEN) { e->ok = false; return; }
-        e->n = 0;
-        bool any = false;
-        for (size_t j = c; j-- > open + 1; ) {
-            if (!word(ast, j, "defer")) continue;
-            Defer d;
-            if (!analyze(ast, j, &d)) { e->ok = false; return; }
-            if (block_open(ast, j, fn->body_first - 1) != open) continue;
-            if (!any) {
-                /* the indentation of the defer that is written first (the last one registered) */
-                size_t ind = indent_before(ast, j);
-                k_em_put_bytes(e, ast->source.ptr + k_em_tok_off(ast, j) - ind, ind);
-            }
-            put_body(e, &d, capture_ordinal(ast, fn, j));
-            k_em_put_bytes(e, "; ", 2);
-            any = true;
-        }
-        if (!any) continue;
-        /* the blanks before the `}` are replaced: the line starts with the defer's indentation */
-        size_t bl = indent_before(ast, c);
-        size_t len;
-        char *text = take_buf(e, &len);
-        if (!e->ok || !text) { e->ok = false; return; }
-        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at - bl, .skip = bl,
-            .text = text, .text_len = len });
+        if (c == fn->body_end && p.mode == RET_INLINE) continue;   /* the exit is the return */
+        if (c == fn->body_end && p.mode == RET_LADDER) close_ladder(e, fn, c, a, b, ed, cnt);
+        else close_block(e, fn, c, a, b, ed, cnt);
     }
 }
 
@@ -328,5 +621,6 @@ bool k_em_handles_defer(const KAst *ast, const KIsland *is) {
     size_t close = block_close(ast, open);
     if (close == NO_TOKEN || close > fn->body_end) return false;
     /* the cleanup goes before the `}`, on its line: the `}` must start the line */
-    return first_on_line(ast, close);
+    if (!first_on_line(ast, close)) return false;
+    return plan_of(ast, fn).ok;
 }

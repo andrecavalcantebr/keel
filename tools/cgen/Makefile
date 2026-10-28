@@ -68,9 +68,18 @@ ccjson:
 # for the tool's own validation; see tools/transform/base/Makefile.
 TRANSFORM := ../transform
 
+# The transform rewrites every file it generates, and the -MMD dependencies make
+# every object depend on gen/: written in place, each `make` would recompile all.
+# So it generates into gen.new/ and only the files whose content differs replace
+# the ones in gen/ (an unchanged file keeps its mtime).
 base:
 	@$(MAKE) -C $(TRANSFORM)
-	@$(MAKE) -C $(TRANSFORM)/base DEST=$(abspath $(GENDIR))
+	@rm -rf $(GENDIR).new
+	@$(MAKE) -C $(TRANSFORM)/base DEST=$(abspath $(GENDIR).new)
+	@cd $(GENDIR).new && find . -type f | while read -r f; do \
+	  cmp -s "$$f" "../$(notdir $(GENDIR))/$$f" || { mkdir -p "$$(dirname "../$(notdir $(GENDIR))/$$f")"; cp "$$f" "../$(notdir $(GENDIR))/$$f"; }; \
+	done
+	@rm -rf $(GENDIR).new
 
 .PHONY: all clean ccjson base boundary run vars
 

@@ -271,6 +271,10 @@ int main(int argc, char *argv[]) {
             fatal("source-in-multiple-roots", "source file is under multiple -I roots");
     }
 
+    /* parsed and validated, consumed by the cc and depfile milestones (M4) */
+    (void)pedantic_names;
+    (void)f_flag;
+
     keel_arena arena;
     if (!cgen_memory_init(&arena)) return 2;
     int result=1;

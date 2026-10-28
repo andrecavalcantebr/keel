@@ -110,6 +110,10 @@ bool k_em_handles_foreach(const KAst *ast, const KIsland *is);
 void k_em_edits_index(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_index(const KAst *ast, const KIsland *is);
 
+/* defer.c: `defer` (backend §5.5) */
+void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_handles_defer(const KAst *ast, const KIsland *is);
+
 /* constexpr_block.c: a block-scope constexpr. Its edits, and the whole lines
  * written before / after the source line `ln` (bytes [a, b)). */
 void k_em_edits_constblock(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);

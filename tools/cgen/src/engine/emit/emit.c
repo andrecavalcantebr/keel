@@ -84,6 +84,7 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
         k_em_edits_array(e, n, a, b, ed, cnt);
         k_em_edits_foreach(e, n, a, b, ed, cnt);
         k_em_edits_constblock(e, n, a, b, ed, cnt);
+        k_em_edits_defer(e, n, a, b, ed, cnt);
         k_em_edits_index(e, n, a, b, ed, cnt);
         k_em_sort_edits(ed, before, *cnt);
     }
@@ -482,7 +483,8 @@ static bool islands_supported(const KAst *ast) {
             /* a construction a file of its own lowers answers for its kind; the
              * rename check below does not apply to it */
             if (k_em_handles_array(ast, is) || k_em_handles_foreach(ast, is) ||
-                k_em_handles_index(ast, is) || k_em_handles_constblock(ast, is)) continue;
+                k_em_handles_index(ast, is) || k_em_handles_constblock(ast, is) ||
+                k_em_handles_defer(ast, is)) continue;
             return false;
         }
         const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);

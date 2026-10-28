@@ -6,6 +6,6 @@
 
 #line 14 "keel/outcome.k"
 constexpr i32 keel_outcome_OK   = 0;
-constexpr i32 keel_outcome_NONE = (-2147483647 - 1);
+constexpr i32 keel_outcome_NONE = INT32_MIN;
 
 #endif /* KEEL_KEEL_OUTCOME_TYPE_H */

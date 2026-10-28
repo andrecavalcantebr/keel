@@ -8,8 +8,8 @@
 #define keel_outcome_OK ((i32)0)
 #line 14 "keel/outcome.k"
 static const i32 keel_outcome_OK__chk = 0; _Static_assert(sizeof(keel_outcome_OK__chk) > 0, "constexpr");
-#define keel_outcome_NONE ((i32)(-2147483647 - 1))
+#define keel_outcome_NONE ((i32)INT32_MIN)
 #line 15 "keel/outcome.k"
-static const i32 keel_outcome_NONE__chk = (-2147483647 - 1); _Static_assert(sizeof(keel_outcome_NONE__chk) > 0, "constexpr");
+static const i32 keel_outcome_NONE__chk = INT32_MIN; _Static_assert(sizeof(keel_outcome_NONE__chk) > 0, "constexpr");
 
 #endif /* KEEL_KEEL_OUTCOME_TYPE_H */

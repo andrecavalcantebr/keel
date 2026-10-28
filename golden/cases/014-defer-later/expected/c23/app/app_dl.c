@@ -12,10 +12,10 @@ int  app_dl_last(void) { return app_dl_seen; }
 
 void app_dl_late(void) {
     int x = 1;
+
     x = 2;
     x = 3;
     app_dl_note(x); }
-
 
 void app_dl_early(void) {
     int x = 1;
@@ -27,5 +27,6 @@ void app_dl_early(void) {
 
 void app_dl_late_written(void) {
     int x = 1;
+
     x = 7;
     app_dl_note(x); }

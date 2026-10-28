@@ -10,3 +10,4 @@ test/cgen/gen/array|arr.k|-
 test/cgen/gen/foreach|loop.k|-
 test/cgen/gen/index|idx.k|-
 test/cgen/gen/constblock|cb.k|-
+014-defer-later|app/dl.k|-

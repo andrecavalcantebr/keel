@@ -162,7 +162,10 @@ get(b,i)        →  keel_buffer_i32_get      /* aridade única: sem sufixo */
 alloc(a,T,n)    →  keel_arena_alloc2        /* função de módulo; `type` conta um */
 alloc(a,n,sz,al) → keel_arena_alloc3
 ptr(t)                →  tens_tensor_2_f32_ptr
-ptr(t,(size_t[2]){…}) →  tens_tensor_2_f32_ptr2   /* `dim`: dois índices escritos */
+ptr(t,(size_t[2]){…}) →  tens_tensor_2_f32_ptr_2  /* acessor de vetor: o rank, não a aridade */
+t[i,j]                →  tens_tensor_2_f32_ptr_2  /* a indexação chama o mesmo acessor (§5.3.1) */
+ptr(t,v)              →  tens_tensor_2_f32_ptr_2  /* `array size_t v[3]`: o rank é o do contêiner */
+ptr(g,(size_t[3]){…}) →  grids_grid_3_f32_ptr_3   /* acessor de vetor único: o rank entra igual */
 ```
 
 **Regras**
@@ -172,8 +175,9 @@ ptr(t,(size_t[2]){…}) →  tens_tensor_2_f32_ptr2   /* `dim`: dois índices es
 3. O sufixo é a última parte do símbolo: módulo, modificador, argumentos de tipo, sufixo.
 4. Vale também para função de módulo não genérico, com o primeiro argumento no papel de contêiner.
 5. Conta os argumentos escritos em keel: um parâmetro `type` apagado conta um, embora saia como dois no C (§5.16); um binder de dimensão não conta, embora saia como um `size_t` (§5.18).
-6. O acessor de vários índices recebe um vetor `size_t idx[static N]` e leva o sufixo do rank `N`, que é o `dim` do modificador: conta os índices escritos no ponto de chamada. É a única exceção à regra 5, e não há acessor parcial (linguagem §4.5). [D18](#10-decisões-de-emissão)
-7. A contagem é sintática: nenhum tipo de argumento é examinado, e a regra vale igual para modificador da base e do programa. [R: substituição e aridade fixa](keel-rationale.md#substituição-e-aridade-fixa)
+6. O acessor de vários índices — o verbo cujo segundo parâmetro é um vetor `size_t idx[static N]`, com `N` um binder `dim` do módulo — leva o **sufixo de rank** `_<N>`, com o valor de `N` na instância: `grid(3) f32` dá `grids_grid_3_f32_ptr_3`. O sufixo de rank substitui o de aridade e vale haja ou não outra aridade do verbo, ao contrário da regra 1. O sublinhado separa os dois espaços de nome: `ptr2` é o verbo de dois argumentos além do contêiner, e `ptr_2` é o acessor de rank 2. Assim os dois não colidem, mesmo quando a instância tem `dim` igual a uma aridade declarada. Não há acessor parcial (linguagem §4.5).
+   1. O rank vem do tipo do contêiner, isto é, do `dim` da instância, e nunca do argumento de índice. A indexação `x[i, j, k]` (§5.3.1), a chamada com literal `ptr(x, (size_t[3]){i, j, k})` e a chamada com um vetor numa variável `ptr(x, v)` saem todas no mesmo símbolo. Um vetor de extensão diferente, como `array size_t v[2]` passado a `grid(3)`, não muda o nome: o rank é o da instância do contêiner, que keel declarou, e a extensão errada é recusada pela tradução. [D18](#10-decisões-de-emissão)
+7. A contagem de aridade é sintática: nenhum tipo de argumento é examinado, e a regra vale igual para modificador da base e do programa. O sufixo de rank (regra 6) segue o mesmo princípio. Ele vem do `dim` da instância do contêiner, um tipo que keel declarou e conhece antes da chamada, e não do argumento nem de tipo C nenhum. Fora do que keel declara, nada é examinado. [R: substituição e aridade fixa](keel-rationale.md#substituição-e-aridade-fixa)
 
 ### 2.2 Normalização do argumento
 
@@ -933,13 +937,13 @@ f32 y = m[i,j];
 ```
 
 ```c
-f32 x = *tens_tensor_3_f32_ptr3(&t, (size_t[3]){i, j, k});
-f32 y = *tens_tensor_2_f32_ptr2(&m, (size_t[2]){i, j});
+f32 x = *tens_tensor_3_f32_ptr_3(&t, (size_t[3]){i, j, k});
+f32 y = *tens_tensor_2_f32_ptr_2(&m, (size_t[2]){i, j});
 ```
 
 **Regras**
 
-1. A emissão conta os índices escritos e emite o acessor de vetor, de rank cheio. Vale para todo modificador com dois ou mais índices.
+1. A emissão conta os índices escritos e chama o acessor de vetor, de rank cheio, com o sufixo de rank do §2.1.1, regra 6. Vale para todo modificador com dois ou mais índices.
 2. O literal composto `(size_t[N]){…}` é emitido no ponto da indexação, com os índices na ordem escrita, copiados como escritos e avaliados uma vez: `t[i++, j]` incrementa `i` uma vez.
 3. O literal vive até o fim do bloco que o contém, e o acessor não guarda o ponteiro.
 4. Um número de índices diferente de `N` é recusado pela linguagem antes da emissão.
@@ -947,7 +951,7 @@ f32 y = *tens_tensor_2_f32_ptr2(&m, (size_t[2]){i, j});
 6. Em `-O2` o laço do acessor desenrola e o literal some; em `-O0` não, e é o custo declarado na linguagem §4.3. O backend não o mitiga. [D38](#10-decisões-de-emissão)
 
 ```c
-/* -O2, x86-64: the body of _ptr3 collapses into */
+/* -O2, x86-64: the body of _ptr_3 collapses into */
 t->ptr + idx0 * t->steps[0] + idx1 * t->steps[1] + idx2 * t->steps[2]
 ```
 
@@ -2083,7 +2087,7 @@ alternativa em aberto.
 | 15 | Todo nome criado pelo backend começa por `keel__` | §2.3. O mangling nunca produz `__`, e o programa não declara nada em `keel_`: o espaço é só do backend, e um nome novo não pede consulta à tabela de símbolos nem pode colidir com um símbolo que a base venha a ter — a função `m0` de um módulo sairia `keel_m0`, o rótulo, `keel__m0_LIT` |
 | 16 | Nome de tipo, tag e constante de enum de arquivo levam o prefixo do módulo | §2.1. Os três aparecem no `.h` e colidem entre módulos. A constante de enum é a que mais importa: vive no espaço dos identificadores comuns, e sem prefixo dois módulos que declarem `STOPPED` não podem ser importados pelo mesmo terceiro |
 | 17 | Qualificador com `_` inicial perde o underscore e baixa a caixa | §2.1. Evita `_Atomic_u32`, reservado ao C, e o `__` de `keel_buffer__Atomic_u32`, que é do backend (§2.3). A perda é só de grafia: `atomic` não é tipo válido no fonte, então nada mais produz esse componente |
-| 18 | O acessor de vários índices é um só, de vetor, e leva o sufixo do rank | §2.1.1. Um módulo não declara `ptr` em N aridades (linguagem §4.3, regra 10), então o acessor de vários índices recebe o vetor, e o nome passa a dizer o rank. Não há acessor parcial, então não há par a desempatar: a exceção compra legibilidade, não unicidade |
+| 18 | O acessor de vários índices é um só, de vetor, e leva o sufixo de rank `_N` | §2.1.1. Um módulo não declara `ptr` em N aridades (linguagem §4.3, regra 10), então o acessor de vários índices recebe o vetor, e o nome passa a dizer o rank. O sublinhado separa o rank da aridade: `ptr2` e `ptr_2` não colidem quando o `dim` da instância coincide com uma aridade declarada. O rank vem do contêiner, então a indexação e as chamadas explícitas, com literal ou com vetor em variável, chegam ao mesmo símbolo |
 | 19 | O argumento de `dim` entra no nome pelo valor, e não pela grafia | §2.2. Com a grafia, dois módulos que declarassem `DIM` com valores diferentes pediriam o mesmo arquivo com conteúdos diferentes, e o header de instância deixaria de ser função das entradas (§7.1) |
 | 20 | O C gerado usa `i32`, e não `int32_t` | §2.2. O corpo do usuário é copiado como escrito, então `i32` chega ao `.c` de qualquer forma e o `typedef` do prelúdio é necessário. Emitir `int32_t` nas structs criaria duas grafias para o mesmo tipo, e a mensagem do compilador C deve citar o nome que o usuário escreveu: `expected i32 *` lê direto contra o fonte |
 | 21 | Nome gerado acima de 255 caracteres é erro | §2.4. Onde o linker só considera os primeiros *N* caracteres, duas instâncias que só diferem depois do corte colidem em silêncio no link, com um símbolo vencendo o outro; o teto transforma isso em diagnóstico. Truncar com hash mataria a legibilidade. O mínimo do padrão para nome externo é 31, que tornaria a composição de modificadores inutilizável (`keel_buffer_geom_Point` já tem 22), e não descreve compilador real: o pior caso prático é 255, do IAR (Anexo). Uma edição anterior deste documento dava 63, que é o mínimo do padrão para nome **interno** |

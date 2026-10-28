@@ -160,5 +160,8 @@ bool k_em_handles_use(const KAst *ast, const KIsland *is);
 bool k_em_handles_implicit_init(const KAst *ast, const KIsland *is);
 void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
 void k_em_use_includes(Emit *e);
+/* the .h: `typedef struct X X;` for another module's type a public signature
+ * takes by pointer */
+void k_em_h_forward_decls(Emit *e);
 
 #endif /* CGEN_ENGINE_EMIT_EMIT_INTERNAL_H */

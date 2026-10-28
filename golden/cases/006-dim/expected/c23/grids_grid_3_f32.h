@@ -1,6 +1,6 @@
 /* grids_grid_3_f32.h — generated from grids.k by cgen, C23 profile. */
-#ifndef GRIDS_GRADE_3_F32_H
-#define GRIDS_GRADE_3_F32_H
+#ifndef GRIDS_GRID_3_F32_H
+#define GRIDS_GRID_3_F32_H
 
 #include "grids_grid_3_f32.type.h"
 
@@ -21,4 +21,4 @@ static inline f32 *grids_grid_3_f32_ptr3(grids_grid_3_f32 *g, size_t idx[static 
     return g->ptr + off;
 }
 
-#endif /* GRIDS_GRADE_3_F32_H */
+#endif /* GRIDS_GRID_3_F32_H */

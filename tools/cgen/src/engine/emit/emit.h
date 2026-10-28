@@ -40,7 +40,15 @@ typedef struct {
     keel_slice_char modifier;   /* the modifier it instances: "stack" */
     size_t argc;
     keel_slice_char arg[K_EMIT_INSTANCE_ARGS];   /* the C symbol of each type binder, in order: "i32" */
+    size_t dimc;
+    keel_slice_char dim[K_EMIT_INSTANCE_ARGS];   /* the value of each dimension binder, in decimal: "3" */
 } KEmitInstance;
+
+/* The instance a closure entry of `user` names (its arguments live in the
+ * closure's text; the dimensions, in the symbol: `grids_grid_3_f32` is the
+ * modifier's name, each dimension and each type argument, backend §2.2).
+ * False when the entry is not an instance of a module that has a tree. */
+bool k_emit_instance_of(const KAst *user, const KClosure *c, KEmitInstance *out);
 
 /* `module` is the declared name with dots ("app.cfg"); `src_path` is the .k
  * path relative to its root, with the extension ("app/cfg.k"), the string the

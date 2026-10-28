@@ -246,7 +246,21 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 0, .text = " = {0}", .text_len = 6 });
             continue;
         }
-        if (!k_em_handles_use(ast, is)) continue;
+        if (!k_em_handles_use(ast, is)) {
+            /* a call of the module's own verb: the name is renamed by emit.c, the `&` are here */
+            Detail o;
+            unsigned amp, type;
+            size_t f[17], l[17], n_args, end;
+            if (is->kind != K_ISLAND_CALL || k_em_foreign_island(ast, is) || !detail_of(ast, is, &o) ||
+                !marks_of(&o, &amp, &type) || amp == 0 || (end = span_end(ast, is->anchor, &o)) == NO_TOKEN ||
+                !call_args(ast, end, f, l, &n_args)) continue;
+            for (size_t k = 1; k <= n_args; k++) {
+                size_t p = k_em_tok_off(ast, f[k]);
+                if ((amp & (1u << k)) && p >= a && p < b)
+                    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "&", .text_len = 1 });
+            }
+            continue;
+        }
         Detail d;
         detail_of(ast, is, &d);
         size_t end = span_end(ast, is->anchor, &d);
@@ -258,6 +272,8 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
             call_args(ast, end, first, last, &argc);
         }
         if (at >= a && at < b) {
+            /* the written name is replaced whole: a rename inside it (`grid(DIM) f32`) goes */
+            drop_edits(ed, cnt, at, k_em_tok_end(ast, end - 1));
             /* the cast of a `X *` result, before the call (backend §5.16, rule 2) */
             for (size_t k = 1; k <= argc; k++) {
                 if (!(type & (1u << k))) continue;
@@ -302,6 +318,49 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = t.len, .text = "_Alignas", .text_len = 8 });
         }
     k_em_sort_edits(ed, 0, *cnt);
+}
+
+/* ---- the .h: another module's types in the signatures (rule 2) ---- */
+
+/* `typedef struct X X;` for each type of another module (an instance, a
+ * struct) a public signature takes by pointer, once, in the order they appear;
+ * by value it would need the #include of its .type.h, which is not here yet:
+ * refused. */
+void k_em_h_forward_decls(Emit *e) {
+    const KAst *ast = e->ast;
+    for (size_t k = 0; k < ast->nodes.len && e->ok; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind != K_AST_FUNCTION || !n->is_public || n->body_first == NO_TOKEN || n->body_first < 1) continue;
+        for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
+            const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+            if (is->kind != K_ISLAND_TYPE || is->anchor < n->first || is->anchor >= n->body_first - 1) continue;
+            if (!k_em_handles_use(ast, is)) continue;
+            Detail d;
+            detail_of(ast, is, &d);
+            size_t end = span_end(ast, is->anchor, &d);
+            if (end >= ast->tokens.len || !k_em_text_is(k_em_tok(ast, end), "*")) { e->ok = false; return; }
+            /* once: not if an earlier island of a public signature has the same symbol */
+            bool seen = false;
+            for (size_t j = 0; j < i && !seen; j++) {
+                const KIsland *o = keel_buffer_KIsland_ptr(&ast->islands, j);
+                Detail od;
+                if (o->kind != K_ISLAND_TYPE || !k_em_handles_use(ast, o) || !detail_of(ast, o, &od)) continue;
+                const KAstNode *on = NULL;
+                for (size_t q = 0; q < ast->nodes.len; q++) {
+                    const KAstNode *x = keel_buffer_KAstNode_ptr(&ast->nodes, q);
+                    if (x->kind == K_AST_FUNCTION && x->is_public && x->body_first != NO_TOKEN &&
+                        o->anchor >= x->first && o->anchor < x->body_first - 1) on = x;
+                }
+                seen = on && od.sym_len == d.sym_len && memcmp(od.sym, d.sym, d.sym_len) == 0;
+            }
+            if (seen) continue;
+            k_emit_raw(&e->w, (keel_slice_char){ 15, (char *)"typedef struct " });
+            k_emit_raw(&e->w, (keel_slice_char){ d.sym_len, (char *)d.sym });
+            k_emit_raw(&e->w, (keel_slice_char){ 1, (char *)" " });
+            k_emit_raw(&e->w, (keel_slice_char){ d.sym_len, (char *)d.sym });
+            k_emit_raw(&e->w, (keel_slice_char){ 2, (char *)";\n" });
+        }
+    }
 }
 
 /* ---- the includes of the .c (rule 4) ---- */

@@ -148,11 +148,12 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
         if (c->kind != K_CLOSURE_INSTANCE || !c->module || !c->module->ast) continue;
         keel_slice_char gen = c->module->name;
         if (gen.len >= 4 && memcmp(gen.ptr, "keel", 4) == 0 && (gen.len == 4 || gen.ptr[4] == '.')) continue;
-        KEmitInstance inst = { .symbol = { c->symbol_len, (char *)c->symbol }, .module = gen,
-                               .modifier = c->modifier, .argc = c->argc };
-        if (c->argc > K_EMIT_INSTANCE_ARGS) return 2;
-        for (size_t k = 0; k < c->argc; k++)
-            inst.arg[k] = (keel_slice_char){ c->arg_len[k], ast->closure_text.ptr + c->arg_text[k] };
+        KEmitInstance inst;
+        if (!k_emit_instance_of(ast, c, &inst)) {
+            fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
+                    (int)c->symbol_len, c->symbol);
+            return 2;
+        }
         char src_buf[8192];
         keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf);
         for (int w = 0; w < 2; w++) {

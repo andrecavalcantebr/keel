@@ -440,6 +440,7 @@ static void type_h_body(Emit *e) {
 }
 
 static void h_body(Emit *e) {
+    k_em_h_forward_decls(e);
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (k_em_generic_out(e->ast, n)) continue;

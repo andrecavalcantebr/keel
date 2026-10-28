@@ -21,14 +21,14 @@ declara menciona um parâmetro, então pertence à instância (backend §4.3).
 o par do módulo genérico, praticamente vazio: tudo que ele
 declara menciona um parâmetro, então pertence à instância (backend §4.3).
 
-**`grids_grids_3_f32.h`** (c23, c11)
+**`grids_grid_3_f32.h`** (c23, c11)
 
 instância de `grid(3) f32`.
 `grid(3) f32` e `grid(DIM) f32` com DIM==3 pedem ESTE arquivo, com este
 nome e este conteúdo: o nome canônico carrega o VALOR, e não a grafia
 (linguagem §4.9, backend §2.2).
 
-**`grids_grids_3_f32.type.h`** (c23, c11)
+**`grids_grid_3_f32.type.h`** (c23, c11)
 
 instância de `grid(3) f32`.
 `grid(3) f32` e `grid(DIM) f32` com DIM==3 pedem ESTE arquivo, com este

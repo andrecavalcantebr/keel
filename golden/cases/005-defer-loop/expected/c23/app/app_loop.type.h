@@ -1,7 +1,7 @@
 /* app/app_loop.type.h — generated from app/loop.k by cgen, C23 profile. */
-#ifndef APP_APP_LC_TYPE_H
-#define APP_APP_LC_TYPE_H
+#ifndef APP_APP_LOOP_TYPE_H
+#define APP_APP_LOOP_TYPE_H
 
 #include "keel.type.h"
 
-#endif /* APP_APP_LC_TYPE_H */
+#endif /* APP_APP_LOOP_TYPE_H */

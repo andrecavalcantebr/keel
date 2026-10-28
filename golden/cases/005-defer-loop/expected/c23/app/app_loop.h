@@ -1,6 +1,6 @@
 /* app/app_loop.h — generated from app/loop.k by cgen, C23 profile. */
-#ifndef APP_APP_LC_H
-#define APP_APP_LC_H
+#ifndef APP_APP_LOOP_H
+#define APP_APP_LOOP_H
 
 #include "app/app_loop.type.h"
 
@@ -9,6 +9,6 @@ int  app_loop_live_now(void);
 int  app_loop_released_now(void);
 void app_loop_reset(void);
 #line 16 "app/loop.k"
-int  app_loop_run(int n);
+int app_loop_run(int n);
 
-#endif /* APP_APP_LC_H */
+#endif /* APP_APP_LOOP_H */

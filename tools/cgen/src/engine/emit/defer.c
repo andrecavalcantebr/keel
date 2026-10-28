@@ -11,14 +11,20 @@
  *     keel__rv0 and jumps to a label, and the labels of the defers are a ladder
  *     before the closing `}` of the function (backend §5.5.2).
  *
+ *   - a `break` or `continue` anywhere in the function (D3): every exit is
+ *     inline (RET_INLINE), and each `break`/`continue` runs the defers of the
+ *     blocks it leaves, up to the innermost loop (or switch, for `break`)
+ *     (backend §5.5, rule 2; §5.5.2, rules 1, 2 and 5).
+ *
  * Each cleanup line is mapped to the line of the `defer` that wrote it, through
  * EDIT_LINES (backend §5.5, rule 4; D61). Refused (k_em_handles_defer answers
- * false, and the module is refused with implementation-limit): `break`,
- * `continue` and `goto` in the function (D3); a `defer` statement that spans
- * lines, has a comment, a body with braces or an index; a `defer` in a nested
- * block of a function that has a `return`; a `}` that is not the first token of
- * its line; a `void` function with two exits; and a `return` that does not fit
- * its mode (multi-line or with an index, for RET_INLINE). */
+ * false, and the module is refused with implementation-limit): `goto`; a
+ * `defer` statement that spans lines, has a comment, a body with braces or an
+ * index; a `defer` in a nested block of a function that has a `return` but no
+ * `break` or `continue` (that would be a ladder per block); a `}` that is not
+ * the first token of its line; a `void` function with two exits; a `break` or
+ * `continue` with no loop to leave; and a `return` that does not fit its mode
+ * (multi-line or with an index, for RET_INLINE). */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -43,6 +49,7 @@ typedef enum { RET_NONE, RET_INLINE, RET_LADDER } RetMode;
 typedef struct {
     RetMode mode;
     bool ok;                /* false: the function is refused */
+    bool ends_ret;          /* the body ends in a `return`: the natural end is no exit */
 } Plan;
 
 static bool word(const KAst *ast, size_t i, const char *s) {
@@ -81,11 +88,17 @@ static const KAstNode *fn_of(const KAst *ast, size_t tok) {
     return NULL;
 }
 
-/* whether the body of fn has a jump out of a loop or to a label (D3: refused for now) */
-static bool jumps(const KAst *ast, const KAstNode *fn) {
+/* whether the body of fn has a `goto` (refused for now) */
+static bool has_goto(const KAst *ast, const KAstNode *fn) {
     for (size_t i = fn->body_first; i < fn->body_end; i++)
-        if (word(ast, i, "break") || word(ast, i, "continue") || word(ast, i, "goto"))
-            return true;
+        if (word(ast, i, "goto")) return true;
+    return false;
+}
+
+/* whether the body of fn has a `break` or a `continue` (D3: every exit is inline) */
+static bool has_jump(const KAst *ast, const KAstNode *fn) {
+    for (size_t i = fn->body_first; i < fn->body_end; i++)
+        if (word(ast, i, "break") || word(ast, i, "continue")) return true;
     return false;
 }
 
@@ -114,6 +127,57 @@ static size_t block_close(const KAst *ast, size_t open) {
         }
     }
     return NO_TOKEN;
+}
+
+/* What the `{` at open opens: 1 a loop body (`for (...)`, `while (...)`, `do`),
+ * 2 a switch body, 0 anything else. */
+static int block_kind(const KAst *ast, size_t open) {
+    if (open == NO_TOKEN || open == 0) return 0;
+    if (word(ast, open - 1, "do")) return 1;
+    if (!word(ast, open - 1, ")")) return 0;
+    size_t depth = 0;
+    for (size_t q = open - 1; q-- > 0; ) {
+        if (word(ast, q, ")")) depth++;
+        else if (word(ast, q, "(")) {
+            if (depth > 0) { depth--; continue; }
+            if (q == 0) return 0;
+            if (word(ast, q - 1, "for") || word(ast, q - 1, "while")) return 1;
+            if (word(ast, q - 1, "switch")) return 2;
+            return 0;
+        }
+    }
+    return 0;
+}
+
+/* The `{` of the innermost loop (or switch, when want_switch) that holds token p,
+ * or NO_TOKEN. A `break` leaves a switch; a `continue` does not. */
+static size_t exit_target(const KAst *ast, const KAstNode *fn, size_t p, bool want_switch) {
+    size_t lo = fn->body_first - 1;
+    size_t o = block_open(ast, p, lo);
+    while (o != NO_TOKEN && o != lo) {
+        int k = block_kind(ast, o);
+        if (k == 1 || (k == 2 && want_switch)) return o;
+        o = block_open(ast, o, lo);
+    }
+    return NO_TOKEN;
+}
+
+/* Whether the defer at token j is still pending at the exit at token p, whose
+ * target block is `target` (the function's `{` for a `return`, the loop's `{`
+ * for a jump): its block is target or inside it, and encloses p (j < p). */
+static bool pending_at(const KAst *ast, const KAstNode *fn, size_t j, size_t p, size_t target) {
+    size_t o = block_open(ast, j, fn->body_first - 1);
+    if (o == NO_TOKEN || o < target) return false;
+    size_t c = block_close(ast, o);
+    return c == NO_TOKEN || c > p;
+}
+
+/* the number of defers that are pending at the exit at token p (see pending_at) */
+static size_t pending_count(const KAst *ast, const KAstNode *fn, size_t p, size_t target) {
+    size_t n = 0;
+    for (size_t j = fn->body_first; j < p; j++)
+        if (word(ast, j, "defer") && pending_at(ast, fn, j, p, target)) n++;
+    return n;
 }
 
 /* whether token `tok` is the first token of its line (only blanks before it) */
@@ -262,7 +326,7 @@ static bool ends_in_return(const KAst *ast, const KAstNode *fn, size_t r) {
  * inline cleanup; two or more are the ladder. Also checks the shape of each
  * `return` for its mode. */
 static Plan plan_of(const KAst *ast, const KAstNode *fn) {
-    Plan p = { RET_NONE, true };
+    Plan p = { RET_NONE, true, false };
     size_t lo = fn->body_first - 1;
     bool any = false, nested = false;
     for (size_t i = 0; i < ast->islands.len; i++) {
@@ -275,15 +339,27 @@ static Plan plan_of(const KAst *ast, const KAstNode *fn) {
     size_t nret = 0, last = NO_TOKEN;
     for (size_t i = fn->body_first; i < fn->body_end; i++)
         if (word(ast, i, "return")) { nret++; last = i; }
-    if (nret == 0) return p;            /* no exit but the natural end: the D1 cleanup */
-    if (nested) { p.ok = false; return p; }
+    bool jump = has_jump(ast, fn);
+    if (nret == 0 && !jump) return p;   /* no exit but the natural end: the D1 cleanup */
+    if (nested && !jump) { p.ok = false; return p; }
+    /* a break or continue must leave a loop (or a switch, for break) */
+    for (size_t i = fn->body_first; i < fn->body_end; i++) {
+        if (word(ast, i, "break") && exit_target(ast, fn, i, true) == NO_TOKEN) { p.ok = false; return p; }
+        if (word(ast, i, "continue") && exit_target(ast, fn, i, false) == NO_TOKEN) { p.ok = false; return p; }
+    }
     bool void_fn = is_void(ast, fn);
-    if (nret == 1 && ends_in_return(ast, fn, last)) p.mode = RET_INLINE;
+    p.ends_ret = nret > 0 && ends_in_return(ast, fn, last);
+    if (jump || (nret == 1 && p.ends_ret)) p.mode = RET_INLINE;
     else {
         p.mode = RET_LADDER;
         if (void_fn) { p.ok = false; return p; }   /* the ladder returns keel__rv0: a value */
     }
     for (size_t r = fn->body_first; r < fn->body_end; r++) {
+        if (word(ast, r, "break") || word(ast, r, "continue")) {
+            /* the statement is `break;` or `continue;`, nothing else */
+            if (stmt_semi(ast, fn, r) != r + 1) { p.ok = false; return p; }
+            continue;
+        }
         if (!word(ast, r, "return")) continue;
         size_t semi = stmt_semi(ast, fn, r);
         if (semi == NO_TOKEN) { p.ok = false; return p; }
@@ -459,43 +535,63 @@ static void ladder_return(Emit *e, const KAstNode *fn, size_t r, size_t k, size_
     push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = end, .skip = 0, .text = text, .text_len = len });
 }
 
-/* A `return` that is the only exit (RET_INLINE, backend §5.5.2): the statement
- * is one edit, split between braces, with the cleanup in between:
+/* The inline ordinal of a `return expr;` with pending defers: the number of such
+ * returns before token r (the temporaries keel__rv<n> are numbered per function). */
+static size_t inline_ordinal(const KAst *ast, const KAstNode *fn, size_t r) {
+    size_t lo = fn->body_first - 1, n = 0;
+    for (size_t i = fn->body_first; i < r; i++) {
+        if (!word(ast, i, "return") || stmt_semi(ast, fn, i) == i + 1) continue;
+        if (pending_count(ast, fn, i, lo) > 0) n++;
+    }
+    return n;
+}
+
+/* An exit that is inline (RET_INLINE, backend §5.5.2): the statement is one
+ * edit, split between braces, with the cleanup in between:
  *   return;        ->  { <cleanup> return; }
- *   return expr;   ->  { T keel__rv0 = expr; <cleanup> return keel__rv0; }
- * The statement is one line and has no index (plan_of). The only inline
- * temporary of a function is keel__rv0, since such a function has one exit. */
-static void inline_return(Emit *e, const KAstNode *fn, size_t r, size_t a, size_t b, Edit *ed, size_t *cnt) {
+ *   return expr;   ->  { T keel__rv<n> = expr; <cleanup> return keel__rv<n>; }
+ *   break;         ->  { <cleanup> break; }      (and continue, the same)
+ * The statement is one line and has no index (plan_of). target is the `{` the
+ * exit leaves to: the function's for a return, the loop's (or switch's) for a
+ * jump. The defers it runs are the pending ones (pending_at), last first. */
+static void inline_exit(Emit *e, const KAstNode *fn, size_t r, size_t target, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     size_t semi = stmt_semi(ast, fn, r);
     size_t at = k_em_tok_off(ast, r), end = k_em_tok_end(ast, semi);
-    bool void_fn = is_void(ast, fn);
+    bool value = word(ast, r, "return") && semi != r + 1;   /* `return expr;` */
+    size_t n = value ? inline_ordinal(ast, fn, r) : 0;
     size_t lb;
     size_t blanks = line_blanks(ast, r, &lb);
     e->n = 0;
-    if (void_fn) {
-        k_em_put_bytes(e, "H|{\n", 4);
-    } else {
+    if (value) {
         k_em_put_bytes(e, "H|{ ", 4);
         put_rettype(e, fn);
-        k_em_put_bytes(e, " keel__rv0 = ", 13);
+        k_em_put_bytes(e, " keel__rv", 9);
+        put_uint(e, n);
+        k_em_put_bytes(e, " = ", 3);
         k_em_put_range(e, r + 1, semi);
         k_em_put_bytes(e, ";\n", 2);
+    } else {
+        k_em_put_bytes(e, "H|{\n", 4);
     }
-    for (size_t j = r; j-- > fn->body_first; ) {       /* the defers before it, last first */
-        if (!word(ast, j, "defer")) continue;
+    for (size_t j = r; j-- > fn->body_first; ) {       /* the pending defers, last first */
+        if (!word(ast, j, "defer") || !pending_at(ast, fn, j, r, target)) continue;
         Defer d;
         if (!analyze(ast, j, &d)) { e->ok = false; return; }
         put_cleanup(e, fn, j, &d);
     }
     k_em_put_bytes(e, "T|", 2);
     k_em_put_bytes(e, ast->source.ptr + lb, blanks);
-    if (!void_fn) k_em_put_bytes(e, "return keel__rv0; }", 19);
+    if (value) {
+        k_em_put_bytes(e, "return keel__rv", 15);
+        put_uint(e, n);
+        k_em_put_bytes(e, "; }", 3);
+    }
     size_t len;
     char *text = take_buf(e, &len);
     if (!e->ok || !text) { e->ok = false; return; }
-    if (void_fn) {
-        /* `return` stays in the second half; the brace closes after its `;` */
+    if (!value) {
+        /* the statement stays in the second half; the brace closes after its `;` */
         push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = at, .skip = 0, .text = text, .text_len = len });
         push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = end, .skip = 0, .text = " }", .text_len = 2 });
     } else {
@@ -586,16 +682,21 @@ void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         edit_registration(e, fn, kw, &d, temp, a, b, ed, cnt);
     }
 
-    /* the exits that run cleanups: a `return` after a defer */
+    /* the exits that run cleanups: a `return` after a defer, and (D3) a break or continue */
     if (p.mode != RET_NONE) {
         for (size_t r = fn->body_first; r < fn->body_end && e->ok; r++) {
-            if (!word(ast, r, "return")) continue;
+            bool ret = word(ast, r, "return"), brk = word(ast, r, "break"), cnt_ = word(ast, r, "continue");
+            if (!ret && !brk && !cnt_) continue;
             size_t at = k_em_tok_off(ast, r);
             if (at < a || at >= b) continue;
-            size_t nd = defers_before(ast, fn, r);
-            if (nd == 0) continue;              /* no defer before it: the return stays */
-            if (p.mode == RET_LADDER) ladder_return(e, fn, r, nd - 1, a, b, ed, cnt);
-            else inline_return(e, fn, r, a, b, ed, cnt);
+            if (p.mode == RET_LADDER) {         /* a ladder has returns only (no jump) */
+                size_t nd = defers_before(ast, fn, r);
+                if (nd > 0) ladder_return(e, fn, r, nd - 1, a, b, ed, cnt);
+                continue;
+            }
+            size_t target = ret ? fn->body_first - 1 : exit_target(ast, fn, r, brk);
+            if (pending_count(ast, fn, r, target) == 0) continue;   /* nothing pending: the exit stays */
+            inline_exit(e, fn, r, target, a, b, ed, cnt);
         }
     }
 
@@ -604,7 +705,7 @@ void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         if (!word(ast, c, "}")) continue;
         size_t at = k_em_tok_off(ast, c);
         if (at < a || at >= b) continue;
-        if (c == fn->body_end && p.mode == RET_INLINE) continue;   /* the exit is the return */
+        if (c == fn->body_end && p.mode == RET_INLINE && p.ends_ret) continue;   /* the exit is the return */
         if (c == fn->body_end && p.mode == RET_LADDER) close_ladder(e, fn, c, a, b, ed, cnt);
         else close_block(e, fn, c, a, b, ed, cnt);
     }
@@ -613,7 +714,7 @@ void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
 bool k_em_handles_defer(const KAst *ast, const KIsland *is) {
     if (is->kind != K_ISLAND_DEFER) return false;
     const KAstNode *fn = fn_of(ast, is->anchor);
-    if (!fn || jumps(ast, fn)) return false;
+    if (!fn || has_goto(ast, fn)) return false;
     Defer d;
     if (!analyze(ast, is->anchor, &d)) return false;
     size_t open = block_open(ast, is->anchor, fn->body_first - 1);

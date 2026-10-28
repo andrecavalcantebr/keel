@@ -18,7 +18,11 @@ Edita só `tools/cgen/src/engine/emit/defer.c`; cria
 `tools/agents/reports/T18-defer-d2.md`. Oráculos (não altere):
 `golden/cases/014-defer-later` e `golden/cases/017-defer-return`
 (`app/*.k`, `expected/{c23,c11}/app/*.c`), ambos na tabela de `gen_golden.sh`.
-`005-defer-loop` está na tabela e fica `wip`/recusado até o D3.
+`005-defer-loop` está na tabela e fica `wip`/recusado até o D3. Na tabela, os três casos levam o quarto campo `wip` (o golden está à frente do emissor):
+o `gen_golden.sh` imprime `ok` quando o caso bate e `wip` quando difere, e nunca falha por
+ele. **Você não edita a tabela**: o orquestrador tira o marcador na integração. O seu
+alvo é ver `014-defer-later` e `017-defer-return` imprimirem `ok` (ou, se não imprimir
+nada, sair sem `wip`) nos dois perfis.
 
 ## O mecanismo novo: `EDIT_LINES` (já pronto no `emit.c`)
 

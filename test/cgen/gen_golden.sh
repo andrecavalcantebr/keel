@@ -9,7 +9,7 @@ cd "$(dirname "$0")/../.." || exit 2
 BIN=$PWD/tools/cgen/cgen
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 bad=0 ok=0 wip=0
-while IFS='|' read -r case src main; do
+while IFS='|' read -r case src main flag; do
     case "$case" in ''|'#'*) continue ;; esac
     case "$case" in */*) dir=$PWD/$case ;; *) dir=$PWD/golden/cases/$case ;; esac
     state=ok
@@ -19,17 +19,17 @@ while IFS='|' read -r case src main; do
         [ "$main" = - ] || set -- "$@" --main "$main"
         if ! "$BIN" "$@" "$dir/$src" >/dev/null 2>"$err"; then
             if grep -q 'implementation-limit' "$err"; then state=wip; break; fi
-            printf 'FAIL   %s %s: cgen\n' "$case" "$p"; sed -n '1,5s/^/       /p' "$err"
+            [ "$flag" = wip ] || { printf 'FAIL   %s %s: cgen\n' "$case" "$p"; sed -n '1,5s/^/       /p' "$err"; }
             state=fail; continue
         fi
         for f in $(cd "$dir/expected/$p" && find . -type f | sort); do
             cmp -s "$dir/expected/$p/$f" "$out/$f" || {
-                printf 'FAIL   %s %s/%s differs\n' "$case" "$p" "${f#./}"
-                diff "$dir/expected/$p/$f" "$out/$f" 2>&1 | head -6 | sed 's/^/       /'
+                [ "$flag" = wip ] || { printf 'FAIL   %s %s/%s differs\n' "$case" "$p" "${f#./}"
+                diff "$dir/expected/$p/$f" "$out/$f" 2>&1 | head -6 | sed 's/^/       /'; }
                 state=fail; }
         done
     done
-    case $state in ok) ok=$((ok+1)) ;; wip) wip=$((wip+1)); printf 'wip    %s\n' "$case" ;; fail) bad=$((bad+1)) ;; esac
+    case $state in ok) ok=$((ok+1)) ;; wip) wip=$((wip+1)); printf 'wip    %s\n' "$case" ;; fail) if [ "$flag" = wip ]; then wip=$((wip+1)); printf 'wip    %s (differs)\n' "$case"; else bad=$((bad+1)); fi ;; esac
 done < test/cgen/gen/golden-cases.txt
 echo "$ok ok, $bad fail, $wip wip"
 [ $bad -eq 0 ]

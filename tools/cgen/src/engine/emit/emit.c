@@ -123,7 +123,7 @@ static const KAstNode *declared_at(const Emit *e, size_t i) {
     KToken t = tok(ast, i);
     for (size_t k = 0; k < ast->nodes.len; k++) {
         const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-        if (d->kind != K_AST_TYPE && !declares_value(d->kind)) continue;
+        if (d->kind != K_AST_TYPE && d->kind != K_AST_TAGS && !declares_value(d->kind)) continue;
         if (d->name_first >= d->name_end) continue;
         KToken n = tok(ast, d->name_first);
         if (n.len == t.len && memcmp(n.ptr, t.ptr, t.len) == 0) return d;
@@ -159,17 +159,21 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
                 if (at >= a && at < b)
                     push_edit(e, ed, cnt, (Edit){ EDIT_TAG, at, 0, n->name_first, true });
             }
-            if (n->name_first < n->name_end) {
-                size_t at = tok_off(ast, n->name_first);
-                if (at >= a && at < b)
-                    push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, n->name_first).len, n->name_first, true });
+            for (size_t i = n->first; i < n->end; i++) {
+                /* the declarator, and the module types the members use; a member
+                 * or a value of the module is not renamed here */
+                size_t at = tok_off(ast, i);
+                if (at < a || at >= b) continue;
+                const KAstNode *d = declared_at(e, i);
+                if (d && (i == n->name_first || d->kind == K_AST_TYPE || d->kind == K_AST_TAGS))
+                    push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, i).len, d->name_first, true });
             }
         } else if (value) {
             for (size_t i = n->first; i < n->end; i++) {
                 size_t at = tok_off(ast, i);
                 if (at < a || at >= b) continue;
                 const KAstNode *d = declared_at(e, i);
-                if (d) push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, i).len, d->name_first, d->kind == K_AST_TYPE });
+                if (d) push_edit(e, ed, cnt, (Edit){ EDIT_RENAME, at, tok(ast, i).len, d->name_first, d->kind == K_AST_TYPE || d->kind == K_AST_TAGS });
             }
         }
     }
@@ -363,6 +367,36 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
 }
 
+/* `tags N [A, B = 3];` -> the enum (backend §5.6, rule 1): one line when no
+ * tag carries a value, else one tag per line, four blanks of indent. */
+static void emit_tags(Emit *e, const KAstNode *n) {
+    const KAst *ast = e->ast;
+    size_t open = n->name_first + 1, close = n->end - 2;   /* `[` and `]` */
+    bool values = false;
+    for (size_t i = open; i < close; i++) if (text_is(tok(ast, i), "=")) values = true;
+    e->n = 0;
+    put_bytes(e, "typedef enum ", 13);
+    put_mangled(e, n->name_first, true);
+    put_bytes(e, values ? " {\n" : " { ", 3);
+    for (size_t i = open + 1; i < close && e->ok; ) {
+        if (values) put_bytes(e, "    ", 4);
+        put_mangled(e, n->name_first, true);
+        put_bytes(e, "_", 1);
+        put_bytes(e, tok(ast, i).ptr, tok(ast, i).len);
+        i++;
+        if (text_is(tok(ast, i), "=")) {
+            put_bytes(e, " = ", 3);
+            for (i++; i < close && !text_is(tok(ast, i), ","); i++)
+                put_bytes(e, tok(ast, i).ptr, tok(ast, i).len);
+        }
+        if (i < close) { put_bytes(e, values ? ",\n" : ", ", 2); i++; }
+    }
+    put_bytes(e, values ? "\n} " : " } ", 3);
+    put_mangled(e, n->name_first, true);
+    put_bytes(e, ";\n", 2);
+    if (e->ok && !k_emit_at(&e->w, line_at(e, first_off(e, n)), (keel_slice_char){ e->n, e->buf })) e->ok = false;
+}
+
 /* ---- the header bodies ---- */
 
 /* .type.h: the typedefs, the opaque C, the import_c lines and the body of
@@ -380,6 +414,10 @@ static void type_h_body(Emit *e) {
                 emit_import(e, n, a);
                 e->done = line_end(e, last_end(e, n));
             }
+            break;
+        case K_AST_TAGS:
+            emit_tags(e, n);
+            e->done = line_end(e, last_end(e, n));
             break;
         case K_AST_CONSTEXPR:
             a = line_start(e, first_off(e, n));
@@ -420,7 +458,7 @@ static bool type_h_has_content(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         KAstKind k = keel_buffer_KAstNode_ptr(&e->ast->nodes, i)->kind;
         if (k == K_AST_IMPORT_C || k == K_AST_TYPE || k == K_AST_OPAQUE || k == K_AST_EXTERN_C ||
-            k == K_AST_CONSTEXPR) return true;
+            k == K_AST_CONSTEXPR || k == K_AST_TAGS) return true;
     }
     return false;
 }
@@ -589,6 +627,23 @@ static bool supported(const KAst *ast) {
             if (k >= n->end || !text_is(tok(ast, k), "typedef")) return false;
             /* one declarator per typedef: a list shares the span of its nodes */
             if (i > 0 && keel_buffer_KAstNode_ptr(&ast->nodes, i - 1)->first == n->first) return false;
+            break;
+        }
+        case K_AST_TAGS: {
+            /* pub tags N [A, B = 3];  priv sends the enum to the .c, which is not in the slice;
+             * a value is a number, optionally negative */
+            size_t k = n->first + (is_visibility(tok(ast, n->first)) ? 1 : 0);
+            if (!n->is_public || n->name_first >= n->name_end || n->name_first != k + 1) return false;
+            if (n->end - n->name_first < 4 || !text_is(tok(ast, n->name_first + 1), "[")) return false;
+            for (size_t i = n->name_first + 2; i + 2 < n->end; i++) {
+                if (!text_is(tok(ast, i), "=")) continue;
+                size_t v = i + 1;
+                if (text_is(tok(ast, v), "-")) v++;
+                char c = tok(ast, v).ptr[0];
+                if (c < '0' || c > '9') return false;
+            }
+            for (size_t p = tok_off(ast, n->first); p < tok_end(ast, n->end - 1); p++)
+                if (ast->source.ptr[p] == '\n') return false;
             break;
         }
         case K_AST_CONSTEXPR: {

@@ -113,7 +113,9 @@ static void comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt) {
     size_t g0 = lo > 0 ? k_em_tok_end(ast, lo - 1) : 0;
     for (size_t i = lo; g0 < b; i++) {
         size_t g1 = i < ntok ? k_em_tok_off(ast, i) : ast->source.len;
-        for (size_t p = g0 < a ? a : g0; p < g1 && p < b; ) {
+        /* the scan starts at the gap's start, not at the line's: a block comment
+         * that began on an earlier line still covers the start of this one */
+        for (size_t p = g0; p < g1 && p < b; ) {
             size_t ce;
             if (s[p] == '/' && p + 1 < g1 && s[p + 1] == '/') {
                 ce = p;
@@ -123,11 +125,11 @@ static void comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt) {
                 while (ce + 1 < g1 && !(s[ce] == '*' && s[ce + 1] == '/')) ce++;
                 ce = ce + 2 < g1 ? ce + 2 : g1;
             } else { p++; continue; }
-            size_t cs = p, end = ce < b ? ce : b;
+            size_t cs0 = p, cs = cs0 < a ? a : cs0, end = ce < b ? ce : b;
             if (end > cs && s[end - 1] == '\n') end--;     /* the break stays */
             size_t rest = end;
             while (rest < b && (s[rest] == ' ' || s[rest] == '\t')) rest++;
-            if (rest >= b || s[rest] == '\n')              /* the comment ended the line */
+            if (cs0 >= a && (rest >= b || s[rest] == '\n'))   /* it began here and ended the line */
                 while (cs > g0 && cs > a && (s[cs - 1] == ' ' || s[cs - 1] == '\t')) cs--;
             if (end > cs) k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_DROP, .at = cs, .skip = end - cs, .name_tok = 0, .is_type = false });
             p = ce > p ? ce : p + 1;

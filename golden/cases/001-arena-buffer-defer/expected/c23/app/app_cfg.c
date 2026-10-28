@@ -14,11 +14,11 @@
 
 
 
-keel_outcome_i32 app_cfg_sum(keel_arena *a, const char *path) { keel_outcome_i32 keel__rv0;
+keel_outcome_i32 app_cfg_sum(keel_arena *a, const char *path) {
     keel_outcome_i32 result = {0};
     FILE *fp = fopen(path, "rb");
     if (!fp) return keel_outcome_i32_fail(&result, 1);
-    struct { FILE *fp; } keel__c0 = { fp };
+    struct { FILE *fp; } keel__c0 = { fp }; keel_outcome_i32 keel__rv0;
 
     keel_buffer_i32 xs = keel_buffer_i32_from((i32 *)keel_arena_alloc2(a, sizeof(i32), alignof(i32), app_cfg_MAX), app_cfg_MAX);
     if (keel_buffer_i32_capacity(&xs) == 0) { keel__rv0 = keel_outcome_i32_fail(&result, 2); goto keel__e0; }
@@ -29,8 +29,11 @@ keel_outcome_i32 app_cfg_sum(keel_arena *a, const char *path) { keel_outcome_i32
 
     i32 total = 0;
     { keel_buffer_i32 *keel__c1 = &xs; size_t keel__n1 = keel_buffer_i32_length(keel__c1); for (size_t i = 0; i < keel__n1; i++) { i32 x = keel_buffer_i32_get(keel__c1, i); total += x; } }
-    keel__rv0 = keel_outcome_i32_win1(&result, total);
-keel__e0: fclose(keel__c0.fp); return keel__rv0; }
+    keel__rv0 = keel_outcome_i32_win1(&result, total); goto keel__e0;
+#line 15 "app/cfg.k"
+keel__e0: fclose(keel__c0.fp);
+#line 27 "app/cfg.k"
+    return keel__rv0; }
 
 
 keel_outcome_i32 app_cfg_sum_scratch(const char *path) {

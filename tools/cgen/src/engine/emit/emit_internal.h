@@ -105,6 +105,11 @@ bool k_em_declares_value(KAstKind k);
 /* The module-level declaration that token `i` names, or NULL. */
 const KAstNode *k_em_declared_at(const Emit *e, size_t i);
 
+/* The <N> of `keel__c<N>` (backend §2.3, rule 2: a counter per function) at
+ * token tok: the `defer [now ...]` captures and the `foreach` over a container
+ * (its pointer and length, §5.7) of the body before it. */
+size_t k_em_capture_ordinal(const KAst *ast, const KAstNode *fn, size_t tok);
+
 /* Sorts ed[from..cnt) into the prefix ed[0..from), which must already be sorted
  * by `at` (insertion sort: few edits per line). */
 void k_em_sort_edits(Edit *ed, size_t from, size_t cnt);
@@ -158,10 +163,22 @@ void k_em_placement_c(Emit *e);
 bool k_em_foreign_island(const KAst *ast, const KIsland *is);
 bool k_em_handles_use(const KAst *ast, const KIsland *is);
 bool k_em_handles_implicit_init(const KAst *ast, const KIsland *is);
+bool k_em_handles_ref(const KAst *ast, const KIsland *is);
 void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
 void k_em_use_includes(Emit *e);
+/* the .h, section 1: the .type.h of another module's type a public signature
+ * takes by value */
+void k_em_h_type_includes(Emit *e);
 /* the .h: `typedef struct X X;` for another module's type a public signature
  * takes by pointer */
 void k_em_h_forward_decls(Emit *e);
+typedef struct {
+    const char *sym; size_t sym_len;   /* NULL: the tokens stay (an own call) */
+    size_t end;                        /* the token after the written name */
+    size_t amp[16]; size_t namp;       /* the arguments' first tokens that take `&` */
+} KRangeUse;
+int k_em_range_use(const KAst *ast, size_t i, KRangeUse *r);
+/* the symbol a type island resolved the written type `spelled` to */
+bool k_em_type_symbol(const KAst *ast, const char *spelled, size_t len, const char **sym, size_t *sym_len);
 
 #endif /* CGEN_ENGINE_EMIT_EMIT_INTERNAL_H */

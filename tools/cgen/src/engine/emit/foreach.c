@@ -1,8 +1,10 @@
 /* engine/emit/foreach.c — the `foreach` construction of a function body (emit_internal.h;
  * codegen design E5: one file per construction; backend §5.7, §5.3 rule 9).
- * Lowered here: `foreach (T b : A..B)` over a literal range, with one binder and
- * a body that is a braced block or one simple statement. Every other `foreach`
- * (over a container, a range in a variable, two binders) stays refused. */
+ * Lowered here: `foreach (T b : A..B)` over a literal range, with one binder, and
+ * `foreach (T v, I i : c)` over a container variable `c`, with two binders and
+ * the value binder by value (§5.7, rules 1 to 5); either with a body that is a
+ * braced block or one simple statement. Every other `foreach` (a range in a
+ * variable, a value binder by pointer, the countable form) stays refused. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -100,6 +102,84 @@ static bool analyze(const KAst *ast, size_t kw, Foreach *f) {
     return false;
 }
 
+/* the parts of a `foreach (T v, I i : c)` over a container variable */
+typedef struct {
+    size_t vtype_a, vtype_b;    /* the value binder's type, tokens [a, b) */
+    size_t value;               /* the value binder */
+    size_t itype_a, itype_b;    /* the index binder's type */
+    size_t index;
+    size_t cont;                /* the container variable */
+    size_t close, body, last;
+    bool braced;
+    bool by_pointer;            /* the container is a pointer: no `&` */
+    const char *sym; size_t sym_len;   /* the container's instance */
+} Over;
+
+/* the body after the `)` at close: a braced block or one simple statement */
+static bool read_body(const KAst *ast, size_t close, size_t *body, size_t *last, bool *braced) {
+    size_t b = close + 1;
+    if (b >= ast->tokens.len) return false;
+    if (word(ast, b, "{")) {
+        size_t c = closing(ast, b, "{", "}");
+        if (c == NO_TOKEN) return false;
+        *body = b; *last = c; *braced = true;
+        return true;
+    }
+    size_t depth = 0;
+    for (size_t i = b; i < ast->tokens.len; i++) {
+        if (word(ast, i, "{") || word(ast, i, "}") || is_statement_keyword(ast, i)) return false;
+        if (word(ast, i, "(") || word(ast, i, "[")) depth++;
+        else if (word(ast, i, ")") || word(ast, i, "]")) {
+            if (depth == 0) return false;
+            depth--;
+        } else if (depth == 0 && word(ast, i, ";")) {
+            *body = b; *last = i; *braced = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+/* `( T v , I i : c )` with the container's type in the island's detail:
+ * `v, i : c (buffer i32)` */
+static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KAstNode *fn, Over *o) {
+    if (!word(ast, kw, "foreach") || !word(ast, kw + 1, "(")) return false;
+    size_t close = closing(ast, kw + 1, "(", ")");
+    if (close == NO_TOKEN) return false;
+    size_t comma = NO_TOKEN, colon = NO_TOKEN;
+    for (size_t i = kw + 2; i < close; i++) {
+        if (word(ast, i, ",") && comma == NO_TOKEN) comma = i;
+        else if (word(ast, i, ":")) colon = i;
+        else if (word(ast, i, "(") || word(ast, i, "[") || word(ast, i, "..")) return false;
+    }
+    if (comma == NO_TOKEN || colon == NO_TOKEN || comma < kw + 4 || colon < comma + 3 || colon + 2 != close) return false;
+    o->vtype_a = kw + 2; o->vtype_b = comma - 1; o->value = comma - 1;
+    o->itype_a = comma + 1; o->itype_b = colon - 1; o->index = colon - 1;
+    o->cont = colon + 1;
+    o->close = close;
+    if (!word_like(ast, o->value) || !word_like(ast, o->index) || !word_like(ast, o->cont)) return false;
+    for (size_t i = o->vtype_a; i < o->vtype_b; i++) if (word(ast, i, "*")) return false;   /* by pointer: `ptr`, not yet */
+    if (!read_body(ast, close, &o->body, &o->last, &o->braced)) return false;
+    /* the container's type, from the detail: `... (<type>)` */
+    const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
+    size_t len = is->text_len, open = len;
+    while (open > 0 && d[open - 1] != '(') open--;
+    if (open == 0 || len < open + 2 || d[len - 1] != ')') return false;
+    if (!k_em_type_symbol(ast, d + open, len - 1 - open, &o->sym, &o->sym_len)) return false;
+    /* by value or by pointer: the declaration `<type> c` or `<type> *c` in the function */
+    KToken c = k_em_tok(ast, o->cont);
+    bool found = false;
+    for (size_t i = fn->first + 1; i < kw && !found; i++) {
+        KToken t = k_em_tok(ast, i);
+        if (t.len != c.len || memcmp(t.ptr, c.ptr, c.len) != 0) continue;
+        if (word(ast, i - 1, "*")) { o->by_pointer = true; found = true; }
+        else if (word_like(ast, i - 1) && (word(ast, i + 1, "=") || word(ast, i + 1, ";") || word(ast, i + 1, ",") || word(ast, i + 1, ")"))) {
+            o->by_pointer = false; found = true;
+        }
+    }
+    return found;
+}
+
 /* the island of the `foreach` at token `kw`, or NULL */
 static const KIsland *island_at(const KAst *ast, size_t kw) {
     for (size_t i = 0; i < ast->islands.len; i++) {
@@ -114,11 +194,104 @@ static void push_in_line(Emit *e, Edit *ed, size_t *cnt, size_t a, size_t b, Edi
     if (x.at >= a && x.at < b) k_em_push_edit(e, ed, cnt, x);
 }
 
+static void put_uint(Emit *e, size_t v) {
+    char dig[24];
+    size_t n = 0;
+    do { dig[n++] = (char)('0' + v % 10); v /= 10; } while (v);
+    while (n) k_em_put_bytes(e, &dig[--n], 1);
+}
+
+static void put_tok(Emit *e, size_t i) { KToken t = k_em_tok(e->ast, i); k_em_put_bytes(e, t.ptr, t.len); }
+
+/* the text in e->buf, moved to the scratch of this line */
+static const char *take(Emit *e, size_t *len) {
+    char *s = k_em_scratch(e, e->n);
+    if (!s) { e->n = 0; return NULL; }
+    memcpy(s, e->buf, e->n);
+    *len = e->n;
+    e->n = 0;
+    return s;
+}
+
+/* `foreach (T v, I i : c) body` (§5.7):
+ *   { S *keel__c<N> = &c; size_t keel__n<N> = S_length(keel__c<N>); for (I i = 0; i < keel__n<N>; i++) { T v = S_get(keel__c<N>, i); body } }
+ * The header becomes the text up to the value binder's line; a simple body gets
+ * the braces around it. All of it is on the line of the `foreach` (rule 5). */
+static void edits_over(Emit *e, const KAstNode *fn, size_t kw, const Over *o, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t n = k_em_capture_ordinal(ast, fn, kw);
+    size_t at = k_em_tok_off(ast, kw), end = k_em_tok_end(ast, o->close);
+    if (at < a || at >= b) return;
+    if (k_em_declared_at(e, o->value) || k_em_declared_at(e, o->index)) { e->ok = false; return; }
+    e->n = 0;
+    k_em_put_bytes(e, "{ ", 2);
+    k_em_put_bytes(e, o->sym, o->sym_len);
+    k_em_put_bytes(e, " *keel__c", 9); put_uint(e, n);
+    k_em_put_bytes(e, " = ", 3);
+    if (!o->by_pointer) k_em_put_bytes(e, "&", 1);
+    k_em_put_range(e, o->cont, o->cont + 1);
+    k_em_put_bytes(e, "; size_t keel__n", 16); put_uint(e, n);
+    k_em_put_bytes(e, " = ", 3);
+    k_em_put_bytes(e, o->sym, o->sym_len);
+    k_em_put_bytes(e, "_length(keel__c", 15); put_uint(e, n);
+    k_em_put_bytes(e, "); for (", 8);
+    k_em_put_range(e, o->itype_a, o->itype_b);
+    k_em_put_bytes(e, " ", 1); put_tok(e, o->index);
+    k_em_put_bytes(e, " = 0; ", 6); put_tok(e, o->index);
+    k_em_put_bytes(e, " < keel__n", 10); put_uint(e, n);
+    k_em_put_bytes(e, "; ", 2); put_tok(e, o->index);
+    k_em_put_bytes(e, "++)", 3);
+    size_t hl;
+    const char *head = take(e, &hl);
+    if (!head) return;
+    /* the value binder: `T v = S_get(keel__c<N>, i);` */
+    k_em_put_range(e, o->vtype_a, o->vtype_b);
+    k_em_put_bytes(e, " ", 1); put_tok(e, o->value);
+    k_em_put_bytes(e, " = ", 3);
+    k_em_put_bytes(e, o->sym, o->sym_len);
+    k_em_put_bytes(e, "_get(keel__c", 12); put_uint(e, n);
+    k_em_put_bytes(e, ", ", 2); put_tok(e, o->index);
+    k_em_put_bytes(e, ");", 2);
+    size_t vl;
+    const char *val = take(e, &vl);
+    if (!val) return;
+    /* the header's tokens were renamed by the module's rules: they are all replaced */
+    size_t j = 0;
+    for (size_t k = 0; k < *cnt; k++)
+        if (ed[k].at < at || ed[k].at >= end) ed[j++] = ed[k];
+    *cnt = j;
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = end - at, .text = head, .text_len = hl });
+    if (o->braced) {
+        /* `{` -> `{ T v = ...;`, and the block's `}` closes the outer block too */
+        size_t ob = k_em_tok_end(ast, o->body);
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = " ", .text_len = 1 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = val, .text_len = vl });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " }", .text_len = 2 });
+    } else {
+        size_t sb = k_em_tok_off(ast, o->body);
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = "{ ", .text_len = 2 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = val, .text_len = vl });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = " ", .text_len = 1 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " } }", .text_len = 4 });
+    }
+}
+
+static const KAstNode *fn_of(const KAst *ast, size_t tok) {
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind == K_AST_FUNCTION && n->body_first != NO_TOKEN && n->body_end != NO_TOKEN &&
+            tok >= n->body_first && tok < n->body_end) return n;
+    }
+    return NULL;
+}
+
 void k_em_edits_foreach(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     for (size_t kw = fn->body_first; kw < fn->body_end; kw++) {
         if (!word(ast, kw, "foreach")) continue;
         const KIsland *is = island_at(ast, kw);
+        Over o;
+        if (is && analyze_over(ast, is, kw, fn, &o)) { edits_over(e, fn, kw, &o, a, b, ed, cnt); continue; }
         Foreach f;
         if (!is || !k_em_handles_foreach(ast, is) || !analyze(ast, kw, &f)) continue;
         /* the binder's name is written again in the C text; a binder that is also
@@ -176,7 +349,11 @@ bool k_em_handles_foreach(const KAst *ast, const KIsland *is) {
     bool dots = false;
     for (size_t i = 0; i + 1 < is->text_len; i++)
         if (d[i] == '.' && d[i + 1] == '.') { dots = true; break; }
-    if (!dots) return false;
+    if (!dots) {
+        const KAstNode *fn = fn_of(ast, is->anchor);
+        Over o;
+        return fn && analyze_over(ast, is, is->anchor, fn, &o);
+    }
     Foreach f;
     return analyze(ast, is->anchor, &f);
 }

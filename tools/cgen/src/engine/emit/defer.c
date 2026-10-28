@@ -282,13 +282,10 @@ static size_t line_no(const KAst *ast, size_t tok) {
     return n;
 }
 
-/* the captures `keel__c<N>` of the function: the [now] defers before kw, from the
- * start of the body (backend §2.3, rule 2: a counter per function) */
+/* the captures `keel__c<N>` of the function (backend §2.3, rule 2: a counter
+ * per function, shared with the `foreach` over a container) */
 static size_t capture_ordinal(const KAst *ast, const KAstNode *fn, size_t kw) {
-    size_t k = 0;
-    for (size_t i = fn->body_first; i < kw; i++)
-        if (word(ast, i, "defer") && word(ast, i + 1, "[") && word(ast, i + 2, "now")) k++;
-    return k;
+    return k_em_capture_ordinal(ast, fn, kw);
 }
 
 /* the number of defers of the body that start before token t: the ordinal of
@@ -484,9 +481,8 @@ static void edit_registration(Emit *e, const KAstNode *fn, size_t kw, const Defe
         /* struct { T1 a; T2 b; } keel__c<N> = { a, b }; */
         k_em_put_bytes(e, "struct { ", 9);
         for (size_t c = 0; c < d->ncap; c++) {
-            k_em_put_range(e, d->cap[c].type_first, d->cap[c].type_end);
-            k_em_put_bytes(e, " ", 1);
-            put_name(e, d->cap[c].name);
+            /* the entry as the capture list writes it: `FILE *fp`, `int h` */
+            k_em_put_range(e, d->cap[c].type_first, d->cap[c].name + 1);
             k_em_put_bytes(e, "; ", 2);
         }
         k_em_put_bytes(e, "} keel__c", 9);

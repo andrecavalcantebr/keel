@@ -17,3 +17,4 @@ test/cgen/gen/constblock|cb.k|-
 005-defer-loop|app/loop.k|-
 test/cgen/gen/defervoid|dv.k|-
 test/cgen/gen/imports|use.k|-
+001-arena-buffer-defer|app/cfg.k|-

@@ -81,15 +81,25 @@ static bool declared_here(const KAst *ast, const Detail *d) {
 /* The marks are `&<k>` (argument k by address) and `type:<k>` (argument k is
  * a type, erased into its size and alignment: backend §5.16); out: a bit per
  * argument (1-based) for each. */
+static bool marks_of3(const Detail *d, unsigned *amp, unsigned *type, unsigned *dim);
 static bool marks_of(const Detail *d, unsigned *amp, unsigned *type) {
+    unsigned dim;
+    return marks_of3(d, amp, type, &dim) && dim == 0;
+}
+
+/* the three marks; `dim:<k>`: argument k is an `array`, and its dimension 0
+ * goes after it as an argument (backend §5.2, §5.18) */
+static bool marks_of3(const Detail *d, unsigned *amp, unsigned *type, unsigned *dim) {
     *amp = 0;
     *type = 0;
+    *dim = 0;
     size_t p = 0;
     while (p < d->marks_len) {
         if (d->marks[p] == ' ') { p++; continue; }
         unsigned *set = amp;
         if (d->marks[p] == '&') p++;
         else if (p + 5 <= d->marks_len && memcmp(d->marks + p, "type:", 5) == 0) { p += 5; set = type; }
+        else if (p + 4 <= d->marks_len && memcmp(d->marks + p, "dim:", 4) == 0) { p += 4; set = dim; }
         else return false;
         unsigned k = 0;
         size_t digits = 0;
@@ -195,19 +205,41 @@ static bool foreign_in(const KAst *ast, size_t a, size_t b) {
     return false;
 }
 
+/* The dimension 0 of the `array` named by the single token `tok`, as its
+ * declaration writes it (a decimal), from the array island `name [d0, ...]`. */
+static bool array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len) {
+    KToken t = k_em_tok(ast, tok);
+    for (size_t i = 0; i < ast->islands.len; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        if (is->kind != K_ISLAND_ARRAY) continue;
+        const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
+        if (is->text_len < t.len + 3 || memcmp(d, t.ptr, t.len) != 0 || d[t.len] != ' ' || d[t.len + 1] != '[') continue;
+        size_t s = t.len + 2, e = s;
+        while (e < is->text_len && d[e] >= '0' && d[e] <= '9') e++;
+        if (e == s || e >= is->text_len || (d[e] != ']' && d[e] != ',')) return false;
+        *p = d + s;
+        *len = e - s;
+        return true;
+    }
+    return false;
+}
+
 bool k_em_handles_use(const KAst *ast, const KIsland *is) {
     Detail d;
     if (!k_em_foreign_island(ast, is) || !detail_of(ast, is, &d)) return false;
     if (d.sym_len == 4 && memcmp(d.sym, "core", 4) == 0) return false;   /* lowered by the core: not a rename */
-    unsigned amp, type;
-    if (!marks_of(&d, &amp, &type)) return false;
+    unsigned amp, type, dim;
+    if (!marks_of3(&d, &amp, &type, &dim)) return false;
     size_t end = span_end(ast, is->anchor, &d);
     if (end == NO_TOKEN) return false;
-    if (is->kind != K_ISLAND_CALL) return amp == 0 && type == 0;
+    if (is->kind != K_ISLAND_CALL) return amp == 0 && type == 0 && dim == 0;
     size_t first[17], last[17], argc;
     if (!call_args(ast, end, first, last, &argc)) return false;
     for (unsigned k = 1; k <= 16; k++) {
-        if (((amp | type) & (1u << k)) && k > argc) return false;
+        if (((amp | type | dim) & (1u << k)) && k > argc) return false;
+        const char *dp;
+        size_t dl;
+        if ((dim & (1u << k)) && (last[k] != first[k] + 1 || !array_dim0(ast, first[k], &dp, &dl))) return false;
         if (!(type & (1u << k))) continue;
         /* the type argument is copied twice: it must not hold another rename */
         if (foreign_in(ast, first[k], last[k])) return false;
@@ -224,6 +256,12 @@ bool k_em_handles_implicit_init(const KAst *ast, const KIsland *is) {
     if (is->kind != K_ISLAND_IMPLICIT_INIT || is->anchor + 1 >= ast->tokens.len) return false;
     KToken next = k_em_tok(ast, is->anchor + 1);
     return k_em_text_is(next, ";") || k_em_text_is(next, ",");
+}
+
+/* `ref` in a declaration (spec §4.12) is the language's: the word goes, with
+ * the blanks after it */
+bool k_em_handles_ref(const KAst *ast, const KIsland *is) {
+    return is->kind == K_ISLAND_REF && is->anchor + 1 < ast->tokens.len && k_em_text_is(k_em_tok(ast, is->anchor), "ref");
 }
 
 /* removes the edits whose position is in [lo, hi) (a span copied again) */
@@ -246,6 +284,12 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 0, .text = " = {0}", .text_len = 6 });
             continue;
         }
+        if (k_em_handles_ref(ast, is)) {
+            size_t at = k_em_tok_off(ast, is->anchor), to = k_em_tok_off(ast, is->anchor + 1);
+            if (at >= a && at < b)
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_DROP, .at = at, .skip = to - at });
+            continue;
+        }
         if (!k_em_handles_use(ast, is)) {
             /* a call of the module's own verb: the name is renamed by emit.c, the `&` are here */
             Detail o;
@@ -265,10 +309,10 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
         detail_of(ast, is, &d);
         size_t end = span_end(ast, is->anchor, &d);
         size_t at = k_em_tok_off(ast, is->anchor);
-        unsigned amp = 0, type = 0;
+        unsigned amp = 0, type = 0, dim = 0;
         size_t first[17], last[17], argc = 0;
         if (is->kind == K_ISLAND_CALL) {
-            marks_of(&d, &amp, &type);
+            marks_of3(&d, &amp, &type, &dim);
             call_args(ast, end, first, last, &argc);
         }
         if (at >= a && at < b) {
@@ -293,6 +337,14 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
             if (p < a || p >= b) continue;
             if (amp & (1u << k))
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "&", .text_len = 1 });
+            if (dim & (1u << k)) {
+                /* the array's dimension 0, from the declaration, as one argument more */
+                const char *dp;
+                size_t dl;
+                if (!array_dim0(ast, first[k], &dp, &dl) || q > b) { e->ok = false; return; }
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = ", ", .text_len = 2 });
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = dp, .text_len = dl });
+            }
             if (type & (1u << k)) {
                 /* T -> sizeof(T), alignof(T): the type is copied twice, with its renames */
                 if (q > b) { e->ok = false; return; }
@@ -320,6 +372,48 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
     k_em_sort_edits(ed, 0, *cnt);
 }
 
+/* The symbol of a type spelled `spelled` ("buffer i32"): the one a type island
+ * with that written name resolved to. */
+bool k_em_type_symbol(const KAst *ast, const char *spelled, size_t len, const char **sym, size_t *sym_len) {
+    for (size_t i = 0; i < ast->islands.len; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        Detail d;
+        if (is->kind != K_ISLAND_TYPE || !detail_of(ast, is, &d)) continue;
+        if (d.left_len == len && memcmp(d.left, spelled, len) == 0) { *sym = d.sym; *sym_len = d.sym_len; return true; }
+    }
+    return false;
+}
+
+/* For k_em_put_range, the copy by tokens: the use anchored at token i. 1 with
+ * the symbol to write instead of tokens [i, end) (none for a call of the
+ * module's own verb, which emit.c renames) and the first tokens of the
+ * arguments that take `&`; 0 when there is no use there; -1 when the use needs
+ * more than a rename (a `type:` or `dim:` argument). */
+int k_em_range_use(const KAst *ast, size_t i, KRangeUse *r) {
+    for (size_t k = 0; k < ast->islands.len; k++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, k);
+        if (is->anchor != i || (is->kind != K_ISLAND_TYPE && is->kind != K_ISLAND_NAME && is->kind != K_ISLAND_CALL)) continue;
+        Detail d;
+        if (!detail_of(ast, is, &d)) continue;
+        bool foreign = k_em_handles_use(ast, is);
+        if (!foreign && (is->kind != K_ISLAND_CALL || k_em_foreign_island(ast, is))) continue;
+        unsigned amp, type, dim;
+        if (!marks_of3(&d, &amp, &type, &dim)) return -1;
+        if (type || dim) return -1;
+        size_t end = span_end(ast, is->anchor, &d);
+        if (end == NO_TOKEN) return -1;
+        *r = (KRangeUse){ .sym = foreign ? d.sym : NULL, .sym_len = foreign ? d.sym_len : 0, .end = end };
+        if (is->kind == K_ISLAND_CALL && amp) {
+            size_t first[17], last[17], argc;
+            if (!call_args(ast, end, first, last, &argc)) return -1;
+            for (size_t a = 1; a <= argc; a++)
+                if (amp & (1u << a)) r->amp[r->namp++] = first[a];
+        }
+        return 1;
+    }
+    return 0;
+}
+
 /* ---- the .h: another module's types in the signatures (rule 2) ---- */
 
 /* `typedef struct X X;` for each type of another module (an instance, a
@@ -338,13 +432,15 @@ void k_em_h_forward_decls(Emit *e) {
             Detail d;
             detail_of(ast, is, &d);
             size_t end = span_end(ast, is->anchor, &d);
-            if (end >= ast->tokens.len || !k_em_text_is(k_em_tok(ast, end), "*")) { e->ok = false; return; }
+            if (end >= ast->tokens.len || !k_em_text_is(k_em_tok(ast, end), "*")) continue;   /* by value: k_em_h_type_includes */
             /* once: not if an earlier island of a public signature has the same symbol */
             bool seen = false;
             for (size_t j = 0; j < i && !seen; j++) {
                 const KIsland *o = keel_buffer_KIsland_ptr(&ast->islands, j);
                 Detail od;
                 if (o->kind != K_ISLAND_TYPE || !k_em_handles_use(ast, o) || !detail_of(ast, o, &od)) continue;
+                size_t oe = span_end(ast, o->anchor, &od);
+                if (oe >= ast->tokens.len || !k_em_text_is(k_em_tok(ast, oe), "*")) continue;
                 const KAstNode *on = NULL;
                 for (size_t q = 0; q < ast->nodes.len; q++) {
                     const KAstNode *x = keel_buffer_KAstNode_ptr(&ast->nodes, q);
@@ -363,7 +459,7 @@ void k_em_h_forward_decls(Emit *e) {
     }
 }
 
-/* ---- the includes of the .c (rule 4) ---- */
+/* ---- the includes (rule 3, section 1; rule 4) ---- */
 
 static bool prefix_of(const char *sym, size_t len, const char *p, size_t plen) {
     return len == plen ? memcmp(sym, p, plen) == 0 : len > plen && memcmp(sym, p, plen) == 0 && sym[plen] == '_';
@@ -393,52 +489,104 @@ static keel_slice_char import_name(const KAst *ast, const KAstNode *n, char *buf
     return (keel_slice_char){ len, buf };
 }
 
+/* The header a symbol of another module lives in, with extension `ext`: its
+ * instance's, or the imported module's whose symbol prefixes it (the longest).
+ * Its length in path, 0 when none (the prelude's names are everywhere). */
+static size_t header_of(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap) {
+    int c = instance_of(ast, sym, len);
+    if (c >= 0) {
+        const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, (size_t)c);
+        if (!k->module) return 0;
+        size_t pl = k_mangle_instance_path(k->module->name, (keel_slice_char){ k->symbol_len, (char *)k->symbol }, ext,
+                                           (keel_slice_char){ cap, path });
+        return pl <= cap ? pl : 0;
+    }
+    size_t best = 0;
+    char name_buf[NAME_CAP], best_name[NAME_CAP];
+    size_t best_len = 0;
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind != K_AST_IMPORT) continue;
+        keel_slice_char name = import_name(ast, n, name_buf, sizeof name_buf);
+        if (!name.len || k_em_is_keel(name)) continue;
+        char ms[NAME_CAP];
+        size_t ml = k_mangle_module(name, (keel_slice_char){ sizeof ms, ms });
+        if (ml > sizeof ms || !prefix_of(sym, len, ms, ml) || ml <= best) continue;
+        best = ml;
+        memcpy(best_name, name.ptr, name.len);
+        best_len = name.len;
+    }
+    if (!best) return 0;
+    size_t pl = k_mangle_path((keel_slice_char){ best_len, best_name }, ext, (keel_slice_char){ cap, path });
+    return pl <= cap ? pl : 0;
+}
+
 static void raw_include(Emit *e, const char *path, size_t len) {
     k_emit_raw(&e->w, (keel_slice_char){ 10, (char *)"#include \"" });
     k_emit_raw(&e->w, (keel_slice_char){ len, (char *)path });
     k_emit_raw(&e->w, (keel_slice_char){ 2, (char *)"\"\n" });
 }
 
+#define MAX_INCLUDES 32
+typedef struct { char path[MAX_INCLUDES][NAME_CAP]; size_t len[MAX_INCLUDES]; size_t n; } Includes;
+
+static bool add_include(Includes *s, const char *path, size_t len) {
+    for (size_t k = 0; k < s->n; k++) if (s->len[k] == len && memcmp(s->path[k], path, len) == 0) return true;
+    if (s->n == MAX_INCLUDES) return false;
+    memcpy(s->path[s->n], path, len);
+    s->len[s->n++] = len;
+    return true;
+}
+
+/* .h, section 1: the .type.h of each type of another module a public signature
+ * takes by value, in the order of the first use (codegen design E2) */
+void k_em_h_type_includes(Emit *e) {
+    const KAst *ast = e->ast;
+    Includes s = { .n = 0 };
+    for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        if (is->kind != K_ISLAND_TYPE || !k_em_handles_use(ast, is)) continue;
+        bool sig = false;
+        for (size_t k = 0; k < ast->nodes.len && !sig; k++) {
+            const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+            sig = n->kind == K_AST_FUNCTION && n->is_public && n->body_first != NO_TOKEN && n->body_first >= 1 &&
+                  is->anchor >= n->first && is->anchor < n->body_first - 1;
+        }
+        if (!sig) continue;
+        Detail d;
+        detail_of(ast, is, &d);
+        size_t end = span_end(ast, is->anchor, &d);
+        if (end < ast->tokens.len && k_em_text_is(k_em_tok(ast, end), "*")) continue;   /* by pointer: forward */
+        char path[NAME_CAP];
+        size_t pl = header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
+        if (!pl) { e->ok = false; return; }
+        size_t before = s.n;
+        if (!add_include(&s, path, pl)) { e->ok = false; return; }
+        if (s.n > before) raw_include(e, path, pl);
+    }
+}
+
+/* .c: the .h of each module and instance the module uses, in the order of the path */
 void k_em_use_includes(Emit *e) {
     const KAst *ast = e->ast;
-    /* the modules, in the order of the imports */
-    for (size_t k = 0; k < ast->nodes.len && e->ok; k++) {
-        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-        if (n->kind != K_AST_IMPORT) continue;
-        char name_buf[NAME_CAP], sym_buf[NAME_CAP];
-        keel_slice_char name = import_name(ast, n, name_buf, sizeof name_buf);
-        if (!name.len || k_em_is_keel(name)) continue;
-        size_t ms = k_mangle_module(name, (keel_slice_char){ sizeof sym_buf, sym_buf });
-        if (ms > sizeof sym_buf) { e->ok = false; return; }
-        bool used = false;
-        for (size_t i = 0; i < ast->islands.len && !used; i++) {
-            const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
-            Detail d;
-            if (!k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
-            used = instance_of(ast, d.sym, d.sym_len) < 0 && prefix_of(d.sym, d.sym_len, sym_buf, ms) && d.sym_len > ms;
-        }
-        if (!used) continue;
+    Includes s = { .n = 0 };
+    for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        Detail d;
+        if (!k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
         char path[NAME_CAP];
-        size_t pl = k_mangle_path(name, ".h", (keel_slice_char){ sizeof path, path });
-        if (pl > sizeof path) { e->ok = false; return; }
-        raw_include(e, path, pl);
+        size_t pl = header_of(ast, d.sym, d.sym_len, ".h", path, sizeof path);
+        if (pl && !add_include(&s, path, pl)) { e->ok = false; return; }
     }
-    /* the instances, in the order of the closure */
-    for (size_t c = 0; c < ast->closure.len && e->ok; c++) {
-        const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, c);
-        if (k->kind != K_CLOSURE_INSTANCE || !k->module) continue;
-        bool used = false;
-        for (size_t i = 0; i < ast->islands.len && !used; i++) {
-            const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
-            Detail d;
-            if (!k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
-            used = instance_of(ast, d.sym, d.sym_len) == (int)c;
+    /* the order of the path: an insertion sort, few includes */
+    for (size_t i = 1; i < s.n; i++)
+        for (size_t j = i; j > 0; j--) {
+            size_t m = s.len[j - 1] < s.len[j] ? s.len[j - 1] : s.len[j];
+            int c = memcmp(s.path[j - 1], s.path[j], m);
+            if (c < 0 || (c == 0 && s.len[j - 1] <= s.len[j])) break;
+            char t[NAME_CAP]; size_t tl = s.len[j];
+            memcpy(t, s.path[j], tl); memcpy(s.path[j], s.path[j - 1], s.len[j - 1]); s.len[j] = s.len[j - 1];
+            memcpy(s.path[j - 1], t, tl); s.len[j - 1] = tl;
         }
-        if (!used) continue;
-        char path[NAME_CAP];
-        size_t pl = k_mangle_instance_path(k->module->name, (keel_slice_char){ k->symbol_len, (char *)k->symbol }, ".h",
-                                           (keel_slice_char){ sizeof path, path });
-        if (pl > sizeof path) { e->ok = false; return; }
-        raw_include(e, path, pl);
-    }
+    for (size_t k = 0; k < s.n; k++) raw_include(e, s.path[k], s.len[k]);
 }

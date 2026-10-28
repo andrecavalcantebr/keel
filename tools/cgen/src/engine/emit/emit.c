@@ -516,6 +516,7 @@ static void emit_header(Emit *e, KEmitFile which) {
         raw(e, "#include \"keel.type.h\"\n");
     } else {
         raw(e, "#include \""); raw_slice(e, type_path); raw(e, "\"\n");
+        k_em_h_type_includes(e);
     }
     if (block && has_content) raw(e, "\n");
     if (type_h) type_h_body(e);
@@ -590,7 +591,7 @@ static bool islands_supported(const KAst *ast) {
              * rename check below does not apply to it */
             if (k_em_handles_array(ast, is) || k_em_handles_foreach(ast, is) ||
                 k_em_handles_index(ast, is) || k_em_handles_constblock(ast, is) ||
-                k_em_handles_defer(ast, is) || k_em_handles_implicit_init(ast, is)) continue;
+                k_em_handles_defer(ast, is) || k_em_handles_implicit_init(ast, is) || k_em_handles_ref(ast, is)) continue;
             return false;
         }
         /* a name another module declares: renamed by its island (uses.c) */

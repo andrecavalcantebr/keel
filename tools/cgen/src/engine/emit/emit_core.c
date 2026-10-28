@@ -108,10 +108,24 @@ char *k_em_scratch(Emit *e, size_t n) {
 
 void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b) {
     const KAst *ast = e->ast;
+    size_t amp[16], namp = 0;   /* the tokens that take `&` before them (uses.c) */
     for (size_t i = tok_a; i < tok_b && e->ok; i++) {
         if (i > tok_a) {   /* the gap between the two tokens, as written */
             size_t g0 = k_em_tok_end(ast, i - 1), g1 = k_em_tok_off(ast, i);
             k_em_put_bytes(e, ast->source.ptr + g0, g1 - g0);
+        }
+        for (size_t k = 0; k < namp; k++) if (amp[k] == i) k_em_put_bytes(e, "&", 1);
+        KRangeUse u;
+        int r = k_em_range_use(ast, i, &u);
+        if (r < 0) { e->ok = false; return; }
+        if (r > 0) {
+            for (size_t k = 0; k < u.namp && namp < 16; k++) amp[namp++] = u.amp[k];
+            if (u.sym) {
+                if (u.end > tok_b) { e->ok = false; return; }
+                k_em_put_bytes(e, u.sym, u.sym_len);
+                i = u.end - 1;
+                continue;
+            }
         }
         char name[NAME_CAP];
         size_t len;
@@ -125,4 +139,27 @@ void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b) {
 
 bool k_em_overlaps(const Emit *e, const KAstNode *n, size_t a, size_t b) {
     return k_em_first_off(e, n) < b && k_em_last_end(e, n) > a;
+}
+
+/* the foreach island anchored at token kw over a container (its detail has no `..`) */
+static bool container_foreach_at(const KAst *ast, size_t kw) {
+    for (size_t i = 0; i < ast->islands.len; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        if (is->kind != K_ISLAND_FOREACH || is->anchor != kw) continue;
+        const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
+        for (size_t k = 0; k + 1 < is->text_len; k++)
+            if (d[k] == '.' && d[k + 1] == '.') return false;
+        return true;
+    }
+    return false;
+}
+
+size_t k_em_capture_ordinal(const KAst *ast, const KAstNode *fn, size_t tok) {
+    size_t k = 0;
+    for (size_t i = fn->body_first; i < tok; i++) {
+        if (k_em_text_is(k_em_tok(ast, i), "defer") && i + 2 < ast->tokens.len &&
+            k_em_text_is(k_em_tok(ast, i + 1), "[") && k_em_text_is(k_em_tok(ast, i + 2), "now")) k++;
+        else if (k_em_text_is(k_em_tok(ast, i), "foreach") && container_foreach_at(ast, i)) k++;
+    }
+    return k;
 }

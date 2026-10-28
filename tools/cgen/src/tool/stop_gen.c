@@ -83,6 +83,59 @@ static int emit_one(keel_arena *arena, const char *dest, const KAst *ast, keel_s
     return cgen_write_output(path, data, need);
 }
 
+/* The .k path of a module, for `#line` and the header comment: its name with
+ * `/` for each `.`, and `.k` (backend §4.1: the file is the symbol). */
+static keel_slice_char source_path(keel_slice_char name, char *buf, size_t cap) {
+    if (name.len + 2 > cap) return (keel_slice_char){ 0 };
+    for (size_t i = 0; i < name.len; i++) buf[i] = name.ptr[i] == '.' ? '/' : name.ptr[i];
+    memcpy(buf + name.len, ".k", 2);
+    return (keel_slice_char){ name.len + 2, buf };
+}
+
+/* the modules whose headers are written in this call, each once */
+#define WRITTEN_CAP 1024
+typedef struct {
+    const KModule *seen[WRITTEN_CAP];
+    size_t n;
+} Written;
+
+static keel_slice_char name_span(const KAst *a, size_t first, size_t end) {
+    KToken x = keel_buffer_KLexeme_ptr(&a->tokens, first)->token, y = keel_buffer_KLexeme_ptr(&a->tokens, end-1)->token;
+    return (keel_slice_char){ (size_t)(y.ptr + y.len - x.ptr), x.ptr };
+}
+
+/* The headers (.type.h and .h, no .c) of the modules `m` imports, and of what
+ * they import, each module once (backend §4.3.2, rule 4: the uses carry the
+ * #include, not the imports). The prelude and the compiled module are in `w`
+ * already. A generic module writes what the emitter says it owns (backend
+ * §4.4.1). */
+static int emit_imports(keel_arena *arena, void *tool, const char *dest, const KModule *m,
+                        Written *w, KEmitOptions opt) {
+    const KAst *ast = m->ast;
+    for (size_t i = 0; i < ast->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        if (n->kind != K_AST_IMPORT) continue;
+        KModule *dep = NULL;
+        KLoadResult r = cgen_load(tool, name_span(ast, n->name_first, n->name_end), &dep);
+        if ((r != K_LOAD_OK && r != K_LOAD_ALREADY) || !dep) return 2;
+        bool done = false;
+        for (size_t k = 0; k < w->n; k++) if (w->seen[k] == dep) { done = true; break; }
+        if (done) continue;
+        if (w->n == WRITTEN_CAP) {
+            fprintf(stderr, "cgen: error: imported modules exceed the writing limit %d [implementation-limit]\n", WRITTEN_CAP);
+            return 2;
+        }
+        w->seen[w->n++] = dep;
+        char src_buf[8192];
+        keel_slice_char src_path = source_path(dep->name, src_buf, sizeof src_buf);
+        int rc = emit_one(arena, dest, dep->ast, dep->name, src_path, K_EMIT_TYPE_H, ".type.h", opt);
+        if (!rc) rc = emit_one(arena, dest, dep->ast, dep->name, src_path, K_EMIT_H, ".h", opt);
+        if (!rc) rc = emit_imports(arena, tool, dest, dep, w, opt);
+        if (rc) return rc;
+    }
+    return 0;
+}
+
 static bool has_public_main(const KAst *ast) {
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
@@ -129,10 +182,7 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
         KEmitOptions opt = { .c23 = profile_is_c23(profile, pass, pass_n), .line_on = line_on };
         keel_slice_char mod = k_diag_text(name);
         char src_buf[8192];
-        size_t sl = 0;
-        for (const char *p = name; *p && sl + 4 < sizeof src_buf; p++) src_buf[sl++] = *p == '.' ? '/' : *p;
-        memcpy(src_buf + sl, ".k", 3);
-        keel_slice_char src_path = { sl + 2, src_buf };
+        keel_slice_char src_path = source_path(mod, src_buf, sizeof src_buf);
         if (main_module && strcmp(main_module, name) != 0) {
             fprintf(stderr, "cgen: error: --main names '%s', but the compiled module is '%s' [invalid-option]\n", main_module, name);
             rc = 2;
@@ -150,6 +200,10 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_TYPE_H, ".type.h", opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_H, ".h", opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_C, ".c", opt);
+            Written written = { .n = 0 };
+            written.seen[written.n++] = prelude;
+            written.seen[written.n++] = module;
+            if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt);
             if (!rc && main_module) rc = emit_one(arena, dest, NULL, mod, src_path, K_EMIT_ENTRY, NULL, opt);
         }
     }

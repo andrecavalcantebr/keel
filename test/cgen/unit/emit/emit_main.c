@@ -86,11 +86,11 @@ int main(void) {
     }
     /* Outside the covered slice: refused, not mistranslated. */
     {
-        char *src = "module m;\nimport foo.bar;\n";
+        char *src = "module m;\ninstance coll.stack i32;\n";
         KAst ast = parse(SL(src));
         KEmitOptions opt = { .c23 = true, .line_on = true };
         if (k_emit_file(&ast, SL("m"), SL("m.k"), K_EMIT_TYPE_H, opt, (keel_slice_char){0}) != K_EMIT_UNSUPPORTED) {
-            fprintf(stderr, "FAIL: an explicit import must be K_EMIT_UNSUPPORTED\n"); failures++;
+            fprintf(stderr, "FAIL: an `instance` must be K_EMIT_UNSUPPORTED\n"); failures++;
         }
     }
     if (failures) return 1;

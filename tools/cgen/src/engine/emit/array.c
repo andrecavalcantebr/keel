@@ -4,6 +4,8 @@
  * sequence (`array f32 m[2,3]` -> `f32 m[2][3]`), and the first dimension of a
  * parameter gets `static` (`i32 v[static 2][3]`).
  *
+ * The same holds for an `array` variable at file scope.
+ *
  * The forms this slice does not lower are refused (k_em_handles_array answers
  * false, and the module is refused with implementation-limit): a declaration with
  * more than one declarator (`array i32 a[3], b[4];`) and a parameter whose
@@ -37,11 +39,11 @@ static bool tok_closes(const KAst *ast, size_t i) {
     return tok_is(ast, i, "]") || tok_is(ast, i, ")") || tok_is(ast, i, "}");
 }
 
-/* the function node whose tokens hold token `tok`, or NULL */
+/* the function or file-scope variable whose tokens hold token `tok`, or NULL */
 static const KAstNode *enclosing_fn(const KAst *ast, size_t tok) {
     for (size_t k = 0; k < ast->nodes.len; k++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-        if (n->kind == K_AST_FUNCTION && n->first <= tok && tok < n->end) return n;
+        if ((n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) && n->first <= tok && tok < n->end) return n;
     }
     return NULL;
 }
@@ -84,7 +86,7 @@ static bool array_decl(const KAst *ast, const KIsland *is, ArrayDecl *d) {
     for (size_t i = lbr + 1; i < rbr; i++)
         if (tok_is_word(ast, i) && tok_is_word(ast, i + 1)) return false;
     d->arr = arr; d->lbr = lbr; d->rbr = rbr;
-    d->param = arr < fn->body_first;
+    d->param = fn->kind == K_AST_FUNCTION && arr < fn->body_first;
     /* a local with a second declarator: `array i32 a[3], b[4];` */
     if (!d->param && rbr + 1 < fn->end && tok_is(ast, rbr + 1, ",")) return false;
     return true;

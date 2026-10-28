@@ -18,3 +18,4 @@ test/cgen/gen/constblock|cb.k|-
 test/cgen/gen/defervoid|dv.k|-
 test/cgen/gen/imports|use.k|-
 001-arena-buffer-defer|app/cfg.k|-
+002-from-array|app/pool.k|-

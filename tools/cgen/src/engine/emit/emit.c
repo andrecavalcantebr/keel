@@ -141,6 +141,12 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
         k_em_edits_index(e, n, a, b, ed, cnt);
         k_em_sort_edits(ed, before, *cnt);
     }
+    /* an `array` variable at file scope (array.c) */
+    if (n->kind == K_AST_VARIABLE) {
+        size_t before = *cnt;
+        k_em_edits_array(e, n, a, b, ed, cnt);
+        k_em_sort_edits(ed, before, *cnt);
+    }
     /* the uses of another module's names, by their islands (uses.c) */
     if (n->kind != K_AST_MODULE && n->kind != K_AST_IMPORT) k_em_edits_uses(e, n, a, b, ed, cnt);
     /* the prelude's static_assert in C11 (backend §4.2, §9): only the keyword changes */

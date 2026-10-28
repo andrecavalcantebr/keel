@@ -16,9 +16,9 @@ funcionou e achou muitos defeitos do próprio golden (alinhamento à mão, `#lin
 invariante). **How to apply:** repita o fluxo no M5; confira o golden antes de culpar o
 agente; leia `tools/agents/passagem-2026-10-28.md` (estado, pendências e o próximo passo).
 
-**Atualização (fim de 2026-10-28):** o M5 fecha 001, 002, 003 e 007 (instâncias de
-genérico do usuário, `instance`, usos de outro módulo pelas ilhas); 006 espera a decisão do
-sufixo `ptr3`; falta emitir a `/base` (oráculo `golden/<p>/keel/`) e o `--instance`. Ver a
+**Atualização (fim de 2026-10-28):** o M5 fecha 001, 002, 003, 006 e 007 (instâncias de
+genérico do usuário, `instance`, usos de outro módulo pelas ilhas); acessor de vetor com sufixo
+de rank `_N` (decisão do André, backend §2.1.1); falta emitir a `/base` (vale o `.k`) (oráculo `golden/<p>/keel/`) e o `--instance`. Ver a
 seção "Atualização" de `tools/agents/passagem-2026-10-28.md`.
 
 Decisões do André nesta sessão: `tags` segue a escrita do autor; `constexpr` C11 com

@@ -86,11 +86,11 @@ int main(void) {
     }
     /* Outside the covered slice: refused, not mistranslated. */
     {
-        char *src = "module m;\ninstance coll.stack i32;\n";
+        char *src = "module m;\npub int x, y;\n";
         KAst ast = parse(SL(src));
         KEmitOptions opt = { .c23 = true, .line_on = true };
         if (k_emit_file(&ast, SL("m"), SL("m.k"), K_EMIT_TYPE_H, opt, (keel_slice_char){0}) != K_EMIT_UNSUPPORTED) {
-            fprintf(stderr, "FAIL: an `instance` must be K_EMIT_UNSUPPORTED\n"); failures++;
+            fprintf(stderr, "FAIL: two declarators in one variable must be K_EMIT_UNSUPPORTED\n"); failures++;
         }
     }
     /* An instance of a generic module: golden 007's expected files, written by hand. */

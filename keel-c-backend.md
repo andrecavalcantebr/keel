@@ -1101,7 +1101,7 @@ app_report(keel__c0.out, keel__c0.fd);
 2. `defer` sem `[now]` não emite nada no ponto de registro: a linha de fonte vira linha em branco (§6).
 3. Uma saída anterior a um registro não recebe o cleanup dele: no exemplo, o `return -1`.
 4. O cleanup de cada saída sai numa linha só (§6, regra 2).
-5. Em `return expr;`, `expr` vai para o temporário `keel__rv<N>` antes do cleanup, e o temporário é devolvido depois. Ele é declarado com o tipo de retorno escrito na função, copiado da produção `decl-function` (linguagem §2.2): `size_t f(…)` dá `size_t keel__rv0 = expr;`. O lowering é o mesmo nos dois perfis. [D43](#10-decisões-de-emissão)
+5. Em `return expr;`, `expr` vai para o temporário `keel__rv<N>` antes do cleanup, e o temporário é devolvido depois. Ele é declarado com o tipo de retorno escrito na função, copiado da produção `decl-function` (linguagem §2.2): `size_t f(…)` dá `size_t keel__rv0 = expr;`. Na escada (§5.5.2) o temporário é um só, declarado na linha do primeiro `defer` da função, ao lado da struct de `[now]` se houver; no cleanup inline cada `return` com valor declara o seu dentro do bloco que o substitui: `{ int keel__rv1 = expr; <cleanup> return keel__rv1; }`. O `return;` de função `void` não tem temporário. O lowering é o mesmo nos dois perfis. [D43](#10-decisões-de-emissão)
 6. `[now]` já traz os tipos escritos (linguagem §4.6): cada entrada vira, verbatim, membro de uma struct local `keel__c<N>`, preenchida no ponto de registro, e o corpo referencia as cópias. Sem `[now]`, o corpo referencia as variáveis diretamente, e não há struct.
 
 **Verificações:** nenhuma de `debug`. **Perfis:** iguais.
@@ -1139,10 +1139,11 @@ keel__e0: s1(p);
 
 **Regras**
 
-1. Se toda saída do escopo é `return` ou o fim natural, o cleanup sai como escada de rótulos: um rótulo `keel__e<N>` por registro, em ordem inversa, e cada saída salta para o que corresponde aos registros pendentes. [D45](#10-decisões-de-emissão)
+1. O cleanup sai como escada de rótulos quando duas ou mais saídas da função passam por ele e todas são `return`: um rótulo `keel__e<N>` por registro, em ordem inversa, e cada saída salta para o que corresponde aos registros pendentes. Com uma saída só, ou com alguma saída `break`, `continue` ou `goto`, o cleanup sai inline em cada saída. O fim natural só conta como saída se o último comando da função não é um `return`. A escada de um degrau só seria um rótulo e um salto sem ganho. [D45](#10-decisões-de-emissão)
 2. Se alguma saída é `break`, `continue` ou `goto`, o cleanup sai inline em cada uma.
 3. As duas formas só são equivalentes porque a linguagem recusa o sombreamento (`defer-later-shadowed`, linguagem §4.6): a escada emite o corpo uma vez, no fim do escopo do registro, e o inline o cola em cada saída, que pode estar num escopo mais interno. Se a recusa caísse, só a escada seria correta.
 4. A condição é sobre os cinco terminadores do C e não tem caso por construção: depois da expansão (§5.5.1), o corpo de um `parallel` tem saídas `goto`, e sai inline por dedução. O mesmo vale para `match`.
+5. Na escada, o conjunto sai na linha do `}` que fecha a função: os rótulos `keel__e<N>` em ordem inversa de registro (`e0` é o primeiro), cada um seguido do corpo do seu `defer`, e depois `return keel__rv<N>;` e o `}`. `return expr;` com `defer` pendente vira `keel__rv0 = expr; goto keel__e<K>;`, onde `K` é o último registrado até ali; leva chaves só quando o `return` era o corpo de um `if`, `else` ou laço sem chaves. O inline sai sempre entre chaves: `{ <cleanup> continue; }`. Um `return` anterior a qualquer registro não muda. O cleanup que fecha um bloco leva a indentação do `defer`.
 
 ### 5.6 `tags` e `match`
 

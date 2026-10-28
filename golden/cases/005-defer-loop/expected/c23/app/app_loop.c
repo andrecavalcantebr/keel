@@ -23,8 +23,8 @@ int app_loop_run(int n) {
         struct { int h; } keel__c0 = { h };
         if (h == 0) { app_loop_release(keel__c0.h); continue; }
         if (h < 0)  { app_loop_release(keel__c0.h); break; }
-        if (h > 90) { app_loop_release(keel__c0.h); return -1; }
+        if (h > 90) { int keel__rv0 = -1; app_loop_release(keel__c0.h); return keel__rv0; }
         total += h;
-    app_loop_release(keel__c0.h); }
+        app_loop_release(keel__c0.h); }
     return total;
 }

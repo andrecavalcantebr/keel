@@ -9,7 +9,9 @@
  *     cleanup goes in the `return`'s own line, between braces (backend §5.5.2);
  *   - two exits or more (RET_LADDER): the `return` stores its value in
  *     keel__rv0 and jumps to a label, and the labels of the defers are a ladder
- *     before the closing `}` of the function (backend §5.5.2).
+ *     before the closing `}` of the function (backend §5.5.2). A `void`
+ *     function has no keel__rv0: `return;` becomes `goto keel__e<k>;` and the
+ *     ladder ends in the `}`.
  *
  *   - a `break` or `continue` anywhere in the function (D3): every exit is
  *     inline (RET_INLINE), and each `break`/`continue` runs the defers of the
@@ -22,7 +24,7 @@
  * `defer` statement that spans lines, has a comment, a body with braces or an
  * index; a `defer` in a nested block of a function that has a `return` but no
  * `break` or `continue` (that would be a ladder per block); a `}` that is not
- * the first token of its line; a `void` function with two exits; a `break` or
+ * the first token of its line; a `break` or
  * `continue` with no loop to leave; and a `return` that does not fit its mode
  * (multi-line or with an index, for RET_INLINE). */
 #include <string.h>
@@ -350,10 +352,7 @@ static Plan plan_of(const KAst *ast, const KAstNode *fn) {
     bool void_fn = is_void(ast, fn);
     p.ends_ret = nret > 0 && ends_in_return(ast, fn, last);
     if (jump || (nret == 1 && p.ends_ret)) p.mode = RET_INLINE;
-    else {
-        p.mode = RET_LADDER;
-        if (void_fn) { p.ok = false; return p; }   /* the ladder returns keel__rv0: a value */
-    }
+    else p.mode = RET_LADDER;
     for (size_t r = fn->body_first; r < fn->body_end; r++) {
         if (word(ast, r, "break") || word(ast, r, "continue")) {
             /* the statement is `break;` or `continue;`, nothing else */
@@ -519,12 +518,26 @@ static void ladder_return(Emit *e, const KAstNode *fn, size_t r, size_t k, size_
     const KAst *ast = e->ast;
     size_t semi = stmt_semi(ast, fn, r);
     bool braces = word(ast, r - 1, ")") || word(ast, r - 1, "else");
+    bool void_fn = semi == r + 1;       /* `return;` (plan_of: only in a void function) */
     size_t at = k_em_tok_off(ast, r), end = k_em_tok_end(ast, semi);
     if (braces)
         push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 0, .text = "{ ", .text_len = 2 });
+    e->n = 0;
+    if (void_fn) {
+        /* `return;` -> `goto keel__e<k>;`: the keyword is replaced, the `;` stays */
+        k_em_put_bytes(e, "goto keel__e", 12);
+        put_uint(e, k);
+        size_t len;
+        char *text = take_buf(e, &len);
+        if (!e->ok || !text) { e->ok = false; return; }
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, r).len,
+            .text = text, .text_len = len });
+        if (braces)
+            push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = end, .skip = 0, .text = " }", .text_len = 2 });
+        return;
+    }
     push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, r).len,
         .text = "keel__rv0 =", .text_len = 11 });
-    e->n = 0;
     k_em_put_bytes(e, " goto keel__e", 13);
     put_uint(e, k);
     k_em_put_bytes(e, ";", 1);
@@ -622,10 +635,16 @@ static void close_ladder(Emit *e, const KAstNode *fn, size_t c, size_t a, size_t
         first = j;
     }
     if (first == NO_TOKEN) { e->ok = false; return; }
-    size_t ind = indent_before(ast, first);
     k_em_put_bytes(e, "T|", 2);
-    k_em_put_bytes(e, ast->source.ptr + k_em_tok_off(ast, first) - ind, ind);
-    k_em_put_bytes(e, "return keel__rv0; ", 18);
+    if (is_void(ast, fn)) {                 /* no value to return: the `}` keeps its own indentation */
+        size_t lb;
+        size_t blanks = line_blanks(ast, c, &lb);
+        k_em_put_bytes(e, ast->source.ptr + lb, blanks);
+    } else {
+        size_t ind = indent_before(ast, first);
+        k_em_put_bytes(e, ast->source.ptr + k_em_tok_off(ast, first) - ind, ind);
+        k_em_put_bytes(e, "return keel__rv0; ", 18);
+    }
     size_t len;
     char *text = take_buf(e, &len);
     if (!e->ok || !text) { e->ok = false; return; }
@@ -678,7 +697,7 @@ void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         Defer d;
         if (!analyze(ast, kw, &d)) { e->ok = false; return; }
         /* the first defer declares the ladder's temporary on its line (backend §5.5, rule 5) */
-        bool temp = p.mode == RET_LADDER && defers_before(ast, fn, kw) == 0;
+        bool temp = p.mode == RET_LADDER && !is_void(ast, fn) && defers_before(ast, fn, kw) == 0;
         edit_registration(e, fn, kw, &d, temp, a, b, ed, cnt);
     }
 

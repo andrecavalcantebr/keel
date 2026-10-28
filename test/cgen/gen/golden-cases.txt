@@ -15,3 +15,4 @@ test/cgen/gen/constblock|cb.k|-
 014-defer-later|app/dl.k|-
 017-defer-return|app/dr.k|-
 005-defer-loop|app/loop.k|-
+test/cgen/gen/defervoid|dv.k|-

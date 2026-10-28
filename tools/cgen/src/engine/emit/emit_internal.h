@@ -51,6 +51,7 @@ typedef struct {
     keel_slice_char module;     /* the declared name, dotted */
     keel_slice_char src_path;   /* the .k path, with extension */
     KEmitOptions opt;
+    const KEmitInstance *inst;  /* the instance being written (instance.c), else NULL */
     KWriter w;
     size_t done;               /* source offset: the lines before it are written */
     size_t cache_off, cache_line;   /* line_at's last answer */
@@ -73,6 +74,11 @@ bool k_em_text_is(KToken t, const char *s);
 /* `pub` or `priv`, the only visibility words a declaration starts with (spec §4.1) */
 bool k_em_is_visibility(KToken t);
 bool k_em_is_keel(keel_slice_char m);
+
+/* A generic module (`module coll type T;`) keeps in its own headers what names no
+ * binder and no modifier; the rest belongs to the instances (backend §4.4.1). */
+bool k_em_module_is_generic(const KAst *ast);
+bool k_em_generic_out(const KAst *ast, const KAstNode *n);
 
 /* the start of the line holding `off`, and just past the newline ending it */
 size_t k_em_line_start(const Emit *e, size_t off);

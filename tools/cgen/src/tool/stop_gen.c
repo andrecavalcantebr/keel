@@ -136,6 +136,46 @@ static int emit_imports(keel_arena *arena, void *tool, const char *dest, const K
     return 0;
 }
 
+/* The headers of each instance the module's closure holds, of a generic module
+ * that is not the base (the base's `keel_*` instances come from the transform,
+ * in gen/). The generic's .k path is its module name, as for any module. */
+static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, KEmitOptions opt) {
+    for (size_t i = 0; i < ast->closure.len; i++) {
+        const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
+        if (c->kind != K_CLOSURE_INSTANCE || !c->module || !c->module->ast) continue;
+        keel_slice_char gen = c->module->name;
+        if (gen.len >= 4 && memcmp(gen.ptr, "keel", 4) == 0 && (gen.len == 4 || gen.ptr[4] == '.')) continue;
+        KEmitInstance inst = { .symbol = { c->symbol_len, (char *)c->symbol }, .module = gen,
+                               .modifier = c->modifier, .argc = c->argc };
+        if (c->argc > K_EMIT_INSTANCE_ARGS) return 2;
+        for (size_t k = 0; k < c->argc; k++)
+            inst.arg[k] = (keel_slice_char){ c->arg_len[k], ast->closure_text.ptr + c->arg_text[k] };
+        char src_buf[8192];
+        keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf);
+        for (int w = 0; w < 2; w++) {
+            KEmitFile which = w == 0 ? K_EMIT_TYPE_H : K_EMIT_H;
+            const char *ext = w == 0 ? ".type.h" : ".h";
+            size_t need = k_emit_instance(c->module->ast, &inst, src_path, which, opt, (keel_slice_char){0});
+            if (need == K_EMIT_UNSUPPORTED) {
+                fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
+                        (int)inst.symbol.len, inst.symbol.ptr);
+                return 2;
+            }
+            char *data = cgen_alloc(arena, need ? need : 1, 1, 1, false, "generated file");
+            if (!data) return 2;
+            k_emit_instance(c->module->ast, &inst, src_path, which, opt, (keel_slice_char){ need, data });
+            char rel[4096], path[8192];
+            size_t rel_len = k_mangle_instance_path(gen, inst.symbol, ext, (keel_slice_char){ sizeof rel, rel });
+            if (rel_len >= sizeof rel) return write_failed(dest);
+            int n = snprintf(path, sizeof path, "%s/%.*s", dest, (int)rel_len, rel);
+            if (n < 0 || (size_t)n >= sizeof path || !make_parents(path)) return write_failed(dest);
+            int rc = cgen_write_output(path, data, need);
+            if (rc) return rc;
+        }
+    }
+    return 0;
+}
+
 static bool has_public_main(const KAst *ast) {
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
@@ -197,6 +237,7 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
             keel_slice_char keel_mod = k_diag_text("keel"), keel_src = k_diag_text("keel.k");
             if (!rc) rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_TYPE_H, ".type.h", opt);
             if (!rc) rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_H, ".h", opt);
+            if (!rc) rc = emit_instances(arena, dest, module->ast, opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_TYPE_H, ".type.h", opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_H, ".h", opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_C, ".c", opt);

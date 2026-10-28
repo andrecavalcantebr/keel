@@ -30,10 +30,30 @@ typedef struct {
 
 #define K_EMIT_UNSUPPORTED ((size_t)-1)
 
+#define K_EMIT_INSTANCE_ARGS 4
+
+/* One instance of a generic module (codegen design §7; backend §4.3, §4.4.1):
+ * the C symbols the parser's closure already computed. */
+typedef struct {
+    keel_slice_char symbol;     /* the instance's own symbol: "coll_stack_i32" */
+    keel_slice_char module;     /* the generic module's declared name: "coll" */
+    keel_slice_char modifier;   /* the modifier it instances: "stack" */
+    size_t argc;
+    keel_slice_char arg[K_EMIT_INSTANCE_ARGS];   /* the C symbol of each type binder, in order: "i32" */
+} KEmitInstance;
+
 /* `module` is the declared name with dots ("app.cfg"); `src_path` is the .k
  * path relative to its root, with the extension ("app/cfg.k"), the string the
  * `#line` and the header comment carry. */
 size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_path,
                    KEmitFile which, KEmitOptions opt, keel_slice_char out);
+
+/* The .type.h (K_EMIT_TYPE_H) or the .h (K_EMIT_H) of an instance, from the
+ * generic module's tree: the modifier, and every verb of the module (§7.2: the
+ * instance comes out whole), with the binders replaced by the arguments and the
+ * names by the instance's. The file's path is k_mangle_instance_path. The
+ * non-inline `pub` bodies belong to the module that places the instance. */
+size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slice_char src_path,
+                       KEmitFile which, KEmitOptions opt, keel_slice_char out);
 
 #endif /* CGEN_ENGINE_EMIT_EMIT_H */

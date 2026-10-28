@@ -31,6 +31,11 @@ size_t k_mangle_decl(keel_slice_char module, keel_slice_char name, bool is_type,
  * "net.http.server", ".c" -> "net/http/net_http_server.c". */
 size_t k_mangle_path(keel_slice_char module, const char *ext, keel_slice_char out);
 
+/* The path of an instance's file: the generic module's directory and the
+ * instance's own symbol. "coll", "coll_stack_i32", ".h" -> "coll_stack_i32.h";
+ * "keel.buffer", "keel_buffer_i32", ".type.h" -> "keel/keel_buffer_i32.type.h". */
+size_t k_mangle_instance_path(keel_slice_char module, keel_slice_char symbol, const char *ext, keel_slice_char out);
+
 /* The include guard of a path (cgen design §5.3): upper case, and every
  * byte outside [A-Z0-9] becomes '_'.
  * "app/app_cfg.type.h" -> "APP_APP_CFG_TYPE_H"; "keel.h" -> "KEEL_H". */

@@ -20,7 +20,7 @@
 
 static bool same_text(KToken a, KToken b) { return a.len == b.len && memcmp(a.ptr, b.ptr, a.len) == 0; }
 
-static bool module_is_generic(const KAst *ast) {
+bool k_em_module_is_generic(const KAst *ast) {
     const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
     return m->dim_first != m->dim_end || m->tags_first != m->tags_end || m->type_first != m->type_end;
 }
@@ -44,8 +44,8 @@ static bool names_binder_or_modifier(const KAst *ast, KToken t) {
 }
 
 /* whether the declaration `n` of a generic module belongs to the instance */
-static bool generic_out(const KAst *ast, const KAstNode *n) {
-    if (n->kind == K_AST_MODULE || n->kind == K_AST_IMPORT || !module_is_generic(ast)) return false;
+bool k_em_generic_out(const KAst *ast, const KAstNode *n) {
+    if (n->kind == K_AST_MODULE || n->kind == K_AST_IMPORT || !k_em_module_is_generic(ast)) return false;
     if (n->kind == K_AST_MODIFIER) return true;
     for (size_t i = n->first; i < n->end; i++) {
         KToken t = k_em_tok(ast, i);
@@ -58,7 +58,7 @@ static bool generic_out(const KAst *ast, const KAstNode *n) {
 static bool island_out(const KAst *ast, const KIsland *is) {
     for (size_t k = 0; k < ast->nodes.len; k++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-        if (is->anchor >= n->first && is->anchor < n->end && generic_out(ast, n)) return true;
+        if (is->anchor >= n->first && is->anchor < n->end && k_em_generic_out(ast, n)) return true;
     }
     return false;
 }
@@ -400,7 +400,7 @@ static void type_h_body(Emit *e) {
     for (size_t i = 0; i < ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
         size_t a, b;
-        if (generic_out(ast, n)) continue;
+        if (k_em_generic_out(ast, n)) continue;
         switch (n->kind) {
         case K_AST_IMPORT_C:
             a = k_em_line_start(e, k_em_first_off(e, n));
@@ -440,7 +440,7 @@ static void type_h_body(Emit *e) {
 static void h_body(Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (generic_out(e->ast, n)) continue;
+        if (k_em_generic_out(e->ast, n)) continue;
         if (n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
         else if (n->kind == K_AST_VARIABLE && n->is_public) emit_extern(e, n);
     }
@@ -449,7 +449,7 @@ static void h_body(Emit *e) {
 static bool type_h_has_content(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (generic_out(e->ast, n)) continue;
+        if (k_em_generic_out(e->ast, n)) continue;
         KAstKind k = n->kind;
         if (k == K_AST_IMPORT_C || k == K_AST_TYPE || k == K_AST_OPAQUE || k == K_AST_EXTERN_C ||
             k == K_AST_CONSTEXPR || k == K_AST_TAGS) return true;
@@ -459,7 +459,7 @@ static bool type_h_has_content(const Emit *e) {
 static bool h_has_content(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (generic_out(e->ast, n)) continue;
+        if (k_em_generic_out(e->ast, n)) continue;
         if ((n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) && n->is_public) return true;
     }
     return false;
@@ -614,7 +614,7 @@ static bool supported(const Emit *e) {
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
         if (n->first >= n->end) return false;
-        if (generic_out(ast, n)) continue;
+        if (k_em_generic_out(ast, n)) continue;
         switch (n->kind) {
         case K_AST_MODULE:
         case K_AST_PROTOCOL:
@@ -699,6 +699,7 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     e.module = module;
     e.src_path = src_path;
     e.opt = opt;
+    e.inst = NULL;
     e.done = 0;
     e.cache_off = 0;
     e.cache_line = 1;

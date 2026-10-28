@@ -93,6 +93,32 @@ int main(void) {
             fprintf(stderr, "FAIL: an `instance` must be K_EMIT_UNSUPPORTED\n"); failures++;
         }
     }
+    /* An instance of a generic module: golden 007's expected files, written by hand. */
+    {
+        size_t cn;
+        char *coll = slurp("golden/cases/007-instance/coll.k", &cn);
+        KAst gen = parse((keel_slice_char){ cn, coll });
+        KEmitInstance inst = { .symbol = SL("coll_stack_i32"), .module = SL("coll"), .modifier = SL("stack"),
+                               .argc = 1, .arg = { SL("i32") } };
+        static const char *ext[2] = { "type.h", "h" };
+        for (int pi = 0; pi < 2; pi++)
+            for (int w = 0; w < 2; w++) {
+                char path[160];
+                snprintf(path, sizeof path, "golden/cases/007-instance/expected/%s/coll_stack_i32.%s", prof[pi], ext[w]);
+                KEmitOptions opt = { .c23 = pi == 0, .line_on = true };
+                KEmitFile which = w == 0 ? K_EMIT_TYPE_H : K_EMIT_H;
+                size_t want_len; char *want = slurp(path, &want_len);
+                size_t need = k_emit_instance(&gen, &inst, SL("coll.k"), which, opt, (keel_slice_char){0});
+                if (need == K_EMIT_UNSUPPORTED) { fprintf(stderr, "FAIL: %s: unsupported\n", path); failures++; continue; }
+                char *buf = malloc(need + 1);
+                k_emit_instance(&gen, &inst, SL("coll.k"), which, opt, (keel_slice_char){ need, buf });
+                if (need != want_len || memcmp(buf, want, want_len) != 0) {
+                    fprintf(stderr, "FAIL: %s differs\n--- got ---\n%.*s\n--- want ---\n%s\n", path, (int)need, buf, want);
+                    failures++;
+                }
+                free(buf); free(want);
+            }
+    }
     if (failures) return 1;
     printf("ok     emit: hello (4 files) and the prelude (2 headers), c23 and c11\n");
     return 0;

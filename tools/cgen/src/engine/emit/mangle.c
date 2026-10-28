@@ -71,6 +71,18 @@ size_t k_mangle_path(keel_slice_char module, const char *ext, keel_slice_char ou
     return o.n;
 }
 
+size_t k_mangle_instance_path(keel_slice_char module, keel_slice_char symbol, const char *ext, keel_slice_char out) {
+    KOut o = { out, 0 };
+    size_t start = last_component_start(module);
+    if (start != 0) {
+        for (size_t i = 0; i < start - 1; i++) put_c(&o, module.ptr[i] == '.' ? '/' : module.ptr[i]);
+        put_c(&o, '/');
+    }
+    for (size_t i = 0; i < symbol.len; i++) put_c(&o, symbol.ptr[i]);
+    put_s(&o, ext);
+    return o.n;
+}
+
 size_t k_mangle_guard(keel_slice_char path, keel_slice_char out) {
     KOut o = { out, 0 };
     for (size_t i = 0; i < path.len; i++) {

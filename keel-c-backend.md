@@ -2013,7 +2013,7 @@ priv constexpr int K = 1 << 4;
 #line 1 "app.k"
 #define app_K ((int)(1 << 4))
 #line 1 "app.k"
-static const int app_K__chk = (1 << 4);      /* checks the restriction and the constancy */
+static const int app_K__chk = (1 << 4); _Static_assert(sizeof(app_K__chk) > 0, "constexpr");
 ```
 
 ```keel
@@ -2030,7 +2030,7 @@ void f(struct S *s) {
 static void app_f(struct S *s) {
 #define keel__N_0 ((size_t)8)
 #line 3 "app.k"
-    static const size_t keel__N_0__chk = 8;
+    static const size_t keel__N_0__chk = 8; (void)keel__N_0__chk;
     char buf[keel__N_0];
     s->N = 1;
 #undef keel__N_0
@@ -2040,22 +2040,13 @@ static void app_f(struct S *s) {
 
 **Regras**
 
-1. `constexpr T K = INIT;` sai `#define M_K ((T)(INIT))`: a macro do símbolo manglado, com o cast. [D57](#10-decisões-de-emissão)
-2. Um objeto de conferência, `static const T M_K__chk = (INIT);`, submete `INIT` à restrição de tipo da inicialização e à exigência de expressão constante, que o cast dispensaria: é o que recusa `constexpr char *S = 10;` e `constexpr int K = f();`. Ele nunca é referenciado e é elidível. [D58](#10-decisões-de-emissão)
+1. `constexpr T K = INIT;` sai `#define M_K ((T)INIT)`: a macro do símbolo manglado, com o cast. `INIT` entra entre parênteses quando tem mais de um token (`1 << 4`, `-1`), e sem eles quando é um só (`4`, `N`). [D57](#10-decisões-de-emissão) · [R: `constexpr` sob C11](keel-rationale.md#constexpr-sob-c11)
+2. Um objeto de conferência, `static const T M_K__chk = INIT;`, com `INIT` pela mesma regra de parênteses, submete `INIT` à restrição de tipo da inicialização e à exigência de expressão constante: é o que recusa `constexpr char *S = 10;` e `constexpr int K = f();`. A mesma linha leva um uso do objeto que não gera código: `(void)M_K__chk;` em escopo de bloco, `_Static_assert(sizeof(M_K__chk) > 0, "constexpr");` em escopo de arquivo. [D58](#10-decisões-de-emissão) · [R](keel-rationale.md#constexpr-sob-c11)
 3. Resta uma diferença: o C23 exige valor exatamente representável no tipo, e a inicialização do C11 só converte. `constexpr u8 B = 300;` é erro sob C23, e no máximo `-Woverflow` sob C11 (linguagem §6.3).
-4. Em escopo de bloco, a macro recebe nome gerado, `keel__<símbolo>_<N>` (§2.3), e o backend reescreve os usos dentro do bloco. `IDENT` precedido de `.` ou `->`, e o designador `.x =`, não são reescritos: são nome de membro. [D59](#10-decisões-de-emissão)
+4. Em escopo de bloco, a macro recebe nome gerado, `keel__<símbolo>_<N>`, onde `<N>` é o contador por função do §2.3 (regra 2), e o backend reescreve os usos dentro do bloco. `IDENT` precedido de `.` ou `->`, e o designador `.x =`, não são reescritos: são nome de membro. [D59](#10-decisões-de-emissão) · [R](keel-rationale.md#constexpr-sob-c11)
 5. O `#undef` sai no fim do bloco léxico, e limita a vida da macro ao que o fonte dizia.
 6. A macro e o `#undef` ocupam linhas que o `.k` não tem: o objeto de conferência é precedido de um `#line` com a linha do `constexpr`, para que o erro do inicializador caia nela, e o que vem depois do `#undef`, de outro que ressincroniza (§6).
-7. Sob C23 a declaração sai verbatim, sem macro, nome gerado, reescrita nem objeto de conferência. É a recusa do endereço (linguagem §4.2) que permite ao C23 não pagar nada disso e aceitar o mesmo conjunto de programas. [D60](#10-decisões-de-emissão)
-
-Sem o cast da regra 1, quatro classes de programa válido mudariam de resultado em silêncio:
-
-| No fonte | Com `((T)…)` | Sem o cast |
-| --- | --- | --- |
-| `constexpr f32 K = 1;` … `K/2` | `0.5f` | `1/2` → `0` |
-| `constexpr u8 B = 1;` … `sizeof B` | `1` | `sizeof(1)` → `4` |
-| `constexpr size_t N = 1;` … `i < N`, `int i = -1` | falso | verdadeiro |
-| `_Generic(K, float: a, int: b)` | ramo `float` | ramo `int` |
+7. Sob C23 a declaração sai verbatim, sem macro, nome gerado, reescrita nem objeto de conferência. [D60](#10-decisões-de-emissão) · [R](keel-rationale.md#constexpr-sob-c11)
 
 ---
 
@@ -2126,7 +2117,7 @@ alternativa em aberto.
 | 56 | A saída é determinística | §7.1. Dois módulos compilados em separado geram o mesmo header de instância; com conteúdo idêntico, a segunda escrita não muda nada, e a corrida sob `make -j` é inofensiva. Sem determinismo, os dois se sobrescreveriam em laço, disparando compilação sem fim. É também o que permite testar por comparação de saída |
 | 57 | Sob C11, `constexpr` sai como macro com cast | §9.2. Sem o cast, programas válidos mudam de resultado em silêncio — `K/2` inteiro, `sizeof B` de `int`, comparação com sinal, ramo errado de `_Generic` —, o que quebraria o princípio 1 da linguagem |
 | 58 | A conferência do `constexpr` sob C11 é um `static const`, e não `_Static_assert(sizeof((T){INIT}) > 0)` | §9.2. O literal composto em escopo de bloco não exige inicializador constante: conferia o tipo e deixava passar `constexpr int K = f();`, que o C23 recusa. O `K + K` do programa chamaria `f()` duas vezes, e o C11 aceitaria o que o C23 nega |
-| 59 | Em bloco, a macro do `constexpr` tem nome gerado, e os usos são reescritos | §9.2. Com o nome do usuário, a macro capturaria toda ocorrência do token no resto do bloco: `s->N` viraria `s->((size_t)8)`, erro do compilador C com mensagem que não aponta a causa. O prefixo `keel__` não colide com símbolo nem com macro de header, o nome do usuário no meio mantém o gerado legível, e o ordinal separa dois blocos irmãos |
+| 59 | Em bloco, a macro do `constexpr` tem nome gerado, e os usos são reescritos | §9.2. Com o nome do usuário, a macro capturaria toda ocorrência do token no resto do bloco: `s->N` viraria `s->((size_t)8)`, erro do compilador C com mensagem que não aponta a causa. O prefixo `keel__` não colide com símbolo nem com macro de header, o nome do usuário no meio mantém o gerado legível, e o contador por função separa dois blocos irmãos |
 | 60 | A macro do `constexpr` sob C11 não é truque de macro | §9.2. O que a linguagem dispensa é a macro que constrói estrutura — colagem de token, X-Macro, `TRY`/`CATCH` —, que some do depurador e do diagnóstico. Uma constante nomeada não some de lugar nenhum, e `#define MAX ((size_t)4096)` é o que um C99 bem escrito faz |
 | 61 | Uma linha de fonte, uma linha de saída, mesmo quando longa | §6. Quebrar custaria um `#line` por statement, e sem ele todo o resto do corpo apontaria para a linha errada. A linha gerada fica mais longa que a de um humano, e se paga: é o que faz cada erro do compilador C cair na linha certa do `.k`, a razão de o princípio 3 funcionar. Linha vazia a mais no `.c` é C comum; trocar sequências delas por `#line` manteria a invariante |
 | 62 | A verificação de `range-index` é injetada no início do verbo, e não escrita nele | §5.17. Dentro da função, a chamada escrita à mão e o açúcar `x[a..b]` têm o mesmo regime, e o módulo não pode esquecê-la; os argumentos já foram avaliados uma vez (regra 5) |

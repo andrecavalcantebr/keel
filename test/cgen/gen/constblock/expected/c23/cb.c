@@ -12,3 +12,10 @@ size_t cb_twice(void) {
 size_t cb_other(void) {
     { constexpr size_t N = 2; return N; }
 }
+
+size_t cb_third(void) {
+    constexpr size_t M = 2 + 3;
+    return M;
+}
+
+

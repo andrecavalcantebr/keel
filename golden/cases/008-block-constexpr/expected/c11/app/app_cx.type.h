@@ -11,6 +11,6 @@ typedef struct app_cx_Cfg { int N; int MAX; } app_cx_Cfg;
 #line 6 "app/cx.k"
 #define app_cx_MAX ((size_t)4)
 #line 6 "app/cx.k"
-static const size_t app_cx_MAX__chk = 4;
+static const size_t app_cx_MAX__chk = 4; _Static_assert(sizeof(app_cx_MAX__chk) > 0, "constexpr");
 
 #endif /* APP_APP_CX_TYPE_H */

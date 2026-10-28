@@ -14,6 +14,6 @@ typedef struct shapes_Point {
 #line 9 "shapes.k"
 #define shapes_LIMIT ((int)4)
 #line 9 "shapes.k"
-static const int shapes_LIMIT__chk = 4;
+static const int shapes_LIMIT__chk = 4; _Static_assert(sizeof(shapes_LIMIT__chk) > 0, "constexpr");
 
 #endif /* SHAPES_TYPE_H */

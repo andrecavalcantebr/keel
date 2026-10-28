@@ -7,10 +7,10 @@
 #line 6 "app/pos.k"
 #define app_pos_H ((size_t)2)
 #line 6 "app/pos.k"
-static const size_t app_pos_H__chk = 2;
+static const size_t app_pos_H__chk = 2; _Static_assert(sizeof(app_pos_H__chk) > 0, "constexpr");
 #define app_pos_W ((size_t)3)
 #line 7 "app/pos.k"
-static const size_t app_pos_W__chk = 3;
+static const size_t app_pos_W__chk = 3; _Static_assert(sizeof(app_pos_W__chk) > 0, "constexpr");
 #line 11 "app/pos.k"
 struct app_pos_position {
     f32 *x;

@@ -284,8 +284,13 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     k_em_put_bytes(e, " ", 1);
     k_em_put_mangled(e, n->name_first, false);
     k_em_put_bytes(e, "__chk = ", 8);
+    if (paren) k_em_put_bytes(e, "(", 1);
     k_em_put_bytes(e, s + is, ie - is);
-    k_em_put_bytes(e, ";\n", 2);
+    if (paren) k_em_put_bytes(e, ")", 1);
+    /* a use of the object that generates no code (backend §9.2, rule 2) */
+    k_em_put_bytes(e, "; _Static_assert(sizeof(", 24);
+    k_em_put_mangled(e, n->name_first, false);
+    k_em_put_bytes(e, "__chk) > 0, \"constexpr\");\n", 26);
     if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
 }
 

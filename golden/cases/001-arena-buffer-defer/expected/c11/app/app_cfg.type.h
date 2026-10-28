@@ -9,6 +9,6 @@
 #line 8 "app/cfg.k"
 #define app_cfg_MAX ((size_t)256)
 #line 8 "app/cfg.k"
-static const size_t app_cfg_MAX__chk = 256;
+static const size_t app_cfg_MAX__chk = 256; _Static_assert(sizeof(app_cfg_MAX__chk) > 0, "constexpr");
 
 #endif /* APP_APP_CFG_TYPE_H */

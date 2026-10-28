@@ -27,10 +27,10 @@ int app_cx_sum(app_cx_Cfg *c) {
 
 
 int app_cx_other(void) {
-#define keel__N_1 ((size_t)2)
+#define keel__N_0 ((size_t)2)
 #line 23 "app/cx.k"
-    { static const size_t keel__N_1__chk = 2; (void)keel__N_1__chk; i32 a[keel__N_1]; a[0] = 1; return (int)(sizeof(a)/sizeof(i32)); }
-#undef keel__N_1
+    { static const size_t keel__N_0__chk = 2; (void)keel__N_0__chk; i32 a[keel__N_0]; a[0] = 1; return (int)(sizeof(a)/sizeof(i32)); }
+#undef keel__N_0
 #line 24 "app/cx.k"
 }
 

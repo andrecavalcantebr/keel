@@ -9,6 +9,6 @@
 #line 5 "app/g.k"
 #define app_g_DIM ((i8)3)
 #line 5 "app/g.k"
-static const i8 app_g_DIM__chk = 3;
+static const i8 app_g_DIM__chk = 3; _Static_assert(sizeof(app_g_DIM__chk) > 0, "constexpr");
 
 #endif /* APP_APP_G_TYPE_H */

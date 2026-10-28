@@ -8,5 +8,7 @@
 size_t cb_twice(void);
 #line 9 "cb.k"
 size_t cb_other(void);
+#line 13 "cb.k"
+size_t cb_third(void);
 
 #endif /* CB_H */

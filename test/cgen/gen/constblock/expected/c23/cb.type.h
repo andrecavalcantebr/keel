@@ -4,4 +4,7 @@
 
 #include "keel.type.h"
 
+#line 18 "cb.k"
+constexpr int cb_SPAN = 1 << 4;
+
 #endif /* CB_TYPE_H */

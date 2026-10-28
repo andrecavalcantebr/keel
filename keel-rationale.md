@@ -538,6 +538,96 @@ não sustentaria a verificação de exaustividade sobre nomes.
 
 Referência: spec §4.2.
 
+## `constexpr` sob C11
+
+O C23 tem `constexpr`, e o perfil C11 não. Sob C23 a declaração do keel sai
+verbatim e o compilador faz o trabalho. Sob C11 o backend precisa de três
+coisas: um nome que se comporte como constante, uma conferência de que o
+inicializador é de fato constante e do tipo certo, e, em escopo de bloco, um
+nome que não capture o que não é seu. As três decisões abaixo saem da mesma
+pergunta — o que um C99 bem escrito faria —, e nenhuma é truque de macro.
+
+**A macro leva o cast.** `constexpr size_t N = 8;` sai `#define M_N
+((size_t)8)`. O cast não é enfeite: sem ele, `#define M_N 8` faz o nome
+valer `int`, e quatro classes de programa válido mudam de resultado em
+silêncio.
+
+| No fonte | Com `((T)…)` | Sem o cast |
+| --- | --- | --- |
+| `constexpr f32 K = 1;` … `K/2` | `0.5f` | `1/2` → `0` |
+| `constexpr u8 B = 1;` … `sizeof B` | `1` | `sizeof(1)` → `4` |
+| `constexpr size_t N = 1;` … `i < N`, `int i = -1` | falso | verdadeiro |
+| `_Generic(K, float: a, int: b)` | ramo `float` | ramo `int` |
+
+Nenhuma das quatro dá erro ou aviso: o programa compila e roda errado. Isso
+quebraria o primeiro princípio da linguagem, que o que o programador escreveu
+é o que o C faz. A macro de uma constante nomeada, aliás, não é o tipo de macro
+que keel dispensa: o que a linguagem recusa é a macro que constrói estrutura —
+colagem de token, X-Macro, `TRY`/`CATCH` —, que some do depurador e do
+diagnóstico. Uma constante nomeada não some de lugar nenhum, e `#define MAX
+((size_t)4096)` é o que um C99 bem escrito faz.
+
+**O inicializador leva parênteses quando tem mais de um token.** O cast liga
+mais forte que quase todo operador binário: `(int)1 << 4` é `((int)1) << 4`, e
+não `(int)(1 << 4)`. Com um operando só (`4`, `N`) não há o que capturar, e o
+parêntese seria ruído. A regra conta tokens e não tem exceção: `-1` tem dois
+tokens e sai `((i32)(-1))`. Seria correto escrever `((i32)-1)` — o cast e o
+`-` unário têm a mesma precedência e associam da direita para a esquerda, e
+o gcc gera o mesmo código para as duas formas —, mas isso exigiria uma regra
+própria para o sinal, e quem lê o C gerado teria de conhecer a precedência do
+cast para saber que o valor é negativo. A forma com parênteses custa dois
+caracteres e dispensa as duas coisas.
+
+**A conferência é um objeto, e não um `_Static_assert`.** O cast converte
+qualquer coisa: `((char *)10)` compila. O que recusa `constexpr char *S = 10;`
+e `constexpr int K = f();` é submeter `INIT` à inicialização de um objeto de
+duração estática, que exige o tipo certo e uma expressão constante.
+`static const T M_K__chk = INIT;` faz isso. A alternativa óbvia,
+`_Static_assert(sizeof((T){INIT}) > 0, …)`, não serve: o literal composto em
+escopo de bloco não exige inicializador constante, então conferia o tipo e
+deixava passar `constexpr int K = f();`, que o C23 recusa. O `K + K` do
+programa chamaria `f()` duas vezes, e o C11 aceitaria o que o C23 nega.
+
+**O objeto de conferência precisa de um uso.** Ele nunca é referenciado pelo
+programa, e o compilador não o elimina em silêncio: o gcc avisa
+`-Wunused-const-variable` quando ele está no escopo de arquivo, e
+`-Wunused-variable` no de bloco, os dois incluídos em `-Wall`. Todo
+`constexpr` do usuário produziria um aviso no build dele, por uma linha que o
+usuário não escreveu e não pode corrigir. A saída tem de caber em C11 puro:
+`__attribute__((unused))` não é padrão, `[[maybe_unused]]` é do C23, e tirar o
+objeto tira a conferência. Cabe uma referência que não gera código. Em bloco,
+`(void)M_K__chk;` é um comando. No escopo de arquivo um comando não cabe, mas
+`_Static_assert(sizeof(M_K__chk) > 0, "constexpr");` serve: o operando de
+`sizeof` conta como uso, não é avaliado e não ocupa memória. As duas formas
+saem na mesma linha do objeto, e por isso o `#line` que o aponta ao `.k` serve
+para os dois.
+
+**Em bloco, o nome é gerado.** Uma macro com o nome do usuário capturaria toda
+ocorrência do token no resto do bloco: `s->N` viraria `s->((size_t)8)`, erro do
+compilador C com uma mensagem que não aponta a causa. Daí o nome
+`keel__<símbolo>_<N>` e a reescrita dos usos, que deixa de fora o identificador
+precedido de `.` ou `->` e o designador `.x =`, porque são nomes de membro. O
+prefixo `keel__` não colide com símbolo nem com macro de header, e o nome do
+usuário no meio mantém o gerado legível. O `#undef` no fim do bloco limita a
+vida da macro ao que o fonte dizia.
+
+**O contador é por função.** O `<N>` de `keel__N_<N>` segue a regra geral dos
+nomes que o backend cria (backend §2.3): um contador por função, na ordem de
+emissão. Não há colisão por nenhum dos dois caminhos — cada macro morre no
+`#undef` do seu bloco —, então o contador só separa blocos irmãos dentro da
+mesma função. A razão para preferir o por função é que ele é a regra de todos
+os outros nomes gerados (`keel__c<N>`, `keel__m<N>`, `keel__rv<N>`), e um nome
+gerado que seguisse outra regra seria um caso particular a lembrar. Há ainda um
+efeito prático: acrescentar uma função no começo do arquivo não renumera as
+macros das que vêm depois, e o diff do gerado fica onde o diff do fonte está.
+
+**O C23 não paga nada.** Sob C23 a declaração sai verbatim, sem macro, nome
+gerado, reescrita nem objeto de conferência. Quem permite isso é a recusa do
+endereço de um `constexpr` (spec §4.2): como não há objeto com endereço, o
+C23 aceita exatamente o conjunto de programas que o C11 aceita com a macro.
+
+Referência: [backend §9.2](keel-c-backend.md#92-constexpr-sob-c11).
+
 ## O que o VLA errou
 
 O VLA é o exemplo canônico da confusão que keel desfaz, e vale enunciar cedo

@@ -2,11 +2,11 @@
  * (emit_internal.h; codegen design E5, backend §9.2, rules 4 to 6). Under C23 the
  * declaration goes out verbatim and nothing here runs. Under C11 each
  * `constexpr T N = INIT;` of a body becomes `static const T keel__N_<k>__chk =
- * INIT; (void)keel__N_<k>__chk;` on its own line, the uses of N up to the `}` of
- * its block become keel__N_<k>, a `#define` of that macro goes on the lines
- * before, and a `#undef` after the block. The ordinal <k> counts the block
- * constexprs of the module in token order (as golden 008 does; backend §2.3
- * rule 2 says per function, see the report). */
+ * INIT; (void)keel__N_<k>__chk;` on its own line (INIT parenthesized when it has
+ * more than one token), the uses of N up to the `}` of its block become
+ * keel__N_<k>, a `#define` of that macro goes on the lines before, and a
+ * `#undef` after the block. The ordinal <k> counts the block constexprs of the
+ * function in token order and restarts at each function (backend §2.3, rule 2). */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -52,16 +52,18 @@ static bool cb_parts(const KAst *ast, size_t end, size_t c, CbParts *p) {
     return true;
 }
 
-/* How many block constexprs of the module come before token c (function bodies
- * only, in token order): the <k> of keel__N_<k>. */
+/* How many block constexprs of the function holding token c come before it, in
+ * token order: the <k> of keel__N_<k> (backend §2.3, rule 2: a counter per
+ * function, restarted at each one). */
 static size_t cb_ordinal(const KAst *ast, size_t c) {
     size_t k = 0;
     for (size_t f = 0; f < ast->nodes.len; f++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, f);
-        if (n->kind != K_AST_FUNCTION || n->body_first == (size_t)-1 || n->body_first >= c) continue;
-        size_t end = n->body_end < c ? n->body_end : c;
-        for (size_t i = n->body_first; i < end; i++)
+        if (n->kind != K_AST_FUNCTION || n->body_first == (size_t)-1) continue;
+        if (c < n->body_first || c >= n->body_end) continue;
+        for (size_t i = n->body_first; i < c; i++)
             if (k_em_text_is(k_em_tok(ast, i), "constexpr")) k++;
+        break;
     }
     return k;
 }
@@ -223,6 +225,15 @@ void k_em_edits_constblock(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit
             memcpy(s + len, "__chk", 5);
             k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, p.name),
                 .skip = k_em_tok(ast, p.name).len, .name_tok = 0, .is_type = false, .text = s, .text_len = len + 5 });
+            if (p.semi > p.eq + 2) {   /* more than one token of INIT: parenthesized (backend §9.2, rule 2) */
+                size_t open = k_em_tok_off(ast, p.eq + 1), close = k_em_tok_end(ast, p.semi - 1);
+                if (open >= a && open < b)
+                    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = open, .skip = 0,
+                        .name_tok = 0, .is_type = false, .text = "(", .text_len = 1 });
+                if (close >= a && close < b)
+                    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = close, .skip = 0,
+                        .name_tok = 0, .is_type = false, .text = ")", .text_len = 1 });
+            }
             char *t = k_em_scratch(e, len + 13);
             if (!t) return;
             memcpy(t, " (void)", 7);

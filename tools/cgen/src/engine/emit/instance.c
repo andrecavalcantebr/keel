@@ -150,14 +150,15 @@ static void emit_proto(Emit *e, const KAstNode *n) {
     flush(e, k_em_line_at(e, a));
 }
 
-/* the body of a `pub inline` function: its source lines, one at a time */
-static void emit_body(Emit *e, const KAstNode *n) {
+/* the body of a `pub` function: its source lines, one at a time; a `pub inline`
+ * one is `static inline` (vis_static), the other loses the visibility word */
+static void emit_body(Emit *e, const KAstNode *n, bool vis_static) {
     size_t a = k_em_line_start(e, k_em_first_off(e, n)), end = k_em_last_end(e, n);
     size_t ln = k_em_line_at(e, a);
     while (a < end && e->ok) {
         size_t next = k_em_line_end(e, a);
         e->n = 0;
-        put_span(e, n, a, next, true);
+        put_span(e, n, a, next, vis_static);
         if (e->ok && (e->n == 0 || e->buf[e->n - 1] != '\n')) k_em_put_bytes(e, "\n", 1);
         flush(e, ln);
         a = next;
@@ -240,10 +241,98 @@ static void emit_file(Emit *e, KEmitFile which) {
         if (has_inline(e)) raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-            if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_inline) emit_body(e, n);
+            if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_inline) emit_body(e, n, true);
         }
     }
     raw(e, "\n#endif /* "); raw_slice(e, guard); raw(e, " */\n");
+}
+
+static bool is_base(keel_slice_char m) {
+    return m.len >= 4 && memcmp(m.ptr, "keel", 4) == 0 && (m.len == 4 || m.ptr[4] == '.');
+}
+
+/* the instance a closure entry names, with its arguments in the closure's text */
+static bool instance_of_closure(const KAst *ast, const KClosure *c, KEmitInstance *inst) {
+    if (c->kind != K_CLOSURE_INSTANCE || !c->module || !c->module->ast || c->argc > K_EMIT_INSTANCE_ARGS) return false;
+    *inst = (KEmitInstance){ .symbol = { c->symbol_len, (char *)c->symbol }, .module = c->module->name,
+                             .modifier = c->modifier, .argc = c->argc };
+    for (size_t k = 0; k < c->argc; k++)
+        inst->arg[k] = (keel_slice_char){ c->arg_len[k], ast->closure_text.ptr + c->arg_text[k] };
+    return true;
+}
+
+/* the instances a module places with `instance` (the closure entries it writes),
+ * outside the base, whose bodies go to its .c */
+static bool placed(const KClosure *c) {
+    return c->origin == K_CLOSURE_WRITTEN && c->kind == K_CLOSURE_INSTANCE && c->module && !is_base(c->module->name);
+}
+
+bool k_em_places_instances(const KAst *ast) {
+    bool any = false;
+    for (size_t i = 0; i < ast->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        if (n->kind == K_AST_INSTANCE) any = true;
+    }
+    return any;
+}
+
+bool k_em_supported_placement(const KAst *ast) {
+    for (size_t i = 0; i < ast->nodes.len; i++) {
+        KAstKind k = keel_buffer_KAstNode_ptr(&ast->nodes, i)->kind;
+        if (k != K_AST_MODULE && k != K_AST_IMPORT && k != K_AST_INSTANCE) return false;
+    }
+    for (size_t i = 0; i < ast->closure.len; i++) {
+        const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
+        if (!placed(c)) continue;
+        KEmitInstance inst;
+        if (!instance_of_closure(ast, c, &inst)) return false;
+        Emit g = { .ast = c->module->ast, .module = inst.module, .inst = &inst, .ok = true, .cache_line = 1 };
+        if (!instance_supported(&g)) return false;
+    }
+    return true;
+}
+
+/* The .c of a module that places instances (backend §4.4; linguagem §4.9): the
+ * .h of each instance, then the bodies of its `pub` functions without `inline`,
+ * each mapped to the generic source. The module's own lines have no C. */
+void k_em_placement_c(Emit *e) {
+    const KAst *ast = e->ast;
+    for (size_t i = 0; i < ast->closure.len && e->ok; i++) {
+        const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
+        if (!placed(c)) continue;
+        char path[NAME_CAP];
+        size_t pl = k_mangle_instance_path(c->module->name, (keel_slice_char){ c->symbol_len, (char *)c->symbol }, ".h",
+                                           (keel_slice_char){ sizeof path, path });
+        if (pl > sizeof path) { e->ok = false; return; }
+        raw(e, "#include \"");
+        raw_slice(e, (keel_slice_char){ pl, path });
+        raw(e, "\"\n");
+    }
+    for (size_t i = 0; i < ast->closure.len && e->ok; i++) {
+        const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
+        if (!placed(c)) continue;
+        KEmitInstance inst;
+        if (!instance_of_closure(ast, c, &inst)) { e->ok = false; return; }
+        char src_buf[NAME_CAP];
+        if (inst.module.len + 2 > sizeof src_buf) { e->ok = false; return; }
+        for (size_t k = 0; k < inst.module.len; k++) src_buf[k] = inst.module.ptr[k] == '.' ? '/' : inst.module.ptr[k];
+        memcpy(src_buf + inst.module.len, ".k", 2);
+        Emit g = { .ast = c->module->ast, .module = inst.module, .opt = e->opt, .inst = &inst, .ok = true, .cache_line = 1,
+                   .src_path = { inst.module.len + 2, src_buf } };
+        /* the same output, under the generic's path: every body starts with its #line */
+        g.w = e->w;
+        g.w.src_path = g.src_path;
+        g.w.mapped = 0;
+        for (size_t k = 0; k < g.ast->nodes.len && g.ok; k++) {
+            const KAstNode *n = keel_buffer_KAstNode_ptr(&g.ast->nodes, k);
+            if (k_em_generic_out(g.ast, n) && n->kind == K_AST_FUNCTION && n->is_public && !n->is_inline)
+                emit_body(&g, n, false);
+        }
+        g.w.src_path = e->w.src_path;
+        g.w.mapped = 0;
+        e->w = g.w;
+        if (!g.ok) e->ok = false;
+    }
 }
 
 size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slice_char src_path,

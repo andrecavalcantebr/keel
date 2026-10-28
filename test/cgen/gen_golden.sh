@@ -15,13 +15,20 @@ while IFS='|' read -r case src main flag; do
     state=ok
     for p in c23 c11; do
         key=$(printf %s "$case" | tr / _); out=$tmp/$key/$p; err=$tmp/$key.$p.err
-        set -- -std="$p" --base-dir "$PWD/base" --stop-after=gen -I "$dir" --dest-dir "$out"
-        [ "$main" = - ] || set -- "$@" --main "$main"
-        if ! "$BIN" "$@" "$dir/$src" >/dev/null 2>"$err"; then
-            if grep -q 'implementation-limit' "$err"; then state=wip; break; fi
-            [ "$flag" = wip ] || { printf 'FAIL   %s %s: cgen\n' "$case" "$p"; sed -n '1,5s/^/       /p' "$err"; }
-            state=fail; continue
-        fi
+        # the sources are run in order into the same --dest-dir; --main goes with the first
+        first=1 failed=0
+        for s in $src; do
+            set -- -std="$p" --base-dir "$PWD/base" --stop-after=gen -I "$dir" --dest-dir "$out"
+            [ "$main" = - ] || [ $first = 0 ] || set -- "$@" --main "$main"
+            first=0
+            if ! "$BIN" "$@" "$dir/$s" >/dev/null 2>"$err"; then
+                if grep -q 'implementation-limit' "$err"; then failed=wip; break; fi
+                [ "$flag" = wip ] || { printf 'FAIL   %s %s: cgen %s\n' "$case" "$p" "$s"; sed -n '1,5s/^/       /p' "$err"; }
+                failed=fail; break
+            fi
+        done
+        [ $failed = wip ] && { state=wip; break; }
+        [ $failed = fail ] && { state=fail; continue; }
         for f in $(cd "$dir/expected/$p" && find . -type f | sort); do
             cmp -s "$dir/expected/$p/$f" "$out/$f" || {
                 [ "$flag" = wip ] || { printf 'FAIL   %s %s/%s differs\n' "$case" "$p" "${f#./}"

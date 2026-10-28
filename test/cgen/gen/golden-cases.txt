@@ -5,7 +5,7 @@
 test/cgen/gen/shapes|shapes.k|-
 003-alignment|app/align.k|app.align
 006-dim|app/g.k|app.g
-007-instance|app/p.k|app.p
+007-instance|app/p.k instances.k|app.p
 008-block-constexpr|app/cx.k|app.cx
 test/cgen/gen/tags|modes.k|-
 test/cgen/gen/array|arr.k|-

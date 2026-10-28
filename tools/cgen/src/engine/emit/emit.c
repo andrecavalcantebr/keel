@@ -141,6 +141,8 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
         k_em_edits_index(e, n, a, b, ed, cnt);
         k_em_sort_edits(ed, before, *cnt);
     }
+    /* the uses of another module's names, by their islands (uses.c) */
+    if (n->kind != K_AST_MODULE && n->kind != K_AST_IMPORT) k_em_edits_uses(e, n, a, b, ed, cnt);
     /* the prelude's static_assert in C11 (backend §4.2, §9): only the keyword changes */
     if (n->kind == K_AST_OPAQUE && !e->opt.c23 && k_em_text_is(k_em_tok(ast, n->first), "static_assert")) {
         size_t at = k_em_tok_off(ast, n->first);
@@ -535,6 +537,8 @@ static void emit_c(Emit *e) {
     raw_slice(e, e->src_path);
     raw(e, e->opt.c23 ? " by cgen, C23 profile. */\n" : " by cgen, C11 profile. */\n");
     raw(e, "#include \""); raw_slice(e, h_path); raw(e, "\"\n");
+    if (k_em_places_instances(e->ast)) { k_em_placement_c(e); return; }
+    k_em_use_includes(e);
 
     size_t len = e->ast->source.len;
     char nl[] = "\n";
@@ -588,6 +592,11 @@ static bool islands_supported(const KAst *ast) {
                 k_em_handles_defer(ast, is)) continue;
             return false;
         }
+        /* a name another module declares: renamed by its island (uses.c) */
+        if (k_em_foreign_island(ast, is)) {
+            if (!k_em_handles_use(ast, is)) return false;
+            continue;
+        }
         const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
         size_t len = is->text_len, nm = 0;
         while (nm < len && d[nm] != '/' && d[nm] != ' ') nm++;
@@ -611,6 +620,7 @@ static bool islands_supported(const KAst *ast) {
 static bool supported(const Emit *e) {
     const KAst *ast = e->ast;
     if (!islands_supported(ast)) return false;
+    if (k_em_places_instances(ast)) return k_em_supported_placement(ast);
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
         if (n->first >= n->end) return false;

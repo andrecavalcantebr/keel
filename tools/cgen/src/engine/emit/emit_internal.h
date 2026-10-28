@@ -142,4 +142,22 @@ bool k_em_constblock_rename(const Emit *e, size_t tok, char *out, size_t cap, si
 /* false when `fn` has a block constexpr this profile cannot emit yet */
 bool k_em_supported_constblock(const Emit *e, const KAstNode *fn);
 
+/* instance.c: a module that places instances with `instance` (linguagem §4.9).
+ * places_instances: it has an `instance`; supported_placement: it has nothing
+ * else, and each instance it places is one instance.c writes; placement_c:
+ * the rest of its .c, after the own include. */
+bool k_em_places_instances(const KAst *ast);
+bool k_em_supported_placement(const KAst *ast);
+void k_em_placement_c(Emit *e);
+
+/* uses.c: the uses of another module's names (backend §4.3.2, rule 4).
+ * foreign_island: a type, name or call island whose name this module does not
+ * declare; handles_use: one of those that a rename lowers. edits_uses: the
+ * renames in [a, b) of node n; use_includes: the #include of the .h of each
+ * module and instance the module uses, for its .c. */
+bool k_em_foreign_island(const KAst *ast, const KIsland *is);
+bool k_em_handles_use(const KAst *ast, const KIsland *is);
+void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
+void k_em_use_includes(Emit *e);
+
 #endif /* CGEN_ENGINE_EMIT_EMIT_INTERNAL_H */

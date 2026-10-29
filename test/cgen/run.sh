@@ -8,6 +8,8 @@
 #   cli/         a sanitized cgen: argv partition, invocation errors, --base-dir
 #   gen_golden.sh  --stop-after=gen over golden/cases against expected/ (wip while
 #                the emitter does not cover a case)
+#   base.sh      the base written by cgen (its modules and, by --instance, the
+#                instances golden/<p>/keel holds) against golden/<p>/keel
 #   lex_dump.sh  --stop-after=lex: fixed dumps, the reference lexer over every
 #                .k of golden/ and base/, and the lexical diagnostics
 #   diag.sh      the catalog table is current with keel-spec §6.2, and each
@@ -58,6 +60,7 @@ else
     printf 'FAIL   %-16s\n' gen; printf '%s\n' "$out" | tail -15 | sed 's/^/       /'; fail=1
 fi
 run gen_golden sh test/cgen/gen_golden.sh
+run base sh test/cgen/base.sh
 run lex_dump sh test/cgen/lex_dump.sh
 run diag sh test/cgen/diag.sh
 PARSE_LEVEL=${PARSE_LEVEL:-ilha}

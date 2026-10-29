@@ -48,6 +48,9 @@ static size_t param_count(const KAst *ast, const KAstNode *fn) {
     return n;
 }
 
+static bool has_params(const KAst *ast, const KAstNode *fn);
+size_t k_em_param_count(const KAst *ast, const KAstNode *fn) { return has_params(ast, fn) ? param_count(ast, fn) : 0; }
+
 static bool has_params(const KAst *ast, const KAstNode *fn) {
     return fn->kind == K_AST_FUNCTION && fn->body_first != (size_t)-1 && fn->body_first >= 2 &&
            fn->name_first < fn->name_end && k_em_text_is(k_em_tok(ast, fn->name_first + 1), "(") &&

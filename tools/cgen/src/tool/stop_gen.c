@@ -111,7 +111,7 @@ static keel_slice_char name_span(const KAst *a, size_t first, size_t end) {
  * already. A generic module writes what the emitter says it owns (backend
  * §4.4.1). */
 static int emit_imports(keel_arena *arena, void *tool, const char *dest, const KModule *m,
-                        Written *w, KEmitOptions opt) {
+                        Written *w, KEmitOptions opt, bool base) {
     const KAst *ast = m->ast;
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
@@ -121,7 +121,8 @@ static int emit_imports(keel_arena *arena, void *tool, const char *dest, const K
         if ((r != K_LOAD_OK && r != K_LOAD_ALREADY) || !dep) return 2;
         /* the base's modules (keel.*) are written with the base, not by their users */
         keel_slice_char dn = dep->name;
-        if (dn.len > 5 && memcmp(dn.ptr, "keel.", 5) == 0) continue;
+        if (!base && dn.len > 5 && memcmp(dn.ptr, "keel.", 5) == 0) continue;
+        if (dn.len == 4 && memcmp(dn.ptr, "keel", 4) == 0) continue;   /* the prelude is written by the caller */
         bool done = false;
         for (size_t k = 0; k < w->n; k++) if (w->seen[k] == dep) { done = true; break; }
         if (done) continue;
@@ -134,22 +135,21 @@ static int emit_imports(keel_arena *arena, void *tool, const char *dest, const K
         keel_slice_char src_path = source_path(dep->name, src_buf, sizeof src_buf);
         int rc = emit_one(arena, dest, dep->ast, dep->name, src_path, K_EMIT_TYPE_H, ".type.h", opt);
         if (!rc) rc = emit_one(arena, dest, dep->ast, dep->name, src_path, K_EMIT_H, ".h", opt);
-        if (!rc) rc = emit_imports(arena, tool, dest, dep, w, opt);
+        if (!rc) rc = emit_imports(arena, tool, dest, dep, w, opt, base);
         if (rc) return rc;
     }
     return 0;
 }
 
-/* The headers of each instance the module's closure holds, of a generic module
- * that is not the base (the base's `keel_*` instances come from the transform,
- * in gen/). The generic's .k path is its module name, as for any module. */
-static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, KEmitOptions opt) {
+/* The headers of each instance the module's closure holds; the base's (`keel_*`)
+ * only when `base` is set: they are written with the base, by --instance. The
+ * generic's .k path is its module name, as for any module. */
+static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, KEmitOptions opt, bool base) {
     for (size_t i = 0; i < ast->closure.len; i++) {
         const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
         if (c->kind != K_CLOSURE_INSTANCE || !c->module || !c->module->ast) continue;
         keel_slice_char gen = c->module->name;
-        if (gen.len >= 4 && memcmp(gen.ptr, "keel", 4) == 0 && (gen.len == 4 || gen.ptr[4] == '.') &&
-            !getenv("CGEN_BASE_INSTANCES")) continue;
+        if (!base && gen.len >= 4 && memcmp(gen.ptr, "keel", 4) == 0 && (gen.len == 4 || gen.ptr[4] == '.')) continue;
         KEmitInstance inst;
         if (!k_emit_instance_of(ast, c, &inst)) {
             fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
@@ -164,15 +164,6 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
         KDiagnosticSink scratch;
         k_diag_init(&scratch, scratch_items, 256);
         k_collect_instance_islands(generic, &ii, &scratch);
-        if (getenv("CGEN_DUMP_INSTANCE_ISLANDS")) {
-            fprintf(stderr, "== %.*s\n", (int)inst.symbol.len, inst.symbol.ptr);
-            for (size_t k = 0; k < generic->islands.len; k++) {
-                const KIsland *is = keel_buffer_KIsland_ptr(&generic->islands, k);
-                KToken t = keel_buffer_KLexeme_ptr(&generic->tokens, is->anchor)->token;
-                fprintf(stderr, "  %d %.*s | %.*s\n", (int)is->kind, (int)t.len, t.ptr, (int)is->text_len,
-                        keel_buffer_char_ptr(&generic->island_text, is->text));
-            }
-        }
         char src_buf[8192];
         keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf);
         for (int w = 0; w < 2; w++) {
@@ -264,17 +255,171 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
             keel_slice_char keel_mod = k_diag_text("keel"), keel_src = k_diag_text("keel.k");
             if (!rc) rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_TYPE_H, ".type.h", opt);
             if (!rc) rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_H, ".h", opt);
-            if (!rc) rc = emit_instances(arena, dest, module->ast, opt);
+            if (!rc) rc = emit_instances(arena, dest, module->ast, opt, false);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_TYPE_H, ".type.h", opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_H, ".h", opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_C, ".c", opt);
             Written written = { .n = 0 };
             written.seen[written.n++] = prelude;
             written.seen[written.n++] = module;
-            if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt);
+            if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt, false);
             if (!rc && main_module) rc = emit_one(arena, dest, NULL, mod, src_path, K_EMIT_ENTRY, NULL, opt);
         }
     }
+    cgen_loader_destroy(tool);
+    return rc;
+}
+
+/* ---- --instance (cgen design §2.8, §8.7) ----
+ * The use is written as a file-scope `instance` would write it, every name
+ * qualified in full. It becomes a module of its own, in memory, that imports
+ * each module the use qualifies and places the instance: the same closure, the
+ * same emission. Written: the prelude's headers, the headers of every module
+ * and instance the closure reaches (the base's too: this is how the base is
+ * built), and the instance's .c, with the bodies of its non-inline functions. */
+
+#define USE_CAP 4096
+
+/* appends s[0..n) to buf at *w; false when it does not fit */
+static bool put(char *buf, size_t *w, const char *s, size_t n) {
+    if (*w + n >= USE_CAP) return false;
+    memcpy(buf + *w, s, n);
+    *w += n;
+    buf[*w] = '\0';
+    return true;
+}
+
+static bool ident_char(char c) { return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); }
+
+int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *const *roots, int n,
+                             const char *base, const char *dest_dir, const char *profile,
+                             const char *const *pass, int pass_n, bool line_on) {
+    if (n < 0 || n > CGEN_CLI_ROOTS_CAP) {
+        fprintf(stderr, "cgen: error: search roots exceed configured limit %d; adjust CGEN_CLI_ROOTS_CAP [implementation-limit]\n", CGEN_CLI_ROOTS_CAP);
+        return 2;
+    }
+    const char *search[CGEN_SEARCH_ROOTS_CAP];
+    for (int i = 0; i < n; i++) search[i] = roots[i];
+    search[n++] = base;
+    KDiagnostic items[4096];
+    KDiagnosticSink sink;
+    k_diag_init(&sink, items, 4096);
+    void *tool = cgen_alloc(arena, 1, cgen_loader_size(), _Alignof(max_align_t), true, "loader");
+    if (!tool) return 2;
+    KLoader loader;
+    cgen_loader_init(tool, arena, search, n, &sink, &loader);
+
+    /* every dotted name of the use: its module is imported under an alias of
+       its own, and the name is written through it */
+    char imports[USE_CAP] = "", body[USE_CAP] = "";
+    size_t iw = 0, bw = 0, aliases = 0;
+    const char *generic_name = NULL;
+    size_t generic_len = 0;
+    for (const char *p = use; *p; ) {
+        if (!ident_char(*p)) { if (!put(body, &bw, p, 1)) return 2; p++; continue; }
+        const char *q = p, *last_dot = NULL;
+        while (*q && (ident_char(*q) || (*q == '.' && ident_char(q[1])))) { if (*q == '.') last_dot = q; q++; }
+        if (!last_dot) { if (!put(body, &bw, p, (size_t)(q - p))) return 2; p = q; continue; }
+        size_t ml = (size_t)(last_dot - p);
+        KModule *m = NULL;
+        KLoadResult r = cgen_load(tool, (keel_slice_char){ ml, (char *)p }, &m);
+        if (r == K_LOAD_NOT_FOUND) {
+            fprintf(stderr, "cgen: error: module '%.*s' not found [module-not-found]\n", (int)ml, p);
+            cgen_loader_destroy(tool);
+            return 2;
+        }
+        if ((r != K_LOAD_OK && r != K_LOAD_ALREADY) || !m) { cgen_loader_report(tool, &sink); cgen_loader_destroy(tool); return 1; }
+        if (!generic_name) { generic_name = p; generic_len = ml; }
+        char alias[32];
+        int al = snprintf(alias, sizeof alias, "cgen_m%zu", aliases++);
+        if (!put(imports, &iw, "import ", 7) || !put(imports, &iw, p, ml) || !put(imports, &iw, " as ", 4) ||
+            !put(imports, &iw, alias, (size_t)al) || !put(imports, &iw, ";\n", 2) ||
+            !put(body, &bw, alias, (size_t)al) || !put(body, &bw, last_dot, (size_t)(q - last_dot))) return 2;
+        p = q;
+    }
+    if (!generic_name) {
+        fprintf(stderr, "cgen: error: '%s' does not name a modifier in full [invalid-instance]\n", use);
+        cgen_loader_destroy(tool);
+        return 2;
+    }
+    char text[3 * USE_CAP];
+    int tl = snprintf(text, sizeof text, "module cgen_instance;\n%sinstance %s;\n", imports, body);
+    if (tl < 0 || (size_t)tl >= sizeof text) return 2;
+    char *saved = cgen_alloc(arena, (size_t)tl + 1, 1, 1, false, "instance source");
+    if (!saved) return 2;
+    memcpy(saved, text, (size_t)tl + 1);
+
+    KModule *module = NULL;
+    KLoadResult result = cgen_load_text(tool, "<instance>", "cgen_instance", (keel_slice_char){ (size_t)tl, saved }, &module);
+    /* the synthetic module's own redundant-instance would name its aliases: the
+       invocation reports it below, in the words of the use */
+    size_t kept = 0;
+    for (size_t i = 0; i < sink.len; i++)
+        if (sink.items[i].id != K_DIAG_REDUNDANT_INSTANCE) sink.items[kept++] = sink.items[i];
+    sink.len = kept;
+    cgen_loader_report(tool, &sink);
+    int rc = 1;
+    if (result != K_LOAD_OK || !module || k_diag_count(&sink, K_ERROR) != 0) { cgen_loader_destroy(tool); return rc; }
+
+    /* the instance the use names: the entry `instance` wrote */
+    const KAst *ast = module->ast;
+    const KClosure *target = NULL;
+    for (size_t i = 0; i < ast->closure.len && !target; i++) {
+        const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
+        if (c->kind == K_CLOSURE_INSTANCE && c->origin == K_CLOSURE_WRITTEN) target = c;
+    }
+    if (!target || !target->module) {
+        fprintf(stderr, "cgen: error: '%s' does not name a modifier in full [invalid-instance]\n", use);
+        cgen_loader_destroy(tool);
+        return 2;
+    }
+    KModule *prelude = NULL;
+    KLoadResult pr = cgen_load(tool, k_diag_text("keel"), &prelude);
+    if (pr != K_LOAD_OK && pr != K_LOAD_ALREADY) {
+        fprintf(stderr, "cgen: error: cannot load the prelude keel [module-not-found]\n");
+        cgen_loader_destroy(tool);
+        return 2;
+    }
+    const char *dest = dest_dir ? dest_dir : "gen";
+    KEmitOptions opt = { .c23 = profile_is_c23(profile, pass, pass_n), .line_on = line_on };
+    keel_slice_char keel_mod = k_diag_text("keel"), keel_src = k_diag_text("keel.k");
+    rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_TYPE_H, ".type.h", opt);
+    if (!rc) rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_H, ".h", opt);
+    if (!rc) rc = emit_instances(arena, dest, ast, opt, true);
+    Written written = { .n = 0 };
+    written.seen[written.n++] = prelude;
+    written.seen[written.n++] = module;
+    if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt, true);
+
+    /* the instance's .c: its header, then the bodies of its non-inline functions */
+    if (!rc) {
+        KEmitInstance inst;
+        if (!k_emit_instance_of(ast, target, &inst)) rc = 2;
+        char src_buf[8192];
+        keel_slice_char src_path = source_path(target->module->name, src_buf, sizeof src_buf);
+        size_t need = rc ? 0 : k_emit_instance(target->module->ast, &inst, src_path, K_EMIT_C, opt, (keel_slice_char){0});
+        if (!rc && need == K_EMIT_UNSUPPORTED) {
+            fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
+                    (int)inst.symbol.len, inst.symbol.ptr);
+            rc = 2;
+        }
+        if (!rc) {
+            char *data = cgen_alloc(arena, need ? need : 1, 1, 1, false, "generated file");
+            if (!data) rc = 2;
+            else {
+                k_emit_instance(target->module->ast, &inst, src_path, K_EMIT_C, opt, (keel_slice_char){ need, data });
+                if (k_emit_instance_redundant(target->module->ast))
+                    fprintf(stderr, "cgen: warning: %.*s.%.*s is entirely pub inline; the .c will have no body [redundant-instance]\n",
+                            (int)target->module->name.len, target->module->name.ptr, (int)inst.modifier.len, inst.modifier.ptr);
+                char rel[4096], path[8192];
+                size_t rel_len = k_mangle_instance_path(target->module->name, inst.symbol, ".c", (keel_slice_char){ sizeof rel, rel });
+                int w = rel_len < sizeof rel ? snprintf(path, sizeof path, "%s/%.*s", dest, (int)rel_len, rel) : -1;
+                if (w < 0 || (size_t)w >= sizeof path || !make_parents(path)) rc = write_failed(dest);
+                else rc = cgen_write_output(path, data, need);
+            }
+        }
+    }
+    (void)generic_len;
     cgen_loader_destroy(tool);
     return rc;
 }

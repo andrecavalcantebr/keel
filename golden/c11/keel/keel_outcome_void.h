@@ -20,9 +20,9 @@ static inline bool keel_outcome_void_failed(keel_outcome_void e) { return e.code
 static inline bool keel_outcome_void_ok    (keel_outcome_void e) { return e.code == keel_outcome_OK; }
 static inline i32  keel_outcome_void_code  (keel_outcome_void e) { return e.code; }
 #line 29 "keel/outcome.k"
-static inline keel_outcome_void keel_outcome_void_win (keel_outcome_void *r)        { r->code = keel_outcome_OK; return *r; }
+static inline keel_outcome_void keel_outcome_void_win (keel_outcome_void *r)         { r->code = keel_outcome_OK; return *r; }
 #line 31 "keel/outcome.k"
-static inline keel_outcome_void keel_outcome_void_fail(keel_outcome_void *r, i32 c) { r->code = c; return *r; }
-static inline keel_outcome_void keel_outcome_void_none(keel_outcome_void *r)        { r->code = keel_outcome_NONE; return *r; }
+static inline keel_outcome_void keel_outcome_void_fail(keel_outcome_void *r, i32 c)  { r->code = c; return *r; }
+static inline keel_outcome_void keel_outcome_void_none(keel_outcome_void *r)         { r->code = keel_outcome_NONE; return *r; }
 
 #endif /* KEEL_KEEL_OUTCOME_VOID_H */

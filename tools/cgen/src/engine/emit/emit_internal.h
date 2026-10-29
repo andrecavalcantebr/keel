@@ -89,6 +89,7 @@ int k_em_binder_use(const Emit *e, size_t k);
 /* emit.c: the .h of the instance e->inst, written by the module emitter over the
  * generic's tree and the instance's islands (k_collect_instance_islands) */
 void k_em_instance_h(Emit *e);
+void k_em_instance_c(Emit *e);
 
 /* the start of the line holding `off`, and just past the newline ending it */
 size_t k_em_line_start(const Emit *e, size_t off);
@@ -144,6 +145,8 @@ bool k_em_handles_index(const KAst *ast, const KIsland *is);
  * k_em_arity_suffix writes the digits (or nothing) into out[8] and returns their count. */
 void k_em_edits_roles(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 size_t k_em_arity_suffix(const KAst *ast, const KAstNode *fn, char *out);
+/* the parameters written in keel: `type T` is one (backend §2.1.1, rule 5) */
+size_t k_em_param_count(const KAst *ast, const KAstNode *fn);
 bool k_em_nodiscard(const KAst *ast, const KAstNode *fn);
 void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 

@@ -12,10 +12,10 @@ typedef struct keel_arena keel_arena;
 static inline keel_slice_size_t keel_slice_size_t_from(size_t *p, size_t n);
 #line 30 "keel/slice.k"
 static inline size_t keel_slice_size_t_length(keel_slice_size_t s);
-static inline size_t    keel_slice_size_t_get (keel_slice_size_t s, size_t i);
-static inline void   keel_slice_size_t_set (keel_slice_size_t s, size_t i, size_t v);
-static inline size_t   *keel_slice_size_t_ptr (keel_slice_size_t s);
-static inline size_t   *keel_slice_size_t_ptr1(keel_slice_size_t s, size_t i);
+static inline size_t      keel_slice_size_t_get(keel_slice_size_t s, size_t i);
+static inline void   keel_slice_size_t_set(keel_slice_size_t s, size_t i, size_t v);
+static inline size_t     *keel_slice_size_t_ptr(keel_slice_size_t s);
+static inline size_t     *keel_slice_size_t_ptr1(keel_slice_size_t s, size_t i);
 #line 37 "keel/slice.k"
 static inline keel_outcome_size_t keel_slice_size_t_at(keel_slice_size_t s, size_t i);
 #line 45 "keel/slice.k"
@@ -24,14 +24,14 @@ static inline keel_slice_size_t keel_slice_size_t_as_slice(keel_slice_size_t s, 
 static inline keel_outcome_keel_slice_size_t keel_slice_size_t_clone(keel_arena *a, keel_slice_size_t s);
 #line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_size_t_begin(keel_slice_size_t s);
-static inline bool keel_slice_size_t_has_next(keel_slice_size_t s, keel_slice_cursor *c);
-static inline size_t *keel_slice_size_t_next(keel_slice_size_t s, keel_slice_cursor *c);
+static inline bool   keel_slice_size_t_has_next(keel_slice_size_t s, keel_slice_cursor *c);
+static inline size_t     *keel_slice_size_t_next(keel_slice_size_t s, keel_slice_cursor *c);
 #line 74 "keel/slice.k"
 static inline keel_slice_size_t keel_slice_size_t_partition(keel_slice_size_t s, size_t k, size_t w);
 
 #include "keel/keel_arena.h"
-#include "keel/keel_outcome_size_t.h"
 #include "keel/keel_outcome_keel_slice_size_t.h"
+#include "keel/keel_outcome_size_t.h"
 
 #line 26 "keel/slice.k"
 static inline keel_slice_size_t keel_slice_size_t_from(size_t *p, size_t n) {
@@ -39,10 +39,10 @@ static inline keel_slice_size_t keel_slice_size_t_from(size_t *p, size_t n) {
 }
 #line 30 "keel/slice.k"
 static inline size_t keel_slice_size_t_length(keel_slice_size_t s) { return s.len; }
-static inline size_t    keel_slice_size_t_get (keel_slice_size_t s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return s.ptr[i]; }
-static inline void   keel_slice_size_t_set (keel_slice_size_t s, size_t i, size_t v) { KEEL_CHECK(i < s.len, "set-out-of-length"); s.ptr[i] = v; }
-static inline size_t   *keel_slice_size_t_ptr (keel_slice_size_t s) { return s.ptr; }
-static inline size_t   *keel_slice_size_t_ptr1(keel_slice_size_t s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return &s.ptr[i]; }
+static inline size_t      keel_slice_size_t_get(keel_slice_size_t s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return s.ptr[i]; }
+static inline void   keel_slice_size_t_set(keel_slice_size_t s, size_t i, size_t v) { KEEL_CHECK(i < s.len, "set-out-of-length"); s.ptr[i] = v; }
+static inline size_t     *keel_slice_size_t_ptr(keel_slice_size_t s) { return s.ptr; }
+static inline size_t     *keel_slice_size_t_ptr1(keel_slice_size_t s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return &s.ptr[i]; }
 #line 37 "keel/slice.k"
 static inline keel_outcome_size_t keel_slice_size_t_at(keel_slice_size_t s, size_t i) {
     keel_outcome_size_t r = {0};
@@ -67,7 +67,7 @@ static inline keel_outcome_keel_slice_size_t keel_slice_size_t_clone(keel_arena 
 #line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_size_t_begin(keel_slice_size_t s) { (void)s; return (keel_slice_cursor){0}; }
 static inline bool   keel_slice_size_t_has_next(keel_slice_size_t s, keel_slice_cursor *c) { return c->i < s.len; }
-static inline size_t   *keel_slice_size_t_next(keel_slice_size_t s, keel_slice_cursor *c) { return &s.ptr[c->i++]; }
+static inline size_t     *keel_slice_size_t_next(keel_slice_size_t s, keel_slice_cursor *c) { return &s.ptr[c->i++]; }
 #line 74 "keel/slice.k"
 static inline keel_slice_size_t keel_slice_size_t_partition(keel_slice_size_t s, size_t k, size_t w) {
     if (k == 0) return (keel_slice_size_t){0, s.ptr};

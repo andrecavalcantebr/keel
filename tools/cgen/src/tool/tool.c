@@ -145,7 +145,7 @@ static bool check_stem(CgenTool *t, const char *path, keel_slice_char at) {
 }
 
 static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path,
-                             long long mtime, KModule **out) {
+                             long long mtime, KModule **out, const keel_slice_char *given) {
     size_t before=k_diag_count(t->diag,K_ERROR);
     CgenModuleEntry *e=CGEN_NEW(t->arena,CgenModuleEntry,1);
     if(!e) {
@@ -159,7 +159,8 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     e->state=CGEN_PENDING;e->next=t->mods;t->mods=e;
     if(!saved.ptr||!e->path.ptr)return failure(t,e,K_DIAG_CAPACITY,before);
     keel_buffer_char source;
-    if(!cgen_read_source(t->arena,path,&source))return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    if(given)source=(keel_buffer_char){.ptr=given->ptr,.len=given->len,.cap=given->len};
+    else if(!cgen_read_source(t->arena,path,&source))return failure(t,e,K_DIAG_LOAD_FAILED,before);
     e->ast.source=(keel_slice_char){source.len,source.ptr};
     size_t count=k_lexemes(e->ast.source,NULL,0,NULL);
     if(count>SIZE_MAX/sizeof(KLexeme)-1 || count>SIZE_MAX/sizeof(KAstNode)-1)
@@ -173,7 +174,7 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     if(!k_check_delimiters(&e->ast,t->diag))return failure(t,e,K_DIAG_LOAD_FAILED,before);
     {
         keel_slice_char at=e->ast.source.len?(keel_slice_char){1,e->ast.source.ptr}:e->module.name;
-        if(!check_stem(t,str_cstr(e->path),at))return failure(t,e,K_DIAG_LOAD_FAILED,before);
+        if(!given&&!check_stem(t,str_cstr(e->path),at))return failure(t,e,K_DIAG_LOAD_FAILED,before);
         /* `module` is the first construction, before any directive (§4.1) */
         if(!count||keel_buffer_KLexeme_ptr(&e->ast.tokens,0)->directive||
            !k_token_spelled(keel_buffer_KLexeme_ptr(&e->ast.tokens,0)->token,"module")) {
@@ -265,7 +266,7 @@ KLoadResult cgen_load(void *v, keel_slice_char name, KModule **out) {
             if(cgen_module_path(name.ptr,name.len,t->roots[i],path,sizeof path)&&
                stat(path,&st)==0&&S_ISREG(st.st_mode)){found=true;break;}
         if(!found)return K_LOAD_NOT_FOUND;
-        result=load_file(t,name,path,(long long)st.st_mtime,out);
+        result=load_file(t,name,path,(long long)st.st_mtime,out,NULL);
     }
     if(*out&&t->active&&(*out)->closure_mtime>t->active->module.closure_mtime)
         t->active->module.closure_mtime=(*out)->closure_mtime;
@@ -275,7 +276,12 @@ KLoadResult cgen_load_path(void *v,const char *path,const char *name,KModule **o
     struct stat st;*out=NULL;
     ((CgenTool *)v)->entry=path;
     if(stat(path,&st)!=0) return K_LOAD_NOT_FOUND;
-    return load_file(v,k_diag_text(name),path,(long long)st.st_mtime,out);
+    return load_file(v,k_diag_text(name),path,(long long)st.st_mtime,out,NULL);
+}
+KLoadResult cgen_load_text(void *v,const char *label,const char *name,keel_slice_char text,KModule **out) {
+    *out=NULL;
+    ((CgenTool *)v)->entry=label;
+    return load_file(v,k_diag_text(name),label,0,out,&text);
 }
 void cgen_loader_init(void *v,keel_arena *arena,const char *const *roots,int n,KDiagnosticSink *diag,KLoader *out) {
     CgenTool *t=v;memset(t,0,sizeof *t);t->arena=arena;t->root_count=0;

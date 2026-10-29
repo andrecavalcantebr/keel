@@ -43,6 +43,8 @@ typedef struct {
     keel_slice_char arg_module[K_EMIT_INSTANCE_ARGS];   /* an argument that is an instance: its generic module */
     size_t dimc;
     keel_slice_char dim[K_EMIT_INSTANCE_ARGS];   /* the value of each dimension binder, in decimal: "3" */
+    const KUnavailable *unavailable;   /* the verbs the instance loses (spec §4.3, rules 11 to 13) */
+    size_t unavailable_count;
 } KEmitInstance;
 
 /* The instance a closure entry of `user` names (its arguments live in the
@@ -64,5 +66,9 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
  * non-inline `pub` bodies belong to the module that places the instance. */
 size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slice_char src_path,
                        KEmitFile which, KEmitOptions opt, keel_slice_char out);
+
+/* Whether every function of the generic's instances is `pub inline`: the
+ * instance's own .c has no body (redundant-instance, cgen design §2.8). */
+bool k_emit_instance_redundant(const KAst *generic);
 
 #endif /* CGEN_ENGINE_EMIT_EMIT_H */

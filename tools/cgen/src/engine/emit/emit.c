@@ -508,7 +508,16 @@ static void raw(Emit *e, const char *s);
 static bool skip(const Emit *e, const KAstNode *n) {
     bool out = k_em_generic_out(e->ast, n);
     /* a function over a protocol is neither: one instance per concrete type (backend §5.19) */
-    return e->inst ? !(out && n->kind == K_AST_FUNCTION && !over_protocol(e->ast, n)) : out;
+    if (!e->inst) return out;
+    if (!(out && n->kind == K_AST_FUNCTION && !over_protocol(e->ast, n))) return true;
+    /* a verb the instance loses (spec §4.3, rules 11 to 13): the parser's list */
+    KToken name = k_em_tok(e->ast, n->name_first);
+    size_t arity = k_em_param_count(e->ast, n);
+    for (size_t k = 0; k < e->inst->unavailable_count; k++) {
+        const KUnavailable *u = &e->inst->unavailable[k];
+        if (u->arity == arity && u->verb.len == name.len && memcmp(u->verb.ptr, name.ptr, name.len) == 0) return true;
+    }
+    return false;
 }
 
 static void h_body(Emit *e) {
@@ -637,6 +646,26 @@ static void emit_header(Emit *e, KEmitFile which) {
 }
 
 void k_em_instance_h(Emit *e) { emit_header(e, K_EMIT_H); }
+
+/* The .c of an instance compiled by itself (cgen design §2.8): its .h, then the
+ * bodies of its `pub` functions without `inline`, each from the generic source */
+void k_em_instance_c(Emit *e) {
+    char c_buf[NAME_CAP], h_buf[NAME_CAP];
+    keel_slice_char c_path = fit(e, c_buf, k_mangle_instance_path(e->inst->module, e->inst->symbol, ".c", (keel_slice_char){ NAME_CAP, c_buf }));
+    keel_slice_char h_path = fit(e, h_buf, k_mangle_instance_path(e->inst->module, e->inst->symbol, ".h", (keel_slice_char){ NAME_CAP, h_buf }));
+    if (!e->ok) return;
+    raw(e, "/* ");
+    raw_slice(e, c_path);
+    raw(e, " " EM_DASH " generated from ");
+    raw_slice(e, e->src_path);
+    raw(e, e->opt.c23 ? " by cgen, C23 profile. */\n" : " by cgen, C11 profile. */\n");
+    raw(e, "#include \""); raw_slice(e, h_path); raw(e, "\"\n");
+    for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
+        if (skip(e, n) || !n->is_public || n->is_inline) continue;
+        emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)));
+    }
+}
 
 /* The .c: every source line, in order. A line of a construction that does not
  * go to C is empty (backend §6, rule 3: the breaks stay); the rest is copied,

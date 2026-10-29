@@ -182,7 +182,18 @@ static void emit_modifier(Emit *e, const KAstNode *n) {
     k_em_put_bytes(e, "typedef struct ", 15);
     put_slice(e, e->inst->symbol);
     k_em_put_bytes(e, " ", 1);
-    put_span(e, n, a, b, false);
+    /* a value field of a binder bound to `void` is omitted, with the blanks
+     * after it (spec §4.3, rule 11); `T *field` stays */
+    size_t from = a;
+    for (size_t j = open + 1; j + 2 < close && e->ok; j++) {
+        keel_slice_char arg;
+        KToken t = k_em_tok(ast, j);
+        if (!k_token_is_ident(t) || !binder_arg(e, t, &arg) || arg.len != 4 || memcmp(arg.ptr, "void", 4) != 0) continue;
+        if (!k_token_is_ident(k_em_tok(ast, j + 1)) || !k_em_text_is(k_em_tok(ast, j + 2), ";")) continue;
+        put_span(e, n, from, k_em_tok_off(ast, j), false);
+        from = k_em_tok_off(ast, j + 3);
+    }
+    put_span(e, n, from, b, false);
     k_em_put_bytes(e, " ", 1);
     put_slice(e, e->inst->symbol);
     k_em_put_bytes(e, ";\n", 2);
@@ -354,7 +365,9 @@ static bool is_base(keel_slice_char m) {
 bool k_emit_instance_of(const KAst *ast, const KClosure *c, KEmitInstance *inst) {
     if (c->kind != K_CLOSURE_INSTANCE || !c->module || !c->module->ast || c->argc > K_EMIT_INSTANCE_ARGS) return false;
     *inst = (KEmitInstance){ .symbol = { c->symbol_len, (char *)c->symbol }, .module = c->module->name,
-                             .modifier = c->modifier, .argc = c->argc };
+                             .modifier = c->modifier, .argc = c->argc,
+                             .unavailable = c->unavailable_count ? keel_buffer_KUnavailable_ptr(&ast->unavailable, c->unavailable_first) : NULL,
+                             .unavailable_count = c->unavailable_count };
     for (size_t k = 0; k < c->argc; k++) {
         inst->arg[k] = (keel_slice_char){ c->arg_len[k], ast->closure_text.ptr + c->arg_text[k] };
         /* an argument that is itself an instance of the closure: its module names its header */
@@ -477,10 +490,19 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
     e.block_ordinal = 0;
     e.scratch_n = 0;
     k_writer_init(&e.w, out, src_path, opt.line_on);
-    if (which != K_EMIT_TYPE_H && which != K_EMIT_H) return K_EMIT_UNSUPPORTED;
+    if (which != K_EMIT_TYPE_H && which != K_EMIT_H && which != K_EMIT_C) return K_EMIT_UNSUPPORTED;
     if (!k_em_module_is_generic(generic) || !instance_supported(&e)) return K_EMIT_UNSUPPORTED;
     if (which == K_EMIT_H) k_em_instance_h(&e);
+    else if (which == K_EMIT_C) k_em_instance_c(&e);
     else emit_file(&e, which);
     if (!e.ok) return K_EMIT_UNSUPPORTED;
     return k_writer_len(&e.w);
+}
+
+bool k_emit_instance_redundant(const KAst *generic) {
+    for (size_t i = 0; i < generic->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&generic->nodes, i);
+        if (k_em_generic_out(generic, n) && n->kind == K_AST_FUNCTION && n->is_public && !n->is_inline) return false;
+    }
+    return true;
 }

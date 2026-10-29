@@ -25,3 +25,10 @@ Decisões do André nesta sessão: `tags` segue a escrita do autor; `constexpr` 
 parênteses por contagem de tokens, `(void)`/`_Static_assert` no objeto de conferência e
 contador por função; cleanup do `defer` em linhas próprias com `#line`; testes em `test/`
 na raiz, `engine/{lexer,parser,emit}/` com `.h` ao lado do `.c`.
+
+**Atualização (2026-10-29):** a base sai do cgen. Modo de instância no parser
+(`k_collect_instance_islands`) e no emissor (`e->inst`, o `.h` da instância pelo `emit.c`);
+`--instance` por módulo sintético em memória; oráculo `test/cgen/base.sh` (92 de `golden/<p>/keel`,
+16 wip: `keel.array` sem modificador e `slice_of_*`, função sobre protocolo). O golden da base é
+corrigido conferindo cada linha contra o `.k`, nunca copiado da ferramenta. Ver a última seção de
+`tools/agents/passagem-2026-10-28.md`.

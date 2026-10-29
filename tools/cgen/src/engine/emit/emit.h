@@ -71,4 +71,9 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
  * instance's own .c has no body (redundant-instance, cgen design §2.8). */
 bool k_emit_instance_redundant(const KAst *generic);
 
+/* Whether `generic` declares no modifier (`keel.array`): its instance is the
+ * family of verbs of its arguments. `verb` is one of them with a single
+ * parameter, the container, which a call can name the instance by. */
+bool k_emit_generic_without_modifier(const KAst *generic, keel_slice_char *verb);
+
 #endif /* CGEN_ENGINE_EMIT_EMIT_H */

@@ -315,7 +315,28 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
     size_t iw = 0, bw = 0, aliases = 0;
     const char *generic_name = NULL;
     size_t generic_len = 0;
-    for (const char *p = use; *p; ) {
+    /* a generic without a modifier, named whole (`keel.array i32`): its instance
+       is the family of verbs of the arguments, reached by a call of one of them
+       over an `array` of the arguments (backend §5.2, rule 8) */
+    const char *start = use;
+    while (*start == ' ') start++;
+    const char *wend = start;
+    while (*wend && (ident_char(*wend) || *wend == '.')) wend++;
+    KModule *family = NULL;
+    keel_slice_char verb = {0};
+    if (memchr(start, '.', (size_t)(wend - start))) {
+        KModule *m = NULL;
+        KLoadResult r = cgen_load(tool, (keel_slice_char){ (size_t)(wend - start), (char *)start }, &m);
+        if ((r == K_LOAD_OK || r == K_LOAD_ALREADY) && m && m->ast && k_emit_generic_without_modifier(m->ast, &verb)) {
+            family = m;
+            generic_name = start;
+            generic_len = (size_t)(wend - start);
+            if (!put(imports, &iw, "import ", 7) || !put(imports, &iw, start, generic_len) ||
+                !put(imports, &iw, " as cgen_m0;\n", 13)) return 2;
+            aliases = 1;
+        }
+    }
+    for (const char *p = family ? wend : use; *p; ) {
         if (!ident_char(*p)) { if (!put(body, &bw, p, 1)) return 2; p++; continue; }
         const char *q = p, *last_dot = NULL;
         while (*q && (ident_char(*q) || (*q == '.' && ident_char(q[1])))) { if (*q == '.') last_dot = q; q++; }
@@ -343,7 +364,10 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
         return 2;
     }
     char text[3 * USE_CAP];
-    int tl = snprintf(text, sizeof text, "module cgen_instance;\n%sinstance %s;\n", imports, body);
+    int tl = family
+        ? snprintf(text, sizeof text, "module cgen_instance;\n%spriv array%s cgen_v[1];\npriv void cgen_use(void) { (void)cgen_m0.%.*s(cgen_v); }\n",
+                   imports, body, (int)verb.len, verb.ptr)
+        : snprintf(text, sizeof text, "module cgen_instance;\n%sinstance %s;\n", imports, body);
     if (tl < 0 || (size_t)tl >= sizeof text) return 2;
     char *saved = cgen_alloc(arena, (size_t)tl + 1, 1, 1, false, "instance source");
     if (!saved) return 2;
@@ -366,7 +390,7 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
     const KClosure *target = NULL;
     for (size_t i = 0; i < ast->closure.len && !target; i++) {
         const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
-        if (c->kind == K_CLOSURE_INSTANCE && c->origin == K_CLOSURE_WRITTEN) target = c;
+        if (c->kind == K_CLOSURE_INSTANCE && (family ? c->module == family : c->origin == K_CLOSURE_WRITTEN)) target = c;
     }
     if (!target || !target->module) {
         fprintf(stderr, "cgen: error: '%s' does not name a modifier in full [invalid-instance]\n", use);
@@ -409,8 +433,9 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
             else {
                 k_emit_instance(target->module->ast, &inst, src_path, K_EMIT_C, opt, (keel_slice_char){ need, data });
                 if (k_emit_instance_redundant(target->module->ast))
-                    fprintf(stderr, "cgen: warning: %.*s.%.*s is entirely pub inline; the .c will have no body [redundant-instance]\n",
-                            (int)target->module->name.len, target->module->name.ptr, (int)inst.modifier.len, inst.modifier.ptr);
+                    fprintf(stderr, "cgen: warning: %.*s%s%.*s is entirely pub inline; the .c will have no body [redundant-instance]\n",
+                            (int)target->module->name.len, target->module->name.ptr, inst.modifier.len ? "." : "",
+                            (int)inst.modifier.len, inst.modifier.ptr);
                 char rel[4096], path[8192];
                 size_t rel_len = k_mangle_instance_path(target->module->name, inst.symbol, ".c", (keel_slice_char){ sizeof rel, rel });
                 int w = rel_len < sizeof rel ? snprintf(path, sizeof path, "%s/%.*s", dest, (int)rel_len, rel) : -1;

@@ -7,6 +7,8 @@
  * dimension is decimal when it is a literal, or the name of a constexpr whose
  * initializer is a decimal literal (block scope or module level, found here
  * from the tokens). A comma between two indices of one bracket becomes `][`.
+ * Over a parameter with a binder (`array T v[size_t n]`), dimension 0 is the
+ * extent that arrived, keel__n (backend §5.18, rule 4).
  * Refused (k_em_handles_index answers false): a use with no declaration of its
  * array in the function, more indices than dimensions, or a declaration that
  * array.c does not lower. */
@@ -35,7 +37,8 @@ typedef struct {
     size_t lbr, rbr;        /* the dimension brackets: `[` and its `]` */
     Span dim[MAX_RANK];     /* the dimensions, in order */
     size_t ndims;
-    bool simple;            /* no binder, no second declarator, dimensions fit */
+    bool simple;            /* no second declarator, dimensions fit, a binder only in dimension 0 */
+    bool binder;            /* dimension 0 is `T n` of a parameter: it is keel__n (backend §5.18) */
 } Decl;
 
 static bool word(const KAst *ast, size_t i, const char *s) {
@@ -155,10 +158,16 @@ static bool read_decl(const KAst *ast, const KAstNode *fn, size_t arr, Decl *d) 
     d->lbr = lbr;
     d->rbr = rbr;
     d->simple = rbr != lbr + 1;
-    for (size_t i = lbr + 1; i < rbr && d->simple; i++)
-        if (is_word(ast, i) && is_word(ast, i + 1)) d->simple = false;   /* a binder (§5.18) */
+    d->binder = false;
     size_t n = 0;
     if (d->simple && !split_outer(ast, lbr + 1, rbr, d->dim, &n, NULL, NULL)) d->simple = false;
+    /* a binder (§5.18): two words, in dimension 0 of a parameter, and nowhere else */
+    for (size_t k = 0; k < n && d->simple; k++)
+        for (size_t i = d->dim[k].first; i + 1 < d->dim[k].end; i++)
+            if (is_word(ast, i) && is_word(ast, i + 1)) {
+                if (k == 0 && arr < fn->body_first && i + 2 == d->dim[k].end) d->binder = true;
+                else d->simple = false;
+            }
     d->ndims = n;
     if (d->simple && arr >= fn->body_first && rbr + 1 < fn->end && word(ast, rbr + 1, ","))
         d->simple = false;                                          /* a second declarator */
@@ -284,6 +293,12 @@ void k_em_edits_index(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
                 .text = "keel_index(", .text_len = 11 });
             push_in(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = close_at, .skip = 0,
                 .text = ", ", .text_len = 2 });
+            if (j == 0 && d.binder) {
+                push_in(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = close_at, .skip = 0,
+                    .text = "keel__", .text_len = 6 });
+                push_in(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TOKS, .at = close_at, .skip = 0,
+                    .tok_a = d.dim[0].end - 1, .tok_b = d.dim[0].end });
+            } else
             push_in(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TOKS, .at = close_at, .skip = 0,
                 .tok_a = d.dim[j].first, .tok_b = d.dim[j].end });
             push_in(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = close_at, .skip = 0,

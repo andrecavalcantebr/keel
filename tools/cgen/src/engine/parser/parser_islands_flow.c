@@ -957,6 +957,10 @@ static size_t inst_arg_end(Ctx *c, size_t i, int depth) {
     bool generic_arg = false;
     for (int k = 0; k < s->arity - s->dim_arity; k++) {
         size_t e = inst_arg_end(c, j, depth + 1);
+        /* written bare, an imported modifier takes the instance's arguments as
+           they stand (spec §4.3): `slice` in keel.array is `slice T` */
+        if (!e && k == 0 && depth == 0 && i + 1 == j &&
+            (isl_ident(a, j) || isl_punct(a, j, "*") || isl_punct(a, j, ")"))) return i + 1;
         if (!e) return 0;
         for (size_t q = j; q < e; q++)
             if (isl_binder(a, isl_tok(a, q)) || (mod.len && k_symtab_same_name(isl_tok(a, q), mod))) generic_arg = true;

@@ -448,7 +448,8 @@ static bool callee_at(Ctx *c, size_t i, Callee *out) {
     }
     for (size_t k = 0; k < a->nodes.len; k++)
         if (isl_node_at(a, k)->kind == K_AST_FUNCTION && k_symtab_same_name(isl_tok(a, isl_node_at(a, k)->name_first), name)) {
-            *out = (Callee){ i, i + 1, NULL };
+            /* read as an instance, a verb of the generic is the instance's (k_collect_instance_islands) */
+            *out = (Callee){ i, i + 1, c->inst_mode ? c->inst_types[0].module : NULL };
             return true;
         }
     return false;

@@ -238,6 +238,12 @@ static bool carried(const Emit *e, const KAstNode *n) {
     return is_function_with_body(e, n) && n->is_public;
 }
 
+static bool has_modifier(const KAst *ast) {
+    for (size_t i = 0; i < ast->nodes.len; i++)
+        if (keel_buffer_KAstNode_ptr(&ast->nodes, i)->kind == K_AST_MODIFIER) return true;
+    return false;
+}
+
 static bool instance_supported(const Emit *e) {
     const KAst *ast = e->ast;
     const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
@@ -255,7 +261,9 @@ static bool instance_supported(const Emit *e) {
             modifier = true;
         }
     }
-    return modifier;
+    /* a generic without a modifier (`keel.array`, backend §5.2, rule 8): the
+     * instance is the family of verbs of its arguments */
+    return modifier || (!has_modifier(ast) && !e->inst->modifier.len);
 }
 
 static bool has_function(const Emit *e) {
@@ -337,7 +345,9 @@ static void emit_file(Emit *e, KEmitFile which) {
                 raw(e, "typedef struct "); raw_slice(e, e->inst->arg[k]); raw(e, " "); raw_slice(e, e->inst->arg[k]); raw(e, ";\n");
             }
         }
-        raw(e, "\n");
+        /* without a modifier the instance defines no type: the header only
+         * includes keel.type.h (backend §5.2, rule 8) */
+        if (has_modifier(e->ast)) raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (n->kind == K_AST_MODIFIER) emit_modifier(e, n);
@@ -380,7 +390,8 @@ bool k_emit_instance_of(const KAst *ast, const KClosure *c, KEmitInstance *inst)
     }
     /* the dimensions: between "<module>_<modifier>_" and "_<args>" of the symbol */
     char pre[NAME_CAP];
-    size_t pl = k_mangle_decl(inst->module, inst->modifier, true, (keel_slice_char){ sizeof pre, pre });
+    size_t pl = inst->modifier.len ? k_mangle_decl(inst->module, inst->modifier, true, (keel_slice_char){ sizeof pre, pre })
+                                   : k_mangle_module(inst->module, (keel_slice_char){ sizeof pre, pre });
     if (pl >= sizeof pre || pl > c->symbol_len || memcmp(c->symbol, pre, pl) != 0) return false;
     size_t lo = pl, hi = c->symbol_len;
     for (size_t k = c->argc; k-- > 0; ) {
@@ -505,4 +516,17 @@ bool k_emit_instance_redundant(const KAst *generic) {
         if (k_em_generic_out(generic, n) && n->kind == K_AST_FUNCTION && n->is_public && !n->is_inline) return false;
     }
     return true;
+}
+
+bool k_emit_generic_without_modifier(const KAst *generic, keel_slice_char *verb) {
+    if (!k_em_module_is_generic(generic) || has_modifier(generic)) return false;
+    for (size_t i = 0; i < generic->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&generic->nodes, i);
+        if (n->kind != K_AST_FUNCTION || !n->is_public || !k_em_generic_out(generic, n)) continue;
+        if (k_em_param_count(generic, n) != 1) continue;
+        KToken t = k_em_tok(generic, n->name_first);
+        *verb = (keel_slice_char){ t.len, (char *)t.ptr };
+        return true;
+    }
+    return false;
 }

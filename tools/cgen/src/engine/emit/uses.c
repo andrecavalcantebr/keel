@@ -232,7 +232,8 @@ static bool foreign_in(const KAst *ast, size_t a, size_t b) {
 
 /* The dimension 0 of the `array` named by the single token `tok`, as its
  * declaration writes it (a decimal), from the array island `name [d0, ...]`. */
-static bool array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len) {
+static bool array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len, bool *binder) {
+    if (binder) *binder = false;
     KToken t = k_em_tok(ast, tok);
     for (size_t i = 0; i < ast->islands.len; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
@@ -241,7 +242,20 @@ static bool array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len)
         if (is->text_len < t.len + 3 || memcmp(d, t.ptr, t.len) != 0 || d[t.len] != ' ' || d[t.len + 1] != '[') continue;
         size_t s = t.len + 2, e = s;
         while (e < is->text_len && d[e] >= '0' && d[e] <= '9') e++;
-        if (e == s || e >= is->text_len || (d[e] != ']' && d[e] != ',')) return false;
+        if (e == s) {
+            /* a parameter with a binder, `[size_t n]`: the dimension that arrived is
+               its name, which the C spells keel__n (backend §5.18, rule 2) */
+            size_t w = s;
+            while (w < is->text_len && d[w] != ']' && d[w] != ',') w++;
+            size_t n1 = w;
+            while (n1 > s && d[n1 - 1] != ' ') n1--;
+            if (w >= is->text_len || n1 == s || n1 == w) return false;
+            *p = d + n1;
+            *len = w - n1;
+            if (binder) *binder = true;
+            return true;
+        }
+        if (e >= is->text_len || (d[e] != ']' && d[e] != ',')) return false;
         *p = d + s;
         *len = e - s;
         return true;
@@ -264,7 +278,7 @@ bool k_em_handles_use(const KAst *ast, const KIsland *is) {
         if (((amp | type | dim) & (1u << k)) && k > argc) return false;
         const char *dp;
         size_t dl;
-        if ((dim & (1u << k)) && (last[k] != first[k] + 1 || !array_dim0(ast, first[k], &dp, &dl))) return false;
+        if ((dim & (1u << k)) && (last[k] != first[k] + 1 || !array_dim0(ast, first[k], &dp, &dl, NULL))) return false;
         if (!(type & (1u << k))) continue;
         /* the type argument is copied twice: it must not hold another rename */
         if (foreign_in(ast, first[k], last[k])) return false;
@@ -366,8 +380,10 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
                 /* the array's dimension 0, from the declaration, as one argument more */
                 const char *dp;
                 size_t dl;
-                if (!array_dim0(ast, first[k], &dp, &dl) || q > b) { e->ok = false; return; }
+                bool bound;
+                if (!array_dim0(ast, first[k], &dp, &dl, &bound) || q > b) { e->ok = false; return; }
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = ", ", .text_len = 2 });
+                if (bound) k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = "keel__", .text_len = 6 });
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = dp, .text_len = dl });
             }
             if (type & (1u << k)) {

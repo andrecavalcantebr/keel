@@ -15,7 +15,7 @@ static inline i32   *keel_array_i32_ptr1(i32 v[], size_t keel__N, size_t i);
 #line 27 "keel/array.k"
 static inline keel_outcome_i32 keel_array_i32_at(i32 v[], size_t keel__N, size_t i);
 #line 37 "keel/array.k"
-static inline keel_slice_i32 keel_array_i32_as_slice (i32 v[], size_t keel__N);
+static inline keel_slice_i32 keel_array_i32_as_slice(i32 v[], size_t keel__N);
 #line 39 "keel/array.k"
 static inline keel_slice_i32 keel_array_i32_as_slice2(i32 v[], size_t keel__N, size_t a, size_t b);
 #line 45 "keel/array.k"
@@ -36,7 +36,7 @@ static inline keel_outcome_i32 keel_array_i32_at(i32 v[], size_t keel__N, size_t
     return i < keel__N ? keel_outcome_i32_win1(&r, v[keel_index(i, keel__N)]) : keel_outcome_i32_none(&r);
 }
 #line 37 "keel/array.k"
-static inline keel_slice_i32 keel_array_i32_as_slice (i32 v[], size_t keel__N) { return (keel_slice_i32){ keel__N, v }; }
+static inline keel_slice_i32 keel_array_i32_as_slice(i32 v[], size_t keel__N) { return (keel_slice_i32){ keel__N, v }; }
 #line 39 "keel/array.k"
 static inline keel_slice_i32 keel_array_i32_as_slice2(i32 v[], size_t keel__N, size_t a, size_t b) {
     KEEL_CHECK(a <= b && b <= keel__N, "range-index-out-of-bounds");

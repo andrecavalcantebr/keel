@@ -12,10 +12,10 @@ typedef struct keel_arena keel_arena;
 static inline keel_slice_i32 keel_slice_i32_from(i32 *p, size_t n);
 #line 30 "keel/slice.k"
 static inline size_t keel_slice_i32_length(keel_slice_i32 s);
-static inline i32    keel_slice_i32_get (keel_slice_i32 s, size_t i);
-static inline void   keel_slice_i32_set (keel_slice_i32 s, size_t i, i32 v);
-static inline i32   *keel_slice_i32_ptr (keel_slice_i32 s);
-static inline i32   *keel_slice_i32_ptr1(keel_slice_i32 s, size_t i);
+static inline i32      keel_slice_i32_get(keel_slice_i32 s, size_t i);
+static inline void   keel_slice_i32_set(keel_slice_i32 s, size_t i, i32 v);
+static inline i32     *keel_slice_i32_ptr(keel_slice_i32 s);
+static inline i32     *keel_slice_i32_ptr1(keel_slice_i32 s, size_t i);
 #line 37 "keel/slice.k"
 static inline keel_outcome_i32 keel_slice_i32_at(keel_slice_i32 s, size_t i);
 #line 45 "keel/slice.k"
@@ -24,8 +24,8 @@ static inline keel_slice_i32 keel_slice_i32_as_slice(keel_slice_i32 s, size_t a,
 static inline keel_outcome_keel_slice_i32 keel_slice_i32_clone(keel_arena *a, keel_slice_i32 s);
 #line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_i32_begin(keel_slice_i32 s);
-static inline bool keel_slice_i32_has_next(keel_slice_i32 s, keel_slice_cursor *c);
-static inline i32 *keel_slice_i32_next(keel_slice_i32 s, keel_slice_cursor *c);
+static inline bool   keel_slice_i32_has_next(keel_slice_i32 s, keel_slice_cursor *c);
+static inline i32     *keel_slice_i32_next(keel_slice_i32 s, keel_slice_cursor *c);
 #line 74 "keel/slice.k"
 static inline keel_slice_i32 keel_slice_i32_partition(keel_slice_i32 s, size_t k, size_t w);
 
@@ -39,10 +39,10 @@ static inline keel_slice_i32 keel_slice_i32_from(i32 *p, size_t n) {
 }
 #line 30 "keel/slice.k"
 static inline size_t keel_slice_i32_length(keel_slice_i32 s) { return s.len; }
-static inline i32    keel_slice_i32_get (keel_slice_i32 s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return s.ptr[i]; }
-static inline void   keel_slice_i32_set (keel_slice_i32 s, size_t i, i32 v) { KEEL_CHECK(i < s.len, "set-out-of-length"); s.ptr[i] = v; }
-static inline i32   *keel_slice_i32_ptr (keel_slice_i32 s) { return s.ptr; }
-static inline i32   *keel_slice_i32_ptr1(keel_slice_i32 s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return &s.ptr[i]; }
+static inline i32      keel_slice_i32_get(keel_slice_i32 s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return s.ptr[i]; }
+static inline void   keel_slice_i32_set(keel_slice_i32 s, size_t i, i32 v) { KEEL_CHECK(i < s.len, "set-out-of-length"); s.ptr[i] = v; }
+static inline i32     *keel_slice_i32_ptr(keel_slice_i32 s) { return s.ptr; }
+static inline i32     *keel_slice_i32_ptr1(keel_slice_i32 s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return &s.ptr[i]; }
 #line 37 "keel/slice.k"
 static inline keel_outcome_i32 keel_slice_i32_at(keel_slice_i32 s, size_t i) {
     keel_outcome_i32 r = {0};
@@ -67,7 +67,7 @@ static inline keel_outcome_keel_slice_i32 keel_slice_i32_clone(keel_arena *a, ke
 #line 68 "keel/slice.k"
 static inline keel_slice_cursor keel_slice_i32_begin(keel_slice_i32 s) { (void)s; return (keel_slice_cursor){0}; }
 static inline bool   keel_slice_i32_has_next(keel_slice_i32 s, keel_slice_cursor *c) { return c->i < s.len; }
-static inline i32   *keel_slice_i32_next(keel_slice_i32 s, keel_slice_cursor *c) { return &s.ptr[c->i++]; }
+static inline i32     *keel_slice_i32_next(keel_slice_i32 s, keel_slice_cursor *c) { return &s.ptr[c->i++]; }
 #line 74 "keel/slice.k"
 static inline keel_slice_i32 keel_slice_i32_partition(keel_slice_i32 s, size_t k, size_t w) {
     if (k == 0) return (keel_slice_i32){0, s.ptr};

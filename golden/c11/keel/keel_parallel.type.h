@@ -4,6 +4,7 @@
 
 #include "keel.type.h"
 
+#line 12 "keel/parallel.k"
 #include <stdatomic.h>
 #line 17 "keel/parallel.k"
 typedef struct keel_parallel_control {

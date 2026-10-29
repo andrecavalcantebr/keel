@@ -1039,6 +1039,24 @@ bool isl_tag_of_some_set(const KAst *where, keel_slice_char name) {
     return tag_value(where, name, &scratch);
 }
 
+/* `Set.VALUE` where `Set` is a `tags` of this file and VALUE one of its items
+   (spec §4.9): the item's symbol replaces the three tokens. False for any other. */
+bool isl_tag_qualified(Ctx *c, size_t i) {
+    KAst *a = c->ast;
+    KToken set = isl_tok(a, i), item = isl_tok(a, i + 2);
+    for (size_t k = 0; k < a->nodes.len; k++) {
+        const KAstNode *n = isl_node_at(a, k);
+        if (n->kind != K_AST_TAGS || n->name_first + 1 != n->name_end || !k_symtab_same_name(isl_tok(a, n->name_first), set)) continue;
+        Text t = { .ok = true };
+        isl_put_glued(&t, a, i, i + 3);
+        isl_put_str(&t, " \xe2\x86\x92 ");
+        if (!tag_value(a, item, &t)) return false;
+        isl_emit(c, K_ISLAND_NAME, i, &t);
+        return true;
+    }
+    return false;
+}
+
 void isl_name_island(Ctx *c, size_t i) {
     KAst *a = c->ast;
     KToken name = isl_tok(a, i);

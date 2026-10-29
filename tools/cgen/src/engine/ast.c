@@ -154,7 +154,18 @@ static bool parse(KAst *a,
     KSymbolTable *symtab = symbols ? symbols : &local;
 
     while (i < n) {
-        if (keel_buffer_KLexeme_ptr(&a->tokens, i)->directive) { i++; continue; }
+        if (keel_buffer_KLexeme_ptr(&a->tokens, i)->directive) {
+            /* a file-level preprocessor line is opaque C: the type header carries it */
+            size_t end = i;
+            while (end < n && keel_buffer_KLexeme_ptr(&a->tokens, end)->directive) end++;
+            if (!headers_only) {
+                KAstNode d = { .kind = K_AST_OPAQUE, .first = i, .end = end, .anchor = i, .alias = SIZE_MAX,
+                               .body_first = SIZE_MAX, .body_end = SIZE_MAX, .is_public = true };
+                if (!append(a, d)) return false;
+            }
+            i = end;
+            continue;
+        }
         size_t start = i;
         a->error_token = i;
         KAstNode node = { .first = start, .anchor = start, .alias = SIZE_MAX,

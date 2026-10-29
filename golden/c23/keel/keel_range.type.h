@@ -5,6 +5,6 @@
 #include "keel.type.h"
 
 #line 12 "keel/range.k"
-typedef struct keel_range { size_t first; size_t limit; } keel_range;
+typedef struct keel_range { size_t first, limit; } keel_range;
 
 #endif /* KEEL_KEEL_RANGE_TYPE_H */

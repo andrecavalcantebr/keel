@@ -5,6 +5,6 @@
 #include "keel.type.h"
 
 #line 19 "keel/buffer.k"
-typedef struct keel_buffer_size_t { size_t cap; size_t len; size_t *ptr; } keel_buffer_size_t;
+typedef struct keel_buffer_size_t { size_t cap, len; size_t *ptr; } keel_buffer_size_t;
 
 #endif /* KEEL_KEEL_BUFFER_SIZE_T_TYPE_H */

@@ -202,6 +202,7 @@ bool isl_call_at(Ctx *c, size_t i);
 bool isl_tag_of_some_set(const KAst *where, keel_slice_char name);
 void isl_name_island(Ctx *c, size_t i);
 void isl_qualified_name(Ctx *c, size_t i, const KModule *module);
+bool isl_tag_qualified(Ctx *c, size_t i);
 bool isl_is_arena(const KAst *a, const KSpecifier *spec);
 void isl_note_shadow(Ctx *c, KToken name);
 bool isl_binder_of(const KAst *a, const KAstNode *fn, KToken name);

@@ -1166,6 +1166,7 @@ void isl_walk(Ctx *c, const KAstNode *n) {
         if (isl_punct(a, i + 1, ".") && isl_ident(a, i + 2) && !isl_punct(a, i + 3, "(")) {
             const KModule *module = isl_module_alias(a->symbols, t);
             if (module) { isl_qualified_name(c, i, module); i += 2; continue; }
+            if (isl_tag_qualified(c, i)) { i += 2; continue; }
         }
         if (isl_punct(a, i + 1, "(")) continue;             /* a C function: not ours */
         /* a label is not a use */

@@ -133,11 +133,25 @@ static bool call_args(const KAst *ast, size_t open, size_t first[17], size_t las
     return false;
 }
 
+/* A call of the module's own verb that is more than a rename: an erased `type`
+ * argument or a dimension (marks), or an arity suffix on the symbol (backend
+ * §2.1.1, §5.16). It is rewritten whole, as a call of another module is. */
+static bool own_call_rewritten(const Detail *d) {
+    for (size_t k = 0; k + 5 <= d->marks_len; k++)
+        if (memcmp(d->marks + k, "type:", 5) == 0) return true;
+    for (size_t k = 0; k + 4 <= d->marks_len; k++)
+        if (memcmp(d->marks + k, "dim:", 4) == 0) return true;
+    size_t n = d->sym_len;
+    while (n > 0 && d->sym[n - 1] >= '0' && d->sym[n - 1] <= '9') n--;
+    return n < d->sym_len && n >= d->left_len && memcmp(d->sym + n - d->left_len, d->left, d->left_len) == 0;
+}
+
 bool k_em_foreign_island(const KAst *ast, const KIsland *is) {
     if (is->kind != K_ISLAND_TYPE && is->kind != K_ISLAND_NAME && is->kind != K_ISLAND_CALL) return false;
     Detail d;
-    if (!detail_of(ast, is, &d) || declared_here(ast, &d)) return false;
-    return true;
+    if (!detail_of(ast, is, &d)) return false;
+    if (!declared_here(ast, &d)) return true;
+    return is->kind == K_ISLAND_CALL && own_call_rewritten(&d);
 }
 
 /* The module a callee names: `M.f` by the alias M, `f` by the symbol table. */
@@ -157,7 +171,15 @@ static const KAst *callee_module(const KAst *ast, size_t anchor, size_t end, siz
     if (end - anchor != 1) return NULL;
     KToken f = k_em_tok(ast, anchor);
     const KSymbol *s = k_symbol_resolve(ast->symbols, (keel_slice_char){ f.len, (char *)f.ptr });
-    return s && s->kind == K_SYM_FUNCTION && s->origin ? s->origin->ast : NULL;
+    if (s && s->kind == K_SYM_FUNCTION && s->origin) return s->origin->ast;
+    for (size_t k = 0; k < ast->nodes.len; k++) {   /* a verb of this module */
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind == K_AST_FUNCTION && n->name_first < n->name_end) {
+            KToken t = k_em_tok(ast, n->name_first);
+            if (t.len == f.len && memcmp(t.ptr, f.ptr, f.len) == 0) return ast;
+        }
+    }
+    return NULL;
 }
 
 /* Whether the verb `name` of module `m` with `argc` parameters returns `X *`,
@@ -364,6 +386,9 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
             KToken t = k_em_tok(ast, i);
             size_t at = k_em_tok_off(ast, i);
             if (at < a || at >= b) continue;
+            bool taken = false;   /* already rewritten whole (an erased `alignof(T)`) */
+            for (size_t k = 0; k < *cnt; k++) if (ed[k].at == at && ed[k].skip > t.len) taken = true;
+            if (taken) continue;
             if (k_em_text_is(t, "alignof"))
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = t.len, .text = "_Alignof", .text_len = 8 });
             else if (k_em_text_is(t, "alignas"))

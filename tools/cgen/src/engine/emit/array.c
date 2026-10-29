@@ -10,6 +10,7 @@
  * false, and the module is refused with implementation-limit): a declaration with
  * more than one declarator (`array i32 a[3], b[4];`) and a parameter whose
  * dimension has a binder (`array T v[size_t n]`, backend §5.18). */
+#include <string.h>
 #include "engine/emit/emit_internal.h"
 
 /* The tokens of one `array` declaration, found from its island. */
@@ -17,6 +18,9 @@ typedef struct {
     size_t arr;                 /* the word `array`: the island's anchor */
     size_t lbr, rbr;            /* the dimension brackets: `[` and its `]` */
     bool param;                 /* in the signature, before the body (rule 3) */
+    bool binder;                /* dimension 0 is `T name` (backend §5.18) */
+    size_t bend;                /* binder: the token that ends dimension 0 (`,` or `]`) */
+    size_t fn_end;              /* the end of the enclosing function */
 } ArrayDecl;
 
 static bool tok_is(const KAst *ast, size_t i, const char *s) {
@@ -82,11 +86,27 @@ static bool array_decl(const KAst *ast, const KIsland *is, ArrayDecl *d) {
         else if (tok_closes(ast, i) && --depth == 0) { rbr = i; break; }
     }
     if (rbr == 0 || rbr == lbr + 1) return false;   /* unclosed, or no dimension */
-    /* a binder: two words in a row among the dimensions (backend §5.18) */
-    for (size_t i = lbr + 1; i < rbr; i++)
-        if (tok_is_word(ast, i) && tok_is_word(ast, i + 1)) return false;
     d->arr = arr; d->lbr = lbr; d->rbr = rbr;
     d->param = fn->kind == K_AST_FUNCTION && arr < fn->body_first;
+    d->fn_end = fn->end;
+    /* a binder: two words in a row in dimension 0 (backend §5.18); a parameter only */
+    d->binder = false;
+    size_t depth0 = 0;
+    for (size_t i = lbr + 1; i < rbr; i++) {
+        if (tok_opens(ast, i)) depth0++;
+        else if (tok_closes(ast, i)) depth0--;
+        else if (depth0 == 0 && tok_is(ast, i, ",")) break;
+        if (tok_is_word(ast, i) && tok_is_word(ast, i + 1)) d->binder = true;
+    }
+    if (d->binder) {
+        if (!d->param) return false;
+        size_t i = lbr + 1;
+        while (i < rbr && !tok_is(ast, i, ",")) i++;
+        d->bend = i;
+        if (d->bend - lbr < 3) return false;
+        for (size_t j = lbr + 1; j < rbr; j++)   /* another binder among the rest */
+            if (j > d->bend && tok_is_word(ast, j) && tok_is_word(ast, j + 1)) return false;
+    }
     /* a local with a second declarator: `array i32 a[3], b[4];` */
     if (!d->param && rbr + 1 < fn->end && tok_is(ast, rbr + 1, ",")) return false;
     return true;
@@ -105,6 +125,44 @@ void k_em_edits_array(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         if (at >= a && at < b)
             k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_DROP, .at = at,
                 .skip = k_em_tok(ast, d.arr).len + blanks_after(ast, d.arr) });
+
+        if (d.binder) {
+            /* backend §5.18: `v[T n, ...]` -> `v[][...]`, the binder after the parameter */
+            size_t from = k_em_tok_end(ast, d.lbr), to = k_em_tok_off(ast, d.bend);
+            bool more = d.bend != d.rbr;
+            if (more) to = k_em_tok_off(ast, d.bend + 1);
+            if (from >= a && from < b) {
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = from, .skip = to - from,
+                    .text = more ? "][" : "", .text_len = more ? 2 : 0 });
+            }
+            KToken nm = k_em_tok(ast, d.bend - 1);
+            size_t ty0 = k_em_tok_off(ast, d.lbr + 1), ty1 = k_em_tok_end(ast, d.bend - 2);
+            size_t n = 2 + (ty1 - ty0) + 1 + 6 + nm.len;
+            char *txt = k_em_scratch(e, n);
+            if (!txt) return;
+            size_t w = 0;
+            txt[w++] = ','; txt[w++] = ' ';
+            memcpy(txt + w, ast->source.ptr + ty0, ty1 - ty0); w += ty1 - ty0;
+            txt[w++] = ' ';
+            memcpy(txt + w, "keel__", 6); w += 6;
+            memcpy(txt + w, nm.ptr, nm.len); w += nm.len;
+            at = k_em_tok_end(ast, d.rbr);
+            if (at >= a && at < b)
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 0, .text = txt, .text_len = w });
+            /* each `n` of the function after the parameter list is `keel__n` */
+            for (size_t i = d.rbr + 1; i < d.fn_end; i++) {
+                KToken t = k_em_tok(ast, i);
+                if (t.len != nm.len || memcmp(t.ptr, nm.ptr, nm.len) != 0) continue;
+                if (tok_is(ast, i - 1, ".") || tok_is(ast, i - 1, "->")) continue;
+                size_t p = k_em_tok_off(ast, i);
+                if (p < a || p >= b) continue;
+                char *r = k_em_scratch(e, 6 + nm.len);
+                if (!r) return;
+                memcpy(r, "keel__", 6); memcpy(r + 6, nm.ptr, nm.len);
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = t.len, .text = r, .text_len = 6 + nm.len });
+            }
+            continue;
+        }
 
         /* 2: each comma at the outer level of the dimensions becomes `][`, with
          * the blanks after it */

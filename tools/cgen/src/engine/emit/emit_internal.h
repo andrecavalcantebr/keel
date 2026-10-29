@@ -130,6 +130,12 @@ bool k_em_handles_foreach(const KAst *ast, const KIsland *is);
 void k_em_edits_index(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_index(const KAst *ast, const KIsland *is);
 
+/* roles.c: the roles, the erased `type T`, the arity suffix of a function's signature.
+ * k_em_arity_suffix writes the digits (or nothing) into out[8] and returns their count. */
+void k_em_edits_roles(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
+size_t k_em_arity_suffix(const KAst *ast, const KAstNode *fn, char *out);
+bool k_em_nodiscard(const KAst *ast, const KAstNode *fn);
+
 /* defer.c: `defer` (backend §5.5) */
 void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_defer(const KAst *ast, const KIsland *is);

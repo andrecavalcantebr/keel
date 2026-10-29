@@ -7,6 +7,8 @@
  * UNSUPPORTED, never a truncated file. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
+#include "engine/names.h"
+#include "engine/symtab.h"
 
 #define EM_DASH "\xE2\x80\x94"  /* U+2014: the dash of every header comment */
 
@@ -44,7 +46,20 @@ static bool names_binder_or_modifier(const KAst *ast, KToken t) {
 }
 
 /* whether the declaration `n` of a generic module belongs to the instance */
+/* a function with a parameter typed by a protocol (backend §5.19): one instance per concrete type */
+static bool over_protocol(const KAst *ast, const KAstNode *n) {
+    if (n->kind != K_AST_FUNCTION || !ast->symbols || n->body_first == (size_t)-1) return false;
+    for (size_t i = n->name_first + 1; i < n->body_first; i++) {
+        KToken t = k_em_tok(ast, i);
+        if (!k_token_is_ident(t)) continue;
+        const KSymbol *s = k_symbol_resolve(ast->symbols, (keel_slice_char){ t.len, (char *)t.ptr });
+        if (s && s->kind == K_SYM_PROTOCOL) return true;
+    }
+    return false;
+}
+
 bool k_em_generic_out(const KAst *ast, const KAstNode *n) {
+    if (over_protocol(ast, n)) return true;
     if (n->kind == K_AST_MODULE || n->kind == K_AST_IMPORT || !k_em_module_is_generic(ast)) return false;
     if (n->kind == K_AST_MODIFIER) return true;
     for (size_t i = n->first; i < n->end; i++) {
@@ -63,6 +78,12 @@ static bool island_out(const KAst *ast, const KIsland *is) {
     return false;
 }
 
+/* a `pub inline` function: its body goes to the .h as `static inline` (backend §4.3.2, rule 3) */
+static bool is_pub_inline(const KAst *ast, const KAstNode *n) {
+    return n->kind == K_AST_FUNCTION && n->is_public && n->first + 1 < n->end &&
+           k_em_text_is(k_em_tok(ast, n->first), "pub") && k_em_text_is(k_em_tok(ast, n->first + 1), "inline");
+}
+
 static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     bool value = k_em_declares_value(n->kind);
@@ -72,6 +93,9 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
             if (value && k_em_text_is(k_em_tok(ast, n->first), "priv")) {
                 /* a priv function or variable is internal linkage in the .c */
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_STATIC, .at = at, .skip = k_em_tok(ast, n->first).len, .name_tok = 0, .is_type = false });
+            } else if (is_pub_inline(ast, n)) {
+                bool nodiscard = e->opt.c23 && k_em_nodiscard(ast, n);
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, n->first).len, .name_tok = 0, .is_type = false, .text = nodiscard ? "[[nodiscard]] static" : "static", .text_len = nodiscard ? 20 : 6 });
             } else {
                 /* the keyword and the blanks after it */
                 size_t skip = k_em_tok(ast, n->first).len;
@@ -134,6 +158,7 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
      * in [a, b); the new ones are sorted in among the rename edits of this node */
     if (n->kind == K_AST_FUNCTION) {
         size_t before = *cnt;
+        k_em_edits_roles(e, n, a, b, ed, cnt);
         k_em_edits_array(e, n, a, b, ed, cnt);
         k_em_edits_foreach(e, n, a, b, ed, cnt);
         k_em_edits_constblock(e, n, a, b, ed, cnt);
@@ -429,7 +454,7 @@ static void type_h_body(Emit *e) {
         case K_AST_OPAQUE:
             a = k_em_line_start(e, k_em_first_off(e, n));
             if (a < e->done) a = e->done;
-            b = k_em_line_end(e, k_em_last_end(e, n));
+            b = k_em_line_end(e, k_em_last_end(e, n) - 1);   /* a directive token ends past its newline */
             if (a < b) { emit_range(e, a, b); e->done = b; }
             break;
         case K_AST_EXTERN_C:
@@ -445,6 +470,8 @@ static void type_h_body(Emit *e) {
     }
 }
 
+static void raw(Emit *e, const char *s);
+
 static void h_body(Emit *e) {
     k_em_h_forward_decls(e);
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
@@ -452,6 +479,14 @@ static void h_body(Emit *e) {
         if (k_em_generic_out(e->ast, n)) continue;
         if (n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
         else if (n->kind == K_AST_VARIABLE && n->is_public) emit_extern(e, n);
+    }
+    /* then the bodies of the `pub inline` functions, each with its own .k lines */
+    bool blank = false;
+    for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
+        if (k_em_generic_out(e->ast, n) || !is_pub_inline(e->ast, n)) continue;
+        if (!blank) { raw(e, "\n"); blank = true; }
+        emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)));
     }
 }
 
@@ -556,7 +591,8 @@ static void emit_c(Emit *e) {
         for (size_t i = 0; i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (!k_em_overlaps(e, n, a, b)) continue;
-            if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
+            if (is_pub_inline(e->ast, n)) empty = true;   /* its body is in the .h */
+            else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
             else empty = true;   /* every other kind in the slice has no C in the .c */
         }
         if (fn && empty) { e->ok = false; return; }

@@ -241,7 +241,11 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
         keel_slice_char mod = k_diag_text(name);
         char src_buf[8192];
         keel_slice_char src_path = source_path(mod, src_buf, sizeof src_buf);
-        if (main_module && strcmp(main_module, name) != 0) {
+        if (k_emit_module_is_generic(module->ast)) {
+            /* a generic module is not translatable alone (cgen design §2.8, §8.8) */
+            fprintf(stderr, "cgen: error: %s is a generic module; use --instance [generic-source-without-instance]\n", name);
+            rc = 2;
+        } else if (main_module && strcmp(main_module, name) != 0) {
             fprintf(stderr, "cgen: error: --main names '%s', but the compiled module is '%s' [invalid-option]\n", main_module, name);
             rc = 2;
         } else if (main_module && !has_public_main(module->ast)) {
@@ -336,6 +340,37 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
             aliases = 1;
         }
     }
+    /* §2.8, step 3: the first name is <module>.<modifier> of a generic module */
+    if (!family) {
+        const char *dot = NULL;
+        for (const char *q = start; q < wend; q++) if (*q == '.') dot = q;
+        int wl = (int)(wend - start);
+        if (!dot) {
+            fprintf(stderr, "cgen: error: '%.*s' does not name a modifier in full [invalid-instance]\n", wl, start);
+            cgen_loader_destroy(tool);
+            return 2;
+        }
+        KModule *m = NULL;
+        KLoadResult r = cgen_load(tool, (keel_slice_char){ (size_t)(dot - start), (char *)start }, &m);
+        if (r == K_LOAD_NOT_FOUND) {
+            fprintf(stderr, "cgen: error: module '%.*s' not found [module-not-found]\n", (int)(dot - start), start);
+            cgen_loader_destroy(tool);
+            return 2;
+        }
+        if ((r != K_LOAD_OK && r != K_LOAD_ALREADY) || !m || !m->ast) { cgen_loader_report(tool, &sink); cgen_loader_destroy(tool); return 1; }
+        bool declares = false;
+        keel_slice_char mod = { (size_t)(wend - dot - 1), (char *)dot + 1 };
+        for (size_t k = 0; k < m->symbol_count; k++)
+            if (m->symbols[k].kind == K_SYM_MODIFIER && m->symbols[k].name.len == mod.len &&
+                memcmp(m->symbols[k].name.ptr, mod.ptr, mod.len) == 0) declares = true;
+        if (!k_emit_module_is_generic(m->ast) || !declares) {
+            fprintf(stderr, "cgen: error: '%.*s' does not name a modifier in full; module '%.*s' %s [invalid-instance]\n",
+                    wl, start, (int)(dot - start), start,
+                    !k_emit_module_is_generic(m->ast) ? "is not generic" : "declares no such modifier");
+            cgen_loader_destroy(tool);
+            return 2;
+        }
+    }
     for (const char *p = family ? wend : use; *p; ) {
         if (!ident_char(*p)) { if (!put(body, &bw, p, 1)) return 2; p++; continue; }
         const char *q = p, *last_dot = NULL;
@@ -378,9 +413,18 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
     /* the synthetic module's own redundant-instance would name its aliases: the
        invocation reports it below, in the words of the use */
     size_t kept = 0;
-    for (size_t i = 0; i < sink.len; i++)
-        if (sink.items[i].id != K_DIAG_REDUNDANT_INSTANCE) sink.items[kept++] = sink.items[i];
+    bool mismatch = false;
+    for (size_t i = 0; i < sink.len; i++) {
+        if (sink.items[i].id == K_DIAG_INSTANCE_NOT_MODIFIER) mismatch = true;
+        else if (sink.items[i].id != K_DIAG_REDUNDANT_INSTANCE) sink.items[kept++] = sink.items[i];
+    }
     sink.len = kept;
+    if (mismatch) {
+        /* §2.8, step 4: the arguments do not match the `module` line */
+        fprintf(stderr, "cgen: error: '%s': the arguments do not match the parameters of the generic [invalid-instance]\n", use);
+        cgen_loader_destroy(tool);
+        return 2;
+    }
     cgen_loader_report(tool, &sink);
     int rc = 1;
     if (result != K_LOAD_OK || !module || k_diag_count(&sink, K_ERROR) != 0) { cgen_loader_destroy(tool); return rc; }

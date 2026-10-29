@@ -76,4 +76,7 @@ bool k_emit_instance_redundant(const KAst *generic);
  * parameter, the container, which a call can name the instance by. */
 bool k_emit_generic_without_modifier(const KAst *generic, keel_slice_char *verb);
 
+/* Whether the module has binders on its `module` line. */
+bool k_emit_module_is_generic(const KAst *ast);
+
 #endif /* CGEN_ENGINE_EMIT_EMIT_H */

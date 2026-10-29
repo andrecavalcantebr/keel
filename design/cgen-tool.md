@@ -246,7 +246,12 @@ app.geom.Point"`, `"blocos.bloco(3) f32"`. Algoritmo:
 
 1. Lexa o argumento com o lexer do `.k` — é texto keel.
 2. O primeiro nome qualificado se parte no último `.`: à esquerda, o módulo; à
-   direita, o modificador.
+   direita, o modificador. A exceção é o nome inteiro que nomeia um genérico sem
+   modificador (`keel.array`, backend §5.2 regra 8): ele é o módulo, e a
+   instância é a família de verbos dos argumentos (`"keel.array i32"` →
+   `keel_array_i32`). Como a declaração `instance` exige modificador
+   (`instance-not-modifier`), essa forma só existe na linha de comando: a
+   ferramenta alcança a instância por uma chamada de um verbo dela.
 3. `carrega` o módulo pelas raízes, como um `import`. Não achado:
    `module-not-found`. Achado e não genérico, ou sem esse modificador:
    `invalid-instance`.

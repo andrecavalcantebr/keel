@@ -530,3 +530,5 @@ bool k_emit_generic_without_modifier(const KAst *generic, keel_slice_char *verb)
     }
     return false;
 }
+
+bool k_emit_module_is_generic(const KAst *ast) { return k_em_module_is_generic(ast); }

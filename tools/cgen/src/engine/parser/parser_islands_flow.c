@@ -925,6 +925,46 @@ static void else_island(Ctx *c, const KAstNode *n, size_t at) {
     isl_emit(c, K_ISLAND_ELSE, at, &d);
 }
 
+/* Instance mode: the end of a type at token `i` that the scanner does not take
+   because it names a binder or the module's modifier bare — `outcome T`,
+   `outcome buffer`, `buffer` itself, `slice.slice` — or 0. */
+static size_t inst_arg_end(Ctx *c, size_t i, int depth);
+static size_t inst_spec_end(Ctx *c, size_t i) { return inst_arg_end(c, i, 0); }
+
+static size_t inst_arg_end(Ctx *c, size_t i, int depth) {
+    const KAst *a = c->ast;
+    if (depth > 4 || !isl_ident(a, i)) return 0;
+    KToken t = isl_tok(a, i);
+    keel_slice_char mod = isl_modifier_of(a);
+    if (mod.len && k_symtab_same_name(t, mod)) return i + 1;
+    if (depth > 0 && (isl_binder(a, t) || k_primitive_name(t))) return i + 1;
+    const KSymbol *s = k_symbol_resolve(a->symbols, t);
+    if (depth > 0 && s && (s->kind == K_SYM_TYPE || s->kind == K_SYM_TAGS)) return i + 1;
+    if (s && s->kind == K_SYM_MODULE && isl_punct(a, i + 1, ".") && isl_ident(a, i + 2)) {
+        const KModule *m = isl_module_alias(a->symbols, t);
+        for (size_t k = 0; m && k < m->symbol_count; k++)
+            if (m->symbols[k].kind == K_SYM_MODIFIER && k_symtab_same_name(m->symbols[k].name, isl_tok(a, i + 2)))
+                return depth > 0 || !isl_punct(a, i + 3, "(") ? i + 3 : 0;
+        return 0;
+    }
+    if (!s || s->kind != K_SYM_MODIFIER) return 0;
+    size_t j = i + 1;
+    if (isl_punct(a, j, "(")) {                 /* the dimensions */
+        size_t close = isl_close_paren(a, j, a->tokens.len);
+        if (close == SIZE_MAX) return 0;
+        j = close + 1;
+    }
+    bool generic_arg = false;
+    for (int k = 0; k < s->arity - s->dim_arity; k++) {
+        size_t e = inst_arg_end(c, j, depth + 1);
+        if (!e) return 0;
+        for (size_t q = j; q < e; q++)
+            if (isl_binder(a, isl_tok(a, q)) || (mod.len && k_symtab_same_name(isl_tok(a, q), mod))) generic_arg = true;
+        j = e;
+    }
+    return depth > 0 || generic_arg ? j : 0;
+}
+
 void isl_walk(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
     memcpy(c->locals, c->globals, c->global_count * sizeof *c->globals);
@@ -1116,6 +1156,17 @@ void isl_walk(Ctx *c, const KAstNode *n) {
         KToken next = {0};
         KToken first = isl_enter(a, i, &lexer, &pp);
         bool scanned = k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp);
+        size_t inst_end;
+        if (c->inst_mode && !(scanned && spec.kind != K_SPEC_NONE) && (inst_end = inst_spec_end(c, i)) != 0) {
+            /* a type of the generic that names a binder or the bare modifier: the
+               instance reads it (isl_kt_from_home) */
+            KToken last = isl_tok(a, inst_end - 1);
+            spec = (KSpecifier){ .kind = K_SPEC_MODIFIER, .modifier_name = t,
+                                 .text = { (size_t)(last.ptr + last.len - t.ptr), (char *)t.ptr } };
+            next = isl_enter(a, inst_end, &lexer, &pp);
+            i = isl_declaration(c, i, &spec, &lexer, next, signature, true);
+            continue;
+        }
         if (scanned && spec.kind != K_SPEC_NONE) {
             if (spec.kind == K_SPEC_MODIFIER && i > n->first && isl_word(a, i - 1, "restrict"))
                 isl_diag3(c, K_DIAG_RESTRICT_ON_CONTAINER, isl_tok(a, i - 1), spec.text, (keel_slice_char){0},

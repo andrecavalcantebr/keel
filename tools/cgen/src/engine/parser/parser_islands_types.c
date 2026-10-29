@@ -96,13 +96,16 @@ static int kt_of_local(Ctx *c, const Local *l) {
     if (l->rank > 0) {
         t = isl_kt_new(c);
         if (t < 0) return -1;
-        int element = isl_kt_from_text(c, c->ast->symbols, l->element);
+        int element = c->inst_mode ? isl_kt_from_home(c, c->ast, l->element, 0)
+                                   : isl_kt_from_text(c, c->ast->symbols, l->element);
         isl_kt(c, t)->kind = KT_ARRAY;
         isl_kt(c, t)->rank = l->rank;
         isl_kt(c, t)->dims = l->dims;
         isl_kt(c, t)->elem = element;
     } else if (l->spec.kind == K_SPEC_NONE) {
         t = isl_kt_new(c);
+    } else if (c->inst_mode) {
+        t = isl_kt_from_home(c, c->ast, l->spec.text, 0);
     } else {
         t = isl_kt_from_text(c, c->ast->symbols, l->spec.text);
     }
@@ -522,7 +525,14 @@ int isl_type_of(Ctx *c, Range r) {
     return j == r.end ? t : -1;
 }
 
-void isl_resolution_begin(Ctx *c) { if (c->nest++ == 0) c->type_count = 0; }
+void isl_resolution_begin(Ctx *c) {
+    if (c->nest++ != 0) return;
+    c->type_count = 0;
+    if (c->inst_mode) {   /* the instance and its arguments stay at the bottom of the pool */
+        memcpy(c->types, c->inst_types, (size_t)c->inst_n * sizeof *c->types);
+        c->type_count = c->inst_n;
+    }
+}
 void isl_resolution_end(Ctx *c) { c->nest--; }
 
 /* The instance a call's verb belongs to is named by the module and the
@@ -1178,7 +1188,15 @@ size_t isl_declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, 
     if (!primitive) {
         char sym[K_DETAIL_MAX];
         size_t n = SIZE_MAX;
-        if (spec->kind == K_SPEC_MODIFIER) n = k_spec_symbol(spec->text, a->symbols, sym, sizeof sym);
+        if (c->inst_mode) {
+            /* the type as the instance reads it: the binders are its arguments */
+            isl_resolution_begin(c);
+            int t = isl_kt_from_home(c, a, spec->text, 0);
+            const char *ks = isl_kt_symbol(c, t);
+            size_t kl = strlen(ks);
+            if (kl && kl < sizeof sym && (t < 0 || isl_kt(c, t)->kind != KT_PRIM)) { memcpy(sym, ks, kl); n = kl; }
+            isl_resolution_end(c);
+        } else if (spec->kind == K_SPEC_MODIFIER) n = k_spec_symbol(spec->text, a->symbols, sym, sizeof sym);
         else {
             const KSymbol *s = k_symbol_resolve(a->symbols, spec->type_name);
             if (s && s->origin) n = k_mangle_symbol(s, (keel_slice_char){ sizeof sym, sym });

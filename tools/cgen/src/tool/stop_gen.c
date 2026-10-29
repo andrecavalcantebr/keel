@@ -15,6 +15,7 @@
 #include "tool/cli_limits.h"
 #include "engine/emit/emit.h"
 #include "engine/emit/mangle.h"
+#include "engine/islands.h"
 
 int cgen_write_output(const char *path, const char *data, size_t n);
 
@@ -147,12 +148,30 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
         const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
         if (c->kind != K_CLOSURE_INSTANCE || !c->module || !c->module->ast) continue;
         keel_slice_char gen = c->module->name;
-        if (gen.len >= 4 && memcmp(gen.ptr, "keel", 4) == 0 && (gen.len == 4 || gen.ptr[4] == '.')) continue;
+        if (gen.len >= 4 && memcmp(gen.ptr, "keel", 4) == 0 && (gen.len == 4 || gen.ptr[4] == '.') &&
+            !getenv("CGEN_BASE_INSTANCES")) continue;
         KEmitInstance inst;
         if (!k_emit_instance_of(ast, c, &inst)) {
             fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
                     (int)c->symbol_len, c->symbol);
             return 2;
+        }
+        /* the instance's islands, in the generic's tree, for this instance only */
+        KAst *generic = (KAst *)c->module->ast;
+        KIslandInstance ii = { .self = c->module, .symbol = inst.symbol, .modifier = inst.modifier, .argc = inst.argc };
+        for (size_t k = 0; k < inst.argc && k < 8; k++) ii.arg[k] = inst.arg[k];
+        KDiagnostic scratch_items[256];
+        KDiagnosticSink scratch;
+        k_diag_init(&scratch, scratch_items, 256);
+        k_collect_instance_islands(generic, &ii, &scratch);
+        if (getenv("CGEN_DUMP_INSTANCE_ISLANDS")) {
+            fprintf(stderr, "== %.*s\n", (int)inst.symbol.len, inst.symbol.ptr);
+            for (size_t k = 0; k < generic->islands.len; k++) {
+                const KIsland *is = keel_buffer_KIsland_ptr(&generic->islands, k);
+                KToken t = keel_buffer_KLexeme_ptr(&generic->tokens, is->anchor)->token;
+                fprintf(stderr, "  %d %.*s | %.*s\n", (int)is->kind, (int)t.len, t.ptr, (int)is->text_len,
+                        keel_buffer_char_ptr(&generic->island_text, is->text));
+            }
         }
         char src_buf[8192];
         keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf);
@@ -176,6 +195,8 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
             int rc = cgen_write_output(path, data, need);
             if (rc) return rc;
         }
+        generic->islands.len = 0;
+        generic->island_text.len = 0;
     }
     return 0;
 }

@@ -95,6 +95,12 @@ typedef struct {
     const KAstNode *fn;         /* the declaration being walked */
     struct { keel_slice_char name; int parent; size_t until; } pending[8];   /* products of a construction */
     size_t pending_count;
+    /* instance mode (k_collect_instance_islands): the file is a generic module read as
+       one of its instances. The pool starts with the instance's type (index 0) and its
+       arguments (1..argc); every resolution keeps them. */
+    bool inst_mode;
+    KType inst_types[K_SPEC_MAX_ARGS + 1];
+    int inst_n;
 } Ctx;
 
 /* Whether a verb survives in an instance (spec §4.3, rules 12 and 13; parser

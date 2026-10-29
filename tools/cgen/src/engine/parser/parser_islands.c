@@ -980,3 +980,51 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     if (!ctx.failed) close_instances(&ctx);
     return !ctx.failed;
 }
+
+/* whether `fn` names one of the module's binders or its modifier: the share of
+   an instance (the rule of k_em_generic_out, codegen design §7) */
+static bool names_instance(const KAst *a, const KAstNode *fn) {
+    keel_slice_char mod = isl_modifier_of(a);
+    for (size_t i = fn->first; i < fn->end; i++) {
+        if (!isl_ident(a, i)) continue;
+        KToken t = isl_tok(a, i);
+        if (mod.len && k_symtab_same_name(t, mod)) return true;
+        const KAstNode *m = isl_module_node(a);
+        size_t first[3] = { m->dim_first, m->tags_first, m->type_first }, end[3] = { m->dim_end, m->tags_end, m->type_end };
+        for (int r = 0; r < 3; r++)
+            for (size_t j = first[r]; j < end[r]; j++)
+                if (isl_ident(a, j) && k_symtab_same_name(isl_tok(a, j), t)) return true;
+    }
+    return false;
+}
+
+bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosticSink *diag) {
+    a->islands.len = 0;
+    a->island_text.len = 0;
+    seed_count = seed_node_count = 0;
+    if (!a->symbols || !isl_generic(a) || inst->argc > K_SPEC_MAX_ARGS) return false;
+    static Surface surface[K_SURFACE_MAX];
+    static Ctx ctx;
+    ctx = (Ctx){ .ast = a, .diag = diag, .surface = surface, .inst_mode = true };
+    /* the instance's type, index 0, over its arguments, 1..argc */
+    KType *k = &ctx.inst_types[0];
+    *k = (KType){ .kind = KT_MODIFIER, .module = inst->self, .name = inst->modifier, .elem = -1 };
+    isl_kt_set_symbol(k, inst->symbol.ptr, inst->symbol.len);
+    for (size_t i = 0; i < inst->argc; i++) {
+        KType *x = &ctx.inst_types[i + 1];
+        *x = (KType){ .kind = k_primitive_name(inst->arg[i]) ? KT_PRIM : KT_NAMED, .name = inst->arg[i], .elem = -1 };
+        isl_kt_set_symbol(x, inst->arg[i].ptr, inst->arg[i].len);
+        k->arg[k->argc++] = (int)i + 1;
+    }
+    ctx.inst_n = (int)inst->argc + 1;
+    memcpy(ctx.types, ctx.inst_types, (size_t)ctx.inst_n * sizeof *ctx.types);
+    ctx.type_count = ctx.inst_n;
+    size_t covered = 0;
+    for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
+        const KAstNode *n = isl_node_at(a, i);
+        if (n->kind != K_AST_FUNCTION || n->first < covered || !names_instance(a, n)) continue;
+        covered = n->end;
+        isl_walk(&ctx, n);
+    }
+    return !ctx.failed;
+}

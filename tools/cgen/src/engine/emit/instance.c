@@ -29,7 +29,9 @@ static void put_slice(Emit *e, keel_slice_char s) { k_em_put_bytes(e, s.ptr, s.l
 
 /* the argument bound to the binder spelled like `t` (a dimension: its value;
  * a type: its symbol), or false */
-static bool binder_arg(const Emit *e, KToken t, keel_slice_char *arg) {
+bool k_em_binder_arg(const Emit *e, KToken t, keel_slice_char *arg);
+#define binder_arg k_em_binder_arg
+bool k_em_binder_arg(const Emit *e, KToken t, keel_slice_char *arg) {
     const KAst *ast = e->ast;
     const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
     size_t first[2] = { m->dim_first, m->type_first }, end[2] = { m->dim_end, m->type_end };
@@ -64,7 +66,8 @@ static size_t binders(const KAst *ast, size_t first, size_t end) {
 /* The rank suffix of a vector accessor (backend §2.1.1, rule 6): the function's
  * second parameter is `size_t idx[static N]`, with N a `dim` binder, and the
  * suffix is `_<value of N>`. False for any other function. */
-static bool rank_of(const Emit *e, const KAstNode *fn, keel_slice_char *value) {
+#define rank_of k_em_rank_suffix
+bool k_em_rank_suffix(const Emit *e, const KAstNode *fn, keel_slice_char *value) {
     const KAst *ast = e->ast;
     if (fn->kind != K_AST_FUNCTION || fn->name_first + 1 >= fn->end || !k_em_text_is(k_em_tok(ast, fn->name_first + 1), "(")) return false;
     size_t depth = 0, param = 0;
@@ -231,16 +234,6 @@ static bool instance_supported(const Emit *e) {
     if (e->inst->argc > K_EMIT_INSTANCE_ARGS || e->inst->dimc > K_EMIT_INSTANCE_ARGS) return false;
     if (binders(ast, m->dim_first, m->dim_end) != e->inst->dimc || binders(ast, m->type_first, m->type_end) != e->inst->argc)
         return false;
-    /* a verb declared in two arities takes the arity suffix (backend §2.1.1): not yet */
-    for (size_t i = 0; i < ast->nodes.len; i++) {
-        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
-        if (n->kind != K_AST_FUNCTION || n->name_first >= n->name_end || !k_em_generic_out(ast, n)) continue;
-        for (size_t j = i + 1; j < ast->nodes.len; j++) {
-            const KAstNode *o = keel_buffer_KAstNode_ptr(&ast->nodes, j);
-            if (o->kind == K_AST_FUNCTION && o->name_first < o->name_end &&
-                same_text(k_em_tok(ast, o->name_first), k_em_tok(ast, n->name_first))) return false;
-        }
-    }
     bool modifier = false;
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
@@ -270,6 +263,34 @@ static bool has_inline(const Emit *e) {
     return false;
 }
 
+/* How the modifier's fields hold type binder k: 0 not at all, 1 only by
+ * pointer, 2 by value */
+int k_em_binder_use(const Emit *e, size_t k);
+#define binder_use_in_fields k_em_binder_use
+int k_em_binder_use(const Emit *e, size_t k) {
+    const KAst *ast = e->ast;
+    const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
+    KToken name = {0};
+    size_t q = 0;
+    for (size_t j = m->type_first; j < m->type_end; j++) {
+        KToken x = k_em_tok(ast, j);
+        if (!k_token_is_ident(x) || k_em_text_is(x, "type")) continue;
+        if (q++ == k) { name = x; break; }
+    }
+    if (!name.len) return 0;
+    int use = 0;
+    for (size_t i = 0; i < ast->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        if (n->kind != K_AST_MODIFIER) continue;
+        for (size_t j = n->name_first + 1; j < n->end; j++)
+            if (same_text(k_em_tok(ast, j), name)) {
+                if (j + 1 < n->end && k_em_text_is(k_em_tok(ast, j + 1), "*")) { if (use < 1) use = 1; }
+                else use = 2;
+            }
+    }
+    return use;
+}
+
 static void emit_file(Emit *e, KEmitFile which) {
     bool type_h = which == K_EMIT_TYPE_H;
     char path_buf[NAME_CAP], guard_buf[NAME_CAP], type_buf[NAME_CAP];
@@ -290,7 +311,22 @@ static void emit_file(Emit *e, KEmitFile which) {
     raw(e, "\n#define "); raw_slice(e, guard);
     raw(e, "\n\n");
     if (type_h) {
-        raw(e, "#include \"keel.type.h\"\n\n");
+        raw(e, "#include \"keel.type.h\"\n");
+        /* an argument that is an instance: its .type.h when a field holds it by
+         * value, a declaration ahead when only by pointer (backend §4.3.2, rule 2) */
+        for (size_t k = 0; k < e->inst->argc && e->ok; k++) {
+            if (!e->inst->arg_module[k].len) continue;
+            int use = binder_use_in_fields(e, k);
+            if (use == 2) {
+                char path[NAME_CAP];
+                size_t pl = k_mangle_instance_path(e->inst->arg_module[k], e->inst->arg[k], ".type.h", (keel_slice_char){ sizeof path, path });
+                if (pl > sizeof path) { e->ok = false; return; }
+                raw(e, "#include \""); raw_slice(e, (keel_slice_char){ pl, path }); raw(e, "\"\n");
+            } else if (use == 1) {
+                raw(e, "typedef struct "); raw_slice(e, e->inst->arg[k]); raw(e, " "); raw_slice(e, e->inst->arg[k]); raw(e, ";\n");
+            }
+        }
+        raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (n->kind == K_AST_MODIFIER) emit_modifier(e, n);
@@ -319,8 +355,16 @@ bool k_emit_instance_of(const KAst *ast, const KClosure *c, KEmitInstance *inst)
     if (c->kind != K_CLOSURE_INSTANCE || !c->module || !c->module->ast || c->argc > K_EMIT_INSTANCE_ARGS) return false;
     *inst = (KEmitInstance){ .symbol = { c->symbol_len, (char *)c->symbol }, .module = c->module->name,
                              .modifier = c->modifier, .argc = c->argc };
-    for (size_t k = 0; k < c->argc; k++)
+    for (size_t k = 0; k < c->argc; k++) {
         inst->arg[k] = (keel_slice_char){ c->arg_len[k], ast->closure_text.ptr + c->arg_text[k] };
+        /* an argument that is itself an instance of the closure: its module names its header */
+        for (size_t q = 0; q < ast->closure.len; q++) {
+            const KClosure *o = keel_buffer_KClosure_ptr(&ast->closure, q);
+            if (o->kind == K_CLOSURE_INSTANCE && o->module && o->symbol_len == inst->arg[k].len &&
+                memcmp(o->symbol, inst->arg[k].ptr, o->symbol_len) == 0)
+                inst->arg_module[k] = o->module->name;
+        }
+    }
     /* the dimensions: between "<module>_<modifier>_" and "_<args>" of the symbol */
     char pre[NAME_CAP];
     size_t pl = k_mangle_decl(inst->module, inst->modifier, true, (keel_slice_char){ sizeof pre, pre });
@@ -435,7 +479,8 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
     k_writer_init(&e.w, out, src_path, opt.line_on);
     if (which != K_EMIT_TYPE_H && which != K_EMIT_H) return K_EMIT_UNSUPPORTED;
     if (!k_em_module_is_generic(generic) || !instance_supported(&e)) return K_EMIT_UNSUPPORTED;
-    emit_file(&e, which);
+    if (which == K_EMIT_H) k_em_instance_h(&e);
+    else emit_file(&e, which);
     if (!e.ok) return K_EMIT_UNSUPPORTED;
     return k_writer_len(&e.w);
 }

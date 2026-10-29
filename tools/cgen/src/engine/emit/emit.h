@@ -40,6 +40,7 @@ typedef struct {
     keel_slice_char modifier;   /* the modifier it instances: "stack" */
     size_t argc;
     keel_slice_char arg[K_EMIT_INSTANCE_ARGS];   /* the C symbol of each type binder, in order: "i32" */
+    keel_slice_char arg_module[K_EMIT_INSTANCE_ARGS];   /* an argument that is an instance: its generic module */
     size_t dimc;
     keel_slice_char dim[K_EMIT_INSTANCE_ARGS];   /* the value of each dimension binder, in decimal: "3" */
 } KEmitInstance;

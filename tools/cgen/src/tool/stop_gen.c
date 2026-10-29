@@ -197,6 +197,8 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
         }
         generic->islands.len = 0;
         generic->island_text.len = 0;
+        generic->closure.len = 0;
+        generic->closure_text.len = 0;
     }
     return 0;
 }

@@ -130,7 +130,11 @@ void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b) {
         char name[NAME_CAP];
         size_t len;
         const KAstNode *d;
-        if (k_em_constblock_rename(e, i, name, sizeof name, &len)) k_em_put_bytes(e, name, len);
+        keel_slice_char arg;
+        bool member = i > 0 && (k_em_text_is(k_em_tok(ast, i - 1), ".") || k_em_text_is(k_em_tok(ast, i - 1), "->"));
+        if (e->inst && !member && k_token_is_ident(k_em_tok(ast, i)) && k_em_binder_arg(e, k_em_tok(ast, i), &arg))
+            k_em_put_bytes(e, arg.ptr, arg.len);   /* the instance's argument (instance mode) */
+        else if (k_em_constblock_rename(e, i, name, sizeof name, &len)) k_em_put_bytes(e, name, len);
         else if ((d = k_em_declared_at(e, i)) != NULL)
             k_em_put_mangled(e, d->name_first, d->kind == K_AST_TYPE || d->kind == K_AST_TAGS);
         else k_em_put_bytes(e, k_em_tok(ast, i).ptr, k_em_tok(ast, i).len);

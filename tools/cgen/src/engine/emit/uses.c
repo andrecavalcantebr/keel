@@ -150,6 +150,9 @@ bool k_em_foreign_island(const KAst *ast, const KIsland *is) {
     if (is->kind != K_ISLAND_TYPE && is->kind != K_ISLAND_NAME && is->kind != K_ISLAND_CALL) return false;
     Detail d;
     if (!detail_of(ast, is, &d)) return false;
+    /* a generic's tree has islands only as one of its instances reads it: the type
+       and the call carry the instance's symbol (k_collect_instance_islands) */
+    if (k_em_module_is_generic(ast) && (is->kind == K_ISLAND_TYPE || is->kind == K_ISLAND_CALL)) return true;
     if (!declared_here(ast, &d)) return true;
     return is->kind == K_ISLAND_CALL && own_call_rewritten(&d);
 }
@@ -439,6 +442,27 @@ int k_em_range_use(const KAst *ast, size_t i, KRangeUse *r) {
     return 0;
 }
 
+static bool prefix_of(const char *sym, size_t len, const char *p, size_t plen);
+static size_t header_of(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap);
+static size_t own_type_path(const Emit *e, char *path, size_t cap);
+
+/* an argument of the instance being written that is itself an instance: its header */
+static size_t arg_header(const Emit *e, const char *sym, size_t len, const char *ext, char *path, size_t cap) {
+    for (size_t k = 0; e->inst && k < e->inst->argc; k++) {
+        keel_slice_char a = e->inst->arg[k];
+        if (!e->inst->arg_module[k].len || a.len != len || memcmp(a.ptr, sym, len) != 0) continue;
+        size_t pl = k_mangle_instance_path(e->inst->arg_module[k], a, ext, (keel_slice_char){ cap, path });
+        if (k_em_binder_use(e, k) == 2) return SIZE_MAX;   /* the instance's own .type.h includes it */
+        return pl <= cap ? pl : 0;
+    }
+    return 0;
+}
+
+/* whether `sym` is the instance being written, or one of its verbs */
+static bool own_instance(const Emit *e, const char *sym, size_t len) {
+    return e->inst && prefix_of(sym, len, e->inst->symbol.ptr, e->inst->symbol.len);
+}
+
 /* ---- the .h: another module's types in the signatures (rule 2) ---- */
 
 /* `typedef struct X X;` for each type of another module (an instance, a
@@ -458,6 +482,11 @@ void k_em_h_forward_decls(Emit *e) {
             detail_of(ast, is, &d);
             size_t end = span_end(ast, is->anchor, &d);
             if (end >= ast->tokens.len || !k_em_text_is(k_em_tok(ast, end), "*")) continue;   /* by value: k_em_h_type_includes */
+            if (own_instance(e, d.sym, d.sym_len)) continue;
+            char own[NAME_CAP], hp[NAME_CAP];
+            size_t ol = own_type_path(e, own, sizeof own);
+            size_t hl = ol ? header_of(ast, d.sym, d.sym_len, ".type.h", hp, sizeof hp) : 0;
+            if (ol && hl == ol && memcmp(hp, own, ol) == 0) continue;
             /* once: not if an earlier island of a public signature has the same symbol */
             bool seen = false;
             for (size_t j = 0; j < i && !seen; j++) {
@@ -541,7 +570,39 @@ static size_t header_of(const KAst *ast, const char *sym, size_t len, const char
         memcpy(best_name, name.ptr, name.len);
         best_len = name.len;
     }
+    /* the module itself: an instance reaches the generic's share (backend §4.4.1, rule 4) */
+    const KAstNode *mn = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
+    keel_slice_char own = import_name(ast, mn, name_buf, sizeof name_buf);
+    if (own.len && !k_em_is_keel(own)) {
+        char ms[NAME_CAP];
+        size_t ml = k_mangle_module(own, (keel_slice_char){ sizeof ms, ms });
+        if (ml <= sizeof ms && prefix_of(sym, len, ms, ml) && ml > best) {
+            best = ml;
+            memcpy(best_name, own.ptr, own.len);
+            best_len = own.len;
+        }
+    }
     if (!best) return 0;
+    /* a generic module's symbol that none of its declarations has: one of its instances */
+    const KModule *gm = NULL;
+    for (size_t i = 0; ast->symbols && i < ast->symbols->len && !gm; i++) {
+        const KSymbol *q = keel_buffer_KSymbol_ptr(ast->symbols, i);
+        if (q->kind == K_SYM_MODULE && q->origin && q->origin->ast && q->origin->name.len == best_len &&
+            memcmp(q->origin->name.ptr, best_name, best_len) == 0) gm = q->origin;
+    }
+    if (gm && k_em_module_is_generic(gm->ast)) {
+        bool share = false;
+        for (size_t k = 0; k < gm->symbol_count && !share; k++) {
+            char ms[NAME_CAP];
+            size_t ml = k_mangle_symbol(&gm->symbols[k], (keel_slice_char){ sizeof ms, ms });
+            share = ml == len && memcmp(ms, sym, len) == 0;
+        }
+        if (!share) {
+            size_t pl = k_mangle_instance_path((keel_slice_char){ best_len, best_name }, (keel_slice_char){ len, (char *)sym }, ext,
+                                               (keel_slice_char){ cap, path });
+            return pl <= cap ? pl : 0;
+        }
+    }
     size_t pl = k_mangle_path((keel_slice_char){ best_len, best_name }, ext, (keel_slice_char){ cap, path });
     return pl <= cap ? pl : 0;
 }
@@ -565,9 +626,41 @@ static bool add_include(Includes *s, const char *path, size_t len) {
 
 /* .h, section 1: the .type.h of each type of another module a public signature
  * takes by value, in the order of the first use (codegen design E2) */
+/* the generic's own .type.h, which an instance's .h includes ahead (emit.c) */
+static size_t own_type_path(const Emit *e, char *path, size_t cap) {
+    if (!e->inst) return 0;
+    size_t pl = k_mangle_path(e->module, ".type.h", (keel_slice_char){ cap, path });
+    return pl <= cap ? pl : 0;
+}
+
+/* the place of the import whose module prefixes `sym` (the longest), among the
+ * imports in the order written; one past the last when none does */
+static size_t import_rank(const KAst *ast, const char *sym, size_t len) {
+    size_t rank = 0, best = SIZE_MAX, best_len = 0;
+    char name_buf[NAME_CAP];
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind != K_AST_IMPORT) continue;
+        keel_slice_char name = import_name(ast, n, name_buf, sizeof name_buf);
+        char ms[NAME_CAP];
+        size_t ml = name.len ? k_mangle_module(name, (keel_slice_char){ sizeof ms, ms }) : 0;
+        if (ml && ml <= sizeof ms && prefix_of(sym, len, ms, ml) && ml > best_len) { best = rank; best_len = ml; }
+        rank++;
+    }
+    return best == SIZE_MAX ? rank : best;
+}
+
+/* .h, section 1: the .type.h of each type of another module a public signature
+ * takes by value, in the order of the imports, and of the first use within one
+ * (codegen design E2: the include stands for the import) */
 void k_em_h_type_includes(Emit *e) {
     const KAst *ast = e->ast;
     Includes s = { .n = 0 };
+    size_t rank[MAX_INCLUDES];
+    char own[NAME_CAP];
+    size_t ol = own_type_path(e, own, sizeof own);
+    if (ol && !add_include(&s, own, ol)) { e->ok = false; return; }
+    size_t first = s.n;   /* the own .type.h is written by emit.c */
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         if (is->kind != K_ISLAND_TYPE || !k_em_handles_use(ast, is)) continue;
@@ -582,13 +675,24 @@ void k_em_h_type_includes(Emit *e) {
         detail_of(ast, is, &d);
         size_t end = span_end(ast, is->anchor, &d);
         if (end < ast->tokens.len && k_em_text_is(k_em_tok(ast, end), "*")) continue;   /* by pointer: forward */
+        if (own_instance(e, d.sym, d.sym_len)) continue;
         char path[NAME_CAP];
-        size_t pl = header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
+        size_t pl = arg_header(e, d.sym, d.sym_len, ".type.h", path, sizeof path);
+        if (pl == SIZE_MAX) continue;
+        if (!pl) pl = header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
         if (!pl) { e->ok = false; return; }
         size_t before = s.n;
         if (!add_include(&s, path, pl)) { e->ok = false; return; }
-        if (s.n > before) raw_include(e, path, pl);
+        if (s.n > before) rank[s.n - 1] = import_rank(ast, d.sym, d.sym_len);
     }
+    /* stable: by the import, then by the first use */
+    for (size_t i = first + 1; i < s.n; i++)
+        for (size_t j = i; j > first && rank[j - 1] > rank[j]; j--) {
+            char t[NAME_CAP]; size_t tl = s.len[j], tr = rank[j];
+            memcpy(t, s.path[j], tl); memcpy(s.path[j], s.path[j - 1], s.len[j - 1]); s.len[j] = s.len[j - 1]; rank[j] = rank[j - 1];
+            memcpy(s.path[j - 1], t, tl); s.len[j - 1] = tl; rank[j - 1] = tr;
+        }
+    for (size_t k = first; k < s.n; k++) raw_include(e, s.path[k], s.len[k]);
 }
 
 /* .c: the .h of each module and instance the module uses, in the order of the path */
@@ -614,4 +718,41 @@ void k_em_use_includes(Emit *e) {
             memcpy(s.path[j - 1], t, tl); s.len[j - 1] = tl;
         }
     for (size_t k = 0; k < s.n; k++) raw_include(e, s.path[k], s.len[k]);
+}
+
+/* .h, section 3: the .h of each module and instance a `pub inline` body calls,
+ * in the order of the path; not this file's own, nor the instance's own verbs */
+bool k_em_h_body_includes(Emit *e) {
+    const KAst *ast = e->ast;
+    char self[NAME_CAP];
+    size_t sl = e->inst ? k_mangle_instance_path(e->inst->module, e->inst->symbol, ".h", (keel_slice_char){ sizeof self, self })
+                        : k_mangle_path(e->module, ".h", (keel_slice_char){ sizeof self, self });
+    Includes s = { .n = 0 };
+    for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        Detail d;
+        if (is->kind != K_ISLAND_CALL || !k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
+        bool body = false;
+        for (size_t k = 0; k < ast->nodes.len && !body; k++) {
+            const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+            body = n->kind == K_AST_FUNCTION && n->is_public && n->is_inline && n->body_first != NO_TOKEN &&
+                   is->anchor >= n->body_first && is->anchor < n->end;
+        }
+        if (!body || own_instance(e, d.sym, d.sym_len)) continue;
+        char path[NAME_CAP];
+        size_t pl = header_of(ast, d.sym, d.sym_len, ".h", path, sizeof path);
+        if (!pl || (pl == sl && memcmp(path, self, pl) == 0)) continue;
+        if (!add_include(&s, path, pl)) { e->ok = false; return false; }
+    }
+    for (size_t i = 1; i < s.n; i++)
+        for (size_t j = i; j > 0; j--) {
+            size_t m = s.len[j - 1] < s.len[j] ? s.len[j - 1] : s.len[j];
+            int c = memcmp(s.path[j - 1], s.path[j], m);
+            if (c < 0 || (c == 0 && s.len[j - 1] <= s.len[j])) break;
+            char t[NAME_CAP]; size_t tl = s.len[j];
+            memcpy(t, s.path[j], tl); memcpy(s.path[j], s.path[j - 1], s.len[j - 1]); s.len[j] = s.len[j - 1];
+            memcpy(s.path[j - 1], t, tl); s.len[j - 1] = tl;
+        }
+    for (size_t k = 0; k < s.n; k++) raw_include(e, s.path[k], s.len[k]);
+    return s.n > 0;
 }

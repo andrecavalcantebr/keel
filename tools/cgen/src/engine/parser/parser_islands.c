@@ -1026,5 +1026,10 @@ bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosti
         covered = n->end;
         isl_walk(&ctx, n);
     }
+    /* the instances the bodies use, and their own closure: the headers they need */
+    a->closure.len = 0;
+    a->closure_text.len = 0;
+    ctx.inst_mode = false;
+    if (!ctx.failed) close_instances(&ctx);
     return !ctx.failed;
 }

@@ -150,6 +150,36 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
                 size_t at = k_em_tok_off(ast, i);
                 if (at < a || at >= b) continue;
                 const KAstNode *d = k_em_declared_at(e, i);
+                if (e->inst && k_em_generic_out(ast, n)) {
+                    KToken t = k_em_tok(ast, i);
+                    bool member = i > 0 && (k_em_text_is(k_em_tok(ast, i - 1), ".") || k_em_text_is(k_em_tok(ast, i - 1), "->"));
+                    keel_slice_char arg;
+                    const char *txt = NULL;
+                    size_t tl = 0;
+                    bool selection = i > 0 && k_em_text_is(k_em_tok(ast, i - 1), "type");   /* roles.c drops it */
+                    if (selection) continue;
+                    if (!member && k_token_is_ident(t) && k_em_binder_arg(e, t, &arg)) {
+                        txt = arg.ptr; tl = arg.len;                    /* a binder: its argument */
+                    } else if (!member && t.len == e->inst->modifier.len && memcmp(t.ptr, e->inst->modifier.ptr, t.len) == 0) {
+                        txt = e->inst->symbol.ptr; tl = e->inst->symbol.len;   /* the modifier: the instance */
+                    } else if (d && d->kind == K_AST_FUNCTION && k_em_generic_out(ast, d)) {
+                        /* a verb of the instance: <symbol>_<name>, and the rank suffix */
+                        keel_slice_char rank = {0};
+                        bool r = d == n && k_em_rank_suffix(e, d, &rank);
+                        char *w = k_em_scratch(e, e->inst->symbol.len + 1 + t.len + (r ? 1 + rank.len : 0));
+                        if (!w) return;
+                        size_t q = 0;
+                        memcpy(w + q, e->inst->symbol.ptr, e->inst->symbol.len); q += e->inst->symbol.len;
+                        w[q++] = '_';
+                        memcpy(w + q, t.ptr, t.len); q += t.len;
+                        if (r) { w[q++] = '_'; memcpy(w + q, rank.ptr, rank.len); q += rank.len; }
+                        txt = w; tl = q;
+                    }
+                    if (txt) {
+                        k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = t.len, .text = txt, .text_len = tl });
+                        continue;
+                    }
+                }
                 if (d) k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_RENAME, .at = at, .skip = k_em_tok(ast, i).len, .name_tok = d->name_first, .is_type = d->kind == K_AST_TYPE || d->kind == K_AST_TAGS });
             }
         }
@@ -159,6 +189,7 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
     if (n->kind == K_AST_FUNCTION) {
         size_t before = *cnt;
         k_em_edits_roles(e, n, a, b, ed, cnt);
+        k_em_edits_range_check(e, n, a, b, ed, cnt);
         k_em_edits_array(e, n, a, b, ed, cnt);
         k_em_edits_foreach(e, n, a, b, ed, cnt);
         k_em_edits_constblock(e, n, a, b, ed, cnt);
@@ -472,11 +503,19 @@ static void type_h_body(Emit *e) {
 
 static void raw(Emit *e, const char *s);
 
+/* whether this file leaves `n` out: a module writes its share (k_em_generic_out
+ * false); an instance (e->inst), the functions that belong to it */
+static bool skip(const Emit *e, const KAstNode *n) {
+    bool out = k_em_generic_out(e->ast, n);
+    /* a function over a protocol is neither: one instance per concrete type (backend §5.19) */
+    return e->inst ? !(out && n->kind == K_AST_FUNCTION && !over_protocol(e->ast, n)) : out;
+}
+
 static void h_body(Emit *e) {
     k_em_h_forward_decls(e);
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (k_em_generic_out(e->ast, n)) continue;
+        if (skip(e, n)) continue;
         if (n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
         else if (n->kind == K_AST_VARIABLE && n->is_public) emit_extern(e, n);
     }
@@ -484,8 +523,13 @@ static void h_body(Emit *e) {
     bool blank = false;
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (k_em_generic_out(e->ast, n) || !is_pub_inline(e->ast, n)) continue;
-        if (!blank) { raw(e, "\n"); blank = true; }
+        if (skip(e, n) || !is_pub_inline(e->ast, n)) continue;
+        if (!blank) {
+            raw(e, "\n");
+            /* section 3: the .h of what the bodies call (backend §4.3.2, rule 3) */
+            if (k_em_h_body_includes(e)) raw(e, "\n");
+            blank = true;
+        }
         emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)));
     }
 }
@@ -500,10 +544,29 @@ static bool type_h_has_content(const Emit *e) {
     }
     return false;
 }
+/* whether a function of the instance names a declaration of the generic's
+ * .type.h (a type, a constant, a set): it reaches it through that header
+ * (backend §4.4.1, rule 4) */
+static bool uses_share(const Emit *e) {
+    const KAst *ast = e->ast;
+    for (size_t i = 0; i < ast->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        if (skip(e, n)) continue;
+        for (size_t j = n->first; j < n->end; j++) {
+            KToken t = k_em_tok(ast, j);
+            if (!k_token_is_ident(t)) continue;
+            const KAstNode *d = k_em_declared_at(e, j);
+            if (d && !k_em_generic_out(ast, d) && (d->kind == K_AST_TYPE || d->kind == K_AST_CONSTEXPR || d->kind == K_AST_TAGS))
+                return true;
+        }
+    }
+    return false;
+}
+
 static bool h_has_content(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (k_em_generic_out(e->ast, n)) continue;
+        if (skip(e, n)) continue;
         if ((n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) && n->is_public) return true;
     }
     return false;
@@ -530,11 +593,17 @@ static void emit_header(Emit *e, KEmitFile which) {
     bool c23 = e->opt.c23;
     bool keel_mod = k_em_is_keel(e->module);
     char path_buf[NAME_CAP], guard_buf[NAME_CAP], type_buf[NAME_CAP];
-    keel_slice_char path = fit(e, path_buf,
-        k_mangle_path(e->module, type_h ? ".type.h" : ".h", (keel_slice_char){ NAME_CAP, path_buf }));
+    char own_buf[NAME_CAP];
+    const char *ext = type_h ? ".type.h" : ".h";
+    keel_slice_char path = fit(e, path_buf, e->inst
+        ? k_mangle_instance_path(e->inst->module, e->inst->symbol, ext, (keel_slice_char){ NAME_CAP, path_buf })
+        : k_mangle_path(e->module, ext, (keel_slice_char){ NAME_CAP, path_buf }));
     keel_slice_char guard = fit(e, guard_buf, k_mangle_guard(path, (keel_slice_char){ NAME_CAP, guard_buf }));
-    keel_slice_char type_path = fit(e, type_buf,
-        k_mangle_path(e->module, ".type.h", (keel_slice_char){ NAME_CAP, type_buf }));
+    keel_slice_char type_path = fit(e, type_buf, e->inst
+        ? k_mangle_instance_path(e->inst->module, e->inst->symbol, ".type.h", (keel_slice_char){ NAME_CAP, type_buf })
+        : k_mangle_path(e->module, ".type.h", (keel_slice_char){ NAME_CAP, type_buf }));
+    /* an instance reaches what is the generic's through the module's .type.h (backend §4.4.1, rule 4) */
+    keel_slice_char own_type = fit(e, own_buf, k_mangle_path(e->module, ".type.h", (keel_slice_char){ NAME_CAP, own_buf }));
     if (!e->ok) return;
 
     bool has_content = type_h ? type_h_has_content(e) : h_has_content(e);
@@ -557,6 +626,7 @@ static void emit_header(Emit *e, KEmitFile which) {
         raw(e, "#include \"keel.type.h\"\n");
     } else {
         raw(e, "#include \""); raw_slice(e, type_path); raw(e, "\"\n");
+        if (e->inst && uses_share(e)) { raw(e, "#include \""); raw_slice(e, own_type); raw(e, "\"\n"); }
         k_em_h_type_includes(e);
     }
     if (block && has_content) raw(e, "\n");
@@ -565,6 +635,8 @@ static void emit_header(Emit *e, KEmitFile which) {
     if (block || has_content) raw(e, "\n");
     raw(e, "#endif /* "); raw_slice(e, guard); raw(e, " */\n");
 }
+
+void k_em_instance_h(Emit *e) { emit_header(e, K_EMIT_H); }
 
 /* The .c: every source line, in order. A line of a construction that does not
  * go to C is empty (backend §6, rule 3: the breaks stay); the rest is copied,

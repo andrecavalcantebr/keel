@@ -80,6 +80,16 @@ bool k_em_is_keel(keel_slice_char m);
 bool k_em_module_is_generic(const KAst *ast);
 bool k_em_generic_out(const KAst *ast, const KAstNode *n);
 
+/* instance.c, for the instance mode of emit.c (e->inst set): the argument a
+ * binder token stands for; the rank suffix `_<N>` of a vector accessor */
+bool k_em_binder_arg(const Emit *e, KToken t, keel_slice_char *arg);
+bool k_em_rank_suffix(const Emit *e, const KAstNode *fn, keel_slice_char *value);
+/* how the modifier's fields hold type binder k: 0 not, 1 by pointer only, 2 by value */
+int k_em_binder_use(const Emit *e, size_t k);
+/* emit.c: the .h of the instance e->inst, written by the module emitter over the
+ * generic's tree and the instance's islands (k_collect_instance_islands) */
+void k_em_instance_h(Emit *e);
+
 /* the start of the line holding `off`, and just past the newline ending it */
 size_t k_em_line_start(const Emit *e, size_t off);
 size_t k_em_line_end(const Emit *e, size_t off);
@@ -135,6 +145,7 @@ bool k_em_handles_index(const KAst *ast, const KIsland *is);
 void k_em_edits_roles(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 size_t k_em_arity_suffix(const KAst *ast, const KAstNode *fn, char *out);
 bool k_em_nodiscard(const KAst *ast, const KAstNode *fn);
+void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 
 /* defer.c: `defer` (backend §5.5) */
 void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
@@ -178,6 +189,9 @@ void k_em_h_type_includes(Emit *e);
 /* the .h: `typedef struct X X;` for another module's type a public signature
  * takes by pointer */
 void k_em_h_forward_decls(Emit *e);
+/* .h, section 3: the .h of each module and instance the `pub inline` bodies
+ * call, in the order of the path; whether any was written */
+bool k_em_h_body_includes(Emit *e);
 typedef struct {
     const char *sym; size_t sym_len;   /* NULL: the tokens stay (an own call) */
     size_t end;                        /* the token after the written name */

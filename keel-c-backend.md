@@ -1265,7 +1265,7 @@ foreach (auto v : r) {
 
 **Regras**
 
-1. Na forma de dois binders, o contêiner vai para um ponteiro temporário `keel__c<N>` e o comprimento para um `size_t` `keel__n<N>`, ambos antes do `for`: é a avaliação única da linguagem §4.7.
+1. Na forma de dois binders, o contêiner vai para um temporário `keel__c<N>` e o comprimento para um `size_t` `keel__n<N>`, ambos antes do `for`: é a avaliação única da linguagem §4.7. O temporário é ponteiro para um contêiner `byref` (`keel_buffer_i32 *keel__c0 = &xs;`), e cópia para um tipo que passa por valor (`keel_range keel__c1 = r;`, §5.2, regra 2): a cópia já é a variável que recebe o valor, e não há o que apontar.
 2. O binder de índice é a própria variável do laço, com o nome que o usuário escolheu.
 3. Binder por valor gera `get`; binder por ponteiro gera `ptr` de um índice.
 4. Um bloco em volta faz os temporários morrerem no fim, e permite `foreach` aninhado sem colisão de nome.

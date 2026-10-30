@@ -32,3 +32,10 @@ na raiz, `engine/{lexer,parser,emit}/` com `.h` ao lado do `.c`.
 16 wip: `keel.array` sem modificador e `slice_of_*`, função sobre protocolo). O golden da base é
 corrigido conferindo cada linha contra o `.k`, nunca copiado da ferramenta. Ver a última seção de
 `tools/agents/passagem-2026-10-28.md`.
+
+**Atualização (2026-10-30):** M5 fechado (`base.sh` 108 ok: a base inteira sai do cgen, `--instance`
+inclusive para `keel.array T` e para função sobre protocolo `keel.slice.of <concreto>`); modo `debug`
+do runner (R2, `DEBUG`, caso 026); M6 com `gen_golden` 23 ok, 0 wip. Próximo: o 010 (`routine`,
+instância cuja unidade é o módulo instanciado) — plano na última seção de
+`tools/agents/passagem-2026-10-28.md`. Lição: o golden às vezes tem alinhamento/ordem feitos à mão;
+corrige-se conferindo contra o `.k` e a regra, nunca copiando a saída da ferramenta.

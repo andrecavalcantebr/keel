@@ -675,7 +675,7 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`keel-c-backend.md`](keel-c-backend.md) | o que depende do alvo: nomes, artefatos, perfis |
 | [`cgen-tool-spec.md`](cgen-tool-spec.md) | o que depende da invocação |
 | [`base/`](base/) | os onze módulos da base, em keel: o prelúdio `keel` e os dez de `keel/` |
-| [`golden/`](golden/) | 26 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
+| [`golden/`](golden/) | 27 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
 | [`tools/cgen/`](tools/cgen/) | o transpilador, hoje até o parse (`--stop-after=parse`) |
 | [`design/`](design/) | desenho da implementação, e as ideias que não são v0 |
 

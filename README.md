@@ -114,7 +114,7 @@ walk    (i32 *p, buffer.cursor c : xs) { ... }   // cursor
 parallel search ANY (size_t w : 0..4; slice i32 part : xs; (target, where)) {
     foreach (i32 x, size_t i : part) {
         if (parallel.interrupted(search)) break;
-        if (x == target) { set(where, w, i + 1); win; }
+        if (x == target) { buffer.set(where, w, i + 1); win; }
     }
 }
 return parallel.ok(search);

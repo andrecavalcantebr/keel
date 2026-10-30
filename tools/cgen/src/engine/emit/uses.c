@@ -221,6 +221,44 @@ static int returns_type_pointer(const KAst *m, KToken name, size_t argc, size_t 
     return -1;
 }
 
+/* The arguments of a call of verb `name` of module `m` with `argc` parameters
+ * that select the instance (backend §5.16, rule 3): the parameter is `type X`,
+ * with X a type binder of `m`, and the argument leaves the call. A bit per
+ * argument, 1-based; 0 when there is none or the declaration is not found. */
+static unsigned selection_mask(const KAst *m, KToken name, size_t argc) {
+    const KAstNode *mn = keel_buffer_KAstNode_ptr(&m->nodes, m->module);
+    unsigned mask = 0;
+    for (size_t i = 0; i < m->nodes.len && !mask; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&m->nodes, i);
+        if (n->kind != K_AST_FUNCTION || n->name_first >= n->name_end) continue;
+        KToken t = k_em_tok(m, n->name_first);
+        if (t.len != name.len || memcmp(t.ptr, name.ptr, t.len) != 0) continue;
+        size_t open = n->name_first + 1;
+        if (open >= n->end || !k_em_text_is(k_em_tok(m, open), "(")) continue;
+        size_t pf[17], count = 0, depth = 0, start = open + 1;
+        for (size_t j = open + 1; j < n->end; j++) {
+            KToken x = k_em_tok(m, j);
+            if (k_em_text_is(x, "(") || k_em_text_is(x, "[")) depth++;
+            else if (depth > 0 && (k_em_text_is(x, ")") || k_em_text_is(x, "]"))) depth--;
+            else if (depth == 0 && (k_em_text_is(x, ",") || k_em_text_is(x, ")"))) {
+                if (j > start && count < 16) pf[++count] = start;
+                start = j + 1;
+                if (k_em_text_is(x, ")")) break;
+            }
+        }
+        if (count != argc) continue;
+        for (size_t k = 1; k <= count; k++) {
+            if (!k_em_text_is(k_em_tok(m, pf[k]), "type")) continue;
+            KToken x = k_em_tok(m, pf[k] + 1);
+            for (size_t b = mn->type_first; b < mn->type_end; b++) {
+                KToken y = k_em_tok(m, b);
+                if (k_token_is_ident(y) && y.len == x.len && memcmp(y.ptr, x.ptr, x.len) == 0) mask |= 1u << k;
+            }
+        }
+    }
+    return mask;
+}
+
 /* whether a foreign island anchors in the tokens [a, b) */
 static bool foreign_in(const KAst *ast, size_t a, size_t b) {
     for (size_t i = 0; i < ast->islands.len; i++) {
@@ -350,9 +388,13 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
         size_t at = k_em_tok_off(ast, is->anchor);
         unsigned amp = 0, type = 0, dim = 0;
         size_t first[17], last[17], argc = 0;
+        unsigned sel = 0;
         if (is->kind == K_ISLAND_CALL) {
             marks_of3(&d, &amp, &type, &dim);
             call_args(ast, end, first, last, &argc);
+            size_t name;
+            const KAst *m = callee_module(ast, is->anchor, end, &name);
+            if (m && m != ast) sel = selection_mask(m, k_em_tok(ast, name), argc);
         }
         if (at >= a && at < b) {
             /* the written name is replaced whole: a rename inside it (`grid(DIM) f32`) goes */
@@ -374,6 +416,15 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
         for (size_t k = 1; k <= argc; k++) {
             size_t p = k_em_tok_off(ast, first[k]), q = k_em_tok_end(ast, last[k] - 1);
             if (p < a || p >= b) continue;
+            if (sel & (1u << k)) {
+                /* a selecting type leaves the call, with its comma (backend §5.16, rule 3) */
+                size_t from = p, to = k < argc ? k_em_tok_off(ast, first[k + 1]) : q;
+                if (k == argc && k > 1) from = k_em_tok_end(ast, last[k - 1] - 1);
+                if (to > b) { e->ok = false; return; }
+                drop_edits(ed, cnt, from, to);
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_DROP, .at = from, .skip = to - from });
+                continue;
+            }
             if (amp & (1u << k))
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "&", .text_len = 1 });
             if (dim & (1u << k)) {

@@ -922,25 +922,11 @@ e o código de saída do `cc` — subiram para a spec da ferramenta.)
 
 **Nenhuma pendência em aberto.**
 
-O que este documento levantou antes, enquanto era escrito, já está nos
-normativos; o registro abaixo fica para que cada decisão seja rastreável até
-onde ela mora hoje.
+O que este documento levantou antes, enquanto era escrito, já está nos normativos; o registro abaixo fica para que cada decisão seja rastreável até onde ela mora hoje.
 
 Resolvida em 2026-09-21: P16 (visibilidade do C que atravessa o módulo). `extern_c` passa a seguir `pub`/`priv` como qualquer construção de arquivo; o modificador `[type_h]` direciona o conteúdo para `.type.h`; `extern_c` sem `[type_h]` vai para `.h`; `priv extern_c` vai para `.c`; `priv extern_c [type_h]` é erro (`type-layer-on-priv-extern-c`). Diretivas de topo vão para `.h`; dentro de construto, seguem o construto. linguagem §4.1, backend §4.1.
 
-Resolvida em 2026-09-20: P15 (golden derivado da `/base` — `#line` em toda
-declaração levada a header, prosa fora, instâncias inteiras pela regra do
-backend §7.2, `arena` e `routine` seguindo o `.k`). Na mesma rodada, e por
-causa dela: a instanciação degenerada da linguagem §4.3, o `verb-not-in-instance`
-da §4.4, o sufixo de aridade do backend §2.1 e o `keel_arena_alloc` do §5.4.
+Resolvida em 2026-09-20: P15 (golden derivado da `/base` — `#line` em toda declaração levada a header, prosa fora, instâncias inteiras pela regra do backend §7.2, `arena` e `routine` seguindo o `.k`). Na mesma rodada, e por causa dela: a instanciação degenerada da linguagem §4.3, o `verb-not-in-instance` da §4.4, o sufixo de aridade do backend §2.1 e o `keel_arena_alloc` do §5.4.
 
-Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão
-da §4.10), P3 (`--base-dir`, sem `KEEL_HOME`), P8 (o `.c` só da invocação), P9
-(a base não vai ao `cc`), P10 (lexer-design), P11 (`prelude.h` no backend §3.2),
-P6 (unidade de entrada inclui só o `.h`), P7 (código do `cc` na spec §7, era D5)
-e P12 (`base/` no repositório, `lib/base/` na distribuição).
-Resolvida em 2026-09-19: P13 (golden no corte em dois, `.type.h` + `.h`); P4 e P5 nos módulos dos
-casos (`import_c` no `.type.h` com `#line`, `#line` em toda declaração levada a
-header, mapeamento de linha 1:1 nos `.c`, tag sintética, prosa e nomes que não
-vêm do fonte, genérico sem `.c`); P14 (parâmetro de tipo opaco no genérico,
-`protocol-on-parameter`, linguagem §4.3).
+Resolvidas na rodada de 2026-09-18: P1 (prelúdio na raiz), P2 (regra de padrão da §4.10), P3 (`--base-dir`, sem `KEEL_HOME`), P8 (o `.c` só da invocação), P9 (a base não vai ao `cc`), P10 (lexer-design), P11 (`prelude.h` no backend §3.2), P6 (unidade de entrada inclui só o `.h`), P7 (código do `cc` na spec §7, era D5) e P12 (`base/` no repositório, `lib/base/` na distribuição).
+Resolvida em 2026-09-19: P13 (golden no corte em dois, `.type.h` + `.h`); P4 e P5 nos módulos dos casos (`import_c` no `.type.h` com `#line`, `#line` em toda declaração levada a header, mapeamento de linha 1:1 nos `.c`, tag sintética, prosa e nomes que não vêm do fonte, genérico sem `.c`); P14 (parâmetro de tipo opaco no genérico, `protocol-on-parameter`, linguagem §4.3).

@@ -82,6 +82,7 @@ typedef struct KClosure {
     keel_slice_char modifier;           /* the modifier's name, empty for a module of verbs */
     size_t argc;
     size_t arg_text[K_CLOSURE_ARGS], arg_len[K_CLOSURE_ARGS];   /* each argument's C symbol */
+    size_t arg_spell[K_CLOSURE_ARGS], arg_spell_len[K_CLOSURE_ARGS];   /* and its C spelling: `const char` for `const_char` */
     int arg_instance[K_CLOSURE_ARGS];   /* the closure entry of an argument that is an instance, or -1 */
     KClosureOrigin origin;
     int from;                           /* K_CLOSURE_VERB: the entry whose verb brought it */

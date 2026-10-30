@@ -1,8 +1,8 @@
 /* app/app_reg.c — generated from app/reg.k by cgen, C23 profile. */
 #include "app/app_reg.h"
-#include "keel/keel_slice_const_char.h"
-#include "keel/keel_outcome_keel_slice_const_char.h"
 #include "keel/keel_outcome_f64.h"
+#include "keel/keel_outcome_keel_slice_const_char.h"
+#include "keel/keel_slice_const_char.h"
 #line 1 "app/reg.k"
 
 

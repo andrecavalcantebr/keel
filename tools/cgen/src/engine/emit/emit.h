@@ -41,6 +41,7 @@ typedef struct {
     size_t argc;
     keel_slice_char arg[K_EMIT_INSTANCE_ARGS];   /* the C symbol of each type binder, in order: "i32" */
     keel_slice_char arg_module[K_EMIT_INSTANCE_ARGS];   /* an argument that is an instance: its generic module */
+    keel_slice_char arg_spell[K_EMIT_INSTANCE_ARGS];    /* how C writes each argument: `const char` (the symbol is `const_char`) */
     size_t dimc;
     keel_slice_char dim[K_EMIT_INSTANCE_ARGS];   /* the value of each dimension binder, in decimal: "3" */
     const KUnavailable *unavailable;   /* the verbs the instance loses (spec §4.3, rules 11 to 13) */

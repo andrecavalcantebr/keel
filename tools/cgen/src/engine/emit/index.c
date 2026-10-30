@@ -192,6 +192,22 @@ static bool find_decl(const KAst *ast, const KAstNode *fn, size_t u, Decl *out) 
         d = c;
         found = true;
     }
+    if (!found) {
+        /* not declared in the function: an `array` of the file (spec §4.2), the
+         * variable whose declaration holds the island */
+        for (size_t k = 0; k < ast->islands.len && !found; k++) {
+            const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, k);
+            if (is->kind != K_ISLAND_ARRAY) continue;
+            for (size_t q = 0; q < ast->nodes.len && !found; q++) {
+                const KAstNode *v = keel_buffer_KAstNode_ptr(&ast->nodes, q);
+                if (v->kind != K_AST_VARIABLE || is->anchor < v->first || is->anchor >= v->end) continue;
+                Decl c;
+                if (!read_decl(ast, v, is->anchor, &c) || !same_text(k_em_tok(ast, c.lbr - 1), k_em_tok(ast, u))) continue;
+                d = c;
+                found = true;
+            }
+        }
+    }
     if (!found || !d.simple) return false;
     *out = d;
     return true;

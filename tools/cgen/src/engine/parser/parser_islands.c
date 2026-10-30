@@ -793,6 +793,11 @@ static void close_instances(Ctx *c) {
             e.arg_instance[e.argc] = -1;
             for (size_t o = 0; o < count; o++) if (!strcmp(isl_kt(c, inst[o])->symbol, sym) && *sym) e.arg_instance[e.argc] = slot[o];
             if (!pool(c, sym, strlen(sym), &e.arg_text[e.argc])) break;
+            /* the C spelling of a type that is no module's (`const char`); else the symbol */
+            const KType *ka = isl_kt(c, k->arg[g]);
+            keel_slice_char sp = ka->kind == KT_PRIM && ka->spell.len ? ka->spell : (keel_slice_char){ strlen(sym), (char *)sym };
+            if (!pool(c, sp.ptr, sp.len, &e.arg_spell[e.argc])) break;
+            e.arg_spell_len[e.argc] = sp.len;
             e.arg_len[e.argc++] = strlen(sym);
         }
         /* the verbs the instance loses */
@@ -968,6 +973,7 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
             ctx.local_count = ctx.global_count;
             memcpy(ctx.locals, ctx.globals, ctx.global_count * sizeof *ctx.globals);
             isl_extent_island(&ctx, isl_node_at(a, i));
+            isl_struct_fields(&ctx, isl_node_at(a, i));
         }
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {

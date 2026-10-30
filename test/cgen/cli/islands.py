@@ -105,6 +105,8 @@ EXPECTED = [
     ('index', 'gbuf → keel_buffer_i32_ptr1 &1', 37, 'gbuf', 0),
     ('name', 'outcome.OK → keel_outcome_OK', 37, 'outcome.OK', 0),
     ('call', 'buffer.length/1 → keel_buffer_i32_length &1', 37, 'buffer.length', 0),
+    # a keel field of a struct has its type island (spec §2.2, `struct-spec`)
+    ('type', 'buffer i32 → keel_buffer_i32', 39, 'buffer', 0),
     # a container is any expression of the `container` production: a field, an
     # element that is itself a container, the result of a verb
     ('type', 'Box → app_t_Box', 40, 'Box', 0),

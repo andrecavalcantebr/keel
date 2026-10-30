@@ -1240,3 +1240,33 @@ void isl_walk(Ctx *c, const KAstNode *n) {
         isl_name_island(c, i);
     }
 }
+
+/* The keel fields of a `typedef struct { ... }` (spec §2.2, `struct-spec`): each
+   field whose type is a keel type gets its type island, as a declaration would.
+   An `extent` struct has islands of its own (isl_extent_island). */
+void isl_struct_fields(Ctx *c, const KAstNode *n) {
+    KAst *a = c->ast;
+    size_t open = n->first;
+    while (open < n->end && !isl_punct(a, open, "{")) open++;
+    if (open >= n->end) return;
+    for (size_t j = n->first; j < open; j++)
+        if (isl_word(a, j, "extent")) return;
+    size_t close = open, depth = 0;
+    for (; close < n->end; close++) {
+        if (isl_punct(a, close, "{")) depth++;
+        else if (isl_punct(a, close, "}") && --depth == 0) break;
+    }
+    if (close >= n->end) return;
+    for (size_t i = open + 1; i < close; i++) {
+        if (!(isl_punct(a, i - 1, "{") || isl_punct(a, i - 1, ";"))) continue;
+        if (!isl_ident(a, i) || isl_word(a, i, "array")) continue;
+        KLexer lexer;
+        TKPpKind pp;
+        KSpecifier spec;
+        KToken next = {0};
+        KToken first = isl_enter(a, i, &lexer, &pp);
+        if (k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind != K_SPEC_NONE &&
+            !(spec.kind == K_SPEC_NAMED_TYPE && k_primitive_name(spec.type_name)))
+            isl_declaration(c, i, &spec, &lexer, next, true, false);
+    }
+}

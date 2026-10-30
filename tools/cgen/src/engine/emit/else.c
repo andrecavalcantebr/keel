@@ -110,6 +110,8 @@ void k_em_edits_else(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, 
         if (!k_em_handles_else(ast, is)) continue;
         size_t at = is->anchor;
         if (at < fn->first || at >= fn->end) continue;
+        /* only the `else` of this line: the scratch holds one line's text */
+        if (k_em_tok_off(ast, at) < a || k_em_tok_off(ast, at) >= b) continue;
         ElseParts x;
         if (!read_parts(ast, is, &x)) continue;
 

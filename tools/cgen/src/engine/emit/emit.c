@@ -161,7 +161,11 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
                     bool selection = i > 0 && k_em_text_is(k_em_tok(ast, i - 1), "type");   /* roles.c drops it */
                     if (selection) continue;
                     if (!member && k_token_is_ident(t) && k_em_binder_arg(e, t, &arg)) {
-                        txt = arg.ptr; tl = arg.len;                    /* a binder: its argument */
+                        /* a binder: its argument; by value, without the top-level
+                         * qualifier (spec §4.3, rule 14): `const char *` but `char` */
+                        bool signature = n->kind == K_AST_FUNCTION && n->body_first != (size_t)-1 && i < n->body_first;
+                        if (signature && !(i + 1 < n->end && k_em_text_is(k_em_tok(ast, i + 1), "*"))) arg = k_em_unqualified(arg);
+                        txt = arg.ptr; tl = arg.len;
                     } else if (!member && t.len == e->inst->modifier.len && memcmp(t.ptr, e->inst->modifier.ptr, t.len) == 0) {
                         txt = e->inst->symbol.ptr; tl = e->inst->symbol.len;   /* the modifier: the instance */
                     } else if (d && i == n->name_first && e->inst->proto_fn.len) {
@@ -531,7 +535,9 @@ static void raw(Emit *e, const char *s);
 
 /* whether this file leaves `n` out: a module writes its share (k_em_generic_out
  * false); an instance (e->inst), the functions that belong to it */
-static bool skip(const Emit *e, const KAstNode *n) {
+bool k_em_skip(const Emit *e, const KAstNode *n);
+#define skip k_em_skip
+bool k_em_skip(const Emit *e, const KAstNode *n) {
     bool out = k_em_generic_out(e->ast, n);
     /* a function over a protocol is neither: one instance per concrete type (backend §5.19) */
     if (!e->inst) return out;
@@ -664,6 +670,7 @@ static void emit_header(Emit *e, KEmitFile which) {
         if (!c23) raw(e, "#include <stdbool.h>\n#include <assert.h>\n");
     } else if (type_h) {
         raw(e, "#include \"keel.type.h\"\n");
+        if (!e->inst) k_em_type_h_includes(e);
     } else {
         raw(e, "#include \""); raw_slice(e, type_path); raw(e, "\"\n");
         if (e->inst && uses_share(e)) { raw(e, "#include \""); raw_slice(e, own_type); raw(e, "\"\n"); }

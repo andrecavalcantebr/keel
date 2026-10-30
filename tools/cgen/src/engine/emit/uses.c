@@ -513,6 +513,14 @@ static bool prefix_of(const char *sym, size_t len, const char *p, size_t plen);
 static size_t header_of(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap);
 static size_t own_type_path(const Emit *e, char *path, size_t cap);
 
+/* an argument of the instance being written that is a C type (`i32`, `const char`):
+ * no module, so no header of keel */
+static bool plain_arg(const Emit *e, const char *sym, size_t len) {
+    for (size_t k = 0; e->inst && k < e->inst->argc; k++)
+        if (!e->inst->arg_module[k].len && e->inst->arg[k].len == len && memcmp(e->inst->arg[k].ptr, sym, len) == 0) return true;
+    return false;
+}
+
 /* an argument of the instance being written that is itself an instance: its header */
 static size_t arg_header(const Emit *e, const char *sym, size_t len, const char *ext, char *path, size_t cap) {
     for (size_t k = 0; e->inst && k < e->inst->argc; k++) {
@@ -540,7 +548,7 @@ void k_em_h_forward_decls(Emit *e) {
     const KAst *ast = e->ast;
     for (size_t k = 0; k < ast->nodes.len && e->ok; k++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-        if (n->kind != K_AST_FUNCTION || !n->is_public || n->body_first == NO_TOKEN || n->body_first < 1) continue;
+        if (n->kind != K_AST_FUNCTION || !n->is_public || n->body_first == NO_TOKEN || n->body_first < 1 || k_em_skip(e, n)) continue;
         for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
             const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
             if (is->kind != K_ISLAND_TYPE || is->anchor < n->first || is->anchor >= n->body_first - 1) continue;
@@ -765,7 +773,7 @@ void k_em_h_type_includes(Emit *e) {
         for (size_t k = 0; k < ast->nodes.len && !sig; k++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
             sig = n->kind == K_AST_FUNCTION && n->is_public && n->body_first != NO_TOKEN && n->body_first >= 1 &&
-                  is->anchor >= n->first && is->anchor < n->body_first - 1;
+                  is->anchor >= n->first && is->anchor < n->body_first - 1 && !k_em_skip(e, n);
         }
         if (!sig) continue;
         Detail d;
@@ -777,6 +785,7 @@ void k_em_h_type_includes(Emit *e) {
         size_t pl = arg_header(e, d.sym, d.sym_len, ".type.h", path, sizeof path);
         if (pl == SIZE_MAX) continue;
         if (!pl) pl = header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
+        if (!pl && plain_arg(e, d.sym, d.sym_len)) continue;   /* a C type: no header of keel */
         if (!pl) { e->ok = false; return; }
         size_t before = s.n;
         if (!add_include(&s, path, pl)) { e->ok = false; return; }
@@ -833,7 +842,7 @@ bool k_em_h_body_includes(Emit *e) {
         for (size_t k = 0; k < ast->nodes.len && !body; k++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
             body = n->kind == K_AST_FUNCTION && n->is_public && n->is_inline && n->body_first != NO_TOKEN &&
-                   is->anchor >= n->body_first && is->anchor < n->end;
+                   is->anchor >= n->body_first && is->anchor < n->end && !k_em_skip(e, n);
         }
         if (!body || own_instance(e, d.sym, d.sym_len)) continue;
         char path[NAME_CAP];
@@ -852,4 +861,40 @@ bool k_em_h_body_includes(Emit *e) {
         }
     for (size_t k = 0; k < s.n; k++) raw_include(e, s.path[k], s.len[k]);
     return s.n > 0;
+}
+
+/* .type.h: the .type.h of each type of another module a field of a struct of
+ * the module holds by value (backend §4.3.2, rule 2), in the order of the
+ * imports and then of the first use; by pointer it needs none. */
+void k_em_type_h_includes(Emit *e) {
+    const KAst *ast = e->ast;
+    Includes s = { .n = 0 };
+    size_t rank[MAX_INCLUDES];
+    for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        if (is->kind != K_ISLAND_TYPE || !k_em_handles_use(ast, is)) continue;
+        bool field = false;
+        for (size_t k = 0; k < ast->nodes.len && !field; k++) {
+            const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+            field = n->kind == K_AST_TYPE && is->anchor >= n->first && is->anchor < n->end && !k_em_skip(e, n);
+        }
+        if (!field) continue;
+        Detail d;
+        detail_of(ast, is, &d);
+        size_t end = span_end(ast, is->anchor, &d);
+        if (end < ast->tokens.len && k_em_text_is(k_em_tok(ast, end), "*")) continue;
+        char path[NAME_CAP];
+        size_t pl = header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
+        if (!pl) { e->ok = false; return; }
+        size_t before = s.n;
+        if (!add_include(&s, path, pl)) { e->ok = false; return; }
+        if (s.n > before) rank[s.n - 1] = import_rank(ast, d.sym, d.sym_len);
+    }
+    for (size_t i = 1; i < s.n; i++)
+        for (size_t j = i; j > 0 && rank[j - 1] > rank[j]; j--) {
+            char t[NAME_CAP]; size_t tl = s.len[j], tr = rank[j];
+            memcpy(t, s.path[j], tl); memcpy(s.path[j], s.path[j - 1], s.len[j - 1]); s.len[j] = s.len[j - 1]; rank[j] = rank[j - 1];
+            memcpy(s.path[j - 1], t, tl); s.len[j - 1] = tl; rank[j - 1] = tr;
+        }
+    for (size_t k = 0; k < s.n; k++) raw_include(e, s.path[k], s.len[k]);
 }

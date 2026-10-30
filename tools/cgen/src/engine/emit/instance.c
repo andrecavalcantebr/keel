@@ -30,6 +30,14 @@ static void put_slice(Emit *e, keel_slice_char s) { k_em_put_bytes(e, s.ptr, s.l
 /* the argument bound to the binder spelled like `t` (a dimension: its value;
  * a type: its symbol), or false */
 bool k_em_binder_arg(const Emit *e, KToken t, keel_slice_char *arg);
+
+keel_slice_char k_em_unqualified(keel_slice_char s) {
+    for (;;) {
+        if (s.len > 6 && memcmp(s.ptr, "const ", 6) == 0) { s.ptr += 6; s.len -= 6; continue; }
+        if (s.len > 9 && memcmp(s.ptr, "volatile ", 9) == 0) { s.ptr += 9; s.len -= 9; continue; }
+        return s;
+    }
+}
 #define binder_arg k_em_binder_arg
 bool k_em_binder_arg(const Emit *e, KToken t, keel_slice_char *arg) {
     const KAst *ast = e->ast;
@@ -45,6 +53,8 @@ bool k_em_binder_arg(const Emit *e, KToken t, keel_slice_char *arg) {
             if (same_text(x, t)) {
                 if (k >= count[r]) return false;
                 *arg = val[r][k];
+                /* a type argument as C writes it (`const char`), when the closure has it */
+                if (r == 1 && e->inst->arg_spell[k].len) *arg = e->inst->arg_spell[k];
                 return true;
             }
             k++;
@@ -380,6 +390,8 @@ bool k_emit_instance_of(const KAst *ast, const KClosure *c, KEmitInstance *inst)
                              .unavailable_count = c->unavailable_count };
     for (size_t k = 0; k < c->argc; k++) {
         inst->arg[k] = (keel_slice_char){ c->arg_len[k], ast->closure_text.ptr + c->arg_text[k] };
+        inst->arg_spell[k] = c->arg_spell_len[k] ? (keel_slice_char){ c->arg_spell_len[k], ast->closure_text.ptr + c->arg_spell[k] }
+                                                 : inst->arg[k];
         /* an argument that is itself an instance of the closure: its module names its header */
         for (size_t q = 0; q < ast->closure.len; q++) {
             const KClosure *o = keel_buffer_KClosure_ptr(&ast->closure, q);

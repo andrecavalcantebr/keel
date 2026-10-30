@@ -62,6 +62,7 @@ int isl_kt_from_text(Ctx *c, const KSymbolTable *symbols, keel_slice_char text) 
     char sym[K_SYMBOL_MAX];
     size_t n = k_spec_symbol(text, symbols, sym, sizeof sym);
     if (n != SIZE_MAX) isl_kt_set_symbol(isl_kt(c, t), sym, n);
+    isl_kt(c, t)->spell = text;
     KLexer lexer;
     TKPpKind pp;
     KToken first = isl_enter_text(text, &lexer, &pp);
@@ -1197,7 +1198,10 @@ size_t isl_declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, 
             int t = isl_kt_from_home(c, a, spec->text, 0);
             const char *ks = isl_kt_symbol(c, t);
             size_t kl = strlen(ks);
-            if (kl && kl < sizeof sym && (t < 0 || isl_kt(c, t)->kind != KT_PRIM)) { memcpy(sym, ks, kl); n = kl; }
+            /* a C type the instance takes (`i32`, `const char`) has no island: the
+               binder is written in its place by the emitter */
+            bool c_type = t >= 0 && (isl_kt(c, t)->kind == KT_PRIM || (!isl_kt(c, t)->module && isl_kt(c, t)->kind != KT_MODIFIER));
+            if (kl && kl < sizeof sym && !c_type) { memcpy(sym, ks, kl); n = kl; }
             isl_resolution_end(c);
         } else if (spec->kind == K_SPEC_MODIFIER) n = k_spec_symbol(spec->text, a->symbols, sym, sizeof sym);
         else {

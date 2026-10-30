@@ -60,6 +60,7 @@ typedef struct {
     keel_slice_char dims;
     int elem;                   /* KT_ARRAY: the element */
     char symbol[K_SYMBOL_MAX];  /* the C symbol of the type; empty when it cannot be named */
+    keel_slice_char spell;      /* KT_PRIM: the type as C writes it (`const char`); the symbol is `const_char` */
 } KType;
 
 typedef struct {
@@ -236,6 +237,7 @@ size_t isl_enclosing_brace(const KAst *a, size_t from, size_t i);
 const char *isl_control_before(const KAst *a, size_t from, size_t j);
 bool isl_tags_decl(const KAst *where, keel_slice_char name, KTagsDecl *out);
 void isl_extent_island(Ctx *c, const KAstNode *n);
+void isl_struct_fields(Ctx *c, const KAstNode *n);
 size_t isl_column_access(Ctx *c, size_t i, size_t open, bool *any);
 void isl_walk(Ctx *c, const KAstNode *n);
 Range isl_param_type(const KAst *home, const Param *p);

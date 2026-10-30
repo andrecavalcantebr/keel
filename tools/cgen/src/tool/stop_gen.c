@@ -142,8 +142,10 @@ static int emit_imports(keel_arena *arena, void *tool, const char *dest, const K
 }
 
 /* The headers of each instance the module's closure holds; the base's (`keel_*`)
- * only when `base` is set: they are written with the base, by --instance. The
- * generic's .k path is its module name, as for any module. */
+ * only when `base` is set. The invocation writes the headers of everything it
+ * reaches (cgen design §1), the base's included: an instance of the base over a
+ * type of the program (`keel_routine_ag2_Ag`) has no other place to come from.
+ * The generic's .k path is its module name, as for any module. */
 /* The instances of a function over a protocol the closure holds (backend
  * §5.19): one file pair per concrete type, `<prefix>_<name>_<concrete>`. The
  * concrete type is the closure's instance whose symbol ends the entry's. */
@@ -344,14 +346,14 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
             keel_slice_char keel_mod = k_diag_text("keel"), keel_src = k_diag_text("keel.k");
             if (!rc) rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_TYPE_H, ".type.h", opt);
             if (!rc) rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_H, ".h", opt);
-            if (!rc) rc = emit_instances(arena, dest, module->ast, opt, false);
+            if (!rc) rc = emit_instances(arena, dest, module->ast, opt, true);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_TYPE_H, ".type.h", opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_H, ".h", opt);
             if (!rc) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_C, ".c", opt);
             Written written = { .n = 0 };
             written.seen[written.n++] = prelude;
             written.seen[written.n++] = module;
-            if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt, false);
+            if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt, true);
             if (!rc && main_module) rc = emit_one(arena, dest, NULL, mod, src_path, K_EMIT_ENTRY, NULL, opt);
         }
     }

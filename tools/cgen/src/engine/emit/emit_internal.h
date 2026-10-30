@@ -152,6 +152,14 @@ size_t k_em_param_count(const KAst *ast, const KAstNode *fn);
 bool k_em_nodiscard(const KAst *ast, const KAstNode *fn);
 void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 
+/* else.c: the `else` of a result (spec §4.10, backend §5.12) */
+void k_em_edits_else(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_handles_else(const KAst *ast, const KIsland *is);
+
+/* subscript.c: `x[i]` and `x[a..b]` over a modifier instance (backend §5.3) */
+void k_em_edits_subscript(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_handles_subscript(const KAst *ast, const KIsland *is);
+
 /* defer.c: `defer` (backend §5.5) */
 void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_defer(const KAst *ast, const KIsland *is);

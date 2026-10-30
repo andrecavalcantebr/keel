@@ -547,9 +547,9 @@ static keel_corot coop_stage(i16 *counter) {
 }
 
 static inline keel_outcome_u32
-keel_routine_par_i16(keel_slice_keel_routine_slot_i16 s, uint32_t target) {
-    uint32_t m = (uint32_t)s.len, S = 0, F = 0;
-    uint32_t q = target ? target : m;
+keel_routine_i16_par(keel_slice_keel_routine_slot_i16 s, u32 target) {
+    u32 m = (u32)s.len, S = 0, F = 0;
+    u32 q = target ? target : m;
     for (size_t i = 0; i < s.len; ++i) s.ptr[i].state.code = 0;
     for (;;) {
         for (size_t i = 0; i < s.len; ++i) {
@@ -565,11 +565,10 @@ keel_routine_par_i16(keel_slice_keel_routine_slot_i16 s, uint32_t target) {
 
 keel_outcome_u32 coop_set_of(i16 *a, i16 *b) {
     keel_routine_slot_i16 steps[2] = {
-        { coop_stage, a, {0} },
-        { coop_stage, b, {0} },
+        { .f = coop_stage, .ctx = a, .state = {0} },
+        { .f = coop_stage, .ctx = b, .state = {0} },
     };
-    keel_slice_keel_routine_slot_i16 s = { 2, steps };
-    keel_outcome_u32 r = keel_routine_par_i16(s, 1);
+    keel_outcome_u32 r = keel_routine_i16_par(keel_slice_of_keel_array_keel_routine_slot_i16(steps, 2), 1);
 
     for (size_t i = 0; i < 2u; ++i) {
         keel_routine_slot_i16 *sl = &steps[i];

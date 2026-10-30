@@ -110,7 +110,7 @@ A linguagem fixa o **nome canônico** de cada tipo no ponto de declaração (lin
 ```plain
 buffer i32              →  keel_buffer_i32
 buffer geom.Point       →  keel_buffer_geom_Point
-buffer slice char       →  keel_buffer_slice_char
+buffer slice char       →  keel_buffer_keel_slice_char
 coll.stack i32          →  coll_stack_i32
 kv.map i32 geom.Point   →  kv_map_i32_geom_Point
 buffer const char       →  keel_buffer_const_char
@@ -893,7 +893,7 @@ grid[3][7] = 5
 ```
 
 ```c
-keel_slice_char_length(*keel_buffer_slice_char_ptr(&lines, 3))
+keel_slice_char_length(*keel_buffer_keel_slice_char_ptr(&lines, 3))
 keel_buffer_i32_push1(keel_buffer_buffer_i32_ptr(&grid, 3), 42)
 *keel_buffer_i32_ptr(keel_buffer_buffer_i32_ptr(&grid, 3), 7) = 5
 ```
@@ -1444,7 +1444,7 @@ keel_outcome_u32 r =
 
 **Regras**
 
-1. O `typedef` da participante é da instância e sai no header de instância (§4.3), com o nome do módulo instanciado: `keel_routine_<mod>_<arg>`, onde `<mod>` é o prefixo do módulo do argumento (`keel_routine_app_Ctx` para `app_Ctx`). O `slot` e os verbos seguem o mesmo nome (`keel_routine_slot_app_Ctx`, `keel_routine_app_Ctx_par`). O encurtamento do §2.1 (regra 2) se aplica.
+1. O `typedef` da participante é da instância e sai no header de instância (§4.3), com o nome do módulo mais o nome canônico do argumento (§2.1): `keel_routine_<arg>`, como em `keel_routine_app_Ctx` para `app_Ctx` e `keel_routine_i16` para `i16`. O `slot` e os verbos seguem o mesmo nome (`keel_routine_slot_app_Ctx`, `keel_routine_app_Ctx_par`). O encurtamento do §2.1 (regra 2) se aplica.
 2. O campo de estado é um `corot`, e não um inteiro nu (§5.14). Zerado, ele é `ONGOING`, o estado inicial correto sem escrita. O inicializador escreve o `.state = {0}` explicitamente; um mecanismo de inicialização explícita de modificadores virá depois.
 3. A chamada da participante é indireta e sai como está: `s.ptr[i].f(s.ptr[i].ctx)`. O backend não a inspeciona nem a põe em linha.
 4. Nenhuma região é injetada: não há gestor, laço, rótulo de saída nem reafirmação de código em volta da chamada. O corpo de `seq` e de `par` é keel comum do módulo, com o `#line` normal (§6). [D53](#10-decisões-de-emissão)

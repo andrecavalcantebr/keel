@@ -85,9 +85,12 @@ static bool array_decl(const KAst *ast, const KIsland *is, ArrayDecl *d) {
         if (tok_opens(ast, i)) depth++;
         else if (tok_closes(ast, i) && --depth == 0) { rbr = i; break; }
     }
-    if (rbr == 0 || rbr == lbr + 1) return false;   /* unclosed, or no dimension */
+    if (rbr == 0) return false;                     /* unclosed */
     d->arr = arr; d->lbr = lbr; d->rbr = rbr;
     d->param = fn->kind == K_AST_FUNCTION && arr < fn->body_first;
+    /* no dimension: `array char s[] = "..."` keeps the `[]` for the initializer to size (spec §4.2);
+       a parameter with none is not a form this file knows */
+    if (rbr == lbr + 1 && d->param) return false;
     d->fn_end = fn->end;
     /* a binder: two words in a row in dimension 0 (backend §5.18); a parameter only */
     d->binder = false;

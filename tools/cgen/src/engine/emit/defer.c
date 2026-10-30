@@ -328,16 +328,19 @@ static Plan plan_of(const KAst *ast, const KAstNode *fn) {
     Plan p = { RET_NONE, true, false };
     size_t lo = fn->body_first - 1;
     bool any = false, nested = false;
+    size_t first_reg = fn->body_end;   /* the first registration: an earlier `return` is no exit of the cleanup */
     for (size_t i = 0; i < ast->islands.len; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         if (is->kind != K_ISLAND_DEFER || is->anchor < fn->body_first || is->anchor >= fn->body_end) continue;
         any = true;
+        if (is->anchor < first_reg) first_reg = is->anchor;
         if (block_open(ast, is->anchor, lo) != lo) nested = true;
     }
     if (!any) return p;
     size_t nret = 0, last = NO_TOKEN;
+    size_t npost = 0;   /* the exits that cross the cleanup: the `return`s after the first registration */
     for (size_t i = fn->body_first; i < fn->body_end; i++)
-        if (word(ast, i, "return")) { nret++; last = i; }
+        if (word(ast, i, "return")) { nret++; last = i; if (i > first_reg) npost++; }
     bool jump = has_jump(ast, fn);
     if (nret == 0 && !jump) return p;   /* no exit but the natural end: the D1 cleanup */
     if (nested && !jump) { p.ok = false; return p; }
@@ -348,7 +351,7 @@ static Plan plan_of(const KAst *ast, const KAstNode *fn) {
     }
     bool void_fn = is_void(ast, fn);
     p.ends_ret = nret > 0 && ends_in_return(ast, fn, last);
-    if (jump || (nret == 1 && p.ends_ret)) p.mode = RET_INLINE;
+    if (jump || (npost == 1 && p.ends_ret)) p.mode = RET_INLINE;
     else p.mode = RET_LADDER;
     for (size_t r = fn->body_first; r < fn->body_end; r++) {
         if (word(ast, r, "break") || word(ast, r, "continue")) {

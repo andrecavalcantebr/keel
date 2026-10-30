@@ -24,7 +24,7 @@ void app_ap_traverse(keel_buffer_i32 *xs) {
 
 size_t app_ap_sum_range(keel_range r) {
     size_t t = 0;
-    { size_t keel__f2 = keel_range_first(r); size_t keel__l2 = keel_range_limit(r); for (size_t v = keel__f2; v < keel__l2; v++) { t += v; } }
-    { keel_range keel__c3 = r; size_t keel__n3 = keel_range_length(keel__c3); for (size_t i = 0; i < keel__n3; i++) { size_t v = keel_range_get(keel__c3, i); t += v * i; } }
+    { size_t keel__f0 = keel_range_first(r); size_t keel__l0 = keel_range_limit(r); for (size_t v = keel__f0; v < keel__l0; v++) { t += v; } }
+    { keel_range keel__c1 = r; size_t keel__n1 = keel_range_length(keel__c1); for (size_t i = 0; i < keel__n1; i++) { size_t v = keel_range_get(keel__c1, i); t += v * i; } }
     return t;
 }

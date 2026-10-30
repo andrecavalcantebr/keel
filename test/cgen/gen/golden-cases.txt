@@ -22,6 +22,6 @@ test/cgen/gen/imports|use.k|-
 026-debug-checks|app/chk.k|app.chk
 011-else|app/el.k|-|wip
 013-sugar|app/ac.k|-|wip
-015-foreach-range|app/ap.k|-|wip
+015-foreach-range|app/ap.k|-
 018-corot-outcome|results.k|-|wip
 021-else-assign|app/reg.k|-|wip

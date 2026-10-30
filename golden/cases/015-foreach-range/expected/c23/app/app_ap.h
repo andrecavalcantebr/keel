@@ -7,9 +7,9 @@
 
 typedef struct keel_buffer_i32 keel_buffer_i32;
 #line 8 "app/ap.k"
-i32    app_ap_sum_acc(void);
+i32  app_ap_sum_acc(void);
 #line 13 "app/ap.k"
-void   app_ap_traverse(keel_buffer_i32 *xs);
+void app_ap_traverse(keel_buffer_i32 *xs);
 #line 20 "app/ap.k"
 size_t app_ap_sum_range(keel_range r);
 

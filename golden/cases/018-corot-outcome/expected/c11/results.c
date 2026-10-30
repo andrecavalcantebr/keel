@@ -37,6 +37,9 @@ i32 results_repair(i32 code) {
 
 keel_corot results_evaluate_cleanup(i32 *counter) {
     keel_corot r = {0};
-    keel_corot keel__rv0;
-    keel__rv0 = keel_corot_fault(&r, ++*counter); ++*counter; return keel__rv0;
+
+    { keel_corot keel__rv0 = keel_corot_fault(&r, ++*counter);
+#line 34 "results.k"
+    ++*counter;
+    return keel__rv0; }
 }

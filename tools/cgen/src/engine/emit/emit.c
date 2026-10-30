@@ -339,6 +339,20 @@ static void copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, 
 
 /* Writes the source lines [a, b) as the .k line `ln` (one call: a changed
  * line is one text, and the writer owns its #line). */
+/* A construction that rewrites a span whole (the `return` of an inline `defer`
+ * cleanup, a use of another module) rebuilds its text with the renames already
+ * applied (k_em_put_range): an edit another construction made inside that span
+ * is dropped, as uses.c does for its own (drop_edits). The edits are sorted. */
+static void drop_nested(Edit *ed, size_t *cnt) {
+    size_t j = 0, end = 0;
+    for (size_t k = 0; k < *cnt; k++) {
+        if (j > 0 && ed[k].at < end && ed[k].at > ed[j - 1].at) continue;   /* inside the previous replacement */
+        ed[j++] = ed[k];
+        if (ed[k].at + ed[k].skip > end) end = ed[k].at + ed[k].skip;
+    }
+    *cnt = j;
+}
+
 static void emit_line(Emit *e, size_t ln, size_t a, size_t b) {
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
@@ -347,6 +361,7 @@ static void emit_line(Emit *e, size_t ln, size_t a, size_t b) {
         if (k_em_overlaps(e, n, a, b)) node_edits(e, n, a, b, ed, &cnt);
     }
     comment_edits(e, a, b, ed, &cnt);
+    drop_nested(ed, &cnt);
     if (!e->ok) return;
     const char *s = e->ast->source.ptr;
     k_em_pre_lines_constblock(e, ln, a, b);

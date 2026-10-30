@@ -31,7 +31,7 @@ int reading_first(const char *path) {
 
 > **Estado: a linguagem está fechada, e o compilador lê keel mas ainda não
 > emite C.** Os quatro documentos normativos estão completos, a biblioteca base
-> está escrita em keel, e há 26 casos de teste com a saída C esperada nos dois
+> está escrita em keel, e há 27 casos de teste com a saída C esperada nos dois
 > perfis (três em construção). O `cgen` já tem o lexer e o parser completos: lê
 > um `.k`, resolve os imports, reconhece toda a gramática, verifica as regras de
 > keel e imprime a árvore (`--stop-after=parse`). A emissão de C é o próximo
@@ -208,7 +208,7 @@ em `cgen -o app.parse --stop-after=parse app.k`.
 
 ## keel por exemplos
 
-Os pares mostram a operação essencial da tradução. O C usa representações locais dos tipos necessários para tornar os exemplos legíveis; a organização em headers, os nomes internos exatos, o mapeamento de linhas e as verificações de debug pertencem ao backend. Nos exemplos cooperativos, o código `1` representa uma falha sem estabelecer a codificação detalhada de diagnóstico por participante.
+Os pares mostram a operação essencial da tradução. Um bloco precedido de `<!-- golden: caminho:linhas -->` é um trecho literal de um arquivo de [`golden/`](golden/), conferido por `test/docs.sh`: o que está ali é o que o cgen gera, sem o cabeçalho, os `#include` e os `#line`, que pertencem ao backend. Os blocos ainda sem marcador usam representações locais dos tipos, para tornar o exemplo legível, e serão migrados. Nos exemplos cooperativos, o código `1` representa uma falha sem estabelecer a codificação detalhada de diagnóstico por participante.
 
 Os exemplos 1 a 4 e 7 são módulos independentes. Os exemplos 5 e 6 compõem o mesmo módulo `coop`: as funções auxiliares são apresentadas uma vez no exemplo 5. Nenhum import da base, além de `import keel types;`, é implícito.
 
@@ -337,6 +337,7 @@ Contratos na [spec](keel-spec.md): §§5.2 e 5.3, e §§4.5 e 4.7. [Justificativ
 
 A função aceita um valor não negativo e ajusta um resultado explicitamente declarado. Um código negativo representa falha em `outcome`; o default ajusta o próprio resultado para sucesso com valor zero.
 
+<!-- golden: cases/027-readme/result.k:1-13 -->
 ```keel
 //keel
 module result;
@@ -354,31 +355,22 @@ pub i16 get_value(i16 entry) {
 }
 ```
 
+<!-- golden: cases/027-readme/expected/c23/result.c:8-17 -->
 ```c
 //C gerado
-#include <stdint.h>
-
-typedef int16_t i16;
-typedef struct { int32_t code; i16 value; } keel_outcome_i16;
-
 keel_outcome_i16 result_accept(i16 entry) {
     keel_outcome_i16 r = {0};
-    if (entry < 0) { r.code = entry; return r; }
-    r.code = 0;
-    r.value = entry;
-    return r;
+    if (entry < 0) return keel_outcome_i16_fail(&r, entry);
+    return keel_outcome_i16_win1(&r, entry);
 }
 
 i16 result_get_value(i16 entry) {
-    keel_outcome_i16 res = result_accept(entry);
-    if (res.code != 0) {
-        /* outcome.win(res, 0): adjusts res itself. */
-        res.code = 0;
-        res.value = 0;
-    }
-    return res.value;
+    keel_outcome_i16 res = result_accept(entry); if (keel_outcome_i16_failed(res)) keel_outcome_i16_win1(&res, 0);
+    return keel_outcome_i16_value(res);
 }
 ```
+
+A instância `keel_outcome_i16` tem o layout `{ i32 code; i16 value; }` e mora em `keel/keel_outcome_i16.type.h`; os `#include` e os `#line` do arquivo gerado ficam fora do trecho.
 
 `get_value(7)` devolve `7`; `get_value(-7)` devolve `0`. A declaração de `res` continua tendo tipo `outcome i16`; a extração para `i16` só ocorre na chamada explícita a `outcome.value`.
 

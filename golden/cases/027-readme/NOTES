@@ -1,0 +1,13 @@
+O que este caso prova
+=====================
+
+Os exemplos do `README.md`, "keel por exemplos". Cada módulo `.k` deste caso é
+o fonte de um exemplo do README, e cada bloco de C do README é um trecho
+literal do `expected/c23` daqui (conferido por `test/docs.sh`). O caso existe
+para o README ser verificável; o que cada construção prova está no caso que a
+cobre (011, 018).
+
+Exemplo 4 — `result.k`: `outcome i16`, `fail`/`win`, e a forma DEFAULT da
+cláusula `else` (§5.12) sobre uma declaração com tipo explícito. O `i16` é o
+primeiro tipo curto da suíte: a instância `keel_outcome_i16` (em `golden/*/keel/`)
+tem o mesmo molde da de `u32`, com o código `i32` fixo e o valor `i16`.

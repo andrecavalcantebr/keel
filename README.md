@@ -220,33 +220,36 @@ Os exemplos 1 a 4 e 7 são módulos independentes. Os exemplos 5 e 6 compõem o 
 
 `import_c` disponibiliza um header ao compilador C. O marcador `array` registra o vetor; a chamada `puts` permanece C.
 
+<!-- golden: cases/028-readme-main/ola.k:1-8 -->
 ```keel
 //keel
 module ola;
 import_c <stdio.h>;
 
-int main(void) {
+pub int main(int argc, char **argv) {
     array char message[] = "Ola, keel!";
     puts(message);
     return 0;
 }
 ```
 
+<!-- golden: cases/028-readme-main/expected/c23/ola.c:7-11 -->
 ```c
 //C gerado
-#include <stdio.h>
-
-int ola_main(void) {
+int ola_main(int argc, char **argv) {
     char message[] = "Ola, keel!";
     puts(message);
     return 0;
 }
-
-/* Entry wrapper, emitted by the build for the selected module. */
-int main(void) { return ola_main(); }
 ```
 
-`ola_main` é a função do módulo; o wrapper `main` fornece a entrada do programa. O header é processado pelo compilador C; keel não precisa conhecer a assinatura de `puts` para preservar a chamada.
+<!-- golden: cases/028-readme-main/expected/c23/main_ola.c:3-3 -->
+```c
+//C gerado
+int main(int argc, char **argv) { return ola_main(argc, argv); }
+```
+
+`ola_main` é a função do módulo; o wrapper `main`, numa unidade à parte (`main_ola.c`, gerada por `--main ola`), fornece a entrada do programa; ele repassa `argc` e `argv`, por isso `main` de módulo os recebe. O header é processado pelo compilador C; keel não precisa conhecer a assinatura de `puts` para preservar a chamada.
 
 Contratos na [spec](keel-spec.md): §§1.2, 4.1 e 4.2. [Justificativa: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos).
 

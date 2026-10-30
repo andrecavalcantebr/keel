@@ -547,9 +547,9 @@ static keel_corot coop_stage(i16 *counter) {
 }
 
 static inline keel_outcome_u32
-keel_routine_i16_par(keel_slice_keel_routine_slot_i16 s, u32 target) {
-    u32 m = (u32)s.len, S = 0, F = 0;
-    u32 q = target ? target : m;
+keel_routine_i16_par(keel_slice_keel_routine_slot_i16 s, uint32_t target) {
+    uint32_t m = (uint32_t)s.len, S = 0, F = 0;
+    uint32_t q = target ? target : m;
     for (size_t i = 0; i < s.len; ++i) s.ptr[i].state.code = 0;
     for (;;) {
         for (size_t i = 0; i < s.len; ++i) {
@@ -584,7 +584,7 @@ terminam em `SUCCESS`. O resultado é válido, com valor `2`; a travessia
 seguinte chama `note` duas vezes, e os contadores terminam `*a == 4` e
 `*b == 2`.
 
-O estado é lido pelos verbos de `corot`, e não pelo campo: `routine.state(s)`
+O estado é lido pelos verbos de `corot`, e não pelo campo: `routine.state(steps[0])`
 devolve um `corot`, sobre o qual valem `corot.ok`, `corot.ongoing`,
 `corot.faulted`, `corot.code` e também `match`, pelo contrato da spec §4.9. O
 inicializador sem `state` deixa o campo zerado, que em `corot` é `ONGOING` — o

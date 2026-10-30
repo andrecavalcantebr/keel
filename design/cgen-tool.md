@@ -251,7 +251,12 @@ app.geom.Point"`, `"blocos.bloco(3) f32"`. Algoritmo:
    instância é a família de verbos dos argumentos (`"keel.array i32"` →
    `keel_array_i32`). Como a declaração `instance` exige modificador
    (`instance-not-modifier`), essa forma só existe na linha de comando: a
-   ferramenta alcança a instância por uma chamada de um verbo dela.
+   ferramenta alcança a instância por uma chamada de um verbo dela. A outra
+   exceção é o nome de uma função sobre protocolo (`keel.slice.of`, backend
+   §5.19): o resto do argumento é o tipo concreto (`"keel.slice.of
+   keel.buffer.buffer i32"` → `keel_slice_of_keel_buffer_i32`; `keel.array T`
+   para um `array`), e a ferramenta a alcança chamando-a sobre uma variável
+   desse tipo. A função é `inline` nos próprios headers, e não há `.c`.
 3. `carrega` o módulo pelas raízes, como um `import`. Não achado:
    `module-not-found`. Achado e não genérico, ou sem esse modificador:
    `invalid-instance`.

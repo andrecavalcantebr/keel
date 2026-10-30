@@ -3,17 +3,17 @@
 # golden/<p>/keel/* is what the base's sources produce, byte for byte, in each
 # profile. The non-generic modules are compiled as any module (`cgen
 # base/keel/<m>.k`); the generic ones through the instances the golden holds
-# (`--instance "<M.mod> <args>"`, or `"<M> <args>"` for a generic without a
-# modifier, `keel.array`), each call writing its whole closure. A golden
-# file nothing here produces is `wip` (the instances of a function over a
-# protocol, §5.19), and so
+# (`--instance "<M.mod> <args>"`; `"<M> <args>"` for a generic without a
+# modifier, `keel.array`; `"<M.fn> <concrete type>"` for a function over a
+# protocol, backend §5.19), each call writing its whole closure. A golden
+# file nothing here produces is `wip`, and so
 # is a use the emitter refuses with implementation-limit; any other failure,
 # and any file that differs, is a FAIL.
 cd "$(dirname "$0")/../.." || exit 2
 BIN=$PWD/tools/cgen/cgen
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 MODULES="arena corot parallel range"
-USES="keel.array i32|keel.buffer.buffer i32|keel.buffer.buffer size_t|keel.slice.slice f32|keel.slice.slice i32|keel.slice.slice size_t|keel.outcome.outcome f32|keel.outcome.outcome i32|keel.outcome.outcome size_t|keel.outcome.outcome u32|keel.outcome.outcome void"
+USES="keel.array i32|keel.buffer.buffer i32|keel.buffer.buffer size_t|keel.slice.slice f32|keel.slice.slice i32|keel.slice.slice size_t|keel.outcome.outcome f32|keel.outcome.outcome i32|keel.outcome.outcome size_t|keel.outcome.outcome u32|keel.outcome.outcome void|keel.slice.of keel.array i32|keel.slice.of keel.buffer.buffer i32|keel.slice.of keel.slice.slice i32"
 bad=0 ok=0 wip=0
 for p in c23 c11; do
     out=$tmp/$p

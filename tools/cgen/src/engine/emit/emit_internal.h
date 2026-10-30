@@ -79,6 +79,8 @@ bool k_em_is_keel(keel_slice_char m);
  * binder and no modifier; the rest belongs to the instances (backend §4.4.1). */
 bool k_em_module_is_generic(const KAst *ast);
 bool k_em_generic_out(const KAst *ast, const KAstNode *n);
+/* whether `n` is a function with a parameter typed by a protocol (backend §5.19) */
+bool k_em_over_protocol(const KAst *ast, const KAstNode *n);
 
 /* instance.c, for the instance mode of emit.c (e->inst set): the argument a
  * binder token stands for; the rank suffix `_<N>` of a vector accessor */

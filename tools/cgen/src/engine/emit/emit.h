@@ -45,6 +45,13 @@ typedef struct {
     keel_slice_char dim[K_EMIT_INSTANCE_ARGS];   /* the value of each dimension binder, in decimal: "3" */
     const KUnavailable *unavailable;   /* the verbs the instance loses (spec §4.3, rules 11 to 13) */
     size_t unavailable_count;
+    /* the instance of a function over a protocol on one concrete type (backend
+     * §5.19): `symbol` is the file's (keel_slice_of_keel_buffer_i32), `module`
+     * the protocol function's; the concrete type, its module, and how its value
+     * is passed (by pointer when byref; `T x[], size_t keel__N` over an array,
+     * with `proto_elem` the element) */
+    keel_slice_char proto_fn, proto_concrete, proto_module, proto_elem;
+    bool proto_byref, proto_array;
 } KEmitInstance;
 
 /* The instance a closure entry of `user` names (its arguments live in the
@@ -75,6 +82,9 @@ bool k_emit_instance_redundant(const KAst *generic);
  * family of verbs of its arguments. `verb` is one of them with a single
  * parameter, the container, which a call can name the instance by. */
 bool k_emit_generic_without_modifier(const KAst *generic, keel_slice_char *verb);
+
+/* Whether `ast` declares a function `name` over a protocol (backend §5.19). */
+bool k_emit_protocol_function(const KAst *ast, keel_slice_char name);
 
 /* Whether the module has binders on its `module` line. */
 bool k_emit_module_is_generic(const KAst *ast);

@@ -99,8 +99,15 @@ typedef struct {
        one of its instances. The pool starts with the instance's type (index 0) and its
        arguments (1..argc); every resolution keeps them. */
     bool inst_mode;
-    KType inst_types[K_SPEC_MAX_ARGS + 1];
+    KType inst_types[K_SPEC_MAX_ARGS + 2];
     int inst_n;
+    /* the instance of a function over a protocol (backend §5.19): the concrete
+       type is at index 0 (a modifier's instance, or the family of `keel.array`),
+       and the protocol parameter's value is at `proto_value` (the instance, a
+       pointer to it when byref, or an `array` of one dimension) */
+    bool proto_mode;
+    const KAst *proto_own;          /* the module of the concrete type */
+    bool proto_array, proto_byref;
 } Ctx;
 
 /* Whether a verb survives in an instance (spec §4.3, rules 12 and 13; parser
@@ -209,6 +216,7 @@ bool isl_tag_of_some_set(const KAst *where, keel_slice_char name);
 void isl_name_island(Ctx *c, size_t i);
 void isl_qualified_name(Ctx *c, size_t i, const KModule *module);
 bool isl_tag_qualified(Ctx *c, size_t i);
+bool isl_proto_param(Ctx *c, size_t i, size_t *next);
 bool isl_is_arena(const KAst *a, const KSpecifier *spec);
 void isl_note_shadow(Ctx *c, KToken name);
 bool isl_binder_of(const KAst *a, const KAstNode *fn, KToken name);

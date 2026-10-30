@@ -20,6 +20,10 @@ typedef struct {
     keel_slice_char symbol, modifier;
     size_t argc;
     keel_slice_char arg[8];
+    /* a function over a protocol (backend §5.19): set to its name, the walk reads
+       the functions of that name in `generic` over the concrete type above —
+       `self` is then the concrete type's module, `symbol` its own symbol */
+    keel_slice_char proto_fn;
 } KIslandInstance;
 bool k_collect_instance_islands(KAst *generic, const KIslandInstance *inst, KDiagnosticSink *diag);
 #endif

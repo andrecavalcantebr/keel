@@ -47,7 +47,9 @@ static bool names_binder_or_modifier(const KAst *ast, KToken t) {
 
 /* whether the declaration `n` of a generic module belongs to the instance */
 /* a function with a parameter typed by a protocol (backend §5.19): one instance per concrete type */
-static bool over_protocol(const KAst *ast, const KAstNode *n) {
+bool k_em_over_protocol(const KAst *ast, const KAstNode *n);
+#define over_protocol k_em_over_protocol
+bool k_em_over_protocol(const KAst *ast, const KAstNode *n) {
     if (n->kind != K_AST_FUNCTION || !ast->symbols || n->body_first == (size_t)-1) return false;
     for (size_t i = n->name_first + 1; i < n->body_first; i++) {
         KToken t = k_em_tok(ast, i);
@@ -162,6 +164,13 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
                         txt = arg.ptr; tl = arg.len;                    /* a binder: its argument */
                     } else if (!member && t.len == e->inst->modifier.len && memcmp(t.ptr, e->inst->modifier.ptr, t.len) == 0) {
                         txt = e->inst->symbol.ptr; tl = e->inst->symbol.len;   /* the modifier: the instance */
+                    } else if (d && i == n->name_first && e->inst->proto_fn.len) {
+                        /* <module>_<name>; roles.c adds the arity suffix and the concrete type */
+                        char *w = k_em_scratch(e, NAME_CAP);
+                        if (!w) return;
+                        size_t q = k_mangle_decl(e->module, (keel_slice_char){ t.len, (char *)t.ptr }, false, (keel_slice_char){ NAME_CAP, w });
+                        if (q > NAME_CAP) { e->ok = false; return; }
+                        txt = w; tl = q;
                     } else if (d && d->kind == K_AST_FUNCTION && k_em_generic_out(ast, d)) {
                         /* a verb of the instance: <symbol>_<name>, and the rank suffix */
                         keel_slice_char rank = {0};
@@ -509,6 +518,11 @@ static bool skip(const Emit *e, const KAstNode *n) {
     bool out = k_em_generic_out(e->ast, n);
     /* a function over a protocol is neither: one instance per concrete type (backend §5.19) */
     if (!e->inst) return out;
+    if (e->inst->proto_fn.len) {   /* the functions of that name over the protocol */
+        if (n->kind != K_AST_FUNCTION || !over_protocol(e->ast, n)) return true;
+        KToken t = k_em_tok(e->ast, n->name_first);
+        return t.len != e->inst->proto_fn.len || memcmp(t.ptr, e->inst->proto_fn.ptr, t.len) != 0;
+    }
     if (!(out && n->kind == K_AST_FUNCTION && !over_protocol(e->ast, n))) return true;
     /* a verb the instance loses (spec §4.3, rules 11 to 13): the parser's list */
     KToken name = k_em_tok(e->ast, n->name_first);

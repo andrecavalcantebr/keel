@@ -606,11 +606,26 @@ static size_t header_of(const KAst *ast, const char *sym, size_t len, const char
         if (q->kind == K_SYM_MODULE && q->origin && q->origin->ast && q->origin->name.len == best_len &&
             memcmp(q->origin->name.ptr, best_name, best_len) == 0) gm = q->origin;
     }
+    if (!gm && own.len && best_len == own.len && memcmp(best_name, own.ptr, own.len) == 0) {
+        /* the module itself: its generic tree is this one */
+        static KModule self;
+        self = (KModule){ .name = own, .ast = ast };
+        gm = &self;
+    }
     if (gm && k_em_module_is_generic(gm->ast)) {
         bool share = false;
         for (size_t k = 0; k < gm->symbol_count && !share; k++) {
             char ms[NAME_CAP];
             size_t ml = k_mangle_symbol(&gm->symbols[k], (keel_slice_char){ sizeof ms, ms });
+            share = ml == len && memcmp(ms, sym, len) == 0;
+        }
+        for (size_t k = 0; gm->ast == ast && k < ast->nodes.len && !share; k++) {   /* the module's own share */
+            const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+            if (n->name_first >= n->name_end || k_em_generic_out(ast, n)) continue;
+            char ms[NAME_CAP];
+            KToken t = k_em_tok(ast, n->name_first);
+            size_t ml = k_mangle_decl(own, (keel_slice_char){ t.len, (char *)t.ptr }, n->kind == K_AST_TYPE || n->kind == K_AST_TAGS,
+                                      (keel_slice_char){ sizeof ms, ms });
             share = ml == len && memcmp(ms, sym, len) == 0;
         }
         if (!share) {
@@ -652,8 +667,16 @@ static size_t own_type_path(const Emit *e, char *path, size_t cap) {
 /* the place of the import whose module prefixes `sym` (the longest), among the
  * imports in the order written; one past the last when none does */
 static size_t import_rank(const KAst *ast, const char *sym, size_t len) {
-    size_t rank = 0, best = SIZE_MAX, best_len = 0;
+    size_t rank = 1, best = SIZE_MAX, best_len = 0;
     char name_buf[NAME_CAP];
+    /* the module itself first: its line comes before the imports */
+    const KAstNode *mn = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
+    keel_slice_char own = import_name(ast, mn, name_buf, sizeof name_buf);
+    if (own.len) {
+        char ms[NAME_CAP];
+        size_t ml = k_mangle_module(own, (keel_slice_char){ sizeof ms, ms });
+        if (ml <= sizeof ms && prefix_of(sym, len, ms, ml)) { best = 0; best_len = ml; }
+    }
     for (size_t k = 0; k < ast->nodes.len; k++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
         if (n->kind != K_AST_IMPORT) continue;
@@ -677,6 +700,13 @@ void k_em_h_type_includes(Emit *e) {
     size_t ol = own_type_path(e, own, sizeof own);
     if (ol && !add_include(&s, own, ol)) { e->ok = false; return; }
     size_t first = s.n;   /* the own .type.h is written by emit.c */
+    if (e->inst && e->inst->proto_fn.len && !e->inst->proto_array) {
+        /* the concrete type of a function over a protocol, ahead (backend §5.19, rule 4) */
+        char cp[NAME_CAP];
+        size_t cl = k_mangle_instance_path(e->inst->proto_module, e->inst->proto_concrete, ".type.h", (keel_slice_char){ sizeof cp, cp });
+        if (cl > sizeof cp || !add_include(&s, cp, cl)) { e->ok = false; return; }
+        rank[s.n - 1] = 0;
+    }
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         if (is->kind != K_ISLAND_TYPE || !k_em_handles_use(ast, is)) continue;

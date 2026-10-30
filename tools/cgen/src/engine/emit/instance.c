@@ -347,10 +347,10 @@ static void emit_file(Emit *e, KEmitFile which) {
         }
         /* without a modifier the instance defines no type: the header only
          * includes keel.type.h (backend §5.2, rule 8) */
-        if (has_modifier(e->ast)) raw(e, "\n");
+        if (has_modifier(e->ast) && !e->inst->proto_fn.len) raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-            if (n->kind == K_AST_MODIFIER) emit_modifier(e, n);
+            if (n->kind == K_AST_MODIFIER && !e->inst->proto_fn.len) emit_modifier(e, n);
         }
     } else {
         raw(e, "#include \""); raw_slice(e, type_path); raw(e, "\"\n");
@@ -502,7 +502,7 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
     e.scratch_n = 0;
     k_writer_init(&e.w, out, src_path, opt.line_on);
     if (which != K_EMIT_TYPE_H && which != K_EMIT_H && which != K_EMIT_C) return K_EMIT_UNSUPPORTED;
-    if (!k_em_module_is_generic(generic) || !instance_supported(&e)) return K_EMIT_UNSUPPORTED;
+    if (!k_em_module_is_generic(generic) || (!inst->proto_fn.len && !instance_supported(&e))) return K_EMIT_UNSUPPORTED;
     if (which == K_EMIT_H) k_em_instance_h(&e);
     else if (which == K_EMIT_C) k_em_instance_c(&e);
     else emit_file(&e, which);
@@ -532,3 +532,13 @@ bool k_emit_generic_without_modifier(const KAst *generic, keel_slice_char *verb)
 }
 
 bool k_emit_module_is_generic(const KAst *ast) { return k_em_module_is_generic(ast); }
+
+bool k_emit_protocol_function(const KAst *ast, keel_slice_char name) {
+    for (size_t i = 0; i < ast->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        if (n->kind != K_AST_FUNCTION || n->name_first >= n->name_end || !k_em_generic_out(ast, n)) continue;
+        KToken t = k_em_tok(ast, n->name_first);
+        if (t.len == name.len && memcmp(t.ptr, name.ptr, t.len) == 0 && k_em_over_protocol(ast, n)) return true;
+    }
+    return false;
+}

@@ -1160,7 +1160,8 @@ void isl_walk(Ctx *c, const KAstNode *n) {
         KToken next = {0};
         KToken first = isl_enter(a, i, &lexer, &pp);
         bool scanned = k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp);
-        size_t inst_end;
+        size_t inst_end, after_param;
+        if (c->proto_mode && isl_proto_param(c, i, &after_param)) { i = after_param - 1; continue; }
         if (c->inst_mode && !(scanned && spec.kind != K_SPEC_NONE) && (inst_end = inst_spec_end(c, i)) != 0) {
             /* a type of the generic that names a binder or the bare modifier: the
                instance reads it (isl_kt_from_home) */

@@ -104,6 +104,8 @@ static int kt_of_local(Ctx *c, const Local *l) {
         isl_kt(c, t)->elem = element;
     } else if (l->spec.kind == K_SPEC_NONE) {
         t = isl_kt_new(c);
+    } else if (c->proto_mode && !k_symbol_resolve(c->ast->symbols, l->spec.text)) {
+        t = kt_copy(c, 0);                            /* the protocol parameter: the concrete type */
     } else if (c->inst_mode) {
         t = isl_kt_from_home(c, c->ast, l->spec.text, 0);
     } else {
@@ -1252,3 +1254,61 @@ size_t isl_declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, 
 
 bool isl_c_declares(const KAst *a, size_t i, size_t from);
 bool isl_binder_of(const KAst *a, const KAstNode *fn, KToken name);
+
+/* Protocol mode (k_collect_instance_islands with proto_fn): at token i, the
+   protocol parameter `Proto C x` of the function being read, or its type's
+   associated name `C.assoc`. The parameter becomes a local of the concrete type;
+   `C.assoc` gets the type island of what the concrete type's verb returns — the
+   verb the protocol declares with that result (backend §5.19, rules 2 and 3).
+   *next is the token after what was read. */
+bool isl_proto_param(Ctx *c, size_t i, size_t *next) {
+    KAst *a = c->ast;
+    const KAstNode *fn = c->fn;
+    if (!fn || fn->kind != K_AST_FUNCTION) return false;
+    Param p[K_PARAMS_MAX];
+    size_t np = isl_params_of(a, fn, p, K_PARAMS_MAX);
+    if (np == SIZE_MAX || !np || !p[0].is_protocol) return false;
+    size_t base = p[0].role != K_ROLE_NONE ? p[0].first + 1 : p[0].first;
+    if (base + 3 != p[0].end || !isl_ident(a, base + 1) || !isl_ident(a, base + 2)) return false;
+    KToken binder = isl_tok(a, base + 1);
+    if (i == base) {
+        Local l = { .name = isl_tok(a, base + 2), .decl_at = base + 2, .depth = c->depth };
+        if (c->proto_array) {
+            /* an `array` of one dimension, its extent by the binder (backend §5.18) */
+            l.rank = 1;
+            l.pointers = 1;
+            l.element = (keel_slice_char){ strlen(c->inst_types[1].symbol), c->inst_types[1].symbol };
+            l.dims = k_diag_text("[size_t N]");
+            Text d = { .ok = true };
+            isl_put(&d, l.name.ptr, l.name.len);
+            isl_put_str(&d, " [size_t N]");
+            isl_emit(c, K_ISLAND_ARRAY, base + 2, &d);
+        } else {
+            l.spec = (KSpecifier){ .kind = K_SPEC_MODIFIER, .modifier_name = binder, .text = binder };
+            l.pointers = c->proto_byref ? 1 : 0;
+        }
+        isl_add_local(c, l);
+        *next = base + 3;
+        return true;
+    }
+    if (i < fn->name_first && k_symtab_same_name(isl_tok(a, i), binder) && isl_punct(a, i + 1, ".") && isl_ident(a, i + 2)) {
+        KProtocolDecl pd;
+        if (!isl_protocol_decl(c, a, p[0].base, &pd, 0)) return false;
+        const KProtocolVerb *v = isl_verb_for_return(a, fn, &pd);
+        if (!v) return false;
+        Sig vs = isl_find_verb(c->proto_own, v->name, v->arity);
+        if (!vs.found) return false;
+        isl_resolution_begin(c);
+        int t = isl_ret_type(c, c->proto_own, vs.fn, 0);
+        const char *sym = isl_kt_symbol(c, t);
+        Text d = { .ok = true };
+        isl_put_glued(&d, a, i, i + 3);
+        isl_put_str(&d, " \xe2\x86\x92 ");
+        isl_put_str(&d, sym);
+        if (*sym) isl_emit(c, K_ISLAND_TYPE, i, &d);
+        isl_resolution_end(c);
+        *next = i + 3;
+        return true;
+    }
+    return false;
+}

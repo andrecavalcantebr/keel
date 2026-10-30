@@ -89,6 +89,37 @@ bool k_em_nodiscard(const KAst *ast, const KAstNode *fn) {
     return false;
 }
 
+/* A function over a protocol, on one concrete type (backend §5.19, rules 1 and 2):
+ * the concrete type after the name, and the protocol parameter `Proto C x` as
+ * the type's value is passed */
+static void proto_edits(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    const KEmitInstance *in = e->inst;
+    size_t after = k_em_tok_end(ast, fn->name_first);
+    if (after >= a && after <= b) {
+        char *txt = k_em_scratch(e, 1 + in->proto_concrete.len);
+        if (!txt) return;
+        size_t w = 0;
+        put(txt, &w, "_", 1); put(txt, &w, in->proto_concrete.ptr, in->proto_concrete.len);
+        k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = after, .skip = 0, .text = txt, .text_len = w });
+    }
+    size_t p0 = fn->name_first + 2;                                   /* `Proto C x` */
+    if (k_em_text_is(k_em_tok(ast, p0), "parent") || k_em_text_is(k_em_tok(ast, p0), "child")) p0++;
+    size_t x = p0 + 2;
+    size_t at = k_em_tok_off(ast, p0);
+    if (at < a || at >= b || !k_token_is_ident(k_em_tok(ast, x))) return;
+    keel_slice_char head = in->proto_array ? in->proto_elem : in->proto_concrete;
+    char *txt = k_em_scratch(e, head.len + 2);
+    if (!txt) return;
+    size_t w = 0;
+    put(txt, &w, head.ptr, head.len);
+    put(txt, &w, in->proto_byref && !in->proto_array ? " *" : " ", in->proto_byref && !in->proto_array ? 2 : 1);
+    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok_off(ast, x) - at, .text = txt, .text_len = w });
+    if (in->proto_array)
+        k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, x), .skip = 0,
+            .text = "[], size_t keel__N", .text_len = 18 });
+}
+
 void k_em_edits_roles(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     if (!has_params(ast, fn)) return;
@@ -113,6 +144,7 @@ void k_em_edits_roles(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         memcpy(txt, suf, sl);
         k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = after, .skip = 0, .text = txt, .text_len = sl });
     }
+    if (e->inst && e->inst->proto_fn.len) proto_edits(e, fn, a, b, ed, cnt);
 
     /* `type T`: sized and aligned */
     for (size_t i = fn->name_first + 2; i + 1 < close + 1; i++) {

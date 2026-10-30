@@ -1017,12 +1017,30 @@ bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosti
         k->arg[k->argc++] = (int)i + 1;
     }
     ctx.inst_n = (int)inst->argc + 1;
+    if (inst->proto_fn.len) {
+        /* the concrete type of a function over a protocol */
+        const KAst *own = inst->self ? inst->self->ast : NULL;
+        if (!own) return false;
+        ctx.proto_mode = true;
+        ctx.proto_own = own;
+        ctx.proto_array = isl_module_named(own, "keel.array");
+        for (size_t i = 0; i < own->nodes.len; i++) {
+            const KAstNode *m = isl_node_at(own, i);
+            if (m->kind != K_AST_MODIFIER) continue;
+            for (size_t j = m->name_first; j < m->end; j++) if (isl_word(own, j, "byref")) ctx.proto_byref = true;
+        }
+    }
     memcpy(ctx.types, ctx.inst_types, (size_t)ctx.inst_n * sizeof *ctx.types);
     ctx.type_count = ctx.inst_n;
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = isl_node_at(a, i);
-        if (n->kind != K_AST_FUNCTION || n->first < covered || !names_instance(a, n)) continue;
+        if (n->kind != K_AST_FUNCTION || n->first < covered) continue;
+        if (inst->proto_fn.len) {
+            Param p[K_PARAMS_MAX];
+            size_t np = isl_params_of(a, n, p, K_PARAMS_MAX);
+            if (np == SIZE_MAX || !np || !p[0].is_protocol || !k_symtab_same_name(isl_tok(a, n->name_first), inst->proto_fn)) continue;
+        } else if (!names_instance(a, n)) continue;
         covered = n->end;
         isl_walk(&ctx, n);
     }

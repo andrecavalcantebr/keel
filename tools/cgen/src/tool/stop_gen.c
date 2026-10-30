@@ -144,7 +144,92 @@ static int emit_imports(keel_arena *arena, void *tool, const char *dest, const K
 /* The headers of each instance the module's closure holds; the base's (`keel_*`)
  * only when `base` is set: they are written with the base, by --instance. The
  * generic's .k path is its module name, as for any module. */
+/* The instances of a function over a protocol the closure holds (backend
+ * §5.19): one file pair per concrete type, `<prefix>_<name>_<concrete>`. The
+ * concrete type is the closure's instance whose symbol ends the entry's. */
+static int emit_protocol_functions(keel_arena *arena, const char *dest, const KAst *ast, KEmitOptions opt, bool base) {
+    for (size_t i = 0; i < ast->closure.len; i++) {
+        const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
+        if (c->kind != K_CLOSURE_PROTOCOL_FUNCTION || !c->module || !c->module->ast) continue;
+        keel_slice_char gen = c->module->name;
+        if (!base && gen.len >= 4 && memcmp(gen.ptr, "keel", 4) == 0 && (gen.len == 4 || gen.ptr[4] == '.')) continue;
+        char pre[4096];
+        size_t pl = k_mangle_module(gen, (keel_slice_char){ sizeof pre, pre });
+        if (pl >= sizeof pre || pl + 1 >= c->symbol_len || memcmp(c->symbol, pre, pl) != 0 || c->symbol[pl] != '_') continue;
+        /* <name>_<concrete>: the concrete type is an instance of the closure */
+        const KClosure *k = NULL;
+        size_t name_len = 0;
+        for (size_t q = 0; q < ast->closure.len && !k; q++) {
+            const KClosure *o = keel_buffer_KClosure_ptr(&ast->closure, q);
+            if (o->kind != K_CLOSURE_INSTANCE || !o->module || o->symbol_len + pl + 2 >= c->symbol_len) continue;
+            size_t at = c->symbol_len - o->symbol_len;
+            if (memcmp(c->symbol + at, o->symbol, o->symbol_len) != 0 || c->symbol[at - 1] != '_') continue;
+            k = o;
+            name_len = at - 1 - (pl + 1);
+        }
+        if (!k) {
+            fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this function over a protocol yet [implementation-limit]\n",
+                    (int)c->symbol_len, c->symbol);
+            return 2;
+        }
+        KEmitInstance concrete;
+        if (!k_emit_instance_of(ast, k, &concrete)) return 2;
+        KEmitInstance inst = { .symbol = { c->symbol_len, (char *)c->symbol }, .module = gen,
+                               .proto_fn = { name_len, (char *)c->symbol + pl + 1 }, .proto_concrete = concrete.symbol,
+                               .proto_module = k->module->name };
+        inst.proto_array = k->module->name.len == 10 && memcmp(k->module->name.ptr, "keel.array", 10) == 0;
+        if (inst.proto_array && concrete.argc) inst.proto_elem = concrete.arg[0];
+        for (size_t q = 0; q < k->module->ast->nodes.len; q++) {
+            const KAstNode *m = keel_buffer_KAstNode_ptr(&k->module->ast->nodes, q);
+            if (m->kind != K_AST_MODIFIER) continue;
+            for (size_t j = m->name_first; j < m->end; j++) {
+                KToken t = keel_buffer_KLexeme_ptr(&k->module->ast->tokens, j)->token;
+                if (t.len == 5 && memcmp(t.ptr, "byref", 5) == 0) inst.proto_byref = true;
+            }
+        }
+        KAst *generic = (KAst *)c->module->ast;
+        KIslandInstance ii = { .self = k->module, .symbol = concrete.symbol, .modifier = concrete.modifier, .argc = concrete.argc,
+                               .proto_fn = inst.proto_fn };
+        for (size_t q = 0; q < concrete.argc && q < 8; q++) ii.arg[q] = concrete.arg[q];
+        KDiagnostic scratch_items[256];
+        KDiagnosticSink scratch;
+        k_diag_init(&scratch, scratch_items, 256);
+        k_collect_instance_islands(generic, &ii, &scratch);
+        char src_buf[8192];
+        keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf);
+        int rc = 0;
+        for (int w = 0; w < 2 && !rc; w++) {
+            KEmitFile which = w == 0 ? K_EMIT_TYPE_H : K_EMIT_H;
+            const char *ext = w == 0 ? ".type.h" : ".h";
+            size_t need = k_emit_instance(generic, &inst, src_path, which, opt, (keel_slice_char){0});
+            if (need == K_EMIT_UNSUPPORTED) {
+                fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this function over a protocol yet [implementation-limit]\n",
+                        (int)c->symbol_len, c->symbol);
+                rc = 2;
+                break;
+            }
+            char *data = cgen_alloc(arena, need ? need : 1, 1, 1, false, "generated file");
+            if (!data) { rc = 2; break; }
+            k_emit_instance(generic, &inst, src_path, which, opt, (keel_slice_char){ need, data });
+            char rel[4096], path[8192];
+            size_t rel_len = k_mangle_instance_path(gen, inst.symbol, ext, (keel_slice_char){ sizeof rel, rel });
+            if (rel_len >= sizeof rel) { rc = write_failed(dest); break; }
+            int n = snprintf(path, sizeof path, "%s/%.*s", dest, (int)rel_len, rel);
+            if (n < 0 || (size_t)n >= sizeof path || !make_parents(path)) { rc = write_failed(dest); break; }
+            rc = cgen_write_output(path, data, need);
+        }
+        generic->islands.len = 0;
+        generic->island_text.len = 0;
+        generic->closure.len = 0;
+        generic->closure_text.len = 0;
+        if (rc) return rc;
+    }
+    return 0;
+}
+
 static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, KEmitOptions opt, bool base) {
+    int prc = emit_protocol_functions(arena, dest, ast, opt, base);
+    if (prc) return prc;
     for (size_t i = 0; i < ast->closure.len; i++) {
         const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
         if (c->kind != K_CLOSURE_INSTANCE || !c->module || !c->module->ast) continue;
@@ -340,8 +425,41 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
             aliases = 1;
         }
     }
-    /* §2.8, step 3: the first name is <module>.<modifier> of a generic module */
+    /* a function over a protocol, then the concrete type (`keel.slice.of
+       keel.buffer.buffer i32`, backend §5.19): reached by a call of it over a
+       variable of that type */
+    keel_slice_char proto_fn = {0};
+    bool proto_array = false;
+    const char *concrete = wend;
     if (!family) {
+        const char *dot = NULL;
+        for (const char *q = start; q < wend; q++) if (*q == '.') dot = q;
+        KModule *m = NULL;
+        if (dot && cgen_load(tool, (keel_slice_char){ (size_t)(dot - start), (char *)start }, &m) != K_LOAD_NOT_FOUND && m && m->ast &&
+            k_emit_protocol_function(m->ast, (keel_slice_char){ (size_t)(wend - dot - 1), (char *)dot + 1 })) {
+            proto_fn = (keel_slice_char){ (size_t)(wend - dot - 1), (char *)dot + 1 };
+            generic_name = start;
+            generic_len = (size_t)(dot - start);
+            if (!put(imports, &iw, "import ", 7) || !put(imports, &iw, start, generic_len) ||
+                !put(imports, &iw, " as cgen_mp;\n", 13)) return 2;
+            /* the concrete type: `keel.array T` is an `array` of T */
+            while (*concrete == ' ') concrete++;
+            const char *ce = concrete;
+            while (*ce && (ident_char(*ce) || *ce == '.')) ce++;
+            KModule *cm = NULL;
+            keel_slice_char unused;
+            if (memchr(concrete, '.', (size_t)(ce - concrete)) &&
+                cgen_load(tool, (keel_slice_char){ (size_t)(ce - concrete), (char *)concrete }, &cm) != K_LOAD_NOT_FOUND &&
+                cm && cm->ast && k_emit_generic_without_modifier(cm->ast, &unused)) {
+                proto_array = true;
+                if (!put(imports, &iw, "import ", 7) || !put(imports, &iw, concrete, (size_t)(ce - concrete)) ||
+                    !put(imports, &iw, " as cgen_ma;\n", 13)) return 2;
+                concrete = ce;
+            }
+        }
+    }
+    /* §2.8, step 3: the first name is <module>.<modifier> of a generic module */
+    if (!family && !proto_fn.len) {
         const char *dot = NULL;
         for (const char *q = start; q < wend; q++) if (*q == '.') dot = q;
         int wl = (int)(wend - start);
@@ -371,7 +489,7 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
             return 2;
         }
     }
-    for (const char *p = family ? wend : use; *p; ) {
+    for (const char *p = family ? wend : proto_fn.len ? concrete : use; *p; ) {
         if (!ident_char(*p)) { if (!put(body, &bw, p, 1)) return 2; p++; continue; }
         const char *q = p, *last_dot = NULL;
         while (*q && (ident_char(*q) || (*q == '.' && ident_char(q[1])))) { if (*q == '.') last_dot = q; q++; }
@@ -399,7 +517,10 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
         return 2;
     }
     char text[3 * USE_CAP];
-    int tl = family
+    int tl = proto_fn.len
+        ? snprintf(text, sizeof text, "module cgen_instance;\n%spriv %s%s cgen_x%s;\npriv void cgen_use(void) { (void)cgen_mp.%.*s(cgen_x); }\n",
+                   imports, proto_array ? "array " : "", body, proto_array ? "[1]" : "", (int)proto_fn.len, proto_fn.ptr)
+        : family
         ? snprintf(text, sizeof text, "module cgen_instance;\n%spriv array%s cgen_v[1];\npriv void cgen_use(void) { (void)cgen_m0.%.*s(cgen_v); }\n",
                    imports, body, (int)verb.len, verb.ptr)
         : snprintf(text, sizeof text, "module cgen_instance;\n%sinstance %s;\n", imports, body);
@@ -434,7 +555,8 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
     const KClosure *target = NULL;
     for (size_t i = 0; i < ast->closure.len && !target; i++) {
         const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
-        if (c->kind == K_CLOSURE_INSTANCE && (family ? c->module == family : c->origin == K_CLOSURE_WRITTEN)) target = c;
+        if (proto_fn.len ? c->kind == K_CLOSURE_PROTOCOL_FUNCTION
+                         : c->kind == K_CLOSURE_INSTANCE && (family ? c->module == family : c->origin == K_CLOSURE_WRITTEN)) target = c;
     }
     if (!target || !target->module) {
         fprintf(stderr, "cgen: error: '%s' does not name a modifier in full [invalid-instance]\n", use);
@@ -459,8 +581,9 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
     written.seen[written.n++] = module;
     if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt, true);
 
-    /* the instance's .c: its header, then the bodies of its non-inline functions */
-    if (!rc) {
+    /* the instance's .c: its header, then the bodies of its non-inline functions;
+       a function over a protocol is `inline` in its own headers, and has none */
+    if (!rc && !proto_fn.len) {
         KEmitInstance inst;
         if (!k_emit_instance_of(ast, target, &inst)) rc = 2;
         char src_buf[8192];

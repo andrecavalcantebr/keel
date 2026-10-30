@@ -146,7 +146,7 @@ modificador com `dim` (§4.5, item 1; oráculo 006). Também **não há ainda**
 passagem não viu declarado. A marca `*k` (parâmetro por valor, argumento
 ponteiro) não está no §5.2 e não é impressa. A nomeação de instância aninhada
 segue o C esperado do golden (`keel_buffer_keel_buffer_i32`), não o §2.1 do
-backend (`keel_buffer_buffer_i32`).
+backend (`keel_buffer_keel_buffer_i32`).
 
 `PARSE_LEVEL=ilha:<espécies>` (padrão do `make check`: as das etapas 4a e 4b)
 compara só essas espécies nos `.parse`, que continuam inteiros (001, 009 e 013

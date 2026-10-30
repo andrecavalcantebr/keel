@@ -31,7 +31,7 @@ int reading_first(const char *path) {
 
 > **Estado: a linguagem está fechada, e o compilador lê keel mas ainda não
 > emite C.** Os quatro documentos normativos estão completos, a biblioteca base
-> está escrita em keel, e há 25 casos de teste com a saída C esperada nos dois
+> está escrita em keel, e há 26 casos de teste com a saída C esperada nos dois
 > perfis (três em construção). O `cgen` já tem o lexer e o parser completos: lê
 > um `.k`, resolve os imports, reconhece toda a gramática, verifica as regras de
 > keel e imprime a árvore (`--stop-after=parse`). A emissão de C é o próximo
@@ -644,7 +644,6 @@ void scan_sum(keel_buffer_i32 *xs, keel_buffer_u32 *totals) {
                 t += (u32)*p;
             }
             *keel_buffer_u32_ptr(totals, w) = t;
-            atomic_fetch_add_explicit(&sum.wins, 1, memory_order_relaxed);
             keel__end0: ;
         }
     }
@@ -684,7 +683,7 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`keel-c-backend.md`](keel-c-backend.md) | o que depende do alvo: nomes, artefatos, perfis |
 | [`cgen-tool-spec.md`](cgen-tool-spec.md) | o que depende da invocação |
 | [`base/`](base/) | os onze módulos da base, em keel: o prelúdio `keel` e os dez de `keel/` |
-| [`golden/`](golden/) | 25 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
+| [`golden/`](golden/) | 26 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
 | [`tools/cgen/`](tools/cgen/) | o transpilador, hoje até o parse (`--stop-after=parse`) |
 | [`design/`](design/) | desenho da implementação, e as ideias que não são v0 |
 

@@ -121,7 +121,7 @@ buffer _Atomic u32      →  keel_buffer_atomic_u32
 
 1. Módulo hierárquico achata o `.`: `net.http` dá `net_http_`. O argumento carrega a própria qualificação, e por isso o nome é o mesmo em todo módulo que usa a instância.
 2. O nome do modificador ou do tipo igual ao último componente do módulo não se repete: `keel.buffer.buffer` aplicado a `i32` dá `keel_buffer_i32`, e o tipo `arena` de `keel.arena` dá `keel_arena`. A regra é só de nome; não muda representação nem contrato.
-3. O nome cai da árvore do tipo, e o prefixo aparece só na raiz: `buffer slice i32` é `buffer( slice( i32 ) )`, e sai `keel_buffer_slice_i32`.
+3. O nome cai da árvore do tipo, e o prefixo aparece só na raiz: `buffer slice i32` é `buffer( slice( i32 ) )`, e sai `keel_buffer_keel_slice_i32`.
 4. A grafia gerada nunca contém `__` nem começa por `_` seguido de maiúscula. Um qualificador que começa por `_` perde o underscore inicial e baixa a caixa: `_Atomic u32` dá `atomic_u32`. É a única normalização de grafia do mangling. [D17](#10-decisões-de-emissão)
 5. Os três espaços de identificador do C — nome de tipo, tag e constante de enum — levam o prefixo do módulo, em escopo de arquivo. [D16](#10-decisões-de-emissão)
 6. A tag de struct repete o nome manglado, mesmo quando o fonte escreveu a struct sem tag (§4.3.1).
@@ -894,8 +894,8 @@ grid[3][7] = 5
 
 ```c
 keel_slice_char_length(*keel_buffer_keel_slice_char_ptr(&lines, 3))
-keel_buffer_i32_push1(keel_buffer_buffer_i32_ptr(&grid, 3), 42)
-*keel_buffer_i32_ptr(keel_buffer_buffer_i32_ptr(&grid, 3), 7) = 5
+keel_buffer_i32_push1(keel_buffer_keel_buffer_i32_ptr(&grid, 3), 42)
+*keel_buffer_i32_ptr(keel_buffer_keel_buffer_i32_ptr(&grid, 3), 7) = 5
 ```
 
 ```keel

@@ -7,6 +7,9 @@
 #   cases/<case>/proof.c             the harness — NOT transpiler output
 #   cases/<case>/VERIFY              asserts what is not "it compiles"; the script obeys it
 #   cases/<case>/XFAIL               expected NOT to compile
+#   cases/<case>/DEBUG               a run per line, `<arg> <id> <file.k>:<line>`: under
+#                                    KEEL_CHECKS=1 it must abort with that report (backend
+#                                    §5.17); release only compiles (diag-design R2)
 #
 # -Werror=vla enforces a normative claim: language §4.4 says keel emits neither
 # VLA nor alloca anywhere.
@@ -120,15 +123,29 @@ for case_dir in cases/*/; do
     omps=""; grep -lq '#pragma omp' $srcs 2>/dev/null && omps=" -fopenmp"
 
     good=1
+    debug=""; [ -f "$case_dir/DEBUG" ] && debug="$case_dir/DEBUG"
     # both check modes (backend §5.17): the generated C is the same, only the
     # KEEL_CHECKS switch given to the C compiler changes
     for chk in 1 0; do
     for omp in "" $omps; do
       [ -z "$omp" ] && extra=-Wno-unknown-pragmas || extra=""
-      $CC "-std=$std" $FLAGS -DKEEL_CHECKS=$chk $extra $omp $inc $([ $mode = compile ] && echo -c) $srcs -o "$exe" 2>/dev/null \
-        && { [ $mode = compile ] || "$exe" >/dev/null; } || good=0
+      $CC "-std=$std" $FLAGS -DKEEL_CHECKS=$chk $extra $omp $inc $([ $mode = compile ] && echo -c) $srcs -o "$exe" 2>/dev/null || { good=0; continue; }
+      [ $mode = compile ] && continue
+      if [ -z "$debug" ]; then "$exe" >/dev/null || good=0; continue; fi
+      # a debug case (diag-design R2): each check aborts with its report; the
+      # release build runs nothing, the violation would be undefined behaviour
+      [ $chk = 1 ] || continue
+      while read -r arg id at; do
+        case "$arg" in ''|'#'*) continue ;; esac
+        err=$("$exe" "$arg" 2>&1 >/dev/null); rc=$?
+        if [ $rc -ne 134 ] || [ "$err" != "$at: keel: $id" ]; then
+          printf '         debug %s: exit %s, stderr "%s"; want abort and "%s: keel: %s"\n' "$arg" "$rc" "$err" "$at" "$id"
+          good=0
+        fi
+      done < "$debug"
     done
     done
+    [ -n "$debug" ] && mode="debug, $(grep -cv '^#' "$debug") checks"
     [ -n "$omps" ] && mode="$mode, ±omp"
 
     if [ $good -eq 1 ]; then

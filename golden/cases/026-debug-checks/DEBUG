@@ -1,0 +1,6 @@
+# <argument> <diagnostic id> <the .k position the abort reports> (backend §5.17, rule 4)
+1 index-out-of-length keel/buffer.k:37
+2 set-out-of-length keel/buffer.k:38
+3 range-index-out-of-bounds keel/buffer.k:74
+4 array-index-out-of-bounds keel.k:54
+5 alloc-overflow keel/arena.k:51

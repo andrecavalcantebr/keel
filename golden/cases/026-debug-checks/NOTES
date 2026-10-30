@@ -1,0 +1,26 @@
+Notas do caso.
+
+O caso exercita o modo `debug` do runner (diag-design R2): cada argumento
+quebra uma regra que só a build de debug verifica (backend §5.17), e o
+runner confere que o processo termina em `abort()` e que a linha do stderr é
+`<arquivo.k>:<linha>: keel: <id>`, com a posição que o `#line` dá à
+verificação (regra 4): num verbo da base, a do verbo, e não a do chamador.
+
+- 1 e 2: `get` e `set` de `buffer` escrevem a verificação no próprio `.k`
+  (keel/buffer.k, linhas 37 e 38).
+- 3: o `as_slice` de três parâmetros recebe a verificação de intervalo que o
+  backend injeta (regra 7a). Ela sai na linha logo depois da `{` (keel/buffer.k:73)
+  sem `#line` próprio, e o compilador a conta como a 74: o relato é
+  keel/buffer.k:74, uma linha do corpo do verbo, e o `#line 74` que vem depois
+  dela ressincroniza o resto. Se a regra 4 pedir a linha da assinatura, o
+  backend teria de escrever `#line 73` antes da verificação (pergunta em aberto
+  para o André, 2026-10-29).
+- 4: o índice sobre `array` passa por `keel_index`, do prelúdio
+  (keel.k:54).
+- 5: `arena.alloc` cru, com `n * sz` que não cabe em `size_t`
+  (keel/arena.k:51).
+
+Os outros quatro `debug` do catálogo (`tag-out-of-range`,
+`extent-index-out-of-bounds`, `par-target-above-total`,
+`mask-above-64-slots`) pedem `match`, `extent` e `routine`, e entram em casos
+próprios.

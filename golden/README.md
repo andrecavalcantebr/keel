@@ -169,6 +169,16 @@ que é o princípio 3.
 Um caso com um `VERIFY` executável não é compilado pelo runner: o script
 recebe `$1` compilador, `$2` `-std=…`, `$3` diretório do perfil, e decide.
 
+## Casos com DEBUG
+
+Um caso com um arquivo `DEBUG` afirma as verificações de execução da build de
+debug (backend §5.17; diag-design R2). Cada linha é `<argumento> <id>
+<arquivo.k>:<linha>`: o runner compila nos dois modos, roda o executável com o
+argumento só sob `KEEL_CHECKS=1` e exige que ele termine em `abort()` com
+exatamente `<arquivo.k>:<linha>: keel: <id>` no stderr. A build release só
+compila: a violação seria comportamento indefinido. O `.k` do caso escolhe a
+verificação pelo `argv`.
+
 ## Casos com XFAIL
 
 Um caso que contém um arquivo `XFAIL` é **xfail**: espera-se que o C esperado

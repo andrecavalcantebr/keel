@@ -93,8 +93,9 @@ entre as seções do `.h` e uma antes do `#endif`; nenhuma no `.c`.
 `layout-check.py` falha num header fora dessa forma, e `--fix` o reescreve.
 
 Código injetado no meio de um corpo, como o `KEEL_CHECK` que o backend §5.17
-(7a) põe no início do `as_slice`, pede `#line` logo depois dele, de volta à
-linha seguinte do `.k`. `python3 golden/line-check.py --verbose` mostra a
+(7a) põe no início do `as_slice`, leva `#line` antes dele, com a linha da
+declaração do verbo: é a posição que o `abort` relata. A linha seguinte do
+`.k` não pede outro, porque o contador já a alcança. `python3 golden/line-check.py --verbose` mostra a
 classificação de cada `#line`. `--allow` lista as linhas candidatas à lista,
 para revisão.
 

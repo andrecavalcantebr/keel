@@ -41,8 +41,8 @@ static inline const char   *keel_slice_const_char_ptr (keel_slice_const_char s) 
 static inline const char   *keel_slice_const_char_ptr1(keel_slice_const_char s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return &s.ptr[i]; }
 #line 45 "keel/slice.k"
 static inline keel_slice_const_char keel_slice_const_char_as_slice(keel_slice_const_char s, size_t a, size_t b) {
+#line 45 "keel/slice.k"
     KEEL_CHECK(a <= b && b <= keel_slice_const_char_length(s), "range-index-out-of-bounds");
-#line 46 "keel/slice.k"
     if (b > s.len) b = s.len;
     if (a > b) a = b;
     return (keel_slice_const_char){ b - a, s.ptr + a };

@@ -230,7 +230,6 @@ void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edi
     if (!has_params(ast, fn) || !k_em_text_is(k_em_tok(ast, fn->name_first), "as_slice") || param_count(ast, fn) != 3) return;
     size_t brace = fn->body_first - 1;
     size_t at = k_em_tok_end(ast, brace);
-    if (at < a || at >= b) return;
     const char *src = ast->source.ptr;
     size_t nl = at;
     while (nl < ast->source.len && (src[nl] == ' ' || src[nl] == '\t')) nl++;
@@ -258,15 +257,26 @@ void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edi
         len_buf[pl++] = ')';
         ll = pl;
     }
-    static const char head[] = "\n    KEEL_CHECK(", tail[] = ", \"range-index-out-of-bounds\");";
-    size_t n = sizeof head - 1 + pa.len + 4 + pb.len + 4 + pb.len + 4 + ll + sizeof tail - 1;
+    /* a line of its own before the body's first line, mapped to the verb's
+     * declaration (backend §6): the position the abort reports (§5.17, rule 4) */
+    size_t ln = k_em_line_at(e, k_em_tok_off(ast, brace));
+    char lnum[24];
+    size_t lw = 0;
+    { char rev[24]; size_t v = ln, d = 0; do { rev[d++] = (char)('0' + v % 10); v /= 10; } while (v); while (d) lnum[lw++] = rev[--d]; }
+    static const char head[] = "    KEEL_CHECK(", tail[] = ", \"range-index-out-of-bounds\");";
+    size_t n = 1 + lw + 1 + sizeof head - 1 + pa.len + 4 + pb.len + 4 + pb.len + 4 + ll + sizeof tail - 1;
     char *txt = k_em_scratch(e, n);
     if (!txt) return;
     size_t w = 0;
+    put(txt, &w, "L", 1); put(txt, &w, lnum, lw); put(txt, &w, "|", 1);   /* EDIT_LINES: an output line of its own */
     put(txt, &w, head, sizeof head - 1);
     put(txt, &w, pa.ptr, pa.len); put(txt, &w, " <= ", 4); put(txt, &w, pb.ptr, pb.len);
     put(txt, &w, " && ", 4); put(txt, &w, pb.ptr, pb.len); put(txt, &w, " <= ", 4);
     put(txt, &w, len_buf, ll);
     put(txt, &w, tail, sizeof tail - 1);
-    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = nl, .skip = 0, .text = txt, .text_len = w });
+    /* at the start of the next line: its first half is empty, and the line
+     * itself follows the check without a #line, the counter is already there */
+    size_t at2 = nl + 1;
+    if (at2 < a || at2 >= b) return;
+    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_LINES, .at = at2, .skip = 0, .text = txt, .text_len = w });
 }

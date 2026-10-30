@@ -50,8 +50,8 @@ static inline keel_outcome_f32 keel_slice_f32_at(keel_slice_f32 s, size_t i) {
 }
 #line 45 "keel/slice.k"
 static inline keel_slice_f32 keel_slice_f32_as_slice(keel_slice_f32 s, size_t a, size_t b) {
+#line 45 "keel/slice.k"
     KEEL_CHECK(a <= b && b <= keel_slice_f32_length(s), "range-index-out-of-bounds");
-#line 46 "keel/slice.k"
     if (b > s.len) b = s.len;
     if (a > b) a = b;
     return (keel_slice_f32){ b - a, s.ptr + a };

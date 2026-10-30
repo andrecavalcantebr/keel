@@ -39,8 +39,8 @@ static inline keel_outcome_i32 keel_array_i32_at(i32 v[], size_t keel__N, size_t
 static inline keel_slice_i32 keel_array_i32_as_slice(i32 v[], size_t keel__N) { return (keel_slice_i32){ keel__N, v }; }
 #line 39 "keel/array.k"
 static inline keel_slice_i32 keel_array_i32_as_slice2(i32 v[], size_t keel__N, size_t a, size_t b) {
+#line 39 "keel/array.k"
     KEEL_CHECK(a <= b && b <= keel__N, "range-index-out-of-bounds");
-#line 40 "keel/array.k"
     if (b > keel__N) b = keel__N;
     if (a > b) a = b;
     return (keel_slice_i32){ b - a, v + a };

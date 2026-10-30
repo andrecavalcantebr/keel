@@ -1896,7 +1896,7 @@ Daí decorre o comportamento de cada região:
 | Expansão de builtin ocupando mais de uma linha | sim | ressincroniza depois |
 | Código injetado — struct de instância, temporário de `return` | sim | ressincroniza depois |
 | Cleanup de `defer` copiado a uma saída | sim | uma antes de cada corpo, com a linha do `defer`, e uma depois, de volta à linha da saída (§5.5, regra 4) |
-| Linha injetada num corpo — o `KEEL_CHECK` do `as_slice` (§5.17, 7a) | sim | uma logo depois dela, de volta à linha seguinte do `.k` |
+| Linha injetada num corpo — o `KEEL_CHECK` do `as_slice` (§5.17, 7a) | sim | uma antes dela, com a linha da declaração do verbo, que é a posição que o `abort` relata (§5.17, regra 4); a linha seguinte do `.k` não pede outra, porque o contador já a alcança |
 | Gestor de `parallel` | sim | uma antes do corpo do worker, e uma depois do bloco (§5.9) |
 | Despacho de `match` | sim | uma antes de cada rótulo de braço, e uma depois do fim (§5.6) |
 | Cláusula `else` — declaração mais `if`, nas duas formas | não, cabe numa linha | nenhuma |

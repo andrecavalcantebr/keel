@@ -50,8 +50,8 @@ static inline keel_outcome_size_t keel_slice_size_t_at(keel_slice_size_t s, size
 }
 #line 45 "keel/slice.k"
 static inline keel_slice_size_t keel_slice_size_t_as_slice(keel_slice_size_t s, size_t a, size_t b) {
+#line 45 "keel/slice.k"
     KEEL_CHECK(a <= b && b <= keel_slice_size_t_length(s), "range-index-out-of-bounds");
-#line 46 "keel/slice.k"
     if (b > s.len) b = s.len;
     if (a > b) a = b;
     return (keel_slice_size_t){ b - a, s.ptr + a };

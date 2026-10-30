@@ -94,8 +94,8 @@ static inline keel_slice_size_t keel_buffer_size_t_as_slice(keel_buffer_size_t *
 }
 #line 73 "keel/buffer.k"
 static inline keel_slice_size_t keel_buffer_size_t_as_slice2(keel_buffer_size_t *b, size_t a, size_t c) {
+#line 73 "keel/buffer.k"
     KEEL_CHECK(a <= c && c <= keel_buffer_size_t_length(b), "range-index-out-of-bounds");
-#line 74 "keel/buffer.k"
     if (c > b->len) c = b->len; if (a > c) a = c;
     return (keel_slice_size_t){ c - a, b->ptr + a };
 }

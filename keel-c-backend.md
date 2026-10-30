@@ -1419,33 +1419,33 @@ atomic_load_explicit(&step.flag, memory_order_relaxed)
 //keel
 array routine.slot Ctx steps[2] = {
     { .f = prepare, .ctx = &ctx },
-    { .f = measure,    .ctx = &ctx },
+    { .f = measure, .ctx = &ctx },
 };
 outcome u32 r = routine.par(slice.of(steps), 1);
 ```
 
 ```c
 //C gerado
-typedef keel_corot (*keel_routine_Ctx)(app_Ctx *);
+typedef keel_corot (*keel_routine_app_Ctx)(app_Ctx *);
 
-typedef struct keel_routine_slot_Ctx {
-    keel_routine_Ctx f;
-    app_Ctx         *ctx;
-    keel_corot       state;
-} keel_routine_slot_Ctx;
+typedef struct keel_routine_slot_app_Ctx {
+    keel_routine_app_Ctx f;
+    app_Ctx             *ctx;
+    keel_corot           state;
+} keel_routine_slot_app_Ctx;
 
-keel_routine_slot_Ctx app_steps[2] = {
-    { app_prepare, &app_ctx, {0} },
-    { app_measure,    &app_ctx, {0} },
+keel_routine_slot_app_Ctx steps[2] = {
+    { .f = app_prepare, .ctx = &ctx, .state = {0} },
+    { .f = app_measure, .ctx = &ctx, .state = {0} },
 };
 keel_outcome_u32 r =
-    keel_routine_par_Ctx(keel_slice_keel_routine_slot_Ctx_from(app_steps, 2), 1);
+    keel_routine_app_Ctx_par(keel_slice_of_keel_array_keel_routine_slot_app_Ctx(steps, 2), 1);
 ```
 
 **Regras**
 
-1. O `typedef` da participante é da instância e sai no header de instância (§4.3), com o nome do módulo mais o argumento: `keel_routine_Ctx`. O encurtamento do §2.1 (regra 2) se aplica.
-2. O campo de estado é um `corot`, e não um inteiro nu (§5.14). Zerado, ele é `ONGOING`, o estado inicial correto sem escrita.
+1. O `typedef` da participante é da instância e sai no header de instância (§4.3), com o nome do módulo instanciado: `keel_routine_<mod>_<arg>`, onde `<mod>` é o prefixo do módulo do argumento (`keel_routine_app_Ctx` para `app_Ctx`). O `slot` e os verbos seguem o mesmo nome (`keel_routine_slot_app_Ctx`, `keel_routine_app_Ctx_par`). O encurtamento do §2.1 (regra 2) se aplica.
+2. O campo de estado é um `corot`, e não um inteiro nu (§5.14). Zerado, ele é `ONGOING`, o estado inicial correto sem escrita. O inicializador escreve o `.state = {0}` explicitamente; um mecanismo de inicialização explícita de modificadores virá depois.
 3. A chamada da participante é indireta e sai como está: `s.ptr[i].f(s.ptr[i].ctx)`. O backend não a inspeciona nem a põe em linha.
 4. Nenhuma região é injetada: não há gestor, laço, rótulo de saída nem reafirmação de código em volta da chamada. O corpo de `seq` e de `par` é keel comum do módulo, com o `#line` normal (§6). [D53](#10-decisões-de-emissão)
 

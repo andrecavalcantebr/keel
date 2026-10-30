@@ -4,6 +4,7 @@
 no meio do seu código C, traduz o que reconhece e copia o resto intacto. O que
 sai é C legível, que o seu compilador compila.
 
+<!-- golden: cases/027-readme/reading.k:1-9 -->
 ```keel
 module reading;
 import_c <stdio.h>;
@@ -16,13 +17,16 @@ pub int first(const char *path) {
 }
 ```
 
+<!-- golden: cases/027-readme/expected/c23/reading.c:7-15 -->
 ```c
 int reading_first(const char *path) {
     FILE *file = fopen(path, "rb");
     if (!file) return EOF;
-    int result = fgetc(file);
+
+    { int keel__rv0 = fgetc(file);
+#line 7 "reading.k"
     fclose(file);
-    return result;
+    return keel__rv0; }
 }
 ```
 
@@ -208,7 +212,7 @@ em `cgen -o app.parse --stop-after=parse app.k`.
 
 ## keel por exemplos
 
-Os pares mostram a operação essencial da tradução. Um bloco precedido de `<!-- golden: caminho:linhas -->` é um trecho literal de um arquivo de [`golden/`](golden/), conferido por `test/docs.sh`: o que está ali é o que o cgen gera, sem o cabeçalho, os `#include` e os `#line`, que pertencem ao backend. Os blocos ainda sem marcador usam representações locais dos tipos, para tornar o exemplo legível, e serão migrados. Nos exemplos cooperativos, o código `1` representa uma falha sem estabelecer a codificação detalhada de diagnóstico por participante.
+Os pares mostram a operação essencial da tradução. Um bloco precedido de `<!-- golden: caminho:linhas -->` é um trecho literal de um arquivo de [`golden/`](golden/), conferido por `test/docs.sh`: o que está ali é o que o cgen gera, sem o cabeçalho e os `#include` do arquivo. Os `#line` que aparecem dentro de um trecho são os do arquivo gerado: eles ligam o C à linha do `.k`, e a regra é do backend (§6). Os blocos ainda sem marcador usam representações locais dos tipos, para tornar o exemplo legível, e serão migrados. Nos exemplos cooperativos, o código `1` representa uma falha sem estabelecer a codificação detalhada de diagnóstico por participante.
 
 Os exemplos 1 a 4 e 7 são módulos independentes. Os exemplos 5 e 6 compõem o mesmo módulo `coop`: as funções auxiliares são apresentadas uma vez no exemplo 5. Nenhum import da base, além de `import keel types;`, é implícito.
 
@@ -250,6 +254,7 @@ Contratos na [spec](keel-spec.md): §§1.2, 4.1 e 4.2. [Justificativa: fronteira
 
 A função devolve o primeiro caractere lido e fecha o arquivo antes de retornar. Se a abertura falhar, o registro de `defer` não é alcançado.
 
+<!-- golden: cases/027-readme/reading.k:1-9 -->
 ```keel
 //keel
 module reading;
@@ -263,20 +268,21 @@ pub int first(const char *path) {
 }
 ```
 
+<!-- golden: cases/027-readme/expected/c23/reading.c:7-15 -->
 ```c
 //C gerado
-#include <stdio.h>
-
 int reading_first(const char *path) {
     FILE *file = fopen(path, "rb");
     if (!file) return EOF;
-    int result = fgetc(file);
+
+    { int keel__rv0 = fgetc(file);
+#line 7 "reading.k"
     fclose(file);
-    return result;
+    return keel__rv0; }
 }
 ```
 
-A expressão de retorno é avaliada antes da limpeza. `FILE`, `fopen`, `fgetc`, `fclose` e `EOF` são tratados pelo compilador C.
+A expressão de retorno é avaliada antes da limpeza. `FILE`, `fopen`, `fgetc`, `fclose` e `EOF` são tratados pelo compilador C. O `defer` sai inline, e a expressão vai para o temporário `keel__rv0`; o `#line` leva a linha do `defer` no `.k`.
 
 Contratos na [spec](keel-spec.md): §§4.1 e 4.6. [Justificativa: limite de análise](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos).
 
@@ -370,7 +376,7 @@ i16 result_get_value(i16 entry) {
 }
 ```
 
-A instância `keel_outcome_i16` tem o layout `{ i32 code; i16 value; }` e mora em `keel/keel_outcome_i16.type.h`; os `#include` e os `#line` do arquivo gerado ficam fora do trecho.
+A instância `keel_outcome_i16` tem o layout `{ i32 code; i16 value; }` e mora em `keel/keel_outcome_i16.type.h`; os `#include` do arquivo gerado ficam fora do trecho.
 
 `get_value(7)` devolve `7`; `get_value(-7)` devolve `0`. A declaração de `res` continua tendo tipo `outcome i16`; a extração para `i16` só ocorre na chamada explícita a `outcome.value`.
 

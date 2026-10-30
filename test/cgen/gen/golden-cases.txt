@@ -25,4 +25,5 @@ test/cgen/gen/imports|use.k|-
 015-foreach-range|app/ap.k|-
 018-corot-outcome|results.k|-
 021-else-assign|app/reg.k|-
-027-readme|result.k|-
+027-readme|result.k reading.k|-
+028-readme-main|ola.k|ola

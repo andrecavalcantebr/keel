@@ -1,0 +1,15 @@
+O que este caso prova
+=====================
+
+Exemplo 1 do `README.md`: o módulo mais curto que roda, com `import_c`, o
+marcador `array` (dimensão implícita com inicializador de string) e a função
+`main` do módulo. Os blocos de C do README são trechos literais do
+`expected/c23` daqui (`test/docs.sh`).
+
+Está num caso à parte do 027 porque o `.k` declara `main`: o runner compila
+juntos todos os `.c` do `expected/`, e o `main_ola.c` (unidade de entrada,
+backend §5.8) colidiria com o `main` de um `proof.c`. A convenção do golden é
+a de sempre: caso com `main` não tem `proof.c`.
+
+A função de entrada recebe `(int argc, char **argv)` porque o wrapper gerado
+repassa os dois (backend §5.8); `pub` a põe no `.h`, que o wrapper inclui.

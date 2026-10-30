@@ -2424,7 +2424,7 @@ Resultados finais e retornos cooperativos.
 5. `corot` é tipo, e não modificador: não há `corot T` nem `corot.value`. O que a passagem produziu viaja pelo contexto que o programa passa.
 6. `corot` é struct de um campo, `struct { i32 code; }`; não há conversão implícita para inteiro.
 7. `corot.tag` devolve `Status`, ligando `Taggable.tagset`. É leitura, e não armazenamento: dois códigos de falha diferentes devolvem a mesma tag.
-8. `win`, `fail`, `none`, `again` e `fault` modificam o objeto recebido e devolvem uma cópia dele depois do ajuste. Não retornam da função: encerrar a função é `return corot.win(r);`, com o cleanup da §4.6.
+8. `win`, `fail`, `none`, `again` e `fault` modificam o objeto recebido, que passa por referência, e devolvem uma cópia dele depois do ajuste. Não retornam da função. A cópia é conveniência: `return corot.win(r);` encerra numa linha só, e equivale a `corot.win(r); return r;`. Com `defer`, nas duas formas o valor devolvido é o de `r` depois do ajuste, tomado antes do cleanup (§4.6).
 9. Os códigos de `fail` e `fault` são escritos sem conversão, troca de sinal ou normalização. O código é avaliado uma vez.
 10. As consultas não modificam o objeto.
 11. `outcome.value(r, v)` pode ser usado com código de falha; escrever o valor não torna o resultado válido.

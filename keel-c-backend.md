@@ -323,7 +323,7 @@ app/cfg.k  →  app/app_cfg.type.h                tipos
 **Regras**
 
 1. O que a invocação compila — o `.k` da linha de comando, ou a instância de `--instance` (ferramenta §4.3) — produz sempre três arquivos: `.type.h`, `.h` e `.c`, ainda que o `.c` só inclua o próprio `.h` e um header só tenha as guardas. [D28](#10-decisões-de-emissão)
-2. O que a invocação só alcança — os módulos importados, inclusive o `keel` implícito, e as instâncias que os usos pedem — produz os dois headers e nenhum `.c`. O `.c` de um módulo importado é escrito pela invocação dele.
+2. O que a invocação só alcança — os módulos importados, inclusive o `keel` implícito, e as instâncias que os usos pedem — produz os dois headers e nenhum `.c`. O `.c` de um módulo importado é escrito pela invocação dele. Um módulo genérico importado produz os dois headers da sua parte fixa (§4.4.1, regra 5), e nunca um `.c`.
 3. Todo corpo fora de linha termina no `.c` da invocação: o do próprio módulo e o das instâncias que ele declara com `instance` (§4.4).
 4. O corte entre os dois headers é o do §4.3.2.
 
@@ -674,6 +674,10 @@ typedef struct keel_outcome_i32 { i32 code; i32 value; } keel_outcome_i32;
 2. O nome não leva o argumento: `keel_outcome_OK`, e não `keel_outcome_i32_OK`.
 3. `constexpr` de módulo segue o §9.2, e não `static const`: `case outcome.OK:` exige expressão constante. Sob C11, sai macro de nome manglado, sem o tratamento de escopo de bloco, porque o prefixo já a torna única.
 4. A instância alcança o que é do genérico pelas regras do §4.3.2, e nunca o contrário: a constante e o cursor (§5.11) moram no `.type.h` do genérico, e a struct da instância, no dela.
+5. A parte fixa de um módulo genérico sai em `modulo.type.h` e `modulo.h`, com o nome de qualquer módulo (§4.1: `keel/keel_buffer.type.h`, `keel/keel_buffer.h`), e o corte entre os dois é o da tabela do §4.1. No `.type.h` vão o tipo, o `constexpr` e o `import_c` que não citam parâmetro nem modificador; no `.h`, a função `inline` que também não cita, e o `#include` do próprio `.type.h`. Os dois saem sempre, ainda que o `.h` se reduza a esse `#include`: `keel_buffer.h` é assim, porque a única coisa fixa de `keel.buffer` que não é `import_c` é o cursor (§5.11), que é tipo.
+6. O módulo genérico não tem `.c`. A parte fixa é tipo, `constexpr` ou função `inline` (linguagem §4.3, regra 20), e nada disso tem corpo fora de linha; o corpo fora de linha de um genérico pertence à instância (§4.4) e vai para o `.c` de quem a declara.
+7. Um módulo genérico tem dois tipos de uso, e cada um inclui o seu `.h`. Quem escreve um nome da parte fixa (`coll.EMPTY`, `buffer.cursor`) usa o módulo e inclui `modulo.h`. Quem escreve uma instância (`buffer i32`) usa a instância e inclui o `.h` dela. Quem escreve os dois inclui os dois, pela regra 4 do §4.3.2. O critério depende só dos nomes que o programa escreve, e nunca do que outro uso já traz por transitividade.
+8. O `.h` da instância alcança a parte fixa pelo `.type.h` do módulo (regra 4) e nunca inclui o `modulo.h`. Um `#include` que o alcance transitivo já traz é redundante e inofensivo, porque todo header tem guarda; o cgen não o elide.
 
 ### 4.5 Tipos gerados são opacos
 

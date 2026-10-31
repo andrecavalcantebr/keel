@@ -80,14 +80,17 @@ static bool decimal(KToken t) {
 static bool analyze(const KAst *ast, const KIsland *is, const KAstNode *fn, Par *p) {
     if (is->kind != K_ISLAND_PARALLEL) return false;
     p->kw = is->anchor;
-    if (!word(ast, p->kw, "parallel") || !ident(ast, p->kw + 1) || !ident(ast, p->kw + 2) || !word(ast, p->kw + 3, "(")) return false;
+    if (!word(ast, p->kw, "parallel") || !ident(ast, p->kw + 1) || !word(ast, p->kw + 3, "(")) return false;
     p->name = p->kw + 1;
     p->policy = p->kw + 2;
     p->open = p->kw + 3;
+    /* the policy is the target: ALL is 0 (nobody fails), ANY is 1, a decimal N is N wins */
     KToken pol = k_em_tok(ast, p->policy);
+    p->target = 0;
     if (k_em_text_is(pol, "ALL")) p->target = 0;
     else if (k_em_text_is(pol, "ANY")) p->target = 1;
-    else return false;       /* a numeric policy (`N`) is not lowered yet */
+    else if (decimal(pol)) for (size_t i = 0; i < pol.len; i++) p->target = p->target * 10 + (size_t)(pol.ptr[i] - '0');
+    else return false;       /* a constant by name is not lowered yet */
 
     /* `size_t w : 0 .. K ;` */
     size_t c1 = NO_TOKEN;

@@ -83,3 +83,5 @@ golden/cases/020-extent/expected/c23/app/app_pos.h	static inline u8 *app_pos_ima
 golden/cases/020-extent/expected/c23/app/app_pos.h	static inline u8 *app_pos_image_r_ptr(struct app_pos_image *p, size_t i0, size_t i1);
 golden/cases/021-else-assign/expected/c11/app/app_reg.type.h	typedef struct app_reg_Person {
 golden/cases/021-else-assign/expected/c23/app/app_reg.type.h	typedef struct app_reg_Person {
+golden/cases/029-match-corot/expected/c11/mc.c	case keel_corot_Status_ONGOING: goto keel__m0_ONGOING;
+golden/cases/029-match-corot/expected/c23/mc.c	case keel_corot_Status_ONGOING: goto keel__m0_ONGOING;

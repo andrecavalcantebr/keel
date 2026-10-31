@@ -37,9 +37,11 @@
 typedef struct {
     size_t kw, open, close;         /* `match`, the match's `{` and `}` */
     size_t operand;                 /* the variable's token */
-    bool ptr;                       /* declared with a `*`: `->tag` */
+    bool ptr;                       /* declared with a `*` */
     char set[NAME_CAP];             /* the mangled set: `ag_Cycle` */
     size_t set_len;
+    char disc[NAME_CAP];            /* what `switch` reads: `st->tag`, `s`, `keel_corot_tag(r)` */
+    size_t disc_len;
     size_t label[MAX_LABELS], colon[MAX_LABELS];
     size_t n;
 } Match;
@@ -72,6 +74,90 @@ static bool ends_line(const KAst *ast, size_t off) {
     return true;
 }
 
+/* The set the labels come from and what `switch` reads (backend §5.6, rule 3), by the type in
+ * the island, `st (tagged Cycle void): ST1 ST2`:
+ *   - `tagged <Set> <T>`: the label field, `x.tag` or `x->tag`;
+ *   - a type that is itself a set (`corot.Status`): the value, `x` or `*x`;
+ *   - a type whose module declares `tag` (`corot`): the call of the verb, `keel_corot_tag(x)`,
+ *     its set the one `tag` returns. */
+static bool resolve_operand(const KAst *ast, const KIsland *is, Match *m, KToken name) {
+    const char *t = keel_buffer_char_ptr(&ast->island_text, is->text);
+    size_t len = is->text_len, p = 0;
+    while (p < len && t[p] != '(') p++;
+    size_t ts = p + 1, te = ts;
+    while (te + 1 < len && !(t[te] == ')' && t[te + 1] == ':')) te++;
+    if (p >= len || te + 1 >= len) return false;
+    size_t q = 0;
+    if (te - ts > 7 && memcmp(t + ts, "tagged ", 7) == 0) {
+        size_t s = ts + 7, e = s;
+        while (e < te && t[e] != ' ') e++;
+        if (e == s) return false;
+        for (size_t k = s; k < e; k++) if (t[k] == '.') return false;
+        const KSymbol *sym = ast->symbols ? k_symbol_resolve(ast->symbols, (keel_slice_char){ e - s, (char *)t + s }) : NULL;
+        if (!sym) return false;
+        m->set_len = k_mangle_symbol(sym, (keel_slice_char){ sizeof m->set, m->set });
+        if (m->set_len == 0 || m->set_len > sizeof m->set) return false;
+        memcpy(m->disc, name.ptr, name.len);
+        q = name.len;
+        const char *f = m->ptr ? "->tag" : ".tag";
+        memcpy(m->disc + q, f, strlen(f));
+        m->disc_len = q + strlen(f);
+        return true;
+    }
+    const char *sym;
+    size_t sym_len;
+    if (!ast->symbols || !k_em_type_symbol(ast, t + ts, te - ts, &sym, &sym_len)) return false;
+    /* the written name (`corot.Status`) may be a set the table knows only by its qualified name */
+    const KSymbol *by_name = k_symbol_resolve(ast->symbols, (keel_slice_char){ te - ts, (char *)t + ts });
+    for (size_t i = 0; i < ast->symbols->len + 1; i++) {
+        const KSymbol *s = i < ast->symbols->len ? keel_buffer_KSymbol_ptr(ast->symbols, i) : by_name;
+        if (!s) continue;
+        char ms[NAME_CAP];
+        size_t ml = k_mangle_symbol(s, (keel_slice_char){ sizeof ms, ms });
+        if (ml != sym_len || memcmp(ms, sym, ml) != 0) continue;
+        if (s->kind == K_SYM_TAGS) {
+            memcpy(m->set, ms, ml);
+            m->set_len = ml;
+            if (m->ptr) m->disc[q++] = '*';
+            memcpy(m->disc + q, name.ptr, name.len);
+            m->disc_len = q + name.len;
+            return true;
+        }
+        if ((s->kind != K_SYM_TYPE && s->kind != K_SYM_MODIFIER) || !s->origin || !s->origin->ast) return false;
+        const KAst *own = s->origin->ast;
+        for (size_t n = 0; n < own->nodes.len; n++) {
+            const KAstNode *fn = keel_buffer_KAstNode_ptr(&own->nodes, n);
+            if (fn->kind != K_AST_FUNCTION || fn->name_first >= fn->name_end || !k_em_text_is(k_em_tok(own, fn->name_first), "tag")) continue;
+            /* the return type: the word before the name; the parameter: by pointer or by value */
+            size_t r = fn->first;
+            while (r < fn->name_first && (k_em_is_visibility(k_em_tok(own, r)) || k_em_text_is(k_em_tok(own, r), "inline"))) r++;
+            if (r + 1 != fn->name_first) return false;
+            KToken ret = k_em_tok(own, r);
+            bool vptr = false;
+            for (size_t j = fn->name_first + 1; j < fn->body_first && !k_em_text_is(k_em_tok(own, j), ")"); j++)
+                if (k_em_text_is(k_em_tok(own, j), "*")) vptr = true;
+            size_t sl = k_mangle_decl(s->origin->name, (keel_slice_char){ ret.len, (char *)ret.ptr }, true, (keel_slice_char){ sizeof m->set, m->set });
+            if (sl == 0 || sl > sizeof m->set) return false;
+            m->set_len = sl;
+            char verb[NAME_CAP];
+            size_t vl = k_mangle_decl(s->origin->name, (keel_slice_char){ 3, (char *)"tag" }, false, (keel_slice_char){ sizeof verb, verb });
+            if (vl > sizeof verb || vl + 4 + name.len + 2 > sizeof m->disc) return false;
+            memcpy(m->disc, verb, vl);
+            q = vl;
+            m->disc[q++] = '(';
+            if (vptr && !m->ptr) m->disc[q++] = '&';
+            if (!vptr && m->ptr) m->disc[q++] = '*';
+            memcpy(m->disc + q, name.ptr, name.len);
+            q += name.len;
+            m->disc[q++] = ')';
+            m->disc_len = q;
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
+
 static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
     if (is->kind != K_ISLAND_MATCH) return false;
     m->kw = is->anchor;
@@ -91,20 +177,6 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
         !ends_line(ast, k_em_tok_end(ast, m->close)))
         return false;
 
-    /* the operand's type, from the island: `st (tagged Cycle void): ST1 ST2` */
-    const char *t = keel_buffer_char_ptr(&ast->island_text, is->text);
-    size_t len = is->text_len, p = 0;
-    while (p < len && t[p] != '(') p++;
-    if (p >= len || len - p < 8 || memcmp(t + p + 1, "tagged ", 7) != 0) return false;
-    size_t s = p + 8, e = s;
-    while (e < len && t[e] != ' ' && t[e] != ')') e++;
-    if (e == s) return false;
-    for (size_t k = s; k < e; k++) if (t[k] == '.') return false;
-    const KSymbol *sym = ast->symbols ? k_symbol_resolve(ast->symbols, (keel_slice_char){ e - s, (char *)t + s }) : NULL;
-    if (!sym) return false;
-    m->set_len = k_mangle_symbol(sym, (keel_slice_char){ sizeof m->set, m->set });
-    if (m->set_len == 0 || m->set_len > sizeof m->set) return false;
-
     /* declared with a `*` or not: the first earlier use of the name that follows a type */
     KToken name = k_em_tok(ast, m->operand);
     m->ptr = false;
@@ -118,6 +190,7 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
         found = true;
     }
     if (!found) return false;
+    if (!resolve_operand(ast, is, m, name)) return false;
 
     /* the labels of the arms, at depth 1 of the match's braces */
     m->n = 0;
@@ -202,8 +275,8 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
             if (!w) return;
             size_t q = 0;
             q = put(w, q, "switch (", sizeof "switch (" - 1);
-            q = put(w, q, k_em_tok(ast, m.operand).ptr, k_em_tok(ast, m.operand).len);
-            q = m.ptr ? put(w, q, "->tag) {", sizeof "->tag) {" - 1) : put(w, q, ".tag) {", sizeof ".tag) {" - 1);
+            q = put(w, q, m.disc, m.disc_len);
+            q = put(w, q, ") {", 3);
             for (size_t i = 0; i < m.n; i++) {
                 KToken tag = k_em_tok(ast, m.label[i]);
                 q = put(w, q, "\n", sizeof "\n" - 1);

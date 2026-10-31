@@ -1,0 +1,24 @@
+O que este caso afirma
+======================
+
+O `match` alcança todo tipo que satisfaz `Taggable` (linguagem §4.9, §5.1):
+quem declara `tag` entra, e o conjunto exaustivo é o que `tag` devolve, o
+`tagset`. Em `corot` é `Status`. O `tagged` é só o caso em que `tag` é uma
+leitura de campo.
+
+`classify` despacha sobre um `corot`: o discriminante é a chamada do verbo,
+`keel_corot_tag(r)` (backend §5.6, regra 3), e os três braços cobrem
+`SUCCESS`, `ONGOING` e `FAILED` sem `default` no fonte. O código de falha não
+se perde: o braço `FAILED` lê `corot.code(r)`, e dois códigos diferentes caem
+no mesmo braço (spec §5.5, regra 7). A `proof.c` confere os dois.
+
+`rank` despacha sobre um operando cujo tipo declarado já é o conjunto,
+`corot.Status`, e o lê como está: `switch (s)`. É o outro dos três operandos
+do §5.6 regra 3; o terceiro, o campo de etiqueta do `tagged`, é o caso 009.
+
+O conjunto vem de outro módulo, e por isso as constantes saem com o prefixo
+dele: `keel_corot_Status_SUCCESS`, não `mc_...`.
+
+Escopo por braço, o `goto` do último braço que não existe e o `default:` com
+`tag-out-of-range` são os do 009; este caso não os repete com verificação em
+execução.

@@ -293,6 +293,11 @@ static int match_set(Ctx *c, Range op, const KAst **where, keel_slice_char *set)
     if (k->kind == KT_NAMED) {
         const KSymbol *s = k_symbol_resolve(c->ast->symbols, k->name);
         if (s && s->kind == K_SYM_TAGS) { *where = own; *set = k->name; return 1; }
+        /* written qualified (`corot.Status`): the set is declared by the type's own module */
+        KTagsDecl probe;
+        if (k->module && k->module->ast && isl_tags_decl(k->module->ast, k->name, &probe)) {
+            *where = k->module->ast; *set = k->name; return 1;
+        }
     }
     if (k->kind != KT_MODIFIER && k->kind != KT_NAMED) return -1;
     Sig sig = isl_find_verb(own, k_diag_text("tag"), 1);

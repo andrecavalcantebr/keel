@@ -114,7 +114,8 @@ typedef struct {
     size_t close, body, last;
     bool braced;
     bool by_pointer;            /* the container is a pointer: no `&` */
-    bool value_copy;            /* a `range` by value: the temporary is a copy, not a pointer */
+    bool value_copy;            /* a `range` or a by-value modifier: the temporary is a copy, not a pointer */
+    bool walk;                  /* `walk (T *p, C c : x)`: the cursor protocol, not the index one */
     const char *sym; size_t sym_len;   /* the container's instance */
 } Over;
 
@@ -156,7 +157,8 @@ static bool read_body(const KAst *ast, size_t close, size_t *body, size_t *last,
 /* `( T v , I i : c )` with the container's type in the island's detail:
  * `v, i : c (buffer i32)` */
 static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KAstNode *fn, Over *o) {
-    if (!word(ast, kw, "foreach") || !word(ast, kw + 1, "(")) return false;
+    o->walk = word(ast, kw, "walk");
+    if ((!word(ast, kw, "foreach") && !o->walk) || !word(ast, kw + 1, "(")) return false;
     size_t close = closing(ast, kw + 1, "(", ")");
     if (close == NO_TOKEN) return false;
     size_t comma = NO_TOKEN, colon = NO_TOKEN;
@@ -171,7 +173,7 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
     o->cont = colon + 1;
     o->close = close;
     if (!word_like(ast, o->value) || !word_like(ast, o->index) || !word_like(ast, o->cont)) return false;
-    for (size_t i = o->vtype_a; i < o->vtype_b; i++) if (word(ast, i, "*")) return false;   /* by pointer: `ptr`, not yet */
+    for (size_t i = o->vtype_a; i < o->vtype_b && !o->walk; i++) if (word(ast, i, "*")) return false;   /* by pointer: `ptr`, not yet */
     if (!read_body(ast, close, &o->body, &o->last, &o->braced)) return false;
     /* the container's type, from the detail: `... (<type>)` */
     const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
@@ -180,7 +182,7 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
     if (open == 0 || len < open + 2 || d[len - 1] != ')') return false;
     if (!k_em_type_symbol(ast, d + open, len - 1 - open, &o->sym, &o->sym_len)) return false;
     /* a range has no storage to point to: its temporary is a copy (the golden 015) */
-    o->value_copy = len - 1 - open == 5 && memcmp(d + open, "range", 5) == 0;
+    o->value_copy = (len - 1 - open == 5 && memcmp(d + open, "range", 5) == 0) || (!o->walk && k_em_type_by_value(ast, o->sym, o->sym_len));
     /* by value or by pointer: the declaration `<type> c` or `<type> *c` in the function */
     KToken c = k_em_tok(ast, o->cont);
     bool found = false;
@@ -188,7 +190,8 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
         KToken t = k_em_tok(ast, i);
         if (t.len != c.len || memcmp(t.ptr, c.ptr, c.len) != 0) continue;
         if (word(ast, i - 1, "*")) { o->by_pointer = true; found = true; }
-        else if (word_like(ast, i - 1) && (word(ast, i + 1, "=") || word(ast, i + 1, ";") || word(ast, i + 1, ",") || word(ast, i + 1, ")"))) {
+        else if (word_like(ast, i - 1) && (word(ast, i + 1, "=") || word(ast, i + 1, ";") || word(ast, i + 1, ",") || word(ast, i + 1, ")") ||
+                                          word(ast, i + 1, ":"))) {   /* the last, a `parallel` binder */
             o->by_pointer = false; found = true;
         }
     }
@@ -224,7 +227,7 @@ static bool analyze_range_var(const KAst *ast, const KIsland *is, size_t kw, con
 static const KIsland *island_at(const KAst *ast, size_t kw) {
     for (size_t i = 0; i < ast->islands.len; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
-        if (is->kind == K_ISLAND_FOREACH && is->anchor == kw) return is;
+        if ((is->kind == K_ISLAND_FOREACH || is->kind == K_ISLAND_WALK) && is->anchor == kw) return is;
     }
     return NULL;
 }
@@ -322,6 +325,114 @@ static void edits_over(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     }
 }
 
+/* the symbol of a verb of the container's protocol: `<instance>_<verb>` for an instance of the
+ * closure, else the module's own function of that name (backend §5.11); false when neither */
+static bool verb_symbol(Emit *e, const char *sym, size_t sym_len, const char *verb, char *out, size_t cap, size_t *len) {
+    const KAst *ast = e->ast;
+    size_t vl = strlen(verb);
+    for (size_t c = 0; c < ast->closure.len; c++) {
+        const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, c);
+        if (k->kind != K_CLOSURE_INSTANCE || k->symbol_len != sym_len || memcmp(k->symbol, sym, sym_len) != 0) continue;
+        if (sym_len + 1 + vl > cap) return false;
+        memcpy(out, sym, sym_len); out[sym_len] = '_'; memcpy(out + sym_len + 1, verb, vl);
+        *len = sym_len + 1 + vl;
+        return true;
+    }
+    for (size_t n = 0; n < ast->nodes.len; n++) {
+        const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, n);
+        if (d->kind != K_AST_FUNCTION || d->name_first >= d->name_end) continue;
+        KToken t = k_em_tok(ast, d->name_first);
+        if (t.len != vl || memcmp(t.ptr, verb, vl) != 0) continue;
+        size_t q = k_mangle_decl(e->module, (keel_slice_char){ vl, (char *)verb }, false, (keel_slice_char){ cap, out });
+        if (q > cap) return false;
+        *len = q;
+        return true;
+    }
+    return false;
+}
+
+/* `walk (T *p, C c : x) body` (§5.11):
+ *   {   S *keel__c<N> = x; C c = S_begin(keel__c<N>); while (S_has_next(keel__c<N>, &c)) { T *p = S_next(keel__c<N>, &c); body } }
+ * on the line of the `walk`. The cursor is written with its type; the verbs are the container's. */
+static void edits_walk(Emit *e, const KAstNode *fn, size_t kw, const Over *o, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t n = k_em_capture_ordinal(ast, fn, kw);
+    size_t at = k_em_tok_off(ast, kw), end = k_em_tok_end(ast, o->close);
+    if (at < a || at >= b) {
+        if (o->braced) push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " }", .text_len = 2 });
+        return;
+    }
+    if (k_em_declared_at(e, o->value) || k_em_declared_at(e, o->index)) { e->ok = false; return; }
+    char vb[3][NAME_CAP];
+    size_t vl3[3];
+    if (!verb_symbol(e, o->sym, o->sym_len, "begin", vb[0], NAME_CAP, &vl3[0]) ||
+        !verb_symbol(e, o->sym, o->sym_len, "has_next", vb[1], NAME_CAP, &vl3[1]) ||
+        !verb_symbol(e, o->sym, o->sym_len, "next", vb[2], NAME_CAP, &vl3[2])) { e->ok = false; return; }
+    e->n = 0;
+    put_s(e, "{   ");
+    k_em_put_bytes(e, o->sym, o->sym_len);
+    put_s(e, " *keel__c"); put_uint(e, n);
+    put_s(e, " = ");
+    if (!o->by_pointer) put_s(e, "&");
+    k_em_put_range(e, o->cont, o->cont + 1);
+    put_s(e, "; ");
+    /* `lst.cursor` names the module's own type: only the declaration, renamed */
+    /* `lst.cursor` names the module's own type, as one token or as three: only the name, mangled */
+    KToken qual = {0}, nm_tok = {0};
+    if (o->itype_b - o->itype_a == 3 && word(ast, o->itype_a + 1, ".")) { qual = k_em_tok(ast, o->itype_a); nm_tok = k_em_tok(ast, o->itype_a + 2); }
+    else if (o->itype_b - o->itype_a == 1) {
+        KToken ct = k_em_tok(ast, o->itype_a);
+        size_t dot = ct.len;
+        for (size_t q = 0; q < ct.len; q++) if (ct.ptr[q] == '.') dot = q;
+        if (dot < ct.len) { qual = (KToken){ .ptr = ct.ptr, .len = dot }; nm_tok = (KToken){ .ptr = ct.ptr + dot + 1, .len = ct.len - dot - 1 }; }
+    }
+    if (qual.len && qual.len == e->module.len && memcmp(qual.ptr, e->module.ptr, qual.len) == 0) {
+        char nm[NAME_CAP];
+        size_t q = k_mangle_decl(e->module, (keel_slice_char){ nm_tok.len, (char *)nm_tok.ptr }, true, (keel_slice_char){ sizeof nm, nm });
+        if (q > sizeof nm) { e->ok = false; return; }
+        k_em_put_bytes(e, nm, q);
+    } else {
+        k_em_put_range(e, o->itype_a, o->itype_b);
+    }
+    put_s(e, " "); put_tok(e, o->index);
+    put_s(e, " = "); k_em_put_bytes(e, vb[0], vl3[0]);
+    put_s(e, "(keel__c"); put_uint(e, n);
+    put_s(e, "); while ("); k_em_put_bytes(e, vb[1], vl3[1]);
+    put_s(e, "(keel__c"); put_uint(e, n);
+    put_s(e, ", &"); put_tok(e, o->index);
+    put_s(e, "))");
+    size_t hl;
+    const char *head = take(e, &hl);
+    if (!head) return;
+    k_em_put_range(e, o->vtype_a, o->vtype_b);
+    if (!word(ast, o->vtype_b - 1, "*")) put_s(e, " ");
+    put_tok(e, o->value);
+    put_s(e, " = "); k_em_put_bytes(e, vb[2], vl3[2]);
+    put_s(e, "(keel__c"); put_uint(e, n);
+    put_s(e, ", &"); put_tok(e, o->index);
+    put_s(e, ");");
+    size_t vl;
+    const char *val = take(e, &vl);
+    if (!val) return;
+    size_t j = 0;
+    for (size_t k = 0; k < *cnt; k++)
+        if (ed[k].at < at || ed[k].at >= end) ed[j++] = ed[k];
+    *cnt = j;
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = end - at, .text = head, .text_len = hl });
+    if (o->braced) {
+        size_t ob = k_em_tok_end(ast, o->body);
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = " ", .text_len = 1 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = val, .text_len = vl });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " }", .text_len = 2 });
+    } else {
+        size_t sb = k_em_tok_off(ast, o->body);
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = "{ ", .text_len = 2 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = val, .text_len = vl });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = " ", .text_len = 1 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " } }", .text_len = 4 });
+    }
+}
+
 /* `foreach (T b : r) body` over a range variable (§5.7, rule 6):
  *   { size_t keel__f<N> = keel_range_first(r); size_t keel__l<N> = keel_range_limit(r); for (T b = keel__f<N>; b < keel__l<N>; b++) body }
  * The header is on the line of the `foreach` (rule 5). */
@@ -396,10 +507,14 @@ static const KAstNode *fn_of(const KAst *ast, size_t tok) {
 void k_em_edits_foreach(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     for (size_t kw = fn->body_first; kw < fn->body_end; kw++) {
-        if (!word(ast, kw, "foreach")) continue;
+        if (!word(ast, kw, "foreach") && !word(ast, kw, "walk")) continue;
         const KIsland *is = island_at(ast, kw);
         Over o;
-        if (is && analyze_over(ast, is, kw, fn, &o)) { edits_over(e, fn, kw, &o, a, b, ed, cnt); continue; }
+        if (is && analyze_over(ast, is, kw, fn, &o)) {
+            if (o.walk) edits_walk(e, fn, kw, &o, a, b, ed, cnt);
+            else edits_over(e, fn, kw, &o, a, b, ed, cnt);
+            continue;
+        }
         RangeVar rv;
         if (is && analyze_range_var(ast, is, kw, fn, &rv)) { edits_range_var(e, fn, kw, &rv, a, b, ed, cnt); continue; }
         Foreach f;
@@ -453,7 +568,7 @@ void k_em_edits_foreach(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *e
 }
 
 bool k_em_handles_foreach(const KAst *ast, const KIsland *is) {
-    if (is->kind != K_ISLAND_FOREACH) return false;
+    if (is->kind != K_ISLAND_FOREACH && is->kind != K_ISLAND_WALK) return false;
     /* the detail of a range is `<binder> : <A>..<B>`; over a container it has no `..` */
     const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
     bool dots = false;

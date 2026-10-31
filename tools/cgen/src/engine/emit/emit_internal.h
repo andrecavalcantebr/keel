@@ -231,6 +231,8 @@ typedef struct {
 } KRangeUse;
 int k_em_range_use(const KAst *ast, size_t i, KRangeUse *r);
 /* the symbol a type island resolved the written type `spelled` to */
+/* whether the instance with this symbol is of a modifier that is not `byref`: a value, copied into a temporary */
+bool k_em_type_by_value(const KAst *ast, const char *sym, size_t len);
 bool k_em_type_symbol(const KAst *ast, const char *spelled, size_t len, const char **sym, size_t *sym_len);
 
 #endif /* CGEN_ENGINE_EMIT_EMIT_INTERNAL_H */

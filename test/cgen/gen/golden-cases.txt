@@ -22,6 +22,7 @@ test/cgen/gen/imports|use.k|-
 026-debug-checks|app/chk.k|app.chk
 009-match-tags|ag.k|-
 010-routine|ag2.k|-
+019-walk|lst.k|-
 011-else|app/el.k|-
 013-sugar|app/ac.k|-
 015-foreach-range|app/ap.k|-

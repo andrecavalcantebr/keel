@@ -492,6 +492,22 @@ bool k_em_type_symbol(const KAst *ast, const char *spelled, size_t len, const ch
     return false;
 }
 
+bool k_em_type_by_value(const KAst *ast, const char *sym, size_t len) {
+    for (size_t c = 0; c < ast->closure.len; c++) {
+        const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, c);
+        if (k->kind != K_CLOSURE_INSTANCE || k->symbol_len != len || memcmp(k->symbol, sym, len) != 0 || !k->module || !k->module->ast) continue;
+        const KAst *g = k->module->ast;
+        for (size_t q = 0; q < g->nodes.len; q++) {
+            const KAstNode *m = keel_buffer_KAstNode_ptr(&g->nodes, q);
+            if (m->kind != K_AST_MODIFIER) continue;
+            for (size_t j = m->name_first; j < m->end; j++)
+                if (k_em_text_is(k_em_tok(g, j), "byref")) return false;
+            return true;
+        }
+    }
+    return false;
+}
+
 /* For k_em_put_range, the copy by tokens: the use anchored at token i. 1 with
  * the symbol to write instead of tokens [i, end) (none for a call of the
  * module's own verb, which emit.c renames) and the first tokens of the

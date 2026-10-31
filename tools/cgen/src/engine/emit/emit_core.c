@@ -149,7 +149,8 @@ bool k_em_overlaps(const Emit *e, const KAstNode *n, size_t a, size_t b) {
 static bool container_foreach_at(const KAst *ast, size_t kw) {
     for (size_t i = 0; i < ast->islands.len; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
-        if (is->kind != K_ISLAND_FOREACH || is->anchor != kw) continue;
+        if (is->anchor != kw || (is->kind != K_ISLAND_FOREACH && is->kind != K_ISLAND_WALK && is->kind != K_ISLAND_PARALLEL)) continue;
+        if (is->kind != K_ISLAND_FOREACH) return true;   /* `walk` and `parallel` always hold their container in a temporary */
         const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
         for (size_t k = 0; k + 1 < is->text_len; k++)
             if (d[k] == '.' && d[k + 1] == '.') return false;
@@ -163,7 +164,8 @@ size_t k_em_capture_ordinal(const KAst *ast, const KAstNode *fn, size_t tok) {
     for (size_t i = fn->body_first; i < tok; i++) {
         if (k_em_text_is(k_em_tok(ast, i), "defer") && i + 2 < ast->tokens.len &&
             k_em_text_is(k_em_tok(ast, i + 1), "[") && k_em_text_is(k_em_tok(ast, i + 2), "now")) k++;
-        else if (k_em_text_is(k_em_tok(ast, i), "foreach") && container_foreach_at(ast, i)) k++;
+        else if ((k_em_text_is(k_em_tok(ast, i), "foreach") || k_em_text_is(k_em_tok(ast, i), "walk") ||
+                  k_em_text_is(k_em_tok(ast, i), "parallel")) && container_foreach_at(ast, i)) k++;
     }
     return k;
 }

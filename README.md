@@ -33,13 +33,13 @@ int reading_first(const char *path) {
 `FILE`, `fopen`, `fgetc` e `EOF` keel não conhece, e não precisa: ela reconheceu
 `module`, `pub` e `defer`, e o resto atravessou. É essa a ideia inteira.
 
-> **Estado: a linguagem está fechada, e o compilador lê keel mas ainda não
-> emite C.** Os quatro documentos normativos estão completos, a biblioteca base
-> está escrita em keel, e há 27 casos de teste com a saída C esperada nos dois
-> perfis (três em construção). O `cgen` já tem o lexer e o parser completos: lê
-> um `.k`, resolve os imports, reconhece toda a gramática, verifica as regras de
-> keel e imprime a árvore (`--stop-after=parse`). A emissão de C é o próximo
-> marco.
+> **Estado: a linguagem está fechada, e o compilador já emite C para a maior parte
+> dela.** Os quatro documentos normativos estão completos, a biblioteca base
+> está escrita em keel, e há 31 casos de teste com a saída C esperada nos dois
+> perfis (três em construção). O `cgen` lê um `.k`, resolve os imports, reconhece
+> toda a gramática, verifica as regras de keel e emite C (`--stop-after=gen`): 25
+> dos 31 casos saem byte a byte, nos dois perfis, e a maior parte dos headers da base sai dele. Faltam
+> `extent`, `keel.length` e o caminho que chama o compilador C.
 
 ---
 
@@ -212,7 +212,7 @@ em `cgen -o app.parse --stop-after=parse app.k`.
 
 ## keel por exemplos
 
-Os pares mostram a operação essencial da tradução. Um bloco precedido de `<!-- golden: caminho:linhas -->` é um trecho literal de um arquivo de [`golden/`](golden/), conferido por `test/docs.sh`: o que está ali é o que o cgen gera, sem o cabeçalho e os `#include` do arquivo. Os `#line` que aparecem dentro de um trecho são os do arquivo gerado: eles ligam o C à linha do `.k`, e a regra é do backend (§6). Os blocos ainda sem marcador usam representações locais dos tipos, para tornar o exemplo legível, e serão migrados. Nos exemplos cooperativos, o código `1` representa uma falha sem estabelecer a codificação detalhada de diagnóstico por participante.
+Os pares mostram a operação essencial da tradução. Um bloco precedido de `<!-- golden: caminho:linhas -->` é um trecho literal de um arquivo de [`golden/`](golden/), conferido por `test/docs.sh`: o que está ali é o que o cgen gera, sem o cabeçalho e os `#include` do arquivo. Os `#line` que aparecem dentro de um trecho são os do arquivo gerado: eles ligam o C à linha do `.k`, e a regra é do backend (§6). Nos exemplos cooperativos, o código `1` representa uma falha sem estabelecer a codificação detalhada de diagnóstico por participante.
 
 Os exemplos 1 a 4 e 7 são módulos independentes. Os exemplos 5 e 6 compõem o mesmo módulo `coop`: as funções auxiliares são apresentadas uma vez no exemplo 5. Nenhum import da base, além de `import keel types;`, é implícito.
 
@@ -387,6 +387,7 @@ Contratos na [spec](keel-spec.md): §§4.10 e 5.5. [Justificativa: resultados fi
 
 A função `note`, declarada abaixo, é usada também no exemplo seguinte. `count` mantém seu progresso no contador passado pelo programa. Cada chamada retorna normalmente: `corot.again` entrega `ONGOING`; `corot.win` entrega `SUCCESS`; `corot.fault(r, 1)` entrega `FAILED`. O retorno é `corot`, que carrega o estado e o código, e nenhum valor: o que a passagem produz fica no contador que o programa passou. `note` é uma função comum de retorno `void`.
 
+<!-- golden: cases/031-readme-coop/coop.k:1-36 -->
 ```keel
 //keel
 module coop;
@@ -427,58 +428,53 @@ pub i16 manual(void) {
 }
 ```
 
+<!-- golden: cases/031-readme-coop/expected/c23/coop.c:14-54 -->
 ```c
 //C gerado
-#include <stdbool.h>
-#include <stdint.h>
-
-typedef int16_t i16;
-typedef struct { int32_t code; } keel_corot;
-typedef struct { int32_t code; i16 value; } keel_outcome_i16;
-
-typedef enum { coop_WAIT, coop_END } coop_Cycle;
-typedef struct { int32_t tag; } keel_tagged_coop_Cycle_void;
-
-static keel_corot coop_count(i16 *counter,
-                                         i16 limit, bool failure) {
+static keel_corot coop_count(i16 *counter, i16 limit, bool failure) {
     keel_corot r = {0};
     ++*counter;
-    if (*counter < limit) { r.code =  0; return r; }
-    if (failure)              { r.code =  1; return r; }
-    r.code = -1; return r;
+    if (*counter < limit) return keel_corot_again(&r);
+    if (failure)              return keel_corot_fault(&r, 1);
+    return keel_corot_win(&r);
 }
 
 static void coop_note(i16 *counter) {
     ++*counter;
 }
 
+
+
 i16 coop_manual(void) {
     keel_tagged_coop_Cycle_void state = {0};
-    state.tag = coop_WAIT;
+    keel_tagged_coop_Cycle_void_mark(&state, coop_Cycle_WAIT);
     i16 calls = 0;
     bool finished = false;
 
     while (!finished) {
         switch (state.tag) {
-        case coop_WAIT: goto keel__m0_WAIT;
-        case coop_END:    goto keel__m0_END;
-        default:                goto keel__m0_end;
+        case coop_Cycle_WAIT: goto keel__m0_WAIT;
+        case coop_Cycle_END:  goto keel__m0_END;
+        default:              KEEL_CHECK(0, "tag-out-of-range"); goto keel__m0_end;
         }
+#line 28 "coop.k"
         keel__m0_WAIT: {
             keel_corot r = coop_count(&calls, 2, false);
-            if (r.code > 0 || r.code < 0) state.tag = coop_END;
+            if (keel_corot_faulted(r) || keel_corot_ok(r)) keel_tagged_coop_Cycle_void_mark(&state, coop_Cycle_END);
         }
         goto keel__m0_end;
+#line 31 "coop.k"
         keel__m0_END: {
             finished = true;
         }
         keel__m0_end: ;
+#line 34 "coop.k"
     }
     return calls;
 }
 ```
 
-`manual()` devolve `2`. A mudança para `END` só é observada no próximo despacho do laço escrito pelo usuário; não há passagem automática de um braço ao seguinte. O teste `corot.faulted(r) || corot.ok(r)` significa que a chamada terminou, com falha ou sucesso; não é o predicado de falha de `outcome`.
+A mudança para `END` só é observada no próximo despacho do laço escrito pelo usuário; não há passagem automática de um braço ao seguinte. O valor que a função devolve é definido no contexto, pelo laço e pelos contadores do programa, e a máquina de estados é gerada pelos verbos de `corot`. O teste `corot.faulted(r) || corot.ok(r)` significa que a chamada terminou, com falha ou sucesso; não é o predicado de falha de `outcome`.
 
 O C usa `switch` somente para escolher um rótulo; os corpos dos braços ficam fora dele. Isso preserva a associação de controles escritos pelo usuário aos seus próprios laços. `match` não produz o valor retornado por `manual`: esse retorno é um statement da função.
 
@@ -489,15 +485,18 @@ Contratos na [spec](keel-spec.md): §§4.9 e 5.4. [Justificativa: controle e má
 ### 6. `routine.par`: tabela de slots e política
 
 Esta função continua o módulo `coop` do exemplo 5, acrescentando os imports de
-`keel.routine` e `keel.slice`. As participantes são descritas em um vetor de
+`keel.routine`, `keel.slice` e `keel.array` (`slice.of` pede os verbos de
+`keel.array`). As participantes são descritas em um vetor de
 `routine.slot`, montado pelo programa. `routine.par` percorre essa fatia em
 ciclos e devolve um `outcome u32` cujo valor associado é a quantidade de
 sucessos. O estado de cada slot fica no próprio slot e é lido depois.
 
+<!-- golden: cases/031-readme-coop/coop.k:38-61 -->
 ```keel
 //keel
 import keel.routine as routine types;
 import keel.slice   as slice   types;
+import keel.array   as array;
 
 priv corot stage(i16 *counter) {
     corot r = {0};
@@ -521,67 +520,70 @@ pub outcome u32 set_of(i16 *a, i16 *b) {
 }
 ```
 
+<!-- golden: cases/031-readme-coop/expected/c23/coop.c:60-79 -->
 ```c
 //C gerado
-typedef keel_corot (*keel_routine_i16)(i16 *);
-
-typedef struct {
-    keel_routine_i16 f;
-    i16             *ctx;
-    keel_corot  state;
-} keel_routine_slot_i16;
-
-typedef struct {
-    size_t len;
-    keel_routine_slot_i16 *ptr;
-} keel_slice_keel_routine_slot_i16;
-
-typedef struct { int32_t code; uint32_t value; } keel_outcome_u32;
-
 static keel_corot coop_stage(i16 *counter) {
     keel_corot r = {0};
     ++*counter;
-    if (*counter < 2) { r.code = 0; return r; }
-    r.code = -1; return r;
-}
-
-static inline keel_outcome_u32
-keel_routine_i16_par(keel_slice_keel_routine_slot_i16 s, uint32_t target) {
-    uint32_t m = (uint32_t)s.len, S = 0, F = 0;
-    uint32_t q = target ? target : m;
-    for (size_t i = 0; i < s.len; ++i) s.ptr[i].state.code = 0;
-    for (;;) {
-        for (size_t i = 0; i < s.len; ++i) {
-            if (s.ptr[i].state.code != 0) continue;
-            keel_corot r = s.ptr[i].f(s.ptr[i].ctx);
-            s.ptr[i].state = r;
-            if (r.code < 0) ++S; else if (r.code > 0) ++F;
-        }
-        if (S >= q)     return (keel_outcome_u32){ 0, S };
-        if (m - F < q)  return (keel_outcome_u32){ 1, S };
-    }
+    if (*counter < 2) return keel_corot_again(&r);
+    return keel_corot_win(&r);
 }
 
 keel_outcome_u32 coop_set_of(i16 *a, i16 *b) {
     keel_routine_slot_i16 steps[2] = {
-        { .f = coop_stage, .ctx = a, .state = {0} },
-        { .f = coop_stage, .ctx = b, .state = {0} },
+        { .f = coop_stage, .ctx = a },
+        { .f = coop_stage, .ctx = b },
     };
+
     keel_outcome_u32 r = keel_routine_i16_par(keel_slice_of_keel_array_keel_routine_slot_i16(steps, 2), 1);
 
-    for (size_t i = 0; i < 2u; ++i) {
-        keel_routine_slot_i16 *sl = &steps[i];
-        if (sl->state.code < 0) coop_note(a);
-    }
+    { for (size_t i = 0; i < 2; i++) { keel_routine_slot_i16 *sl = &steps[i];
+        if (keel_corot_ok(keel_routine_slot_i16_state(sl))) coop_note(a);
+    } }
     return r;
 }
 ```
 
-Com `*a` e `*b` em zero, o alvo `1` é alcançado no **fim** do segundo ciclo, e
-não na primeira vitória: as duas entradas são chamadas nesse ciclo e as duas
-terminam em `SUCCESS`. O resultado é válido, com valor `2`; a travessia
-seguinte chama `note` duas vezes, e os contadores terminam `*a == 4` e
-`*b == 2`.
+A instância `routine i16` é a unidade `keel_routine_i16`: o `typedef` da participante e o `slot` saem no `.type.h` dela, e os verbos, no `.h`.
+
+<!-- golden: cases/031-readme-coop/expected/c23/keel/keel_routine_i16.type.h:8-11 -->
+```c
+//C gerado
+#line 18 "keel/routine.k"
+typedef keel_corot (*keel_routine_i16)(i16 *ctx);
+#line 25 "keel/routine.k"
+typedef struct keel_routine_slot_i16 { keel_routine_i16 f; i16 *ctx; keel_corot state; } keel_routine_slot_i16;
+```
+
+<!-- golden: cases/031-readme-coop/expected/c23/keel/keel_routine_i16.h:44-61 -->
+```c
+//C gerado
+static inline keel_outcome_u32 keel_routine_i16_par(keel_slice_keel_routine_slot_i16 s, u32 target) {
+    keel_outcome_u32 r = {0};
+    size_t n = keel_slice_keel_routine_slot_i16_length(s);
+    KEEL_CHECK(target <= n, "par-target-above-total");
+    u32 m = (u32)n, S = 0, F = 0, q = target ? target : m;
+    for (size_t i = 0; i < n; ++i) keel_slice_keel_routine_slot_i16_ptr1(s, i)->state = (keel_corot){0};
+    for (;;) {
+        for (size_t i = 0; i < n; ++i) {
+            keel_routine_slot_i16 *p = keel_slice_keel_routine_slot_i16_ptr1(s, i);
+            if (!keel_corot_ongoing(p->state)) continue;
+            p->state = p->f(p->ctx);
+            if (keel_corot_ok(p->state))           ++S;
+            else if (keel_corot_faulted(p->state)) ++F;
+        }
+        if (S >= q)    return keel_outcome_u32_win1(&r, S);
+        if (m - F < q) { keel_outcome_u32_value1(&r, S); return keel_outcome_u32_fail(&r, 1); }
+    }
+}
+```
+
+O alvo `1` é alcançado no **fim** de um ciclo, e não na primeira vitória: o ciclo
+chama todas as entradas ainda em `ONGOING`, e a política é julgada depois (spec
+§5.6). O valor associado do resultado é a quantidade de entradas que terminaram
+em `SUCCESS`. A travessia seguinte, um `foreach` de binder por ponteiro sobre o
+`array`, lê o estado de cada slot sem copiar o slot.
 
 O estado é lido pelos verbos de `corot`, e não pelo campo: `routine.state(steps[0])`
 devolve um `corot`, sobre o qual valem `corot.ok`, `corot.ongoing`,
@@ -608,6 +610,7 @@ Cada worker recebe uma parte do contêiner e a percorre por cursor, escrevendo
 seu resultado numa posição própria. Nada é compartilhado entre workers além do
 contêiner de saída, e cada um escreve num índice diferente.
 
+<!-- golden: cases/030-readme-scan/scan.k:1-14 -->
 ```keel
 //keel
 module scan;
@@ -626,6 +629,7 @@ pub void sum(buffer i32 *xs, buffer u32 *totals) {
 }
 ```
 
+<!-- golden: cases/030-readme-scan/expected/c23/scan.c:14-32 -->
 ```c
 //C gerado
 void scan_sum(keel_buffer_i32 *xs, keel_buffer_u32 *totals) {
@@ -636,16 +640,16 @@ void scan_sum(keel_buffer_i32 *xs, keel_buffer_u32 *totals) {
                 shared(keel__c0, sum, totals)
         for (size_t w = 0; w < 4; w++) {
             keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
+#line 8 "scan.k"
             u32 t = 0;
-            keel_slice_cursor c = keel_slice_i32_begin(&part);
-            while (keel_slice_i32_has_next(&part, &c)) {
-                i32 *p = keel_slice_i32_next(&part, &c);
+            {   keel_slice_i32 keel__c1 = part; keel_slice_cursor c = keel_slice_i32_begin(keel__c1); while (keel_slice_i32_has_next(keel__c1, &c)) { i32 *p = keel_slice_i32_next(keel__c1, &c);
                 t += (u32)*p;
-            }
-            *keel_buffer_u32_ptr(totals, w) = t;
+            } }
+            *keel_buffer_u32_ptr1(totals, w) = t;
             keel__end0: ;
         }
     }
+#line 14 "scan.k"
 }
 ```
 
@@ -664,7 +668,7 @@ Três coisas que o par mostra, e que os contratos detalham:
   construção.
 
 Sob `ALL` não há interrupção, e o fim natural de um worker não emite veredito:
-depois do bloco, `parallel.ok(soma)` é verdadeiro porque nenhum worker escreveu
+depois do bloco, `parallel.ok(sum)` é verdadeiro porque nenhum worker escreveu
 `fail`.
 A busca que para cedo é a outra política, e usa `win` mais
 `parallel.interrupted` (spec §§4.8 e 5.7).
@@ -682,8 +686,8 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`keel-c-backend.md`](keel-c-backend.md) | o que depende do alvo: nomes, artefatos, perfis |
 | [`cgen-tool-spec.md`](cgen-tool-spec.md) | o que depende da invocação |
 | [`base/`](base/) | os onze módulos da base, em keel: o prelúdio `keel` e os dez de `keel/` |
-| [`golden/`](golden/) | 27 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
-| [`tools/cgen/`](tools/cgen/) | o transpilador, hoje até o parse (`--stop-after=parse`) |
+| [`golden/`](golden/) | 31 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
+| [`tools/cgen/`](tools/cgen/) | o transpilador: lê, verifica e emite C (`--stop-after=gen`) |
 | [`design/`](design/) | desenho da implementação, e as ideias que não são v0 |
 
 A divisão entre os quatro documentos é normativa e usada como critério: quando

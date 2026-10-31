@@ -1244,6 +1244,20 @@ void isl_walk(Ctx *c, const KAstNode *n) {
 /* The keel fields of a `typedef struct { ... }` (spec §2.2, `struct-spec`): each
    field whose type is a keel type gets its type island, as a declaration would.
    An `extent` struct has islands of its own (isl_extent_island). */
+/* the type island of a declaration's specifier at token i, when it is a known type of
+   another module (a struct field, a typedef's specifier) */
+static void specifier_island(Ctx *c, size_t i) {
+    KAst *a = c->ast;
+    KLexer lexer;
+    TKPpKind pp;
+    KSpecifier spec;
+    KToken next = {0};
+    KToken first = isl_enter(a, i, &lexer, &pp);
+    if (k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind != K_SPEC_NONE &&
+        !(spec.kind == K_SPEC_NAMED_TYPE && k_primitive_name(spec.type_name)))
+        isl_declaration(c, i, &spec, &lexer, next, true, false);
+}
+
 void isl_struct_fields(Ctx *c, const KAstNode *n) {
     KAst *a = c->ast;
     size_t open = n->first;
@@ -1260,13 +1274,16 @@ void isl_struct_fields(Ctx *c, const KAstNode *n) {
     for (size_t i = open + 1; i < close; i++) {
         if (!(isl_punct(a, i - 1, "{") || isl_punct(a, i - 1, ";"))) continue;
         if (!isl_ident(a, i) || isl_word(a, i, "array")) continue;
-        KLexer lexer;
-        TKPpKind pp;
-        KSpecifier spec;
-        KToken next = {0};
-        KToken first = isl_enter(a, i, &lexer, &pp);
-        if (k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) && spec.kind != K_SPEC_NONE &&
-            !(spec.kind == K_SPEC_NAMED_TYPE && k_primitive_name(spec.type_name)))
-            isl_declaration(c, i, &spec, &lexer, next, true, false);
+        specifier_island(c, i);
     }
+}
+
+/* `typedef corot (*routine)(C *ctx);` in a generic module read as an instance: the island
+   of the specifier, `corot` (a typedef with a body has its fields read by isl_struct_fields) */
+void isl_typedef_specifier(Ctx *c, const KAstNode *n) {
+    KAst *a = c->ast;
+    size_t i = n->first;
+    while (i < n->end && !isl_word(a, i, "typedef")) i++;
+    if (++i < n->end && isl_ident(a, i) && !isl_word(a, i, "struct") && !isl_word(a, i, "union") && !isl_word(a, i, "enum"))
+        specifier_island(c, i);
 }

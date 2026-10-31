@@ -179,10 +179,11 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
                         /* a verb of the instance: <symbol>_<name>, and the rank suffix */
                         keel_slice_char rank = {0};
                         bool r = d == n && k_em_rank_suffix(e, d, &rank);
-                        char *w = k_em_scratch(e, e->inst->symbol.len + 1 + t.len + (r ? 1 + rank.len : 0));
+                        keel_slice_char pre = k_em_verb_on_modifier(e, d) ? e->inst->symbol : k_emit_unit(e->inst);
+                        char *w = k_em_scratch(e, pre.len + 1 + t.len + (r ? 1 + rank.len : 0));
                         if (!w) return;
                         size_t q = 0;
-                        memcpy(w + q, e->inst->symbol.ptr, e->inst->symbol.len); q += e->inst->symbol.len;
+                        memcpy(w + q, pre.ptr, pre.len); q += pre.len;
                         w[q++] = '_';
                         memcpy(w + q, t.ptr, t.len); q += t.len;
                         if (r) { w[q++] = '_'; memcpy(w + q, rank.ptr, rank.len); q += rank.len; }
@@ -643,11 +644,11 @@ static void emit_header(Emit *e, KEmitFile which) {
     char own_buf[NAME_CAP];
     const char *ext = type_h ? ".type.h" : ".h";
     keel_slice_char path = fit(e, path_buf, e->inst
-        ? k_mangle_instance_path(e->inst->module, e->inst->symbol, ext, (keel_slice_char){ NAME_CAP, path_buf })
+        ? k_mangle_instance_path(e->inst->module, k_emit_unit(e->inst), ext, (keel_slice_char){ NAME_CAP, path_buf })
         : k_mangle_path(e->module, ext, (keel_slice_char){ NAME_CAP, path_buf }));
     keel_slice_char guard = fit(e, guard_buf, k_mangle_guard(path, (keel_slice_char){ NAME_CAP, guard_buf }));
     keel_slice_char type_path = fit(e, type_buf, e->inst
-        ? k_mangle_instance_path(e->inst->module, e->inst->symbol, ".type.h", (keel_slice_char){ NAME_CAP, type_buf })
+        ? k_mangle_instance_path(e->inst->module, k_emit_unit(e->inst), ".type.h", (keel_slice_char){ NAME_CAP, type_buf })
         : k_mangle_path(e->module, ".type.h", (keel_slice_char){ NAME_CAP, type_buf }));
     /* an instance reaches what is the generic's through the module's .type.h (backend §4.4.1, rule 4) */
     keel_slice_char own_type = fit(e, own_buf, k_mangle_path(e->module, ".type.h", (keel_slice_char){ NAME_CAP, own_buf }));
@@ -690,8 +691,8 @@ void k_em_instance_h(Emit *e) { emit_header(e, K_EMIT_H); }
  * bodies of its `pub` functions without `inline`, each from the generic source */
 void k_em_instance_c(Emit *e) {
     char c_buf[NAME_CAP], h_buf[NAME_CAP];
-    keel_slice_char c_path = fit(e, c_buf, k_mangle_instance_path(e->inst->module, e->inst->symbol, ".c", (keel_slice_char){ NAME_CAP, c_buf }));
-    keel_slice_char h_path = fit(e, h_buf, k_mangle_instance_path(e->inst->module, e->inst->symbol, ".h", (keel_slice_char){ NAME_CAP, h_buf }));
+    keel_slice_char c_path = fit(e, c_buf, k_mangle_instance_path(e->inst->module, k_emit_unit(e->inst), ".c", (keel_slice_char){ NAME_CAP, c_buf }));
+    keel_slice_char h_path = fit(e, h_buf, k_mangle_instance_path(e->inst->module, k_emit_unit(e->inst), ".h", (keel_slice_char){ NAME_CAP, h_buf }));
     if (!e->ok) return;
     raw(e, "/* ");
     raw_slice(e, c_path);

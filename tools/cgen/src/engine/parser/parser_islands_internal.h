@@ -238,6 +238,7 @@ const char *isl_control_before(const KAst *a, size_t from, size_t j);
 bool isl_tags_decl(const KAst *where, keel_slice_char name, KTagsDecl *out);
 void isl_extent_island(Ctx *c, const KAstNode *n);
 void isl_struct_fields(Ctx *c, const KAstNode *n);
+void isl_typedef_specifier(Ctx *c, const KAstNode *n);
 size_t isl_column_access(Ctx *c, size_t i, size_t open, bool *any);
 void isl_walk(Ctx *c, const KAstNode *n);
 Range isl_param_type(const KAst *home, const Param *p);

@@ -90,6 +90,12 @@ keel_slice_char k_em_unqualified(keel_slice_char s);
 bool k_em_rank_suffix(const Emit *e, const KAstNode *fn, keel_slice_char *value);
 /* how the modifier's fields hold type binder k: 0 not, 1 by pointer only, 2 by value */
 int k_em_binder_use(const Emit *e, size_t k);
+/* The symbol of the module instance when it is a unit of its own (KEmitInstance.unit_buf):
+ * written into buf, 0 when the instance is the modifier's alone. verb_on_modifier: whether
+ * the function takes the modifier itself as a parameter's type (`const slot *s`), and so
+ * carries the modifier's symbol; any other verb of such an instance carries the unit's. */
+size_t k_em_unit_symbol(const KAst *user, const KClosure *c, char *buf, size_t cap);
+bool k_em_verb_on_modifier(const Emit *e, const KAstNode *fn);
 /* emit.c: the .h of the instance e->inst, written by the module emitter over the
  * generic's tree and the instance's islands (k_collect_instance_islands) */
 void k_em_instance_h(Emit *e);
@@ -212,6 +218,9 @@ void k_em_h_forward_decls(Emit *e);
 bool k_em_h_body_includes(Emit *e);
 /* .type.h: the .type.h of the types of other modules the struct fields hold by value */
 void k_em_type_h_includes(Emit *e);
+/* .type.h of an instance: the .type.h of what its typedefs and modifier name (another
+ * module's type, a type argument that is a type of the program), in order of first use */
+void k_em_instance_type_includes(Emit *e);
 typedef struct {
     const char *sym; size_t sym_len;   /* NULL: the tokens stay (an own call) */
     size_t end;                        /* the token after the written name */

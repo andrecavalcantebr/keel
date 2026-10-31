@@ -3,12 +3,13 @@
 #define KEEL_KEEL_ROUTINE_AG2_AG_H
 
 #include "keel/keel_routine_ag2_Ag.type.h"
+#include "keel/keel_corot.type.h"
 #include "keel/keel_outcome_u32.type.h"
 #include "keel/keel_slice_keel_routine_slot_ag2_Ag.type.h"
 
 #line 27 "keel/routine.k"
 static inline keel_corot keel_routine_slot_ag2_Ag_state(const keel_routine_slot_ag2_Ag *s);
-static inline i32        keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s);
+static inline i32   keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s);
 #line 33 "keel/routine.k"
 static inline keel_outcome_u32 keel_routine_ag2_Ag_seq(keel_slice_keel_routine_slot_ag2_Ag s);
 #line 52 "keel/routine.k"
@@ -22,7 +23,7 @@ static inline u64 keel_routine_ag2_Ag_mask(keel_slice_keel_routine_slot_ag2_Ag s
 
 #line 27 "keel/routine.k"
 static inline keel_corot keel_routine_slot_ag2_Ag_state(const keel_routine_slot_ag2_Ag *s) { return s->state; }
-static inline i32        keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s) { return s->state.code; }
+static inline i32   keel_routine_slot_ag2_Ag_code (const keel_routine_slot_ag2_Ag *s) { return s->state.code; }
 #line 33 "keel/routine.k"
 static inline keel_outcome_u32 keel_routine_ag2_Ag_seq(keel_slice_keel_routine_slot_ag2_Ag s) {
     keel_outcome_u32 r = {0};

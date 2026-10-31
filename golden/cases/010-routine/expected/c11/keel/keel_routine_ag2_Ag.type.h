@@ -7,12 +7,8 @@
 #include "ag2.type.h"
 
 #line 18 "keel/routine.k"
-typedef keel_corot (*keel_routine_ag2_Ag)(ag2_Ag *);
+typedef keel_corot (*keel_routine_ag2_Ag)(ag2_Ag *ctx);
 #line 25 "keel/routine.k"
-typedef struct keel_routine_slot_ag2_Ag {
-    keel_routine_ag2_Ag  f;
-    ag2_Ag              *ctx;
-    keel_corot           state;
-} keel_routine_slot_ag2_Ag;
+typedef struct keel_routine_slot_ag2_Ag { keel_routine_ag2_Ag f; ag2_Ag *ctx; keel_corot state; } keel_routine_slot_ag2_Ag;
 
 #endif /* KEEL_KEEL_ROUTINE_AG2_AG_TYPE_H */

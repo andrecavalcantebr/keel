@@ -161,9 +161,12 @@ static int emit_protocol_functions(keel_arena *arena, const char *dest, const KA
         /* <name>_<concrete>: the concrete type is an instance of the closure */
         const KClosure *k = NULL;
         size_t name_len = 0;
-        for (size_t q = 0; q < ast->closure.len && !k; q++) {
+        /* the longest: `keel_array_keel_routine_slot_ag2_Ag` ends the symbol, and so does the
+           slot's own `keel_routine_slot_ag2_Ag` inside it */
+        for (size_t q = 0; q < ast->closure.len; q++) {
             const KClosure *o = keel_buffer_KClosure_ptr(&ast->closure, q);
             if (o->kind != K_CLOSURE_INSTANCE || !o->module || o->symbol_len + pl + 2 >= c->symbol_len) continue;
+            if (k && o->symbol_len <= k->symbol_len) continue;
             size_t at = c->symbol_len - o->symbol_len;
             if (memcmp(c->symbol + at, o->symbol, o->symbol_len) != 0 || c->symbol[at - 1] != '_') continue;
             k = o;
@@ -214,7 +217,7 @@ static int emit_protocol_functions(keel_arena *arena, const char *dest, const KA
             if (!data) { rc = 2; break; }
             k_emit_instance(generic, &inst, src_path, which, opt, (keel_slice_char){ need, data });
             char rel[4096], path[8192];
-            size_t rel_len = k_mangle_instance_path(gen, inst.symbol, ext, (keel_slice_char){ sizeof rel, rel });
+            size_t rel_len = k_mangle_instance_path(gen, k_emit_unit(&inst), ext, (keel_slice_char){ sizeof rel, rel });
             if (rel_len >= sizeof rel) { rc = write_failed(dest); break; }
             int n = snprintf(path, sizeof path, "%s/%.*s", dest, (int)rel_len, rel);
             if (n < 0 || (size_t)n >= sizeof path || !make_parents(path)) { rc = write_failed(dest); break; }
@@ -266,7 +269,7 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
             if (!data) return 2;
             k_emit_instance(c->module->ast, &inst, src_path, which, opt, (keel_slice_char){ need, data });
             char rel[4096], path[8192];
-            size_t rel_len = k_mangle_instance_path(gen, inst.symbol, ext, (keel_slice_char){ sizeof rel, rel });
+            size_t rel_len = k_mangle_instance_path(gen, k_emit_unit(&inst), ext, (keel_slice_char){ sizeof rel, rel });
             if (rel_len >= sizeof rel) return write_failed(dest);
             int n = snprintf(path, sizeof path, "%s/%.*s", dest, (int)rel_len, rel);
             if (n < 0 || (size_t)n >= sizeof path || !make_parents(path)) return write_failed(dest);
@@ -606,7 +609,7 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
                             (int)target->module->name.len, target->module->name.ptr, inst.modifier.len ? "." : "",
                             (int)inst.modifier.len, inst.modifier.ptr);
                 char rel[4096], path[8192];
-                size_t rel_len = k_mangle_instance_path(target->module->name, inst.symbol, ".c", (keel_slice_char){ sizeof rel, rel });
+                size_t rel_len = k_mangle_instance_path(target->module->name, k_emit_unit(&inst), ".c", (keel_slice_char){ sizeof rel, rel });
                 int w = rel_len < sizeof rel ? snprintf(path, sizeof path, "%s/%.*s", dest, (int)rel_len, rel) : -1;
                 if (w < 0 || (size_t)w >= sizeof path || !make_parents(path)) rc = write_failed(dest);
                 else rc = cgen_write_output(path, data, need);

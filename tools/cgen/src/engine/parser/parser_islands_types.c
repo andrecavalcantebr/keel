@@ -97,7 +97,10 @@ static int kt_of_local(Ctx *c, const Local *l) {
     if (l->rank > 0) {
         t = isl_kt_new(c);
         if (t < 0) return -1;
-        int element = c->inst_mode ? isl_kt_from_home(c, c->ast, l->element, 0)
+        /* the element of the `array` a protocol function reads is the concrete type's
+           argument, a C symbol (`keel_routine_slot_ag2_Ag`), not a type written in a module */
+        int element = c->proto_mode && c->proto_array ? kt_copy(c, 1)
+                    : c->inst_mode ? isl_kt_from_home(c, c->ast, l->element, 0)
                                    : isl_kt_from_text(c, c->ast->symbols, l->element);
         isl_kt(c, t)->kind = KT_ARRAY;
         isl_kt(c, t)->rank = l->rank;

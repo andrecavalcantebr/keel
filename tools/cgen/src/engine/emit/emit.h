@@ -53,7 +53,27 @@ typedef struct {
      * with `proto_elem` the element) */
     keel_slice_char proto_fn, proto_concrete, proto_module, proto_elem;
     bool proto_byref, proto_array;
+    /* the module instance as a unit of its own (backend §5.10, rule 1), when the
+     * modifier is not named like its module and the module declares a typedef:
+     * `keel_routine_ag2_Ag` beside the modifier's `keel_routine_slot_ag2_Ag`.
+     * It names the files, the typedef and the verbs whose object is not the
+     * modifier; empty when the instance is the modifier's alone. */
+    char unit_buf[256];
+    size_t unit_len;
+    const KAst *user;           /* the tree that asked for the instance: where its arguments are declared */
+    char arg_unit_buf[K_EMIT_INSTANCE_ARGS][256];   /* the unit of an argument that is a unit of its own */
+    size_t arg_unit_len[K_EMIT_INSTANCE_ARGS];
 } KEmitInstance;
+
+/* the symbol that names the instance's files: the unit, else the modifier's */
+static inline keel_slice_char k_emit_unit(const KEmitInstance *i) {
+    return i->unit_len ? (keel_slice_char){ i->unit_len, (char *)i->unit_buf } : i->symbol;
+}
+
+/* the symbol that names the files of the instance argument k */
+static inline keel_slice_char k_emit_arg_file(const KEmitInstance *i, size_t k) {
+    return i->arg_unit_len[k] ? (keel_slice_char){ i->arg_unit_len[k], (char *)i->arg_unit_buf[k] } : i->arg[k];
+}
 
 /* The instance a closure entry of `user` names (its arguments live in the
  * closure's text; the dimensions, in the symbol: `grids_grid_3_f32` is the

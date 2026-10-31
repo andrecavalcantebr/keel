@@ -273,11 +273,25 @@ static bool foreign_in(const KAst *ast, size_t a, size_t b) {
 static bool array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len, bool *binder) {
     if (binder) *binder = false;
     KToken t = k_em_tok(ast, tok);
+    /* the declaration the use sees: the nearest one before it, in its function (two
+     * functions may name their tables alike, `steps[3]` and `steps[2]`) */
+    const KIsland *best = NULL;
     for (size_t i = 0; i < ast->islands.len; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
-        if (is->kind != K_ISLAND_ARRAY) continue;
+        if (is->kind != K_ISLAND_ARRAY || is->anchor > tok || (best && is->anchor < best->anchor)) continue;
         const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
         if (is->text_len < t.len + 3 || memcmp(d, t.ptr, t.len) != 0 || d[t.len] != ' ' || d[t.len + 1] != '[') continue;
+        bool same_fn = true;
+        for (size_t k = 0; k < ast->nodes.len && same_fn; k++) {
+            const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+            if (n->kind == K_AST_FUNCTION && is->anchor >= n->first && is->anchor < n->end) same_fn = tok >= n->first && tok < n->end;
+        }
+        if (same_fn) best = is;
+    }
+    if (!best) return false;
+    {
+        const KIsland *is = best;
+        const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
         size_t s = t.len + 2, e = s;
         while (e < is->text_len && d[e] >= '0' && d[e] <= '9') e++;
         if (e == s) {
@@ -298,7 +312,6 @@ static bool array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len,
         *len = e - s;
         return true;
     }
-    return false;
 }
 
 bool k_em_handles_use(const KAst *ast, const KIsland *is) {
@@ -526,7 +539,7 @@ static size_t arg_header(const Emit *e, const char *sym, size_t len, const char 
     for (size_t k = 0; e->inst && k < e->inst->argc; k++) {
         keel_slice_char a = e->inst->arg[k];
         if (!e->inst->arg_module[k].len || a.len != len || memcmp(a.ptr, sym, len) != 0) continue;
-        size_t pl = k_mangle_instance_path(e->inst->arg_module[k], a, ext, (keel_slice_char){ cap, path });
+        size_t pl = k_mangle_instance_path(e->inst->arg_module[k], k_emit_arg_file(e->inst, k), ext, (keel_slice_char){ cap, path });
         if (k_em_binder_use(e, k) == 2) return SIZE_MAX;   /* the instance's own .type.h includes it */
         return pl <= cap ? pl : 0;
     }
@@ -535,7 +548,8 @@ static size_t arg_header(const Emit *e, const char *sym, size_t len, const char 
 
 /* whether `sym` is the instance being written, or one of its verbs */
 static bool own_instance(const Emit *e, const char *sym, size_t len) {
-    return e->inst && prefix_of(sym, len, e->inst->symbol.ptr, e->inst->symbol.len);
+    return e->inst && (prefix_of(sym, len, e->inst->symbol.ptr, e->inst->symbol.len) ||
+                       (e->inst->unit_len && prefix_of(sym, len, e->inst->unit_buf, e->inst->unit_len)));
 }
 
 /* ---- the .h: another module's types in the signatures (rule 2) ---- */
@@ -602,6 +616,10 @@ static int instance_of(const KAst *ast, const char *sym, size_t len) {
         const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, c);
         if (k->kind != K_CLOSURE_INSTANCE) continue;
         if (prefix_of(sym, len, k->symbol, k->symbol_len) && k->symbol_len > best_len) { best = (int)c; best_len = k->symbol_len; }
+        /* the unit of a module instance (`keel_routine_ag2_Ag_seq`) */
+        char unit[NAME_CAP];
+        size_t ul = k_em_unit_symbol(ast, k, unit, sizeof unit);
+        if (ul && prefix_of(sym, len, unit, ul) && ul > best_len) { best = (int)c; best_len = ul; }
     }
     return best;
 }
@@ -648,7 +666,9 @@ static size_t header_of(const KAst *ast, const char *sym, size_t len, const char
     if (c >= 0) {
         const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, (size_t)c);
         if (!k->module) return 0;
-        size_t pl = k_mangle_instance_path(k->module->name, (keel_slice_char){ k->symbol_len, (char *)k->symbol }, ext,
+        char unit[NAME_CAP];
+        size_t ul = k_em_unit_symbol(ast, k, unit, sizeof unit);
+        size_t pl = k_mangle_instance_path(k->module->name, ul ? (keel_slice_char){ ul, unit } : (keel_slice_char){ k->symbol_len, (char *)k->symbol }, ext,
                                            (keel_slice_char){ cap, path });
         return pl <= cap ? pl : 0;
     }
@@ -855,7 +875,7 @@ void k_em_use_includes(Emit *e) {
 bool k_em_h_body_includes(Emit *e) {
     const KAst *ast = e->ast;
     char self[NAME_CAP];
-    size_t sl = e->inst ? k_mangle_instance_path(e->inst->module, e->inst->symbol, ".h", (keel_slice_char){ sizeof self, self })
+    size_t sl = e->inst ? k_mangle_instance_path(e->inst->module, k_emit_unit(e->inst), ".h", (keel_slice_char){ sizeof self, self })
                         : k_mangle_path(e->module, ".h", (keel_slice_char){ sizeof self, self });
     Includes s = { .n = 0 };
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
@@ -920,5 +940,39 @@ void k_em_type_h_includes(Emit *e) {
             memcpy(t, s.path[j], tl); memcpy(s.path[j], s.path[j - 1], s.len[j - 1]); s.len[j] = s.len[j - 1]; rank[j] = rank[j - 1];
             memcpy(s.path[j - 1], t, tl); s.len[j - 1] = tl; rank[j - 1] = tr;
         }
+    for (size_t k = 0; k < s.n; k++) raw_include(e, s.path[k], s.len[k]);
+}
+
+/* .type.h of an instance that is a unit of its own: the .type.h of what the typedefs
+ * and the modifier name, in order of first use (backend §4.3.2, rule 2). A type of
+ * another module is an island (`corot`); a binder is the instance's argument, whose
+ * header is the program's (`ag2.type.h` for `ag2_Ag`). The unit's own types, and the
+ * C types (`i32`), need none. */
+void k_em_instance_type_includes(Emit *e) {
+    const KAst *ast = e->ast;
+    Includes s = { .n = 0 };
+    for (size_t i = 0; i < ast->nodes.len && e->ok; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        if ((n->kind != K_AST_TYPE && n->kind != K_AST_MODIFIER) || !k_em_generic_out(ast, n)) continue;
+        for (size_t j = n->first; j < n->end && e->ok; j++) {
+            char path[NAME_CAP];
+            size_t pl = 0;
+            keel_slice_char arg;
+            KToken t = k_em_tok(ast, j);
+            bool member = j > 0 && (k_em_text_is(k_em_tok(ast, j - 1), ".") || k_em_text_is(k_em_tok(ast, j - 1), "->"));
+            if (!member && k_token_is_ident(t) && k_em_binder_arg(e, t, &arg)) {
+                if (e->inst->user && !k_em_unqualified(arg).len) continue;
+                if (e->inst->user) pl = header_of(e->inst->user, arg.ptr, arg.len, ".type.h", path, sizeof path);
+            } else if (!(k_em_declared_at(e, j) && k_em_generic_out(ast, k_em_declared_at(e, j)))) {
+                for (size_t q = 0; q < ast->islands.len && !pl; q++) {
+                    const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, q);
+                    Detail d;
+                    if (is->kind != K_ISLAND_TYPE || is->anchor != j || !k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
+                    pl = header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
+                }
+            }
+            if (pl && pl != SIZE_MAX && !add_include(&s, path, pl)) { e->ok = false; return; }
+        }
+    }
     for (size_t k = 0; k < s.n; k++) raw_include(e, s.path[k], s.len[k]);
 }

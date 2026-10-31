@@ -15,7 +15,7 @@ static inline keel_routine_slot_ag2_Ag   *keel_array_keel_routine_slot_ag2_Ag_pt
 #line 27 "keel/array.k"
 static inline keel_outcome_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_at(keel_routine_slot_ag2_Ag v[], size_t keel__N, size_t i);
 #line 37 "keel/array.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_as_slice (keel_routine_slot_ag2_Ag v[], size_t keel__N);
+static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_as_slice(keel_routine_slot_ag2_Ag v[], size_t keel__N);
 #line 39 "keel/array.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_as_slice2(keel_routine_slot_ag2_Ag v[], size_t keel__N, size_t a, size_t b);
 #line 45 "keel/array.k"
@@ -36,7 +36,7 @@ static inline keel_outcome_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot
     return i < keel__N ? keel_outcome_keel_routine_slot_ag2_Ag_win1(&r, v[keel_index(i, keel__N)]) : keel_outcome_keel_routine_slot_ag2_Ag_none(&r);
 }
 #line 37 "keel/array.k"
-static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_as_slice (keel_routine_slot_ag2_Ag v[], size_t keel__N) { return (keel_slice_keel_routine_slot_ag2_Ag){ keel__N, v }; }
+static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_as_slice(keel_routine_slot_ag2_Ag v[], size_t keel__N) { return (keel_slice_keel_routine_slot_ag2_Ag){ keel__N, v }; }
 #line 39 "keel/array.k"
 static inline keel_slice_keel_routine_slot_ag2_Ag keel_array_keel_routine_slot_ag2_Ag_as_slice2(keel_routine_slot_ag2_Ag v[], size_t keel__N, size_t a, size_t b) {
 #line 39 "keel/array.k"

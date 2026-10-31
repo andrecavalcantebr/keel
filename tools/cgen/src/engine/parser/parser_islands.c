@@ -1038,6 +1038,14 @@ bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosti
     }
     memcpy(ctx.types, ctx.inst_types, (size_t)ctx.inst_n * sizeof *ctx.types);
     ctx.type_count = ctx.inst_n;
+    /* the declarations of the instance that are types: the modifier's fields and the
+       typedefs that name a binder or the modifier hold types of other modules */
+    for (size_t i = 0; i < a->nodes.len && !ctx.failed && !inst->proto_fn.len; i++) {
+        const KAstNode *n = isl_node_at(a, i);
+        if (n->kind != K_AST_MODIFIER && !(n->kind == K_AST_TYPE && names_instance(a, n))) continue;
+        isl_struct_fields(&ctx, n);
+        if (n->kind == K_AST_TYPE) isl_typedef_specifier(&ctx, n);
+    }
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = isl_node_at(a, i);

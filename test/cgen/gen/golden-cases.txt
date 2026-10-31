@@ -25,6 +25,8 @@ test/cgen/gen/share|use.k|-
 004-parallel|app/val.k|-
 012-parallel-any|app/bs.k|-
 029-match-corot|mc.k|-
+030-readme-scan|scan.k|-
+031-readme-coop|coop.k|-
 010-routine|ag2.k|-
 019-walk|lst.k|-
 011-else|app/el.k|-

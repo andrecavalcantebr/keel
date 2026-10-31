@@ -116,6 +116,9 @@ typedef struct {
     bool by_pointer;            /* the container is a pointer: no `&` */
     bool value_copy;            /* a `range` or a by-value modifier: the temporary is a copy, not a pointer */
     bool walk;                  /* `walk (T *p, C c : x)`: the cursor protocol, not the index one */
+    bool ptr_binder;            /* `T *v`: the element's address (`ptr`), not a copy (`get`) */
+    bool array;                 /* the container is an `array` variable: C syntax, no verbs (spec §4.2) */
+    const char *dim; size_t dim_len; bool dim_binder;   /* its dimension 0 */
     const char *sym; size_t sym_len;   /* the container's instance */
 } Over;
 
@@ -173,8 +176,19 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
     o->cont = colon + 1;
     o->close = close;
     if (!word_like(ast, o->value) || !word_like(ast, o->index) || !word_like(ast, o->cont)) return false;
-    for (size_t i = o->vtype_a; i < o->vtype_b && !o->walk; i++) if (word(ast, i, "*")) return false;   /* by pointer: `ptr`, not yet */
+    o->ptr_binder = false;
+    for (size_t i = o->vtype_a; i < o->vtype_b && !o->walk; i++) if (word(ast, i, "*")) o->ptr_binder = true;
     if (!read_body(ast, close, &o->body, &o->last, &o->braced)) return false;
+    /* over an `array` variable the detail has no container type: `sl, i : steps` */
+    {
+        const char *dd = keel_buffer_char_ptr(&ast->island_text, is->text);
+        o->array = false;
+        if (!o->walk && is->text_len && dd[is->text_len - 1] != ')') {
+            o->array = k_em_array_dim0(ast, o->cont, &o->dim, &o->dim_len, &o->dim_binder);
+            if (o->array) { o->value_copy = false; o->by_pointer = false; return true; }
+            return false;
+        }
+    }
     /* the container's type, from the detail: `... (<type>)` */
     const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
     size_t len = is->text_len, open = len;
@@ -182,7 +196,7 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
     if (open == 0 || len < open + 2 || d[len - 1] != ')') return false;
     if (!k_em_type_symbol(ast, d + open, len - 1 - open, &o->sym, &o->sym_len)) return false;
     /* a range has no storage to point to: its temporary is a copy (the golden 015) */
-    o->value_copy = (len - 1 - open == 5 && memcmp(d + open, "range", 5) == 0) || (!o->walk && k_em_type_by_value(ast, o->sym, o->sym_len));
+    o->value_copy = (len - 1 - open == 5 && memcmp(d + open, "range", 5) == 0) || k_em_type_by_value(ast, o->sym, o->sym_len);
     /* by value or by pointer: the declaration `<type> c` or `<type> *c` in the function */
     KToken c = k_em_tok(ast, o->cont);
     bool found = false;
@@ -257,6 +271,54 @@ static const char *take(Emit *e, size_t *len) {
     return s;
 }
 
+/* `foreach (T v, I i : arr) body` over an `array` variable (spec §4.2: C syntax, no verbs):
+ *   { for (I i = 0; i < N; i++) { T v = arr[i]; body } }       (T *v = &arr[i] for a pointer binder)
+ * N is the dimension as the declaration writes it, or `keel__<binder>` for a parameter. */
+static void edits_over_array(Emit *e, size_t n, const Over *o, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    (void)n;
+    const KAst *ast = e->ast;
+    size_t at = k_em_tok_off(ast, o->vtype_a - 2), end = k_em_tok_end(ast, o->close);   /* from the `foreach` */
+    e->n = 0;
+    put_s(e, "{ for (");
+    k_em_put_range(e, o->itype_a, o->itype_b);
+    put_s(e, " "); put_tok(e, o->index);
+    put_s(e, " = 0; "); put_tok(e, o->index);
+    put_s(e, " < ");
+    if (o->dim_binder) put_s(e, "keel__");
+    k_em_put_bytes(e, o->dim, o->dim_len);
+    put_s(e, "; "); put_tok(e, o->index);
+    put_s(e, "++)");
+    size_t hl;
+    const char *head = take(e, &hl);
+    if (!head) return;
+    k_em_put_range(e, o->vtype_a, o->vtype_b);
+    if (!word(ast, o->vtype_b - 1, "*")) put_s(e, " ");
+    put_tok(e, o->value);
+    put_s(e, o->ptr_binder ? " = &" : " = ");
+    k_em_put_range(e, o->cont, o->cont + 1);
+    put_s(e, "["); put_tok(e, o->index); put_s(e, "];");
+    size_t vl;
+    const char *val = take(e, &vl);
+    if (!val) return;
+    size_t j = 0;
+    for (size_t k = 0; k < *cnt; k++)
+        if (ed[k].at < at || ed[k].at >= end) ed[j++] = ed[k];
+    *cnt = j;
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = end - at, .text = head, .text_len = hl });
+    if (o->braced) {
+        size_t ob = k_em_tok_end(ast, o->body);
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = " ", .text_len = 1 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = val, .text_len = vl });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " }", .text_len = 2 });
+    } else {
+        size_t sb = k_em_tok_off(ast, o->body);
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = "{ ", .text_len = 2 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = val, .text_len = vl });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = sb, .skip = 0, .text = " ", .text_len = 1 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " } }", .text_len = 4 });
+    }
+}
+
 /* `foreach (T v, I i : c) body` (§5.7):
  *   { S *keel__c<N> = &c; size_t keel__n<N> = S_length(keel__c<N>); for (I i = 0; i < keel__n<N>; i++) { T v = S_get(keel__c<N>, i); body } }
  * The header becomes the text up to the value binder's line; a simple body gets
@@ -270,6 +332,7 @@ static void edits_over(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
         return;
     }
     if (k_em_declared_at(e, o->value) || k_em_declared_at(e, o->index)) { e->ok = false; return; }
+    if (o->array) { edits_over_array(e, n, o, a, b, ed, cnt); return; }
     e->n = 0;
     k_em_put_bytes(e, "{ ", 2);
     k_em_put_bytes(e, o->sym, o->sym_len);
@@ -295,10 +358,13 @@ static void edits_over(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     if (!head) return;
     /* the value binder: `T v = S_get(keel__c<N>, i);` */
     k_em_put_range(e, o->vtype_a, o->vtype_b);
-    k_em_put_bytes(e, " ", 1); put_tok(e, o->value);
+    if (!word(ast, o->vtype_b - 1, "*")) k_em_put_bytes(e, " ", 1);
+    put_tok(e, o->value);
     k_em_put_bytes(e, " = ", 3);
     k_em_put_bytes(e, o->sym, o->sym_len);
-    k_em_put_bytes(e, "_get(keel__c", 12); put_uint(e, n);
+    if (o->ptr_binder) k_em_put_bytes(e, "_ptr1(keel__c", 13);   /* the element's address (rule 3) */
+    else k_em_put_bytes(e, "_get(keel__c", 12);
+    put_uint(e, n);
     k_em_put_bytes(e, ", ", 2); put_tok(e, o->index);
     k_em_put_bytes(e, ");", 2);
     size_t vl;
@@ -371,9 +437,10 @@ static void edits_walk(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     e->n = 0;
     put_s(e, "{   ");
     k_em_put_bytes(e, o->sym, o->sym_len);
-    put_s(e, " *keel__c"); put_uint(e, n);
+    /* a container that is a value (`slice`) is copied, and its verbs take the copy */
+    put_s(e, o->value_copy ? " keel__c" : " *keel__c"); put_uint(e, n);
     put_s(e, " = ");
-    if (!o->by_pointer) put_s(e, "&");
+    if (!o->by_pointer && !o->value_copy) put_s(e, "&");
     k_em_put_range(e, o->cont, o->cont + 1);
     put_s(e, "; ");
     /* `lst.cursor` names the module's own type: only the declaration, renamed */

@@ -314,6 +314,10 @@ static bool array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len,
     }
 }
 
+bool k_em_array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len, bool *binder) {
+    return array_dim0(ast, tok, p, len, binder);
+}
+
 bool k_em_handles_use(const KAst *ast, const KIsland *is) {
     Detail d;
     if (!k_em_foreign_island(ast, is) || !detail_of(ast, is, &d)) return false;

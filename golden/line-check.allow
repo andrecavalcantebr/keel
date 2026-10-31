@@ -85,3 +85,9 @@ golden/cases/021-else-assign/expected/c11/app/app_reg.type.h	typedef struct app_
 golden/cases/021-else-assign/expected/c23/app/app_reg.type.h	typedef struct app_reg_Person {
 golden/cases/029-match-corot/expected/c11/mc.c	case keel_corot_Status_ONGOING: goto keel__m0_ONGOING;
 golden/cases/029-match-corot/expected/c23/mc.c	case keel_corot_Status_ONGOING: goto keel__m0_ONGOING;
+golden/cases/030-readme-scan/expected/c11/scan.c	}
+golden/cases/030-readme-scan/expected/c11/scan.c	{ keel_buffer_i32 *keel__c0 = xs;
+golden/cases/030-readme-scan/expected/c23/scan.c	}
+golden/cases/030-readme-scan/expected/c23/scan.c	{ keel_buffer_i32 *keel__c0 = xs;
+golden/cases/031-readme-coop/expected/c11/coop.c	case coop_Cycle_END: goto keel__m0_END;
+golden/cases/031-readme-coop/expected/c23/coop.c	case coop_Cycle_END: goto keel__m0_END;

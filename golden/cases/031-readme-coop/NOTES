@@ -1,0 +1,20 @@
+O que este caso afirma
+======================
+
+São os exemplos 5 e 6 do README, literais, num só módulo `coop`: o segundo
+continua o primeiro, e os `import` do segundo ficam onde o README os mostra
+(a gramática aceita `import` em qualquer ponto do nível de arquivo).
+
+Exemplo 5: o laço e o estado são do programa. `match (state)` sobre um `tagged
+Cycle void` por valor despacha por `state.tag`; a mudança para `END` só é
+observada no próximo despacho do laço escrito pelo programa.
+
+Exemplo 6: `routine.par` percorre a tabela em ciclos e devolve um `outcome u32` com a
+quantidade de sucessos. Com os contadores em zero, o alvo `1` é alcançado ao fim do
+segundo ciclo, e as duas entradas terminam em `SUCCESS`: valor `2`. A travessia
+seguinte, `foreach` com binder por ponteiro sobre o `array`, chama `note` duas vezes.
+O `array` precisa do `import keel.array`: `slice.of` é função sobre protocolo e pede
+os verbos de `keel.array` (spec §5.3).
+
+O inicializador da tabela não escreve `state`: o campo nasce zerado, que em `corot` é
+`ONGOING`.

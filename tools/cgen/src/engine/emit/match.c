@@ -185,7 +185,10 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
         KToken x = k_em_tok(ast, j);
         if (x.len != name.len || memcmp(x.ptr, name.ptr, x.len) != 0 || j == 0) continue;
         bool star = word(ast, j - 1, "*");
-        if (!star && !ident(ast, j - 1)) continue;
+        /* a type word before the name: an identifier, or a C keyword such as `void` */
+        KToken pv = k_em_tok(ast, j - 1);
+        bool wordlike = pv.len && ((pv.ptr[0] >= 'a' && pv.ptr[0] <= 'z') || (pv.ptr[0] >= 'A' && pv.ptr[0] <= 'Z') || pv.ptr[0] == '_');
+        if (!star && !wordlike) continue;
         m->ptr = star;
         found = true;
     }

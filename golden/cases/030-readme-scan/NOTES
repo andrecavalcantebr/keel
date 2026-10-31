@@ -1,0 +1,15 @@
+O que este caso afirma
+======================
+
+É o exemplo 7 do README, literal: `parallel` entrega uma parte a cada worker
+(`partition`, uma vez por worker) e o corpo a percorre por cursor, com `walk`
+sobre a parte e o cursor `slice.cursor`, que é do módulo `keel.slice` e não da
+instância, porque guarda uma posição e não depende de `T` (backend §5.11).
+
+A saída de cada worker vai num contêiner indexado por `w`, e não numa captura:
+captura escalar é cópia por worker, e escrever nela é `captured-write`.
+`totals` entra por ponteiro porque é instância `byref`, e cada worker escreve
+num índice diferente; a disjunção é do programa. `totals[w] = t` é o acessor de
+um índice, `keel_buffer_u32_ptr1`.
+
+Sob `ALL` o fim natural do corpo não grava veredito (backend §5.9, regra 9).

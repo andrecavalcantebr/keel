@@ -1,0 +1,82 @@
+/* keel/keel_slice_u32.h — generated from keel/slice.k by cgen, C23 profile. */
+#ifndef KEEL_KEEL_SLICE_U32_H
+#define KEEL_KEEL_SLICE_U32_H
+
+#include "keel/keel_slice_u32.type.h"
+#include "keel/keel_slice.type.h"
+#include "keel/keel_outcome_u32.type.h"
+#include "keel/keel_outcome_keel_slice_u32.type.h"
+
+typedef struct keel_arena keel_arena;
+#line 26 "keel/slice.k"
+static inline keel_slice_u32 keel_slice_u32_from(u32 *p, size_t n);
+#line 30 "keel/slice.k"
+static inline size_t keel_slice_u32_length(keel_slice_u32 s);
+static inline u32      keel_slice_u32_get(keel_slice_u32 s, size_t i);
+static inline void   keel_slice_u32_set(keel_slice_u32 s, size_t i, u32 v);
+static inline u32     *keel_slice_u32_ptr(keel_slice_u32 s);
+static inline u32     *keel_slice_u32_ptr1(keel_slice_u32 s, size_t i);
+#line 37 "keel/slice.k"
+static inline keel_outcome_u32 keel_slice_u32_at(keel_slice_u32 s, size_t i);
+#line 45 "keel/slice.k"
+static inline keel_slice_u32 keel_slice_u32_as_slice(keel_slice_u32 s, size_t a, size_t b);
+#line 59 "keel/slice.k"
+static inline keel_outcome_keel_slice_u32 keel_slice_u32_clone(keel_arena *a, keel_slice_u32 s);
+#line 68 "keel/slice.k"
+static inline keel_slice_cursor keel_slice_u32_begin(keel_slice_u32 s);
+static inline bool   keel_slice_u32_has_next(keel_slice_u32 s, keel_slice_cursor *c);
+static inline u32     *keel_slice_u32_next(keel_slice_u32 s, keel_slice_cursor *c);
+#line 74 "keel/slice.k"
+static inline keel_slice_u32 keel_slice_u32_partition(keel_slice_u32 s, size_t k, size_t w);
+
+#include "keel/keel_arena.h"
+#include "keel/keel_outcome_keel_slice_u32.h"
+#include "keel/keel_outcome_u32.h"
+
+#line 26 "keel/slice.k"
+static inline keel_slice_u32 keel_slice_u32_from(u32 *p, size_t n) {
+    return (keel_slice_u32){ p ? n : 0, p };
+}
+#line 30 "keel/slice.k"
+static inline size_t keel_slice_u32_length(keel_slice_u32 s) { return s.len; }
+static inline u32      keel_slice_u32_get(keel_slice_u32 s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return s.ptr[i]; }
+static inline void   keel_slice_u32_set(keel_slice_u32 s, size_t i, u32 v) { KEEL_CHECK(i < s.len, "set-out-of-length"); s.ptr[i] = v; }
+static inline u32     *keel_slice_u32_ptr(keel_slice_u32 s) { return s.ptr; }
+static inline u32     *keel_slice_u32_ptr1(keel_slice_u32 s, size_t i) { KEEL_CHECK(i < s.len, "index-out-of-length"); return &s.ptr[i]; }
+#line 37 "keel/slice.k"
+static inline keel_outcome_u32 keel_slice_u32_at(keel_slice_u32 s, size_t i) {
+    keel_outcome_u32 r = {0};
+    return i < s.len ? keel_outcome_u32_win1(&r, s.ptr[i]) : keel_outcome_u32_none(&r);
+}
+#line 45 "keel/slice.k"
+static inline keel_slice_u32 keel_slice_u32_as_slice(keel_slice_u32 s, size_t a, size_t b) {
+#line 45 "keel/slice.k"
+    KEEL_CHECK(a <= b && b <= keel_slice_u32_length(s), "range-index-out-of-bounds");
+    if (b > s.len) b = s.len;
+    if (a > b) a = b;
+    return (keel_slice_u32){ b - a, s.ptr + a };
+}
+#line 59 "keel/slice.k"
+static inline keel_outcome_keel_slice_u32 keel_slice_u32_clone(keel_arena *a, keel_slice_u32 s) {
+    keel_outcome_keel_slice_u32 r = {0};
+    u32 *data = (u32 *)keel_arena_alloc2(a, sizeof(u32), alignof(u32), s.len);
+    if (!data) return keel_outcome_keel_slice_u32_none(&r);
+    if (s.len > 0) memcpy((void *)data, s.ptr, s.len * sizeof(u32));
+    return keel_outcome_keel_slice_u32_win1(&r, (keel_slice_u32){ s.len, data });
+}
+#line 68 "keel/slice.k"
+static inline keel_slice_cursor keel_slice_u32_begin(keel_slice_u32 s) { (void)s; return (keel_slice_cursor){0}; }
+static inline bool   keel_slice_u32_has_next(keel_slice_u32 s, keel_slice_cursor *c) { return c->i < s.len; }
+static inline u32     *keel_slice_u32_next(keel_slice_u32 s, keel_slice_cursor *c) { return &s.ptr[c->i++]; }
+#line 74 "keel/slice.k"
+static inline keel_slice_u32 keel_slice_u32_partition(keel_slice_u32 s, size_t k, size_t w) {
+    if (k == 0) return (keel_slice_u32){0, s.ptr};
+    size_t step = s.len / k + (s.len % k ? 1 : 0);
+    size_t lo = w * step;
+    if (lo >= s.len) return (keel_slice_u32){0, s.ptr};
+    size_t hi = lo + step;
+    if (hi > s.len) hi = s.len;
+    return (keel_slice_u32){ hi - lo, s.ptr + lo };
+}
+
+#endif /* KEEL_KEEL_SLICE_U32_H */

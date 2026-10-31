@@ -8,8 +8,10 @@ só o cabeçalho de uma linha (desenho do cgen §5.3).
 
 **`app/app_val.c`** (c23, c11)
 
-O rótulo de término vem DEPOIS da contabilidade do fim natural (backend
-§5.9, regra 8): quem chega ao fim conta uma vitória e cai no rótulo; quem
-saltou já contou a sua. Invertido, o `fail` seria apagado.
+`win;` e `fail;` gravam no símbolo de controle e saltam para o rótulo `keel__end0`,
+que fica no fim do corpo do worker (backend §5.9, regra 8). O fim natural do
+corpo não grava nada (regra 9): quem sai por verbo já contabilizou, e quem chega
+ao fim cai no rótulo sem acrescentar vitória. Aqui o único verbo é `fail`, e o
+`fails` do símbolo é o que `parallel.failed` lê depois do bloco.
 O símbolo de controle é declarado FORA do bloco: a linguagem §4.8 o torna
 legível depois dele.

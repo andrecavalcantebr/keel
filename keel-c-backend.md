@@ -1430,13 +1430,8 @@ outcome u32 r = routine.par(slice.of(steps), 1);
 
 ```c
 //C gerado
-typedef keel_corot (*keel_routine_app_Ctx)(app_Ctx *);
-
-typedef struct keel_routine_slot_app_Ctx {
-    keel_routine_app_Ctx f;
-    app_Ctx             *ctx;
-    keel_corot           state;
-} keel_routine_slot_app_Ctx;
+typedef keel_corot (*keel_routine_app_Ctx)(app_Ctx *ctx);
+typedef struct keel_routine_slot_app_Ctx { keel_routine_app_Ctx f; app_Ctx *ctx; keel_corot state; } keel_routine_slot_app_Ctx;
 
 keel_routine_slot_app_Ctx steps[2] = {
     { .f = app_prepare, .ctx = &ctx, .state = {0} },

@@ -618,6 +618,28 @@ static keel_slice_char import_name(const KAst *ast, const KAstNode *n, char *buf
     return (keel_slice_char){ len, buf };
 }
 
+/* The symbol of the protocol-function instance a verb symbol belongs to: the verbs of
+ * `keel_slice_of_keel_array_i16` are `..of`, `..of1` and `..of2` (the arity digits
+ * follow the verb), and all live in the instance's one header. The instance's symbol,
+ * or the symbol itself when no protocol function of the closure matches. */
+static const char *proto_family(const KAst *ast, const char *sym, size_t len, size_t *out_len) {
+    for (size_t c = 0; c < ast->closure.len; c++) {
+        const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, c);
+        if (k->kind != K_CLOSURE_PROTOCOL_FUNCTION || k->symbol_len > len) continue;
+        size_t i = 0;
+        while (i < k->symbol_len && sym[i] == k->symbol[i]) i++;
+        if (i == k->symbol_len && len == i) break;                       /* the instance's own symbol */
+        size_t j = i;
+        while (j < len && sym[j] >= '0' && sym[j] <= '9') j++;
+        if (j > i && sym[i - 1] != '_' && len - j == k->symbol_len - i && memcmp(sym + j, k->symbol + i, len - j) == 0) {
+            *out_len = k->symbol_len;
+            return k->symbol;
+        }
+    }
+    *out_len = len;
+    return sym;
+}
+
 /* The header a symbol of another module lives in, with extension `ext`: its
  * instance's, or the imported module's whose symbol prefixes it (the longest).
  * Its length in path, 0 when none (the prelude's names are everywhere). */
@@ -688,7 +710,9 @@ static size_t header_of(const KAst *ast, const char *sym, size_t len, const char
             share = ml == len && memcmp(ms, sym, len) == 0;
         }
         if (!share) {
-            size_t pl = k_mangle_instance_path((keel_slice_char){ best_len, best_name }, (keel_slice_char){ len, (char *)sym }, ext,
+            size_t fl;
+            const char *fam = proto_family(ast, sym, len, &fl);
+            size_t pl = k_mangle_instance_path((keel_slice_char){ best_len, best_name }, (keel_slice_char){ fl, (char *)fam }, ext,
                                                (keel_slice_char){ cap, path });
             return pl <= cap ? pl : 0;
         }

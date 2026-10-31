@@ -210,6 +210,7 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
         k_em_edits_index(e, n, a, b, ed, cnt);
         k_em_edits_else(e, n, a, b, ed, cnt);
         k_em_edits_subscript(e, n, a, b, ed, cnt);
+        k_em_edits_rangelit(e, n, a, b, ed, cnt);
         k_em_sort_edits(ed, before, *cnt);
     }
     /* an `array` variable at file scope (array.c) */

@@ -163,6 +163,7 @@ bool k_em_handles_else(const KAst *ast, const KIsland *is);
 /* subscript.c: `x[i]` and `x[a..b]` over a modifier instance (backend §5.3) */
 void k_em_edits_subscript(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_subscript(const KAst *ast, const KIsland *is);
+void k_em_edits_rangelit(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 
 /* defer.c: `defer` (backend §5.5) */
 void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);

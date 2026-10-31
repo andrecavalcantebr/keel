@@ -262,7 +262,10 @@ static void edits_over(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     const KAst *ast = e->ast;
     size_t n = k_em_capture_ordinal(ast, fn, kw);
     size_t at = k_em_tok_off(ast, kw), end = k_em_tok_end(ast, o->close);
-    if (at < a || at >= b) return;
+    if (at < a || at >= b) {            /* not the header's line: the block's `}` may close the outer block here */
+        if (o->braced) push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " }", .text_len = 2 });
+        return;
+    }
     if (k_em_declared_at(e, o->value) || k_em_declared_at(e, o->index)) { e->ok = false; return; }
     e->n = 0;
     k_em_put_bytes(e, "{ ", 2);
@@ -326,7 +329,10 @@ static void edits_range_var(Emit *e, const KAstNode *fn, size_t kw, const RangeV
     const KAst *ast = e->ast;
     size_t n = k_em_capture_ordinal(ast, fn, kw);
     size_t at = k_em_tok_off(ast, kw), end = k_em_tok_end(ast, r->close);
-    if (at < a || at >= b) return;
+    if (at < a || at >= b) {            /* not the header's line: the block's `}` may close the `for` here */
+        if (r->braced) push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, r->last), .skip = 0, .text = " }", .text_len = 2 });
+        return;
+    }
     if (k_em_declared_at(e, r->binder)) { e->ok = false; return; }
     /* `foreach` -> the two temporaries, then `for` */
     e->n = 0;

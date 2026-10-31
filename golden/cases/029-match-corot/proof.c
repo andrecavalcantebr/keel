@@ -16,5 +16,15 @@ int main(void) {
     assert(mc_rank(keel_corot_tag(f2)) == 1);
     assert(mc_rank(keel_corot_Status_SUCCESS) == -1);
     assert(mc_rank(keel_corot_Status_ONGOING) == 0);
+
+    /* the operand by pointer: the same arms, read through the pointer */
+    keel_corot_Status st = keel_corot_Status_FAILED;
+    assert(mc_classify_ptr(&win) == 1);
+    assert(mc_classify_ptr(&again) == 2);
+    assert(mc_classify_ptr(&f1) == 7);
+    assert(mc_classify_ptr(&f2) == 9);
+    assert(mc_rank_ptr(&st) == 1);
+    st = keel_corot_Status_SUCCESS;
+    assert(mc_rank_ptr(&st) == -1);
     return 0;
 }

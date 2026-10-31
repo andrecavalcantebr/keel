@@ -573,6 +573,22 @@ static bool own_instance(const Emit *e, const char *sym, size_t len) {
                        (e->inst->unit_len && prefix_of(sym, len, e->inst->unit_buf, e->inst->unit_len)));
 }
 
+/* whether `sym` is the symbol of a `tags` set: an `enum`, which C cannot declare ahead
+ * (`typedef struct X X;` would name another type), so a pointer to it needs the definition */
+static bool sym_is_tags_named(const KAst *ast, const char *sym, size_t len, const char *written, size_t wlen) {
+    /* the written name (`corot.Status`) may be known to the table only qualified */
+    const KSymbol *w = written && ast->symbols ? k_symbol_resolve(ast->symbols, (keel_slice_char){ wlen, (char *)written }) : NULL;
+    if (w && w->kind == K_SYM_TAGS) return true;
+    for (size_t i = 0; ast->symbols && i < ast->symbols->len; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(ast->symbols, i);
+        char ms[NAME_CAP];
+        if (s->kind != K_SYM_TAGS) continue;
+        size_t ml = k_mangle_symbol(s, (keel_slice_char){ sizeof ms, ms });
+        if (ml == len && memcmp(ms, sym, len) == 0) return true;
+    }
+    return false;
+}
+
 /* ---- the .h: another module's types in the signatures (rule 2) ---- */
 
 /* `typedef struct X X;` for each type of another module (an instance, a
@@ -592,6 +608,7 @@ void k_em_h_forward_decls(Emit *e) {
             detail_of(ast, is, &d);
             size_t end = span_end(ast, is->anchor, &d);
             if (end >= ast->tokens.len || !k_em_text_is(k_em_tok(ast, end), "*")) continue;   /* by value: k_em_h_type_includes */
+            if (sym_is_tags_named(ast, d.sym, d.sym_len, d.left, d.left_len)) continue;   /* an enum: its .type.h, see k_em_h_type_includes */
             if (own_instance(e, d.sym, d.sym_len)) continue;
             char own[NAME_CAP], hp[NAME_CAP];
             size_t ol = own_type_path(e, own, sizeof own);
@@ -844,7 +861,7 @@ void k_em_h_type_includes(Emit *e) {
         Detail d;
         detail_of(ast, is, &d);
         size_t end = span_end(ast, is->anchor, &d);
-        if (end < ast->tokens.len && k_em_text_is(k_em_tok(ast, end), "*")) continue;   /* by pointer: forward */
+        if (end < ast->tokens.len && k_em_text_is(k_em_tok(ast, end), "*") && !sym_is_tags_named(ast, d.sym, d.sym_len, d.left, d.left_len)) continue;   /* by pointer: forward */
         if (own_instance(e, d.sym, d.sym_len)) continue;
         char path[NAME_CAP];
         size_t pl = arg_header(e, d.sym, d.sym_len, ".type.h", path, sizeof path);

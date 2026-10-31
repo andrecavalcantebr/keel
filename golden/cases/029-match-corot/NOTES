@@ -19,6 +19,11 @@ do §5.6 regra 3; o terceiro, o campo de etiqueta do `tagged`, é o caso 009.
 O conjunto vem de outro módulo, e por isso as constantes saem com o prefixo
 dele: `keel_corot_Status_SUCCESS`, não `mc_...`.
 
+`classify_ptr` e `rank_ptr` repetem os dois com o operando por ponteiro. O verbo `tag`
+toma o valor (`corot r`), então o discriminante é `keel_corot_tag(*r)`; um operando que
+já é o conjunto, por ponteiro, é lido por `switch (*s)`. Se o `tag` tomasse ponteiro
+(`C *x`, como no protocolo `Taggable`), o operando por valor ganharia o `&`.
+
 Escopo por braço, o `goto` do último braço que não existe e o `default:` com
 `tag-out-of-range` são os do 009; este caso não os repete com verificação em
 execução.

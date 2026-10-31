@@ -181,7 +181,13 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
     KToken name = k_em_tok(ast, m->operand);
     m->ptr = false;
     bool found = false;
-    for (size_t j = 0; j < m->kw && !found; j++) {
+    /* in the function that holds the match: another function may declare the name otherwise */
+    size_t from = 0;
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *fn = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (fn->kind == K_AST_FUNCTION && m->kw >= fn->first && m->kw < fn->end) from = fn->first;
+    }
+    for (size_t j = from ? from : 1; j < m->kw && !found; j++) {
         KToken x = k_em_tok(ast, j);
         if (x.len != name.len || memcmp(x.ptr, name.ptr, x.len) != 0 || j == 0) continue;
         bool star = word(ast, j - 1, "*");

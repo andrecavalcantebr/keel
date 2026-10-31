@@ -34,3 +34,35 @@ pub i32 rank(corot.Status s) {
     }
     return n;
 }
+
+/* The operand may be a pointer. `tag` takes the value, so the verb is called
+   on what the pointer points to. */
+pub i32 classify_ptr(corot *r) {
+    i32 n = 0;
+    match (r) {
+        SUCCESS:
+            n = 1;
+            break;
+        ONGOING:
+            n = 2;
+            break;
+        FAILED:
+            n = corot.code(*r);
+    }
+    return n;
+}
+
+pub i32 rank_ptr(corot.Status *s) {
+    i32 n = 0;
+    match (s) {
+        SUCCESS:
+            n = -1;
+            break;
+        ONGOING:
+            n = 0;
+            break;
+        FAILED:
+            n = 1;
+    }
+    return n;
+}

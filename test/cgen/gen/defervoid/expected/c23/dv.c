@@ -40,6 +40,6 @@ void dv_before(dv_Rec *r, int stop) {
 
     r->v = 5;
 #line 29 "dv.k"
-keel__e0: dv_reset(r);
+    dv_reset(r);
 #line 31 "dv.k"
 }

@@ -23,7 +23,7 @@ pub void guard(Rec *r, int stop) {
     r->v = 9;
 }
 
-/* a `return;` before any registration is not touched. */
+/* a `return;` before any registration is not touched; the natural end is the only exit: inline. */
 pub void before(Rec *r, int stop) {
     if (stop) return;
     defer reset(r);

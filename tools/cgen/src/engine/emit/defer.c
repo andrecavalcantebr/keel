@@ -338,9 +338,8 @@ static Plan plan_of(const KAst *ast, const KAstNode *fn) {
     }
     if (!any) return p;
     size_t nret = 0, last = NO_TOKEN;
-    size_t npost = 0;   /* the exits that cross the cleanup: the `return`s after the first registration */
-    for (size_t i = fn->body_first; i < fn->body_end; i++)
-        if (word(ast, i, "return")) { nret++; last = i; if (i > first_reg) npost++; }
+    for (size_t i = first_reg; i < fn->body_end; i++)   /* a `return` before the first registration is no exit of the cleanup */
+        if (word(ast, i, "return")) { nret++; last = i; }
     bool jump = has_jump(ast, fn);
     if (nret == 0 && !jump) return p;   /* no exit but the natural end: the D1 cleanup */
     if (nested && !jump) { p.ok = false; return p; }
@@ -351,7 +350,7 @@ static Plan plan_of(const KAst *ast, const KAstNode *fn) {
     }
     bool void_fn = is_void(ast, fn);
     p.ends_ret = nret > 0 && ends_in_return(ast, fn, last);
-    if (jump || (npost == 1 && p.ends_ret)) p.mode = RET_INLINE;
+    if (jump || (nret == 1 && p.ends_ret)) p.mode = RET_INLINE;
     else p.mode = RET_LADDER;
     for (size_t r = fn->body_first; r < fn->body_end; r++) {
         if (word(ast, r, "break") || word(ast, r, "continue")) {

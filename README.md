@@ -293,11 +293,13 @@ Contratos na [spec](keel-spec.md): §§4.1 e 4.6. [Justificativa: limite de aná
 
 Um `slice` de dois elementos aponta para parte de um vetor. Alterar seus elementos por índice ou por ponteiro modifica o mesmo armazenamento. O trecho não cresce.
 
+<!-- golden: cases/027-readme/span.k:1-18 -->
 ```keel
 //keel
 module span;
 import keel.slice as slice types;
 import keel.range as range types;
+import keel.array as array;
 
 pub i16 sum(void) {
     array i16 dados[3] = {1, 2, 3};
@@ -314,29 +316,25 @@ pub i16 sum(void) {
 }
 ```
 
+<!-- golden: cases/027-readme/expected/c23/span.c:12-24 -->
 ```c
 //C gerado
-#include <stddef.h>
-#include <stdint.h>
-
-typedef int16_t i16;
-typedef struct { size_t len; i16 *ptr; } keel_slice_i16;
-typedef struct { size_t first, limit; } keel_range;
-
 i16 span_sum(void) {
     i16 dados[3] = {1, 2, 3};
-    keel_slice_i16 part = {2, dados + 1};
-    part.ptr[0] = 20;
-    *(part.ptr + 1) = 30;
+    keel_slice_i16 part = keel_slice_of2_keel_array_i16(dados, 3, 1, 3);
+    *keel_slice_i16_ptr1(part, 0) = 20;
+    *(keel_slice_i16_ptr(part) + 1) = 30;
 
-    keel_range indices = {0, 2};
+    keel_range indices = keel_range_of(0, 2);
     i16 total = 0;
-    for (size_t i = indices.first; i < indices.limit; ++i) {
-        total += part.ptr[i];
-    }
+    { size_t keel__f0 = keel_range_first(indices); size_t keel__l0 = keel_range_limit(indices); for (size_t i = keel__f0; i < keel__l0; i++) {
+        total += *keel_slice_i16_ptr1(part, i);
+    } }
     return total;
 }
 ```
+
+Quatro coisas aparecem no C. `slice.of(dados, 1, 3)` vira a função da instância, `keel_slice_of2_keel_array_i16`, que recebe o vetor e o comprimento (`3`, vindo da dimensão declarada); `part[0]` é `*keel_slice_i16_ptr1(part, 0)`; o literal `0..2` fora de uma travessia é `keel_range_of(0, 2)`; e o `foreach` sobre o `range` conta de `first` a `limit`, com um bloco em volta que fecha no `}` do corpo.
 
 O resultado é `50`; `dados` termina com `{1, 20, 30}`. O intervalo é semiaberto: inclui zero e um, exclui dois. O armazenamento permanece válido durante toda a utilização do trecho.
 

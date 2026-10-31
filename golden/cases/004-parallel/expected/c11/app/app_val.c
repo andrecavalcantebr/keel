@@ -1,8 +1,8 @@
 /* app/app_val.c — generated from app/val.k by cgen, C11 profile. */
 #include "app/app_val.h"
 #include "keel/keel_buffer_i32.h"
-#include "keel/keel_slice_i32.h"
 #include "keel/keel_parallel.h"
+#include "keel/keel_slice_i32.h"
 #line 1 "app/val.k"
 
 

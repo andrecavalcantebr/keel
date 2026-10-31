@@ -165,6 +165,14 @@ void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edi
 /* else.c: the `else` of a result (spec §4.10, backend §5.12) */
 void k_em_edits_else(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_else(const KAst *ast, const KIsland *is);
+/* parallel.c: the `parallel` block, the `win;`/`fail;` of its worker and the interrupted
+ * query (backend §5.9). k_em_parallel_interrupted writes the edit for a call island and
+ * answers true, or answers false and leaves the island to uses.c. */
+void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
+void k_em_edits_worker_exit(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_handles_parallel(const KAst *ast, const KIsland *is);
+bool k_em_handles_worker_exit(const KAst *ast, const KIsland *is);
+bool k_em_parallel_interrupted(Emit *e, const KIsland *is, size_t a, size_t b, Edit *ed, size_t *cnt);
 /* match.c: the `match` of a tagged label (backend §5.6) */
 void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_match(const KAst *ast, const KIsland *is);

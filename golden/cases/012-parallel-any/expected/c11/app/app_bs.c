@@ -2,8 +2,8 @@
 #include "app/app_bs.h"
 #include "keel/keel_buffer_i32.h"
 #include "keel/keel_buffer_size_t.h"
-#include "keel/keel_slice_i32.h"
 #include "keel/keel_parallel.h"
+#include "keel/keel_slice_i32.h"
 #line 1 "app/bs.k"
 
 

@@ -368,6 +368,7 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         if (is->anchor < n->first || is->anchor >= n->end) continue;
+        if (k_em_parallel_interrupted(e, is, a, b, ed, cnt)) continue;
         if (k_em_handles_implicit_init(ast, is)) {
             size_t at = k_em_tok_end(ast, is->anchor);
             if (at > a && at <= b)
@@ -899,6 +900,9 @@ void k_em_use_includes(Emit *e) {
         if (pl == sl && memcmp(path, self, pl) == 0) continue;
         if (pl && !add_include(&s, path, pl)) { e->ok = false; return; }
     }
+    /* the control symbol of a `parallel` block is a type of keel.parallel */
+    for (size_t i = 0; i < ast->islands.len && e->ok; i++)
+        if (k_em_handles_parallel(ast, keel_buffer_KIsland_ptr(&ast->islands, i)) && !add_include(&s, "keel/keel_parallel.h", 20)) { e->ok = false; return; }
     /* the order of the path: an insertion sort, few includes */
     for (size_t i = 1; i < s.n; i++)
         for (size_t j = i; j > 0; j--) {

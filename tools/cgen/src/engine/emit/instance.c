@@ -27,6 +27,17 @@ static void raw_slice(Emit *e, keel_slice_char s) { k_emit_raw(&e->w, s); }
 
 static void put_slice(Emit *e, keel_slice_char s) { k_em_put_bytes(e, s.ptr, s.len); }
 
+/* the number of tags binders of the module line */
+static size_t tags_count(const KAst *ast) {
+    const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
+    size_t k = 0;
+    for (size_t j = m->tags_first; j < m->tags_end; j++) {
+        KToken x = k_em_tok(ast, j);
+        if (k_token_is_ident(x) && !k_em_text_is(x, "tags")) k++;
+    }
+    return k;
+}
+
 /* the argument bound to the binder spelled like `t` (a dimension: its value;
  * a type: its symbol), or false */
 bool k_em_binder_arg(const Emit *e, KToken t, keel_slice_char *arg);
@@ -42,23 +53,29 @@ keel_slice_char k_em_unqualified(keel_slice_char s) {
 bool k_em_binder_arg(const Emit *e, KToken t, keel_slice_char *arg) {
     const KAst *ast = e->ast;
     const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
-    size_t first[2] = { m->dim_first, m->type_first }, end[2] = { m->dim_end, m->type_end };
-    size_t count[2] = { e->inst->dimc, e->inst->argc };
-    const keel_slice_char *val[2] = { e->inst->dim, e->inst->arg };
-    for (int r = 0; r < 2; r++) {
-        size_t k = 0;
+    /* the arguments run in the order of the module line: tags, then types */
+    size_t first[3] = { m->dim_first, m->tags_first, m->type_first }, end[3] = { m->dim_end, m->tags_end, m->type_end };
+    size_t k = 0;
+    for (int r = 0; r < 3; r++) {
+        if (r == 1) k = 0;
         for (size_t j = first[r]; j < end[r]; j++) {
             KToken x = k_em_tok(ast, j);
-            if (!k_token_is_ident(x) || k_em_text_is(x, "dim") || k_em_text_is(x, "type")) continue;
+            if (!k_token_is_ident(x) || k_em_text_is(x, "dim") || k_em_text_is(x, "type") || k_em_text_is(x, "tags")) continue;
             if (same_text(x, t)) {
-                if (k >= count[r]) return false;
-                *arg = val[r][k];
+                if (r == 0) {
+                    if (k >= e->inst->dimc) return false;
+                    *arg = e->inst->dim[k];
+                    return true;
+                }
+                if (k >= e->inst->argc) return false;
+                *arg = e->inst->arg[k];
                 /* a type argument as C writes it (`const char`), when the closure has it */
-                if (r == 1 && e->inst->arg_spell[k].len) *arg = e->inst->arg_spell[k];
+                if (e->inst->arg_spell[k].len) *arg = e->inst->arg_spell[k];
                 return true;
             }
             k++;
         }
+        if (r == 1) k = tags_count(ast);
     }
     return false;
 }
@@ -337,9 +354,9 @@ static bool has_modifier(const KAst *ast) {
 static bool instance_supported(const Emit *e) {
     const KAst *ast = e->ast;
     const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
-    if (m->tags_first != m->tags_end) return false;
     if (e->inst->argc > K_EMIT_INSTANCE_ARGS || e->inst->dimc > K_EMIT_INSTANCE_ARGS) return false;
-    if (binders(ast, m->dim_first, m->dim_end) != e->inst->dimc || binders(ast, m->type_first, m->type_end) != e->inst->argc)
+    if (binders(ast, m->dim_first, m->dim_end) != e->inst->dimc ||
+        tags_count(ast) + binders(ast, m->type_first, m->type_end) != e->inst->argc)
         return false;
     bool modifier = false;
     for (size_t i = 0; i < ast->nodes.len; i++) {

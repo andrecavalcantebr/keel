@@ -835,6 +835,29 @@ void k_em_h_type_includes(Emit *e) {
         if (!add_include(&s, path, pl)) { e->ok = false; return; }
         if (s.n > before) rank[s.n - 1] = import_rank(ast, d.sym, d.sym_len);
     }
+    /* a binder bound to a type of the program (`E` = `ag_Cycle`) that a public signature takes by
+     * value: no island, the argument's own header; after the islands' (first use is by token) */
+    for (size_t k = 0; e->inst && e->inst->user && !e->inst->proto_fn.len && k < ast->nodes.len && e->ok; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind != K_AST_FUNCTION || !n->is_public || n->body_first == NO_TOKEN || n->body_first < 1 || k_em_skip(e, n)) continue;
+        for (size_t j = n->first; j < n->body_first - 1 && e->ok; j++) {
+            keel_slice_char arg;
+            KToken t = k_em_tok(ast, j);
+            bool member = j > 0 && (k_em_text_is(k_em_tok(ast, j - 1), ".") || k_em_text_is(k_em_tok(ast, j - 1), "->"));
+            if (member || !k_token_is_ident(t) || !k_em_binder_arg(e, t, &arg) || (j + 1 < n->body_first && k_em_text_is(k_em_tok(ast, j + 1), "*"))) continue;
+            /* an argument that is an instance is reached through the instance's own .type.h */
+            bool inst_arg = false;
+            for (size_t q = 0; q < e->inst->argc; q++)
+                inst_arg = inst_arg || (e->inst->arg_module[q].len && e->inst->arg[q].len == arg.len && memcmp(e->inst->arg[q].ptr, arg.ptr, arg.len) == 0);
+            if (inst_arg) continue;
+            char path[NAME_CAP];
+            size_t pl = header_of(e->inst->user, arg.ptr, arg.len, ".type.h", path, sizeof path);
+            if (!pl || pl == SIZE_MAX) continue;
+            size_t before = s.n;
+            if (!add_include(&s, path, pl)) { e->ok = false; return; }
+            if (s.n > before) rank[s.n - 1] = (size_t)-1;
+        }
+    }
     /* stable: by the import, then by the first use */
     for (size_t i = first + 1; i < s.n; i++)
         for (size_t j = i; j > first && rank[j - 1] > rank[j]; j--) {
@@ -849,12 +872,15 @@ void k_em_h_type_includes(Emit *e) {
 void k_em_use_includes(Emit *e) {
     const KAst *ast = e->ast;
     Includes s = { .n = 0 };
+    char self[NAME_CAP];   /* the module's own .h is the first include already (a tag of its own set is a use too) */
+    size_t sl = k_mangle_path(e->module, ".h", (keel_slice_char){ sizeof self, self });
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         Detail d;
         if (!k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
         char path[NAME_CAP];
         size_t pl = header_of(ast, d.sym, d.sym_len, ".h", path, sizeof path);
+        if (pl == sl && memcmp(path, self, pl) == 0) continue;
         if (pl && !add_include(&s, path, pl)) { e->ok = false; return; }
     }
     /* the order of the path: an insertion sort, few includes */

@@ -165,6 +165,9 @@ void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edi
 /* else.c: the `else` of a result (spec §4.10, backend §5.12) */
 void k_em_edits_else(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_else(const KAst *ast, const KIsland *is);
+/* match.c: the `match` of a tagged label (backend §5.6) */
+void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_handles_match(const KAst *ast, const KIsland *is);
 
 /* subscript.c: `x[i]` and `x[a..b]` over a modifier instance (backend §5.3) */
 void k_em_edits_subscript(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);

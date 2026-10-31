@@ -210,6 +210,7 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
         k_em_edits_defer(e, n, a, b, ed, cnt);
         k_em_edits_index(e, n, a, b, ed, cnt);
         k_em_edits_else(e, n, a, b, ed, cnt);
+        k_em_edits_match(e, n, a, b, ed, cnt);
         k_em_edits_subscript(e, n, a, b, ed, cnt);
         k_em_edits_rangelit(e, n, a, b, ed, cnt);
         k_em_sort_edits(ed, before, *cnt);
@@ -775,7 +776,7 @@ static bool islands_supported(const KAst *ast) {
             if (k_em_handles_array(ast, is) || k_em_handles_foreach(ast, is) ||
                 k_em_handles_index(ast, is) || k_em_handles_constblock(ast, is) ||
                 k_em_handles_defer(ast, is) || k_em_handles_implicit_init(ast, is) || k_em_handles_ref(ast, is) ||
-                k_em_handles_else(ast, is) || k_em_handles_subscript(ast, is)) continue;
+                k_em_handles_else(ast, is) || k_em_handles_subscript(ast, is) || k_em_handles_match(ast, is)) continue;
             return false;
         }
         /* a name another module declares: renamed by its island (uses.c) */

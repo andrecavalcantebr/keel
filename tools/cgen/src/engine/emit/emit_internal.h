@@ -186,6 +186,23 @@ void k_em_edits_rangelit(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
 void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_defer(const KAst *ast, const KIsland *is);
 
+/* core.c: the verbs of the core, which are not calls to a module
+ * (`keel.length` over an `array`, backend §5.3 rule 7). */
+void k_em_edits_core(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_handles_core(const KAst *ast, const KIsland *is);
+
+/* extent.c: `extent` (backend §5.15). The declaration's edits; whether a node is
+ * one; and the column accessors, written into the .h (pub) or the .c (priv):
+ * the prototypes in declaration order, the bodies in the section of the
+ * `pub inline` ones. */
+void k_em_edits_extent(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_is_extent(const KAst *ast, const KAstNode *n);
+void k_em_extent_protos(Emit *e, const KAstNode *n);
+void k_em_extent_bodies(Emit *e, const KAstNode *n);
+/* the use point: `P.col[…]` -> `*f(&P, …)`, `P->col[…]` -> `*f(P, …)` (rule 5) */
+void k_em_edits_column(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_handles_column(const KAst *ast, const KIsland *is);
+
 /* routine.c: the explicit zero of a modifier's field in a brace initializer
  * (backend §5.10, rule 2). It adds text to a line and refuses nothing, so there
  * is no handles_X: the island it reads is a type island, already accepted. */

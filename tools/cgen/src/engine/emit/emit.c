@@ -107,6 +107,11 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
             }
         }
     }
+    if (n->kind == K_AST_TYPE && k_em_is_extent(ast, n)) {
+        size_t before = *cnt;
+        k_em_edits_extent(e, n, a, b, ed, cnt);
+        k_em_sort_edits(ed, before, *cnt);
+    }
     if (n->kind == K_AST_TAGS) {
         /* `tags N [A, B = 3];` -> `typedef enum M_N {M_N_A, M_N_B = 3} M_N;` (backend
          * §5.6, rule 1): the author's text stays; only the words around it change */
@@ -216,6 +221,8 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
         k_em_edits_subscript(e, n, a, b, ed, cnt);
         k_em_edits_rangelit(e, n, a, b, ed, cnt);
         k_em_edits_routine(e, n, a, b, ed, cnt);
+        k_em_edits_column(e, n, a, b, ed, cnt);
+        k_em_edits_core(e, n, a, b, ed, cnt);
         k_em_sort_edits(ed, before, *cnt);
     }
     /* an `array` variable at file scope (array.c) */
@@ -571,18 +578,21 @@ static void h_body(Emit *e) {
         if (skip(e, n)) continue;
         if (n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
         else if (n->kind == K_AST_VARIABLE && n->is_public) emit_extern(e, n);
+        else if (n->kind == K_AST_TYPE && n->is_public && k_em_is_extent(e->ast, n)) k_em_extent_protos(e, n);
     }
     /* then the bodies of the `pub inline` functions, each with its own .k lines */
     bool blank = false;
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (skip(e, n) || !is_pub_inline(e->ast, n)) continue;
+        bool extent = n->kind == K_AST_TYPE && n->is_public && k_em_is_extent(e->ast, n);
+        if (skip(e, n) || !(is_pub_inline(e->ast, n) || extent)) continue;
         if (!blank) {
             raw(e, "\n");
             /* section 3: the .h of what the bodies call (backend §4.3.2, rule 3) */
             if (k_em_h_body_includes(e)) raw(e, "\n");
             blank = true;
         }
+        if (extent) { k_em_extent_bodies(e, n); continue; }
         emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)));
     }
 }
@@ -621,6 +631,7 @@ static bool h_has_content(const Emit *e) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (skip(e, n)) continue;
         if ((n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) && n->is_public) return true;
+        if (n->kind == K_AST_TYPE && n->is_public && k_em_is_extent(e->ast, n)) return true;
     }
     return false;
 }
@@ -781,12 +792,13 @@ static bool islands_supported(const KAst *ast) {
                 k_em_handles_index(ast, is) || k_em_handles_constblock(ast, is) ||
                 k_em_handles_defer(ast, is) || k_em_handles_implicit_init(ast, is) || k_em_handles_ref(ast, is) ||
                 k_em_handles_else(ast, is) || k_em_handles_subscript(ast, is) || k_em_handles_match(ast, is) ||
-                k_em_handles_parallel(ast, is) || k_em_handles_worker_exit(ast, is)) continue;
+                k_em_handles_parallel(ast, is) || k_em_handles_worker_exit(ast, is) ||
+                is->kind == K_ISLAND_EXTENT || k_em_handles_column(ast, is)) continue;
             return false;
         }
         /* a name another module declares: renamed by its island (uses.c) */
         if (k_em_foreign_island(ast, is)) {
-            if (!k_em_handles_use(ast, is)) return false;
+            if (!k_em_handles_use(ast, is) && !k_em_handles_core(ast, is)) return false;
             continue;
         }
         const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
@@ -832,6 +844,9 @@ static bool supported(const Emit *e) {
             break;
         case K_AST_TYPE: {
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
+            /* `extent struct`: a shape of its own (backend §5.15); `priv` sends the
+             * struct and the accessors to the .c, which has no golden yet */
+            if (k_em_text_is(k_em_tok(ast, k), "extent")) { if (!k_em_is_extent(ast, n) || !n->is_public) return false; break; }
             if (k >= n->end || !k_em_text_is(k_em_tok(ast, k), "typedef")) return false;
             /* one declarator per typedef: a list shares the span of its nodes */
             if (i > 0 && keel_buffer_KAstNode_ptr(&ast->nodes, i - 1)->first == n->first) return false;

@@ -36,3 +36,5 @@ test/cgen/gen/share|use.k|-
 021-else-assign|app/reg.k|-
 027-readme|result.k reading.k span.k|-
 028-readme-main|ola.k|ola
+020-extent|app/pos.k|-
+025-of-range|app/ofr.k|-

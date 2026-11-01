@@ -897,7 +897,15 @@ static bool supported(const Emit *e) {
             break;
         }
         case K_AST_FUNCTION:
-            if (n->body_first == (size_t)-1 || n->body_first < 2) return false;
+            /* a forward declaration has no body: `priv void release(R *r);` is a
+             * line of the .c like any other (backend §4.1). A `pub` one would
+             * have to be weighed against the prototype the .h already writes,
+             * and has no golden. */
+            if (n->body_first == (size_t)-1) {
+                if (n->is_public || !k_em_text_is(k_em_tok(ast, n->end - 1), ";")) return false;
+                break;
+            }
+            if (n->body_first < 2) return false;
             if (!k_em_text_is(k_em_tok(ast, n->body_first - 1), "{") || !k_em_text_is(k_em_tok(ast, n->body_first - 2), ")"))
                 return false;
             if (!k_em_supported_constblock(e, n)) return false;

@@ -12,3 +12,20 @@ NÃO COMPILA de propósito: ver VERIFY.
 O §6 é uma invariante sobre dois contadores — a linha do .k em tradução e a
 do arquivo de saída — e `#line` sai SEMPRE que eles divergem. Este arquivo
 emite os que a invariante exige, e nenhum a mais.
+
+Correção de 2026-11-01
+======================
+
+O esperado trazia o cleanup do `defer` como escada num só bloco de linha
+(`keel__e0: app_ml_release(r); return keel__rv0; }`). Duas regras o desmentem:
+
+- §5.5.2 regra 1: a escada vale com **duas ou mais** saídas, e `use` tem uma
+  só — o `return t;` é o último comando, e por isso o fim natural não conta.
+  Com uma saída, o cleanup sai inline.
+- §5.5 regra 4 e §5.5.2 regra 5: o cleanup inline fica entre chaves, em linha
+  própria, mapeada à linha do `defer` (`#line 10`), e a segunda metade da
+  instrução volta à linha do `return` (`#line 16`).
+
+O esperado foi reescrito dos dois jeitos conferido contra o `app/ml.k` e as
+regras, não copiado da ferramenta; o VERIFY continua verde, porque as três
+posições `/* ERROR */` não mudam.

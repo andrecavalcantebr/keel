@@ -1417,6 +1417,9 @@ A forma contável de `foreach` não impõe protocolo rígido: `first` e `limit`
 bastam, porque o binder recebe o próprio contador e nenhum verbo de acesso por
 posição é despachado.
 
+Sobre `array` nenhum verbo é despachado: `array` é sintaxe do C e não declara
+operação alguma, e o comprimento está na declaração, não no valor.
+
 **Recorte: erro em debug, saturação em release.** Um `range-index` fora de
 `a <= b <= length(x)` quase sempre é erro de índice, e o debug o acusa. Em
 release o resultado é o do corpo do verbo, e os da base o definem — o fim é

@@ -33,13 +33,14 @@ int reading_first(const char *path) {
 `FILE`, `fopen`, `fgetc` e `EOF` keel não conhece, e não precisa: ela reconheceu
 `module`, `pub` e `defer`, e o resto atravessou. É essa a ideia inteira.
 
-> **Estado: a linguagem está fechada, e o compilador já emite C para a maior parte
-> dela.** Os quatro documentos normativos estão completos, a biblioteca base
-> está escrita em keel, e há 31 casos de teste com a saída C esperada nos dois
-> perfis (três em construção). O `cgen` lê um `.k`, resolve os imports, reconhece
-> toda a gramática, verifica as regras de keel e emite C (`--stop-after=gen`): 25
-> dos 31 casos saem byte a byte, nos dois perfis, e a maior parte dos headers da base sai dele. Faltam
-> `extent`, `keel.length` e o caminho que chama o compilador C.
+> **Estado: a linguagem está fechada, e o compilador emite C para quase toda
+> ela.** Os quatro documentos normativos estão completos, a biblioteca base está
+> escrita em keel, e há 32 casos de teste com a saída C esperada nos dois perfis
+> (três em construção). O `cgen` lê um `.k`, resolve os imports, reconhece toda a
+> gramática, verifica as regras de keel e emite C (`--stop-after=gen`): **28 dos
+> 32 casos saem byte a byte**, nos dois perfis, e a base inteira sai dele. Ficam
+> fora os três casos em construção, o `defer` com `goto` ou em bloco interno, e o
+> caminho que chama o compilador C.
 
 ---
 
@@ -686,7 +687,7 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`keel-c-backend.md`](keel-c-backend.md) | o que depende do alvo: nomes, artefatos, perfis |
 | [`cgen-tool-spec.md`](cgen-tool-spec.md) | o que depende da invocação |
 | [`base/`](base/) | os onze módulos da base, em keel: o prelúdio `keel` e os dez de `keel/` |
-| [`golden/`](golden/) | 31 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
+| [`golden/`](golden/) | 32 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
 | [`tools/cgen/`](tools/cgen/) | o transpilador: lê, verifica e emite C (`--stop-after=gen`) |
 | [`design/`](design/) | desenho da implementação, e as ideias que não são v0 |
 

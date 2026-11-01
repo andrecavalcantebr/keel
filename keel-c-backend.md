@@ -1267,6 +1267,19 @@ foreach (auto v : r) {
 } }
 ```
 
+```keel
+array routine.slot i16 steps[2] = { … };
+foreach (routine.slot i16 *sl, size_t i : steps) {
+    if (corot.ok(routine.state(sl))) note(a);
+}
+```
+
+```c
+{ for (size_t i = 0; i < 2; i++) { keel_routine_slot_i16 *sl = &steps[i];
+    if (keel_corot_ok(keel_routine_slot_i16_state(sl))) coop_note(a);
+} }
+```
+
 **Regras**
 
 1. Na forma de dois binders, o contêiner vai para um temporário `keel__c<N>` e o comprimento para um `size_t` `keel__n<N>`, ambos antes do `for`: é a avaliação única da linguagem §4.7. O temporário é ponteiro para um contêiner `byref` (`keel_buffer_i32 *keel__c0 = &xs;`), e cópia para um tipo que passa por valor (`keel_range keel__c1 = r;`, §5.2, regra 2): a cópia já é a variável que recebe o valor, e não há o que apontar.
@@ -1275,6 +1288,7 @@ foreach (auto v : r) {
 4. Um bloco em volta faz os temporários morrerem no fim, e permite `foreach` aninhado sem colisão de nome.
 5. Tudo até a abertura do corpo cabe numa linha, e o corpo mapeia 1:1, sem `#line` (§6, regra 2).
 6. Na forma contável, de um binder, o binder é o contador: `first` e `limit` saem para temporários `keel__f<N>` e `keel__l<N>` antes do laço, e o `for` conta de um ao outro. Nenhum `get` é chamado, e por isso a forma serve tipos que só declaram `first` e `limit`. Um tipo com as quatro operações, como `range`, passa por aqui na forma de um binder, e pela regra 1 na de dois.
+7. Sobre um `array` o `for` conta de zero ao comprimento, e o binder é o elemento: `T v = arr[i];` por valor, `T *v = &arr[i];` por ponteiro. O comprimento é a dimensão como a declaração a escreve, ou `keel__<binder>` (§5.18). Não há temporário nem chamada de verbo. [R: acesso e travessia](keel-rationale.md#acesso-e-travessia)
 
 **Verificações:** as dos verbos chamados. **Perfis:** iguais.
 

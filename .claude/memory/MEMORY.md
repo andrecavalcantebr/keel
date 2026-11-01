@@ -8,4 +8,4 @@
 - [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; histórico até M3 (M0, M1 e o parser fechados); o estado atual está na linha do emissor, abaixo; tool/ e engine/ com `make boundary`.
 - [ranges: meio-aberto basta](ranges-meio-aberto-basta.md) — 2026-10-07: `a..b` segue o padrão; `a..<b`/`a..=b` (marcador só no limite superior, lexer intacto) é solução pronta, a adotar só se o inclusivo valer a pena (`design/possibilidades.md`).
 - [Código em inglês](codigo-em-ingles.md) — docs pt-BR, código em inglês; as 4 etapas concluídas (commits 36ca188, 14c4d9a, 1c249c7, 1ae845d).
-- [cgen: emissor, estado em 2026-10-31](cgen-emissor-2026-10-28.md) — 25 dos 31 casos fecham pelo cgen (routine, match, parallel, walk feitos); fluxo Haiku em worktree; abertos em tools/agents/passagem-2026-10-28.md.
+- [cgen: emissor, estado em 2026-11-01](cgen-emissor-2026-10-28.md) — 28 dos 32 casos fecham pelo cgen (extent, keel.length, renome com escopo feitos); abertos em tools/agents/passagem-2026-10-28.md.

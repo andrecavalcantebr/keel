@@ -38,3 +38,23 @@ inclusive para `keel.array T` e para função sobre protocolo `keel.slice.of <co
 do runner (R2, `DEBUG`, caso 026); M6 com `gen_golden` 23 ok, 0 wip. Em 2026-10-31 fecharam 010 (`routine`, unidade = módulo instanciado), 009/029 (`match`), 004/012 (`parallel`), 019 (`walk`), 030/031 (exemplos do README): 25 dos 31 casos pelo cgen. Abertos e plano na última seção de
 `tools/agents/passagem-2026-10-28.md`. Lição: o golden às vezes tem alinhamento/ordem feitos à mão;
 corrige-se conferindo contra o `.k` e a regra, nunca copiando a saída da ferramenta.
+
+**Atualização (2026-11-01):** **28 dos 32 casos do golden saem do cgen byte a byte**
+(`gen_golden` 37 ok, 1 wip; `base.sh` 124 ok; `golden/run.sh` 60 ok, 3 wip). Fecharam 020
+(`extent`, `emit/extent.c`), 025 (`keel.length` do núcleo, `emit/core.c`), 016 (função sem
+corpo) e o `.state = {0}` do inicializador (`emit/routine.c`). O renome passou a ter regra
+única: **o emissor renomeia onde o parser deixou uma ilha, e em nenhum outro lugar** — o parser
+é quem conhece os escopos, e passou a registrar local e parâmetro declarados com tipo C, e a ler
+como local o que tem o nome de um tipo do módulo. O `symbol-redeclaration` da spec §2.5 passou a
+disparar quando o tipo é palavra-chave do C. Caso novo **032-defer-jump** (golden à mão, emissão
+pendente): `goto` saindo de escopo e `defer` de bloco interno.
+
+Dois goldens estavam errados e foram corrigidos à mão contra o `.k` e as regras: 010/031 (sem o
+`.state = {0}`) e 016 (escada onde a regra pede inline, e sem o `#line` do cleanup).
+
+Decisões do André nesta sessão: inicializador previsto no backend é implementação, não decisão;
+texto de normativo é **só especificação** (justificativa ao rationale, caso específico em regra
+separada e a evitar); o emissor para de renomear local e parâmetro, com diagnóstico no
+sombreamento. Em aberto: a regra do `defer` de bloco interno (a escada por bloco não existe sem
+marca em runtime; o texto proposto é "sai inline em cada saída do bloco"). O estado detalhado
+está na última seção de `tools/agents/passagem-2026-10-28.md`.

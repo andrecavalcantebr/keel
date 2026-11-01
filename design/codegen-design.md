@@ -98,6 +98,28 @@ chama construção, com uma exceção inevitável — `defer.c` roda **depois** 
 todas, sobre o corpo já emitido, porque precisa dos pontos de saída que as
 outras criaram (backend §5.5.1, "`defer` é a última passagem de fluxo").
 
+**Estado em 2026-11-01: o corte vale, e os nomes divergiram.** O que existe em
+`engine/emit/` e a que item da tabela corresponde:
+
+| Arquivo | O que a tabela previa |
+| --- | --- |
+| `emit.c`, `emit_core.c`, `writer.c`, `mangle.c` | o orquestrador, o `KWriter`, o mangling; as camadas do `layer.c` ficaram em `emit.c` |
+| `uses.c`, `roles.c` | `decl.c`: substituição local de nome, os usos de outro módulo, os papéis |
+| `instance.c` | o fecho e a emissão de instância, e também o `container.c` |
+| `array.c`, `index.c`, `subscript.c` | `index.c`: o `array`, o índice verificado, o açúcar |
+| `defer.c`, `match.c`, `parallel.c`, `extent.c` | os mesmos |
+| `foreach.c` | `loop.c`, e também o `walk` |
+| `else.c`, `rangelit.c` | `result.c` |
+| `constexpr_block.c` | o `constexpr` de bloco sob C11 (backend §9.2), que a tabela não previa |
+| `routine.c` | o `.state = {0}` do inicializador (backend §5.10 r2): a §5.10 ganhou arquivo, ao contrário da observação acima |
+| `core.c` | os verbos do núcleo (`keel.length`, backend §5.3 r7) |
+
+Sem arquivo próprio: o `check.c` (as verificações de `debug` saem onde a
+construção as pede), o `binder.c` (o binder de dimensão é do `array.c` e do
+`uses.c`), o `protocol.c` (as instâncias de função sobre protocolo saem pelo
+`roles.c` e pelo `stop_gen.c`) e o `entry.c` (a unidade de entrada é do
+`emit.c`).
+
 ---
 
 ## 3. A entrada

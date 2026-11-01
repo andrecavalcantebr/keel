@@ -186,6 +186,11 @@ void k_em_edits_rangelit(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
 void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_defer(const KAst *ast, const KIsland *is);
 
+/* routine.c: the explicit zero of a modifier's field in a brace initializer
+ * (backend §5.10, rule 2). It adds text to a line and refuses nothing, so there
+ * is no handles_X: the island it reads is a type island, already accepted. */
+void k_em_edits_routine(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
+
 /* constexpr_block.c: a block-scope constexpr. Its edits, and the whole lines
  * written before / after the source line `ln` (bytes [a, b)). */
 void k_em_edits_constblock(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);

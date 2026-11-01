@@ -66,8 +66,8 @@ static keel_corot coop_stage(i16 *counter) {
 
 keel_outcome_u32 coop_set_of(i16 *a, i16 *b) {
     keel_routine_slot_i16 steps[2] = {
-        { .f = coop_stage, .ctx = a },
-        { .f = coop_stage, .ctx = b },
+        { .f = coop_stage, .ctx = a, .state = {0} },
+        { .f = coop_stage, .ctx = b, .state = {0} },
     };
 
     keel_outcome_u32 r = keel_routine_i16_par(keel_slice_of_keel_array_keel_routine_slot_i16(steps, 2), 1);

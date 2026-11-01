@@ -215,12 +215,14 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
         k_em_edits_worker_exit(e, n, a, b, ed, cnt);
         k_em_edits_subscript(e, n, a, b, ed, cnt);
         k_em_edits_rangelit(e, n, a, b, ed, cnt);
+        k_em_edits_routine(e, n, a, b, ed, cnt);
         k_em_sort_edits(ed, before, *cnt);
     }
     /* an `array` variable at file scope (array.c) */
     if (n->kind == K_AST_VARIABLE) {
         size_t before = *cnt;
         k_em_edits_array(e, n, a, b, ed, cnt);
+        k_em_edits_routine(e, n, a, b, ed, cnt);
         k_em_sort_edits(ed, before, *cnt);
     }
     /* the uses of another module's names, by their islands (uses.c) */

@@ -5,7 +5,7 @@
 - [protocolos estruturais](protocolos-estruturais-2026-10-02.md) — 2026-10-02: sem `implement`, papéis herdados, diagnósticos unificados, §4.14 na v0, `slice.of` sobre `Sliceable`, `from_stack` fora; e as decisões de nomes de 10-02/03 (cursor, `types`, `keel-name-shadowed`, §2.3).
 - [ideias pendentes: soa e cooperativo](ideias-pendentes-soa-e-cooperativo.md) — soa struct concreto (linha mais madura), buffer(N)/slice(N), strbuf/string, bitbuffer/bitslice, atomic/chan/barrier.; traits sobre o `T` opaco (v2); protocolos nomeados já existem.
 - [biblioteca padrão: catálogo](biblioteca-padrao-planejamento.md) — histórico; a fonte agora é design/possibilidades.md (v0 núcleo+base, v1 stdlib, v2+ protocolos).
-- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; M0 e M1 fechados, parser (M2) completo em 2026-10-03, falta a emissão; tool/ e engine/ com `make boundary`.
+- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; histórico até M3 (M0, M1 e o parser fechados); o estado atual está na linha do emissor, abaixo; tool/ e engine/ com `make boundary`.
 - [ranges: meio-aberto basta](ranges-meio-aberto-basta.md) — 2026-10-07: `a..b` segue o padrão; `a..<b`/`a..=b` (marcador só no limite superior, lexer intacto) é solução pronta, a adotar só se o inclusivo valer a pena (`design/possibilidades.md`).
 - [Código em inglês](codigo-em-ingles.md) — docs pt-BR, código em inglês; as 4 etapas concluídas (commits 36ca188, 14c4d9a, 1c249c7, 1ae845d).
 - [cgen: emissor, estado em 2026-10-31](cgen-emissor-2026-10-28.md) — 25 dos 31 casos fecham pelo cgen (routine, match, parallel, walk feitos); fluxo Haiku em worktree; abertos em tools/agents/passagem-2026-10-28.md.

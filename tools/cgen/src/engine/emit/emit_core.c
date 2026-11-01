@@ -90,6 +90,20 @@ const KAstNode *k_em_declared_at(const Emit *e, size_t i) {
     return NULL;
 }
 
+/* Whether the parser left an island anchored on token `i`. The parser owns the
+ * scopes, and it leaves an island on a name of the module and none on a local
+ * or a parameter; the emitter renames where it says there is a module name, and
+ * nowhere else (backend §5.1). A name island is the plain case; a call, a type,
+ * an index and a column name the module on the same token. */
+bool k_em_named_island_at(const KAst *ast, size_t i) {
+    for (size_t k = 0; k < ast->islands.len; k++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, k);
+        if (is->anchor > i) break;              /* sorted by anchor */
+        if (is->anchor == i) return true;
+    }
+    return false;
+}
+
 void k_em_sort_edits(Edit *ed, size_t from, size_t cnt) {
     for (size_t i = from; i < cnt; i++)
         /* at the same position an insertion (skip 0) goes before a replacement */

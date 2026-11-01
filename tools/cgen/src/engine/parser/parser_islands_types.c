@@ -1185,6 +1185,23 @@ bool isl_c_declares(const KAst *a, size_t i, size_t from) {
     return false;
 }
 
+/* As isl_c_declares, for a parameter: token i is the declarator of a parameter
+   whose type keel does not read. The walk back over `*` and type words ends at
+   the `(` that opens the list or at the `,` of the previous parameter. */
+bool isl_c_param_declares(const KAst *a, size_t i, size_t from) {
+    if (!isl_ident(a, i)) return false;
+    if (!(isl_punct(a, i + 1, ",") || isl_punct(a, i + 1, ")") || isl_punct(a, i + 1, "["))) return false;
+    size_t j = i, types = 0;
+    while (j > from && j + 6 > i) {
+        size_t p = j - 1;
+        if (isl_punct(a, p, "(") || isl_punct(a, p, ",")) return types > 0;
+        if (isl_punct(a, p, "*")) { j = p; continue; }
+        if (isl_ident(a, p) || k_token_is_c_word(isl_tok(a, p))) { types++; j = p; continue; }
+        return false;
+    }
+    return false;
+}
+
 size_t isl_declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, KToken next,
                           bool signature, bool declarators) {
     KAst *a = c->ast;

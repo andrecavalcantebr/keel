@@ -404,3 +404,25 @@ instância).
 Fora: `dim-generates-declaration` espera definição; os sete de molde, v1;
 `instance-depth`, de especialização; `specific-format-unavailable`, do backend;
 `indirect-import`, que pede resolução por import transitivo.
+
+## O emissor (2026-11-01)
+
+`emit/` existe e é o maior pedaço do motor. O desenho e o mapa dos arquivos —
+quais existem e a que item da tabela do corte correspondem — estão em
+[codegen-design.md §2](../../../../design/codegen-design.md). O que ele cobre
+hoje: **28 dos 32 casos do `golden/` saem byte a byte, nos dois perfis**, e a
+base inteira (`test/cgen/base.sh`). Os oráculos são `test/cgen/gen_golden.sh`
+(com a tabela `test/cgen/gen/golden-cases.txt`) e `test/cgen/base.sh`.
+
+Duas fronteiras valem lembrar, porque passagem 3 e emissor se apoiam uma na
+outra:
+
+- **O renome é por ilha.** O emissor renomeia um token onde a passagem 3 deixou
+  uma ilha ancorada nele, e em nenhum outro lugar (`k_em_named_island_at`,
+  `emit_core.c`). Quem conhece os escopos é a passagem 3: um nome do módulo
+  recebe ilha, e um local ou um parâmetro não recebe. Por isso a passagem 3
+  registra como local também o declarador de uma declaração C
+  (`isl_c_declares`, `isl_c_param_declares`), e lê como local — não como tipo —
+  o token que tem o nome de um tipo do módulo quando há um local assim.
+- **O `#line` é só do `writer.c`.** Nenhum arquivo de construção escreve `#line`;
+  ele sai exatamente quando os dois contadores divergem (backend §6).

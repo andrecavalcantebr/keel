@@ -222,6 +222,7 @@ bool isl_is_arena(const KAst *a, const KSpecifier *spec);
 void isl_note_shadow(Ctx *c, KToken name);
 bool isl_binder_of(const KAst *a, const KAstNode *fn, KToken name);
 bool isl_c_declares(const KAst *a, size_t i, size_t from);
+bool isl_c_param_declares(const KAst *a, size_t i, size_t from);
 size_t isl_declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, KToken next, bool signature,
                    bool declarators);
 size_t isl_array_decl(Ctx *c, size_t i, bool signature);

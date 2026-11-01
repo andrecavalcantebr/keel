@@ -127,6 +127,8 @@ bool k_em_overlaps(const Emit *e, const KAstNode *n, size_t a, size_t b);
 bool k_em_declares_value(KAstKind k);
 /* The module-level declaration that token `i` names, or NULL. */
 const KAstNode *k_em_declared_at(const Emit *e, size_t i);
+/* whether an island says token `i` is a name of the module (not a local) */
+bool k_em_named_island_at(const KAst *ast, size_t i);
 
 /* The <N> of `keel__c<N>` (backend §2.3, rule 2: a counter per function) at
  * token tok: the `defer [now ...]` captures and the `foreach` over a container

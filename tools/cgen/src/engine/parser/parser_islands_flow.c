@@ -52,6 +52,15 @@ const char *isl_control_before(const KAst *a, size_t from, size_t j) {
 
 /* defer [capture] body (spec §4.6, cgen-tool §5.2: the capture as written, or
    `later` when none is written) */
+
+/* The indirection of a C declarator the walk registers: its leading `*`, and one
+   more for an array, as the Local of a keel declaration counts it. */
+static int c_pointers(const KAst *a, size_t i) {
+    int n = isl_punct(a, i + 1, "[") ? 1 : 0;
+    for (size_t p = i; p > 0 && isl_punct(a, p - 1, "*"); p--) n++;
+    return n;
+}
+
 static void defer_island(Ctx *c, const KAstNode *n, size_t at) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
@@ -1091,6 +1100,32 @@ void isl_walk(Ctx *c, const KAstNode *n) {
         if (!isl_signature_of(n, i) && isl_c_declares(a, i, n->body_first - 1)) {
             isl_check_name(c, isl_tok(a, i), false, false);                 /* a C declaration in the body */
             if (c->later_count) isl_note_shadow(c, isl_tok(a, i));
+            /* A declarator whose type keel does not read is a local all the same:
+               registering it keeps the emitter from taking it for a name of the
+               module (backend §5.1). Over a known symbol it is the redeclaration
+               the spec refuses (§2.5, symbol-redeclaration). */
+            size_t ty = i - 1;                          /* the last word of the type, past the `*` */
+            while (ty > n->first && isl_punct(a, ty, "*")) ty--;
+            const KSymbol *known = k_symbol_resolve(a->symbols, isl_tok(a, i));
+            /* A type written as a C keyword (`int total;`): the pattern of §2.5
+               reads the first identifier of the statement, and a keyword is not
+               one, so the check below the walk never sees this declaration. */
+            if (!isl_ident(a, ty) && known && known->origin &&
+                (known->kind == K_SYM_VARIABLE || known->kind == K_SYM_FUNCTION || known->kind == K_SYM_CONSTANT) &&
+                !isl_find_local(c, isl_tok(a, i)))
+                isl_diag3(c, K_DIAG_SYMBOL_REDECLARATION, isl_tok(a, i), isl_tok(a, i), isl_tok(a, ty), isl_tok(a, i));
+            const Local *had = isl_find_local(c, isl_tok(a, i));
+            if (!had || had->global)
+                isl_add_local(c, (Local){ .name = isl_tok(a, i), .decl_at = i, .pointers = c_pointers(a, i) });
+        }
+        /* the same for a parameter: `(int x, char *y)`, whose type keel does not
+           read either. A parameter is not a statement, and the redeclaration
+           pattern of §2.5 does not reach it. A keel type registers its own
+           declarator in isl_declaration, with its specifier: that one stays. */
+        if (isl_signature_of(n, i) && isl_c_param_declares(a, i, n->first)) {
+            const Local *had = isl_find_local(c, isl_tok(a, i));
+            if (!had || had->global)
+                isl_add_local(c, (Local){ .name = isl_tok(a, i), .decl_at = i, .pointers = c_pointers(a, i) });
         }
         if (i > n->first && (isl_punct(a, i - 1, ".") || isl_punct(a, i - 1, "->"))) continue;
 
@@ -1176,6 +1211,14 @@ void isl_walk(Ctx *c, const KAstNode *n) {
             next = isl_enter(a, inst_end, &lexer, &pp);
             i = isl_declaration(c, i, &spec, &lexer, next, signature, true);
             continue;
+        }
+        /* A local with the name of a type of the module is the local, as in C:
+           the declarator shadows the type name, and both live in the same space
+           of identifiers (spec §2.5). Only when the specifier is that one token:
+           `slice i32` is never a declarator. */
+        if (scanned && spec.kind == K_SPEC_NAMED_TYPE && spec.text.len == t.len) {
+            const Local *shadow = isl_find_local(c, t);
+            if (shadow && !shadow->global) scanned = false;
         }
         if (scanned && spec.kind != K_SPEC_NONE) {
             if (spec.kind == K_SPEC_MODIFIER && i > n->first && isl_word(a, i - 1, "restrict"))
@@ -1292,3 +1335,4 @@ void isl_typedef_specifier(Ctx *c, const KAstNode *n) {
     if (++i < n->end && isl_ident(a, i) && !isl_word(a, i, "struct") && !isl_word(a, i, "union") && !isl_word(a, i, "enum"))
         specifier_island(c, i);
 }
+

@@ -199,7 +199,11 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
                         continue;
                     }
                 }
-                if (d) k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_RENAME, .at = at, .skip = k_em_tok(ast, i).len, .name_tok = d->name_first, .is_type = d->kind == K_AST_TYPE || d->kind == K_AST_TAGS });
+                /* A local or a parameter keeps the name the .k wrote: the rename
+                 * is the module's, and the parser says where one is by leaving an
+                 * island. The declaration's own name is its own. */
+                if (d && (i == n->name_first || k_em_named_island_at(ast, i)))
+                    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_RENAME, .at = at, .skip = k_em_tok(ast, i).len, .name_tok = d->name_first, .is_type = d->kind == K_AST_TYPE || d->kind == K_AST_TAGS });
             }
         }
     }

@@ -42,7 +42,7 @@ test/cgen/gen/share|use.k|-
 042-else-lines|app/es.k|-
 043-extern-c|app/xc.k|-
 044-array-range|app/rg.k|-
-045-extern-forms|app/ef.k|-|wip
+045-extern-forms|app/ef.k|-
 046-array-leftovers|app/al.k|-|wip
 047-match-more|app/mm.k|-|wip
 048-parallel-more|app/pm.k|-|wip

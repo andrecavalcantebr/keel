@@ -15,9 +15,9 @@ printf 'module a;\npub int f(void) { return 1; }\n' > "$tmp/a.k"
 printf 'module b;\npub int g(void) { return 1; }\n' > "$tmp/b.k"
 out=$("$BIN" --base-dir "$K" -I "$tmp" --stop-after=gen "$tmp/a.k" "$tmp/b.k" 2>&1); rc=$?
 [ $rc -eq 2 ] && echo "$out" | grep -q '\[multiple-sources\]' || bad "two sources: rc=$rc [$out]"
-printf 'module e;\nextern_c [type_h] { typedef int T; }\n' > "$tmp/e.k"
+printf 'module e;\nextern_c [type_h] { typedef int T; } pub int f(T *t) { return *t; }\n' > "$tmp/e.k"
 out=$("$BIN" --base-dir "$K" -I "$tmp" --stop-after=gen --dest-dir "$tmp/g" "$tmp/e.k" 2>&1); rc=$?
-[ $rc -eq 2 ] && echo "$out" | grep -q 'implementation-limit' || bad "extern_c on one line must be refused, not lost: rc=$rc [$out]"
+[ $rc -eq 2 ] && echo "$out" | grep -q 'implementation-limit' || bad "extern_c sharing its line with another construction must be refused, not lost: rc=$rc [$out]"
 
 [ $fail -eq 0 ] && echo "source errors: ok"
 exit $fail

@@ -43,7 +43,6 @@ static bool cb_parts(const KAst *ast, size_t end, size_t c, CbParts *p) {
     if (semi >= end || semi < eq + 2) return false;
     KToken name = k_em_tok(ast, eq - 1);
     if (!is_ident(name) || name.len > CB_NAME_MAX) return false;
-    if (!k_em_range_plain(ast, c, semi + 1)) return false;   /* a comment inside the statement */
     p->name = eq - 1;
     p->eq = eq;
     p->semi = semi;

@@ -118,9 +118,13 @@ void k_em_push_edit(Emit *e, Edit *ed, size_t *cnt, Edit x);
 char *k_em_scratch(Emit *e, size_t n);
 /* The source text of tokens [tok_a, tok_b), with the gaps between them, and
  * every name renamed as in the generated C: a block constexpr by its macro
- * name (k_em_constblock_rename), a module declaration by its mangled name. */
+ * name (k_em_constblock_rename), a module declaration by its mangled name.
+ * The comments of the gaps are left out (k_em_put_source). */
 void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b);
-bool k_em_range_plain(const KAst *ast, size_t tok_a, size_t tok_b);
+/* the source bytes [a, b) with their comments left out (backend §6, rule 3) */
+void k_em_put_source(Emit *e, size_t a, size_t b);
+/* the text written since n0 made the body of a `#define`: ` \` before each line break */
+void k_em_continue_from(Emit *e, size_t n0);
 void k_em_put_continued(Emit *e, size_t tok_a, size_t tok_b);
 /* whether the node's token span intersects the source bytes [a, b) */
 bool k_em_overlaps(const Emit *e, const KAstNode *n, size_t a, size_t b);

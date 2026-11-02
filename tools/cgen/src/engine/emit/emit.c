@@ -548,10 +548,9 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     k_em_put_bytes(e, s + ts, te - ts);
     k_em_put_bytes(e, ")", 1);
     if (paren) k_em_put_bytes(e, "(", 1);
-    for (size_t p = is; p < ie; p++) {   /* each line break of the INIT continues the macro (backend §9.2, rule 1) */
-        if (s[p] == '\n') k_em_put_bytes(e, " \\", 2);
-        k_em_put_bytes(e, s + p, 1);
-    }
+    size_t n0 = e->n;
+    k_em_put_source(e, is, ie);   /* the INIT without its comments */
+    k_em_continue_from(e, n0);    /* each line break of the INIT continues the macro (backend §9.2, rule 1) */
     if (paren) k_em_put_bytes(e, ")", 1);
     k_em_put_bytes(e, ")\n", 2);
     if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
@@ -562,7 +561,7 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     k_em_put_mangled(e, n->name_first, false);
     k_em_put_bytes(e, "__chk = ", 8);
     if (paren) k_em_put_bytes(e, "(", 1);
-    k_em_put_bytes(e, s + is, ie - is);
+    k_em_put_source(e, is, ie);
     if (paren) k_em_put_bytes(e, ")", 1);
     /* a use of the object that generates no code (backend §9.2, rule 2) */
     k_em_put_bytes(e, "; _Static_assert(sizeof(", 24);
@@ -590,6 +589,31 @@ static bool extern_c_priv(const KAst *ast, const KAstNode *n) {
 static void extern_c_lines(const Emit *e, const KAstNode *n, size_t *a, size_t *b) {
     *a = k_em_line_end(e, k_em_tok_off(e->ast, n->body_first - 1));
     *b = k_em_line_start(e, k_em_tok_off(e->ast, n->body_end));
+}
+
+/* `extern_c { … }` with its braces on one line (backend §4.3.2, rule 9): its text
+ * is a line of its own, the line of the `{`, and the blanks at the braces leave
+ * it. No other construction may share that line (supported() checks it). */
+static bool extern_c_inline(const KAst *ast, const KAstNode *n) {
+    return !memchr(ast->source.ptr + k_em_tok_off(ast, n->body_first - 1), '\n',
+                   k_em_tok_off(ast, n->body_end) - k_em_tok_off(ast, n->body_first - 1));
+}
+
+static bool alone_on_line(const Emit *e, const KAstNode *n) {
+    size_t a = k_em_line_start(e, k_em_first_off(e, n)), b = k_em_line_end(e, k_em_last_end(e, n));
+    for (size_t i = 0; i < e->ast->nodes.len; i++) {
+        const KAstNode *m = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
+        if (m != n && k_em_overlaps(e, m, a, b)) return false;
+    }
+    return true;
+}
+
+/* the text of a one-line extern_c, on the line of its `{` (see extern_c_inline); an
+ * empty one writes nothing */
+static void extern_c_text(Emit *e, const KAstNode *n) {
+    if (n->body_first >= n->body_end) return;
+    size_t a = k_em_tok_off(e->ast, n->body_first), b = k_em_tok_end(e->ast, n->body_end - 1);
+    emit_line(e, k_em_line_at(e, a), a, b);
 }
 
 /* .type.h: the typedefs, the opaque C, the import_c lines and the body of
@@ -626,6 +650,11 @@ static void type_h_body(Emit *e) {
             break;
         case K_AST_EXTERN_C:
             if (!extern_c_type_h(ast, n)) break;   /* the plain and the priv forms: h_body and emit_c */
+            if (extern_c_inline(ast, n)) {
+                extern_c_text(e, n);
+                e->done = k_em_line_end(e, k_em_last_end(e, n));
+                break;
+            }
             extern_c_lines(e, n, &a, &b);
             if (a < e->done) a = e->done;
             if (a < b) { emit_range(e, a, b); e->done = b; }
@@ -675,6 +704,7 @@ static void h_body(Emit *e) {
         else if (n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n)) k_em_extent_protos(e, n);
         else if (n->kind == K_AST_EXTERN_C && !extern_c_type_h(e->ast, n) && !extern_c_priv(e->ast, n)) {
             /* a plain extern_c: its text, in its place among the prototypes (backend §4.3.2, rule 9) */
+            if (extern_c_inline(e->ast, n)) { extern_c_text(e, n); continue; }
             size_t a, b;
             extern_c_lines(e, n, &a, &b);
             if (a < b) emit_range(e, a, b);
@@ -848,6 +878,7 @@ static void emit_c(Emit *e) {
         size_t b = k_em_line_end(e, a);
         if (a < written) { a = b; continue; }
         bool empty = false, fn = false;
+        const KAstNode *inl = NULL;   /* a one-line priv extern_c: its line is its text */
         for (size_t i = 0; i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (!k_em_overlaps(e, n, a, b)) continue;
@@ -855,6 +886,7 @@ static void emit_c(Emit *e) {
             else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
             else if (n->kind == K_AST_EXTERN_C && extern_c_priv(e->ast, n)) {
                 /* a priv extern_c: its text is the .c's (backend §4.3.2, rule 10); its braces are not */
+                if (extern_c_inline(e->ast, n)) { inl = n; continue; }
                 size_t ba, bb;
                 extern_c_lines(e, n, &ba, &bb);
                 if (a < ba || b > bb) empty = true;
@@ -862,7 +894,15 @@ static void emit_c(Emit *e) {
             else empty = true;   /* every other kind in the slice has no C in the .c */
         }
         if (fn && empty) { e->ok = false; return; }
-        if (empty) {
+        if (inl) {
+            /* the line of the `{` is the text, alone on it (supported() checks it) */
+            if (inl->body_first >= inl->body_end) {
+                if (!k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ 1, nl })) e->ok = false;
+            } else {
+                extern_c_text(e, inl);
+                if (spanned_end > b) written = spanned_end;
+            }
+        } else if (empty) {
             if (!k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ 1, nl })) e->ok = false;
         } else {
             emit_line(e, k_em_line_at(e, a), a, b);
@@ -996,7 +1036,7 @@ static bool supported(const Emit *e) {
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
             if (n->name_first >= n->name_end || n->name_first + 2 >= n->end - 1 || n->name_first <= k + 1) return false;
             if (!k_em_text_is(k_em_tok(ast, k), "constexpr") || !k_em_text_is(k_em_tok(ast, n->name_first + 1), "=")) return false;
-            if (!ast->source.len || (!k_em_range_plain(ast, n->first, n->end))) return false;   /* a comment inside: no `\` can carry it */
+            if (!ast->source.len) return false;
             break;
         }
         case K_AST_VARIABLE: {
@@ -1021,17 +1061,12 @@ static bool supported(const Emit *e) {
                 if (k + 4 >= n->end || !k_em_text_is(k_em_tok(ast, k + 2), "type_h") ||
                     !k_em_text_is(k_em_tok(ast, k + 3), "]") || !k_em_text_is(k_em_tok(ast, k + 4), "{")) return false;
             } else {
-                /* the plain form (.h) and `priv` (.c); `pub extern_c {` is not a form */
+                /* the plain form (.h, with or without `pub`) and `priv` (.c) */
                 if (!k_em_text_is(k_em_tok(ast, k + 1), "{")) return false;
-                if (k != n->first && !extern_c_priv(ast, n)) return false;
             }
             if (n->body_first == (size_t)-1 || n->body_end == (size_t)-1) return false;
-            /* the lines of its text are the ones a header or the .c take: `{` and `}` on one line leave none,
-             * and the text would be lost in silence */
-            {
-                size_t o1 = k_em_tok_off(ast, n->body_first - 1), o2 = k_em_tok_off(ast, n->body_end);
-                if (!memchr(ast->source.ptr + o1, '\n', o2 - o1)) return false;
-            }
+            /* one line: its text is a line of its own, and no other construction may share it */
+            if (extern_c_inline(ast, n) && !alone_on_line(e, n)) return false;
             break;
         }
         case K_AST_FUNCTION:

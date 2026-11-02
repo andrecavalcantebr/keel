@@ -120,20 +120,39 @@ char *k_em_scratch(Emit *e, size_t n) {
     return p;
 }
 
-/* Whether the gaps between tokens [tok_a, tok_b) hold no comment: a macro that continues a line
- * with `\` cannot carry one (a `//` would swallow the next line, backend §9.2, rule 1). */
-bool k_em_range_plain(const KAst *ast, size_t tok_a, size_t tok_b) {
-    for (size_t i = tok_a + 1; i < tok_b; i++)
-        for (size_t p = k_em_tok_end(ast, i - 1); p < k_em_tok_off(ast, i); p++)
-            if (ast->source.ptr[p] == '/') return false;
-    return true;
+/* Source [a, b) into the line, comments left out (backend §6, rule 3): a comment
+ * goes, and so do the blanks before it when it ends the line; a line break stays.
+ * The blanks are only taken back within this call, never before a. */
+void k_em_put_source(Emit *e, size_t a, size_t b) {
+    const char *s = e->ast->source.ptr;
+    size_t start = e->n;
+    size_t p = a;
+    while (p < b && e->ok) {
+        if (s[p] == '/' && p + 1 < b && (s[p + 1] == '/' || s[p + 1] == '*')) {
+            size_t ce;
+            if (s[p + 1] == '/') {
+                ce = p;
+                while (ce < b && s[ce] != '\n') ce++;
+            } else {
+                ce = p + 2;
+                while (ce + 1 < b && !(s[ce] == '*' && s[ce + 1] == '/')) ce++;
+                ce = ce + 2 < b ? ce + 2 : b;
+            }
+            size_t rest = ce;
+            while (rest < b && (s[rest] == ' ' || s[rest] == '\t')) rest++;
+            if (rest >= b || s[rest] == '\n')
+                while (e->n > start && (e->buf[e->n - 1] == ' ' || e->buf[e->n - 1] == '\t')) e->n--;
+            p = ce;
+            continue;
+        }
+        k_em_put_bytes(e, s + p, 1);
+        p++;
+    }
 }
 
-/* k_em_put_range for the body of a `#define`: each line break of the source becomes `\` and a
- * line break, and the blanks around it stay (backend §9.2, rule 1). */
-void k_em_put_continued(Emit *e, size_t tok_a, size_t tok_b) {
-    size_t n0 = e->n;
-    k_em_put_range(e, tok_a, tok_b);
+/* the text written since n0 with each line break of it made a continuation of a
+ * `#define`: ` \` before it, and the blanks around it stay (backend §9.2, rule 1) */
+void k_em_continue_from(Emit *e, size_t n0) {
     if (!e->ok) return;
     size_t len = e->n - n0;
     char *copy = k_em_scratch(e, len + 1);
@@ -146,13 +165,21 @@ void k_em_put_continued(Emit *e, size_t tok_a, size_t tok_b) {
     }
 }
 
+/* k_em_put_range for the body of a `#define`: each line break of the source becomes `\` and a
+ * line break, and the blanks around it stay (backend §9.2, rule 1). */
+void k_em_put_continued(Emit *e, size_t tok_a, size_t tok_b) {
+    size_t n0 = e->n;
+    k_em_put_range(e, tok_a, tok_b);
+    k_em_continue_from(e, n0);
+}
+
 void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b) {
     const KAst *ast = e->ast;
     size_t amp[16], namp = 0;   /* the tokens that take `&` before them (uses.c) */
     for (size_t i = tok_a; i < tok_b && e->ok; i++) {
-        if (i > tok_a) {   /* the gap between the two tokens, as written */
+        if (i > tok_a) {   /* the gap between the two tokens, as written, without its comments */
             size_t g0 = k_em_tok_end(ast, i - 1), g1 = k_em_tok_off(ast, i);
-            k_em_put_bytes(e, ast->source.ptr + g0, g1 - g0);
+            k_em_put_source(e, g0, g1);
         }
         for (size_t k = 0; k < namp; k++) if (amp[k] == i) k_em_put_bytes(e, "&", 1);
         KRangeUse u;

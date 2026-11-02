@@ -86,6 +86,18 @@ static bool is_pub_inline(const KAst *ast, const KAstNode *n) {
            k_em_text_is(k_em_tok(ast, n->first), "pub") && k_em_text_is(k_em_tok(ast, n->first + 1), "inline");
 }
 
+/* whether `n` is the first node of its declaration: the nodes of one declaration
+ * with several declarators share its span, and only the first writes what they
+ * share (a typedef's anonymous tag) */
+static bool first_of_span(const KAst *ast, const KAstNode *n) {
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (d == n) return true;
+        if (d->first == n->first) return false;
+    }
+    return true;
+}
+
 static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     bool value = k_em_declares_value(n->kind);
@@ -138,7 +150,7 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
             /* only the declarator is a module name; the members are not */
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
             if (k + 2 < n->end && k_em_text_is(k_em_tok(ast, k), "typedef") && k_em_text_is(k_em_tok(ast, k + 1), "struct") &&
-                k_em_text_is(k_em_tok(ast, k + 2), "{") && n->name_first < n->name_end) {
+                k_em_text_is(k_em_tok(ast, k + 2), "{") && n->name_first < n->name_end && first_of_span(ast, n)) {
                 size_t at = k_em_tok_end(ast, k + 1);
                 if (at >= a && at < b)
                     k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TAG, .at = at, .skip = 0, .name_tok = n->name_first, .is_type = true });
@@ -439,21 +451,58 @@ static void emit_proto(Emit *e, const KAstNode *n) {
 }
 
 /* A public variable's declaration for the .h (backend §4.1, rule 13): `extern`,
- * the declaration without the initializer; the definition stays in the .c. */
-static void emit_extern(Emit *e, const KAstNode *n) {
+ * the declaration without the initializers; the definition stays in the .c.
+ * `pub int x = 1, y = 2;` is one declaration of several declarators: the nodes
+ * from `i` on that share its span are written together, once (`first` is the
+ * one at `i`). Each `= INIT` goes, up to the `,` or `;` that ends it. */
+static void emit_extern(Emit *e, size_t i) {
     const KAst *ast = e->ast;
-    size_t a = k_em_first_off(e, n), b = k_em_last_end(e, n);
-    for (size_t i = n->first, depth = 0; i < n->end; i++) {   /* the top-level `=` */
-        KToken t = k_em_tok(ast, i);
-        if (k_em_text_is(t, "(") || k_em_text_is(t, "[") || k_em_text_is(t, "{")) depth++;
-        else if (k_em_text_is(t, ")") || k_em_text_is(t, "]") || k_em_text_is(t, "}")) depth--;
-        else if (depth == 0 && (k_em_text_is(t, "=") || k_em_text_is(t, ";"))) { b = k_em_tok_off(ast, i); break; }
-    }
+    const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+    size_t a = k_em_first_off(e, n), b = k_em_tok_off(ast, n->end - 1);   /* up to the `;` */
     while (b > a && (ast->source.ptr[b - 1] == ' ' || ast->source.ptr[b - 1] == '\t')) b--;
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
-    node_edits(e, n, a, b, ed, &cnt);
+    for (size_t j = i; j < ast->nodes.len; j++) {
+        const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, j);
+        if (d->first != n->first) break;
+        node_edits(e, d, a, b, ed, &cnt);
+    }
     comment_edits(e, a, b, ed, &cnt);
+    /* the initializers: from the end of the declarator's name to the `,` or `;` after the INIT */
+    size_t cut[MAX_EDITS][2], ncut = 0;
+    for (size_t p = n->first, depth = 0; p < n->end; p++) {
+        KToken t = k_em_tok(ast, p);
+        if (k_em_text_is(t, "(") || k_em_text_is(t, "[") || k_em_text_is(t, "{")) depth++;
+        else if (k_em_text_is(t, ")") || k_em_text_is(t, "]") || k_em_text_is(t, "}")) depth--;
+        else if (depth == 0 && k_em_text_is(t, "=")) {
+            size_t q = p + 1, d2 = 0;
+            for (; q < n->end; q++) {
+                KToken u = k_em_tok(ast, q);
+                if (k_em_text_is(u, "(") || k_em_text_is(u, "[") || k_em_text_is(u, "{")) d2++;
+                else if (k_em_text_is(u, ")") || k_em_text_is(u, "]") || k_em_text_is(u, "}")) d2--;
+                else if (d2 == 0 && (k_em_text_is(u, ",") || k_em_text_is(u, ";"))) break;
+            }
+            if (ncut >= MAX_EDITS) { e->ok = false; return; }
+            size_t cs = k_em_tok_end(ast, p - 1), ce = k_em_tok_off(ast, q);
+            if (ce > b) ce = b;
+            cut[ncut][0] = cs; cut[ncut][1] = ce; ncut++;
+            p = q;
+        }
+    }
+    /* an edit inside an initializer goes with it */
+    size_t kept = 0;
+    for (size_t k = 0; k < cnt; k++) {
+        bool inside = false;
+        for (size_t c = 0; c < ncut && !inside; c++) inside = ed[k].at >= cut[c][0] && ed[k].at < cut[c][1];
+        if (!inside) ed[kept++] = ed[k];
+    }
+    cnt = kept;
+    for (size_t c = 0; c < ncut; c++) {
+        if (cut[c][1] <= cut[c][0]) continue;
+        k_em_push_edit(e, ed, &cnt, (Edit){ .kind = EDIT_DROP, .at = cut[c][0], .skip = cut[c][1] - cut[c][0], .name_tok = 0, .is_type = false });
+    }
+    k_em_sort_edits(ed, 0, cnt);
+    drop_nested(ed, &cnt);
     if (!e->ok) return;
     e->n = 0;
     k_em_put_bytes(e, "extern ", 7);
@@ -584,7 +633,10 @@ static void h_body(Emit *e) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (skip(e, n)) continue;
         if (n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
-        else if (n->kind == K_AST_VARIABLE && n->is_public) emit_extern(e, n);
+        else if (n->kind == K_AST_VARIABLE && n->is_public) {
+            /* a declaration of several declarators: written at its first node only */
+            if (i == 0 || keel_buffer_KAstNode_ptr(&e->ast->nodes, i - 1)->first != n->first) emit_extern(e, i);
+        }
         else if (n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n)) k_em_extent_protos(e, n);
     }
     /* then the bodies of the `pub inline` functions, each with its own .k lines */
@@ -844,19 +896,33 @@ static bool supported(const Emit *e) {
         case K_AST_OPAQUE:
             break;
         case K_AST_IMPORT_C:
-            /* import_c <x>; with the <...> form only */
-            if (n->end - n->first < 5) return false;
-            if (k_em_tok(ast, n->first + 1).ptr[0] != '<') return false;
-            if (!k_em_text_is(k_em_tok(ast, n->end - 2), ">") || !k_em_text_is(k_em_tok(ast, n->end - 1), ";")) return false;
+            /* import_c <x>; (the <...> form, several tokens) or import_c "x"; (one token) */
+            if (n->end - n->first < 3) return false;
+            if (k_em_tok(ast, n->first + 1).ptr[0] == '"') {
+                if (n->end - n->first != 3) return false;
+            } else {
+                if (n->end - n->first < 5) return false;
+                if (k_em_tok(ast, n->first + 1).ptr[0] != '<') return false;
+                if (!k_em_text_is(k_em_tok(ast, n->end - 2), ">")) return false;
+            }
+            if (!k_em_text_is(k_em_tok(ast, n->end - 1), ";")) return false;
             break;
         case K_AST_TYPE: {
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
             /* `extent struct`: a shape of its own (backend §5.15); `pub` or `priv`, the struct goes to the
              * .type.h and the accessors to the .h (backend §5.15, rule 3) */
             if (k_em_text_is(k_em_tok(ast, k), "extent")) { if (!k_em_is_extent(ast, n)) return false; break; }
-            if (k >= n->end || !k_em_text_is(k_em_tok(ast, k), "typedef")) return false;
-            /* one declarator per typedef: a list shares the span of its nodes */
-            if (i > 0 && keel_buffer_KAstNode_ptr(&ast->nodes, i - 1)->first == n->first) return false;
+            /* `[pub|priv] struct|union NAME { … };` (decl-struct, without typedef) and `typedef`:
+             * both are one node per declared name */
+            if (k >= n->end) return false;
+            if (!k_em_text_is(k_em_tok(ast, k), "typedef") && !k_em_text_is(k_em_tok(ast, k), "struct") &&
+                !k_em_text_is(k_em_tok(ast, k), "union")) return false;
+            /* a list of typedef declarators shares the span of its nodes (`typedef struct {…} P, *PP;`);
+             * a struct node after another node of the same span is refused: its variables come first */
+            if (i > 0) {
+                const KAstNode *p = keel_buffer_KAstNode_ptr(&ast->nodes, i - 1);
+                if (p->first == n->first && p->kind != K_AST_TYPE) return false;
+            }
             break;
         }
         case K_AST_TAGS: {
@@ -882,9 +948,12 @@ static bool supported(const Emit *e) {
             break;
         }
         case K_AST_VARIABLE: {
-            /* one declarator: no top-level comma */
+            /* several declarators (`pub int x = 1, y = 2;`): one node each, sharing the span; an
+             * `array` list is not done (array.c takes one declarator) */
+            size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
+            bool arr = k < n->end && k_em_text_is(k_em_tok(ast, k), "array");
             size_t depth = 0;
-            for (size_t p = n->first; p < n->end; p++) {
+            for (size_t p = n->first; p < n->end && arr; p++) {
                 KToken t = k_em_tok(ast, p);
                 if (k_em_text_is(t, "(") || k_em_text_is(t, "[") || k_em_text_is(t, "{")) depth++;
                 else if (k_em_text_is(t, ")") || k_em_text_is(t, "]") || k_em_text_is(t, "}")) depth--;

@@ -118,3 +118,10 @@ golden/cases/035-match-column/expected/c23/app/app_nd.h	return &p->kind[i0];
 golden/cases/036-constexpr-lines/expected/c11/app/app_cl.type.h	static const size_t app_cl_K__chk = (1 +
 golden/cases/040-match-forms/expected/c11/app/app_mf.c	case app_mf_Cycle_B: goto keel__m0_B;
 golden/cases/040-match-forms/expected/c23/app/app_mf.c	case app_mf_Cycle_B: goto keel__m0_B;
+golden/cases/041-parallel-forms/expected/c11/app/app_pf.c	for (size_t w = 0; w < 4; w++) {
+golden/cases/041-parallel-forms/expected/c11/app/app_pf.c	{ keel_buffer_i32 *keel__c0 = xs;
+golden/cases/041-parallel-forms/expected/c11/app/app_pf.c	keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
+golden/cases/041-parallel-forms/expected/c11/app/app_pf.type.h	static const size_t app_pf_W__chk = 4; _Static_assert(sizeof(app_pf_W__chk) > 0, "constexpr");
+golden/cases/041-parallel-forms/expected/c23/app/app_pf.c	for (size_t w = 0; w < 4; w++) {
+golden/cases/041-parallel-forms/expected/c23/app/app_pf.c	{ keel_buffer_i32 *keel__c0 = xs;
+golden/cases/041-parallel-forms/expected/c23/app/app_pf.c	keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);

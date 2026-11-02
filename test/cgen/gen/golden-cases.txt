@@ -4,7 +4,7 @@
 # ok when it matches and wip when it differs, and never fails the suite.
 # Written by hand from golden/cases/*/expected; a case not listed is not checked.
 test/cgen/gen/shapes|shapes.k|-
-test/cgen/gen/quoted|q.k|-|wip
+test/cgen/gen/quoted|q.k|-
 test/cgen/gen/serie|app/val.k|-||--parallel-lowering=serie
 003-alignment|app/align.k|app.align
 006-dim|app/g.k|app.g
@@ -35,9 +35,10 @@ test/cgen/gen/share|use.k|-
 035-match-column|app/nd.k|-
 036-constexpr-lines|app/cl.k|-
 037-defer-forms|app/df.k|-
-038-decl-forms|app/dc.k|-|wip
+038-decl-forms|app/dc.k|-
 039-array-forms|app/ar.k|-|wip
 040-match-forms|app/mf.k|-|wip
+041-parallel-forms|app/pf.k|-|wip
 010-routine|ag2.k|-
 019-walk|lst.k|-
 011-else|app/el.k|-

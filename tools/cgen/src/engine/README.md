@@ -410,7 +410,7 @@ Fora: `dim-generates-declaration` espera definição; os sete de molde, v1;
 `emit/` existe e é o maior pedaço do motor. O desenho e o mapa dos arquivos —
 quais existem e a que item da tabela do corte correspondem — estão em
 [codegen-design.md §2](../../../../design/codegen-design.md). O que ele cobre
-hoje: **32 dos 35 casos do `golden/` saem byte a byte, nos dois perfis**, e a
+hoje: **34 dos 37 casos do `golden/` saem byte a byte, nos dois perfis**, e a
 base inteira (`test/cgen/base.sh`). Os oráculos são `test/cgen/gen_golden.sh`
 (com a tabela `test/cgen/gen/golden-cases.txt`) e `test/cgen/base.sh`. O caso
 032 (`defer` com `goto` e em bloco interno, backend §5.5.2 r6) foi o último a

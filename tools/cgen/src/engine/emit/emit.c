@@ -368,7 +368,7 @@ static void copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, 
 static void drop_nested(Edit *ed, size_t *cnt) {
     size_t j = 0, end = 0;
     for (size_t k = 0; k < *cnt; k++) {
-        if (j > 0 && ed[k].at < end && ed[k].at > ed[j - 1].at) continue;   /* inside the previous replacement */
+        if (j > 0 && ed[k].at < end && (ed[k].at > ed[j - 1].at || ed[k].skip > 0)) continue;   /* inside the previous replacement (a replacement at the same place too) */
         ed[j++] = ed[k];
         if (ed[k].at + ed[k].skip > end) end = ed[k].at + ed[k].skip;
     }

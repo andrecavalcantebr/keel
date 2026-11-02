@@ -1177,7 +1177,7 @@ bool isl_c_declares(const KAst *a, size_t i, size_t from) {
         if (isl_punct(a, p, ";") || isl_punct(a, p, "{") || isl_punct(a, p, "}")) return types > 0;
         if (isl_punct(a, p, "*")) { j = p; continue; }
         if (isl_word(a, p, "return") || isl_word(a, p, "goto") || isl_word(a, p, "case") || isl_word(a, p, "else") ||
-            isl_word(a, p, "do") || isl_word(a, p, "sizeof"))
+            isl_word(a, p, "do") || isl_word(a, p, "sizeof") || isl_word(a, p, "defer"))
             return false;                                   /* a statement, not a declaration */
         if (isl_ident(a, p) || k_token_is_c_word(isl_tok(a, p))) { types++; j = p; continue; }
         return false;

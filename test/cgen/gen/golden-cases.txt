@@ -33,7 +33,7 @@ test/cgen/gen/share|use.k|-
 034-priv-tags|pt.k|-
 035-match-column|app/nd.k|-
 036-constexpr-lines|app/cl.k|-
-037-defer-forms|app/df.k|-|wip
+037-defer-forms|app/df.k|-
 010-routine|ag2.k|-
 019-walk|lst.k|-
 011-else|app/el.k|-

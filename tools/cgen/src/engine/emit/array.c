@@ -12,9 +12,9 @@
  * -> `i32 a[3], b[4];`, `priv array i32 p[3], q[2];` -> `static i32 p[3], q[2];`): the
  * word goes once, and the commas of each declarator's dimensions become `][`.
  * The forms this slice does not lower are refused (k_em_handles_array answers
- * false, and the module is refused with implementation-limit): several declarators
- * of one `array` field of a struct, and a parameter whose dimension has a binder
- * (`array T v[size_t n]`, backend §5.18), or a binder outside a parameter. */
+ * false, and the module is refused with implementation-limit): a parameter whose
+ * dimension has a binder (`array T v[size_t n]`, backend §5.18), or a binder outside
+ * a parameter. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -24,7 +24,6 @@ typedef struct {
     size_t lbr, rbr;            /* the dimension brackets: `[` and its `]` */
     bool param;                 /* in the signature, before the body (rule 3) */
     bool in_function;           /* in a function (a parameter or a local) */
-    bool in_type;               /* in a type (a field of a struct): one declarator only */
     bool binder;                /* dimension 0 is `T name` (backend §5.18) */
     size_t bend;                /* binder: the token that ends dimension 0 (`,` or `]`) */
     size_t fn_end;              /* the end of the enclosing function */
@@ -129,7 +128,6 @@ static bool array_decl(const KAst *ast, size_t arr, ArrayDecl *d) {
     d->arr = arr; d->lbr = lbr; d->rbr = rbr;
     d->param = fn->kind == K_AST_FUNCTION && arr < fn->body_first;
     d->in_function = fn->kind == K_AST_FUNCTION;
-    d->in_type = fn->kind == K_AST_TYPE;
     /* no dimension: `array char s[] = "..."` keeps the `[]` for the initializer to size (spec §4.2);
        a parameter with none is not a form this file knows */
     if (rbr == lbr + 1 && d->param) return false;
@@ -152,9 +150,6 @@ static bool array_decl(const KAst *ast, size_t arr, ArrayDecl *d) {
         for (size_t j = lbr + 1; j < rbr; j++)   /* another binder among the rest */
             if (j > d->bend && tok_is_word(ast, j) && tok_is_word(ast, j + 1)) return false;
     }
-    /* a struct field with a second declarator: refused (one each); a local's and a
-     * module variable's declarators are read in turn */
-    if (d->in_type && rbr + 1 < fn->end && tok_is(ast, rbr + 1, ",")) return false;
     return true;
 }
 
@@ -223,7 +218,7 @@ static void declarator_edits(Emit *e, const ArrayDecl *d, size_t a, size_t b, Ed
         }
         /* the next declarator of a local: `, name[` */
         size_t nx = after_declarator(ast, rb, d->fn_end);
-        if (d->param || d->in_type || nx + 3 >= d->fn_end || !tok_is(ast, nx, ",") ||
+        if (d->param || nx + 3 >= d->fn_end || !tok_is(ast, nx, ",") ||
             !tok_is_word(ast, nx + 1) || !tok_is(ast, nx + 2, "[")) break;
         lb = nx + 2;
         rb = close_of(ast, lb, d->fn_end);

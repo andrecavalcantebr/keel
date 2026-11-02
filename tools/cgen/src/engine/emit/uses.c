@@ -928,7 +928,12 @@ void k_em_use_includes(Emit *e) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         Detail d;
         unsigned amp, type, dim;
-        if (is->kind != K_ISLAND_RANGE_INDEX || !detail_of(ast, is, &d) || !marks_of3(&d, &amp, &type, &dim) || !dim) continue;
+        if (is->kind != K_ISLAND_RANGE_INDEX || !detail_of(ast, is, &d)) continue;
+        /* an open end writes its `core` word before the marks (parser_islands_index.c) */
+        if (d.marks_len >= 5 && memcmp(d.marks, " core", 5) == 0 && (d.marks_len == 5 || d.marks[5] == ' ')) {
+            d.marks += 5; d.marks_len -= 5;
+        }
+        if (!marks_of3(&d, &amp, &type, &dim) || !dim) continue;
         size_t n = d.sym_len;
         while (n > 0 && d.sym[n - 1] >= '0' && d.sym[n - 1] <= '9') n--;
         if (n < 9 || memcmp(d.sym + n - 9, "_as_slice", 9) != 0) continue;

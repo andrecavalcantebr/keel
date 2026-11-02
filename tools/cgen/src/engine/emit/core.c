@@ -18,19 +18,26 @@
  * extent of its own: its dimension 0 is the `keel__n` that arrived, so
  *
  *   keel.length(v)              ->   keel__n   (times the other dimensions)
+ *   keel.capacity(v)            ->   keel__n
  *   keel.dim(v, 0)              ->   keel__n
  *
+ * A parameter without a binder (`array i32 v[static 2][3]`, backend §5.3 rule 7)
+ * has no extent in its C type, so its length is the product of its literal
+ * dimensions:
+ *
+ *   keel.length(v)              ->   2 * 3
+ *
+ * The element type of the `sizeof` is written as the C text names it, a module
+ * declaration renamed (`array Box bs[3]`: sizeof(bs)/sizeof(app_al_Box)).
  * The argument of `keel.length` over a module array keeps its bytes: its rename
  * is the island the parser left on it. The other forms are written whole, and
  * an edit another construction made inside them is dropped (emit.c, drop_nested).
  *
  * Refused (k_em_handles_core answers false, and the module is refused with
- * implementation-limit): a binder with `keel.capacity`; a parameter without a
- * binder (its extent is not in the C type, `i32 v[static 4]`); `keel.length`
- * over a module array whose dimensions are not literal; a `keel.dim` index
- * that is not a decimal literal, or not below the number of dimensions; and an
- * element type that names a declaration of the module, which would have to be
- * renamed inside the generated text. */
+ * implementation-limit): `keel.capacity` or `keel.dim` over a parameter without
+ * a binder; `keel.length` over a module array whose dimensions are not literal;
+ * a `keel.dim` index that is not a decimal literal, or not below the number of
+ * dimensions. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -73,21 +80,6 @@ static bool decimal_at(const KAst *ast, size_t i, long *v) {
     }
     *v = n;
     return true;
-}
-
-/* whether the module declares a name any token of [a, b) spells */
-static bool names_declaration(const KAst *ast, size_t a, size_t b) {
-    for (size_t i = a; i < b; i++) {
-        if (!ident(ast, i)) continue;
-        KToken t = k_em_tok(ast, i);
-        for (size_t k = 0; k < ast->nodes.len; k++) {
-            const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-            if (n->name_first >= n->name_end) continue;
-            KToken nm = k_em_tok(ast, n->name_first);
-            if (nm.len == t.len && memcmp(nm.ptr, t.ptr, t.len) == 0) return true;
-        }
-    }
-    return false;
 }
 
 /* the function whose tokens hold token tok, or NULL */
@@ -170,10 +162,23 @@ static bool plan(const KAst *ast, const KAstNode *fn, const Call *c, Plan *p) {
     p->whole = false;
     p->len = 0;
     p->type_a = p->type_b = 0;
-    if (param && !r.binder) return false;       /* no extent in the C type of `i32 v[static 4]` */
+    if (param && !r.binder) {
+        /* backend §5.3, rule 7: the extent of a parameter without a binder is not in its C
+         * type (`i32 v[static 2][3]` is a pointer), so its length is the product of the
+         * literal dimensions; a capacity or a dim of one is not lowered yet */
+        if (capacity || dim) return false;
+        p->whole = true;
+        for (size_t k = 0; k < r.ndims; k++) {
+            long v;
+            if (!k_em_array_dim(ast, fn, &r, k, &v)) return false;
+            if (k > 0 && !put(p, " * ", 3)) return false;
+            if (!put_number(p, v)) return false;
+        }
+        return true;
+    }
     if (r.binder) {
-        /* backend §5.18: dimension 0 is keel__<name>, the extent that arrived */
-        if (capacity) return false;
+        /* backend §5.18: dimension 0 is keel__<name>, the extent that arrived; a capacity is
+         * the same extent as a length */
         size_t nm = r.dim_end[0] - 1;
         p->whole = true;
         if (dim) {
@@ -212,8 +217,7 @@ static bool plan(const KAst *ast, const KAstNode *fn, const Call *c, Plan *p) {
     }
     p->type_a = r.arr + 1;
     p->type_b = r.type_b;
-    if (p->type_b <= p->type_a || names_declaration(ast, p->type_a, p->type_b)) return false;
-    return true;
+    return p->type_b > p->type_a;
 }
 
 bool k_em_handles_core(const KAst *ast, const KIsland *is) {
@@ -246,17 +250,14 @@ void k_em_edits_core(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
         if (at >= a && at < b)
             k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at,
                 .skip = k_em_tok_end(ast, c.open) - at, .text = "sizeof(", .text_len = 7 });
-        /* `)` -> `)/sizeof(<element type>)` */
-        size_t ta = k_em_tok_off(ast, p.type_a), tb = k_em_tok_end(ast, p.type_b - 1);
+        /* `)` -> `)/sizeof(<element type>)`: the type's tokens after the `)` (an insertion,
+         * so the replacement of the `)` comes first), renamed as in the C text */
         at = k_em_tok_off(ast, c.close);
         if (at >= a && at < b) {
-            char *w = k_em_scratch(e, (tb - ta) + 11);
-            if (!w) return;
-            size_t q = 0;
-            memcpy(w + q, ")/sizeof(", 9); q += 9;
-            memcpy(w + q, ast->source.ptr + ta, tb - ta); q += tb - ta;
-            w[q++] = ')';
-            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 1, .text = w, .text_len = q });
+            size_t after = k_em_tok_end(ast, c.close);
+            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = 1, .text = ")/sizeof(", .text_len = 9 });
+            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TOKS, .at = after, .skip = 0, .tok_a = p.type_a, .tok_b = p.type_b });
+            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = after, .skip = 0, .text = ")", .text_len = 1 });
         }
     }
 }

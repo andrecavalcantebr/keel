@@ -10,7 +10,9 @@
  * takes the array's dimension 0 after the container: `v[1..4]` is
  * `keel_array_i32_as_slice2(v, 6, 1, 4)`, the 6 read from the declaration (a
  * decimal, or keel__n for a parameter with a binder), and `v[..3]` passes 0 as
- * the start. The open ends of an array are refused for now.
+ * the start. An open end reads the array's length, which takes the same
+ * dimension after the name: `v[2..]` is `keel_array_i32_as_slice2(v, 6, 2,
+ * keel_array_i32_length(v, 6))`, and `v[..]` passes 0 and that length.
  * Refused (k_em_handles_subscript answers false): a container that is not a
  * plain name (`s.f[i]`), a comma between indices (§5.3.1), a name preceded by
  * `&` (rule 2 collapses `&*`, not lowered yet), a bracket group over two lines,
@@ -103,6 +105,20 @@ static bool is_dim(Word w) {
     return w.n == 5 && memcmp(w.p, "dim:1", 5) == 0;
 }
 
+/* the open end of an array's detail: `core`, the length of the core (parser_islands_index.c) */
+static bool is_core(Word w) {
+    return w.n == 4 && memcmp(w.p, "core", 4) == 0;
+}
+
+/* the length of the prefix of an as_slice symbol, the `_as_slice` excluded:
+ * `keel_array_i32_as_slice2` gives 14, for `keel_array_i32`, whose length is
+ * `keel_array_i32_length`; NO_WORDS when the symbol has no `_as_slice` */
+static size_t length_prefix(Word verb) {
+    for (size_t k = 0; k + 9 <= verb.n; k++)
+        if (memcmp(verb.p + k, "_as_slice", 9) == 0) return k;
+    return NO_WORDS;
+}
+
 /* Reads the island at `is` as one of the two forms this file lowers: an index
  * over a plain name (`x[i]`) or a range-index (`x[a..b]`, `x[a..]`, `x[..b]`,
  * `x[..]`). False for any other island, and for a form this file refuses. */
@@ -145,10 +161,13 @@ static bool read_sugar(const KAst *ast, const KIsland *is, Sugar *s) {
     if (nw != want) return false;
     if (range && !s->high) s->length = w[1];
     if (s->dim) {
-        /* an array's range: closed ends only, and dimension 0 from the declaration */
-        if (!range || !s->high) return false;
+        /* an array's range: dimension 0 from the declaration, and its open ends read
+         * the array's length, which takes the dimension too (backend §5.18) */
+        if (!range) return false;
         if (!k_em_array_of(ast, fn, t, &s->ref) || s->ref.ndims == 0) return false;
         if (!s->ref.binder && !k_em_array_dim(ast, fn, &s->ref, 0, &s->dimv)) return false;
+        /* an open end of an array is the `core` of the detail, and its length is keel.array's */
+        if (!s->high && (!is_core(s->length) || length_prefix(s->verb) == NO_WORDS)) return false;
     }
     return true;
 }
@@ -238,10 +257,28 @@ void k_em_edits_subscript(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit 
         put_text(e, ed, cnt, a, b, dots, 2, ", ", 2);
         if (!s.high) {
             /* the open end: `length(x)`, with the container's name copied as written */
-            put_text(e, ed, cnt, a, b, dots_end, 0, s.length.p, s.length.n);
+            if (s.dim) {
+                /* keel.array's length: the prefix of the as_slice, and `_length` */
+                size_t k = length_prefix(s.verb);
+                char *L = k_em_scratch(e, k + 7);
+                if (!L) { e->ok = false; return; }
+                memcpy(L, s.verb.p, k);
+                memcpy(L + k, "_length", 7);
+                put_text(e, ed, cnt, a, b, dots_end, 0, L, k + 7);
+            } else put_text(e, ed, cnt, a, b, dots_end, 0, s.length.p, s.length.n);
             put_text(e, ed, cnt, a, b, dots_end, 0, "(", 1);
             if (s.addr) put_text(e, ed, cnt, a, b, dots_end, 0, "&", 1);
             push_in(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TOKS, .at = dots_end, .skip = 0, .tok_a = t, .tok_b = t + 1 });
+            if (s.dim) {
+                /* the array's length takes its dimension 0 after the name, as the range does */
+                size_t dl = 0;
+                const char *dp = dim_arg(e, ast, &s, &dl);
+                char *ot = dp ? k_em_scratch(e, 2 + dl) : NULL;
+                if (!ot) { e->ok = false; return; }
+                ot[0] = ','; ot[1] = ' ';
+                memcpy(ot + 2, dp, dl);
+                put_text(e, ed, cnt, a, b, dots_end, 0, ot, 2 + dl);
+            }
             put_text(e, ed, cnt, a, b, close, 1, "))", 2);
         } else {
             put_text(e, ed, cnt, a, b, close, 1, ")", 1);

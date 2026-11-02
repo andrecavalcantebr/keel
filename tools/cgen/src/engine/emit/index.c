@@ -37,7 +37,7 @@ typedef struct {
     size_t lbr, rbr;        /* the dimension brackets: `[` and its `]` */
     Span dim[MAX_RANK];     /* the dimensions, in order */
     size_t ndims;
-    bool simple;            /* no second declarator, dimensions fit, a binder only in dimension 0 */
+    bool simple;            /* dimensions fit, a binder only in dimension 0 */
     bool binder;            /* dimension 0 is `T n` of a parameter: it is keel__n (backend §5.18) */
 } Decl;
 
@@ -142,7 +142,7 @@ static bool split_outer(const KAst *ast, size_t first, size_t end, Span *out, si
 /* Reads the declarator of the declaration whose word `array` is token `arr` and
  * whose dimension brackets open at token lbr. False when the tokens do not read
  * as `array T name[...]` at all; d->simple says whether array.c lowers it (no
- * binder in the dimensions, and no declarator after it in a struct field). */
+ * binder in the dimensions). */
 static bool read_decl_at(const KAst *ast, const KAstNode *fn, size_t arr, size_t lbr, Decl *d) {
     if (!word(ast, arr, "array") || lbr < arr + 3 || !word(ast, lbr, "[") || !is_word(ast, lbr - 1))
         return false;                                               /* a type, then the name */
@@ -163,8 +163,6 @@ static bool read_decl_at(const KAst *ast, const KAstNode *fn, size_t arr, size_t
                 else d->simple = false;
             }
     d->ndims = n;
-    if (d->simple && fn->kind == K_AST_TYPE && rbr + 1 < fn->end && word(ast, rbr + 1, ","))
-        d->simple = false;                                          /* a second declarator of a field: refused */
     return true;
 }
 
@@ -206,7 +204,7 @@ static bool declarator_named(const KAst *ast, const KAstNode *fn, size_t arr, si
             *out = c;
             return true;
         }
-        if (fn->kind == K_AST_TYPE || (fn->kind == K_AST_FUNCTION && arr < fn->body_first)) return false;
+        if (fn->kind == K_AST_FUNCTION && arr < fn->body_first) return false;
         size_t nx = after_declarator(ast, fn, c.rbr);
         if (!word(ast, nx, ",") || !is_word(ast, nx + 1) || !word(ast, nx + 2, "[")) return false;
         if (!read_decl_at(ast, fn, arr, nx + 2, &c)) return false;
@@ -272,7 +270,7 @@ static bool field_decl(const KAst *ast, const KAstNode *fn, size_t c, Decl *out)
     for (size_t i = t->first; i < t->end && i < ast->tokens.len; i++) {
         if (!word(ast, i, "array")) continue;
         Decl d;
-        if (!read_decl(ast, t, i, &d) || !same_text(k_em_tok(ast, d.lbr - 1), k_em_tok(ast, f))) continue;
+        if (!declarator_named(ast, t, i, f, &d)) continue;   /* the field may be a later declarator */
         if (found) return false;
         *out = d;
         found = true;

@@ -66,4 +66,4 @@ test/cgen/gen/share|use.k|-
 032-defer-jump|app/dj.k|-
 056-length-fields|app/lf.k|-|wip
 055-defer-return-index|app/dr2.k|-|wip
-054-style-forms|app/sf.k|-|wip
+054-style-forms|app/sf.k|-

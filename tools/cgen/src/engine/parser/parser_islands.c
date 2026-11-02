@@ -911,6 +911,18 @@ static void check_signature(Ctx *c, const KAstNode *fn) {
     }
 }
 
+/* The names an initializer of a module `constexpr` uses (`pub constexpr size_t B = A * A;`):
+   each one is a name of the module, as a use in a function body is (spec §4.2), and gets its
+   name island. The initializer has no locals, and a member after `.` or `->` is not a name. */
+static void constexpr_names(Ctx *c, const KAstNode *n) {
+    KAst *a = c->ast;
+    for (size_t i = n->name_first + 2; i + 1 < n->end; i++) {
+        if (!isl_ident(a, i) || isl_punct(a, i - 1, ".") || isl_punct(a, i - 1, "->")) continue;
+        if (isl_punct(a, i + 1, "(")) continue;     /* a C function: not ours */
+        isl_name_island(c, i);
+    }
+}
+
 bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     a->islands.len = 0;
     a->island_text.len = 0;
@@ -975,6 +987,13 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
             isl_extent_island(&ctx, isl_node_at(a, i));
             isl_struct_fields(&ctx, isl_node_at(a, i));
         }
+    for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
+        const KAstNode *n = isl_node_at(a, i);
+        if (n->kind != K_AST_CONSTEXPR) continue;
+        ctx.local_count = ctx.global_count;         /* the module's scope: its variables only */
+        memcpy(ctx.locals, ctx.globals, ctx.global_count * sizeof *ctx.globals);
+        constexpr_names(&ctx, n);
+    }
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = isl_node_at(a, i);

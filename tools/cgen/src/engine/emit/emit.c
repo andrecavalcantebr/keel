@@ -555,7 +555,6 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0) + 1;   /* past `constexpr` */
     size_t ln = k_em_line_at(e, k_em_first_off(e, n));
     size_t ts = k_em_tok_off(ast, k), te = k_em_tok_off(ast, n->name_first);
-    size_t is = k_em_tok_off(ast, n->name_first + 2), ie = k_em_tok_end(ast, n->end - 2);
     while (te > ts && (ast->source.ptr[te - 1] == ' ' || ast->source.ptr[te - 1] == '\t')) te--;
     bool paren = n->end - 2 > n->name_first + 2;   /* more than one token */
     const char *s = ast->source.ptr;
@@ -567,7 +566,7 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     k_em_put_bytes(e, ")", 1);
     if (paren) k_em_put_bytes(e, "(", 1);
     size_t n0 = e->n;
-    k_em_put_source(e, is, ie);   /* the INIT without its comments */
+    k_em_put_range(e, n->name_first + 2, n->end - 1);   /* the INIT without its comments, its names renamed as uses (backend §9.2) */
     k_em_continue_from(e, n0);    /* each line break of the INIT continues the macro (backend §9.2, rule 1) */
     if (paren) k_em_put_bytes(e, ")", 1);
     k_em_put_bytes(e, ")\n", 2);
@@ -579,7 +578,7 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     k_em_put_mangled(e, n->name_first, false);
     k_em_put_bytes(e, "__chk = ", 8);
     if (paren) k_em_put_bytes(e, "(", 1);
-    k_em_put_source(e, is, ie);
+    k_em_put_range(e, n->name_first + 2, n->end - 1);
     if (paren) k_em_put_bytes(e, ")", 1);
     /* a use of the object that generates no code (backend §9.2, rule 2) */
     k_em_put_bytes(e, "; _Static_assert(sizeof(", 24);

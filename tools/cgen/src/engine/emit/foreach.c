@@ -316,6 +316,51 @@ static const char *take(Emit *e, size_t *len) {
     return s;
 }
 
+/* the binder's declaration over an `array`: `T v = arr[i];`, or `T *v = &arr[i];` (the scratch) */
+static const char *array_value(Emit *e, const Over *o, size_t *vl) {
+    const KAst *ast = e->ast;
+    e->n = 0;
+    k_em_put_range(e, o->vtype_a, o->vtype_b);
+    if (!word(ast, o->vtype_b - 1, "*")) put_s(e, " ");
+    put_tok(e, o->value);
+    put_s(e, o->ptr_binder ? " = &" : " = ");
+    k_em_put_range(e, o->cont, o->cont + 1);
+    put_s(e, "["); put_tok(e, o->index); put_s(e, "];");
+    return take(e, vl);
+}
+
+/* the binder's declaration over a container: `T v = S_get(keel__c<N>, i);` (the scratch) */
+static const char *container_value(Emit *e, size_t n, const Over *o, size_t *vl) {
+    const KAst *ast = e->ast;
+    e->n = 0;
+    k_em_put_range(e, o->vtype_a, o->vtype_b);
+    if (!word(ast, o->vtype_b - 1, "*")) k_em_put_bytes(e, " ", 1);
+    put_tok(e, o->value);
+    k_em_put_bytes(e, " = ", 3);
+    k_em_put_bytes(e, o->sym, o->sym_len);
+    if (o->ptr_binder) k_em_put_bytes(e, "_ptr1(keel__c", 13);   /* the element's address (rule 3) */
+    else k_em_put_bytes(e, "_get(keel__c", 12);
+    put_uint(e, n);
+    k_em_put_bytes(e, ", ", 2); put_tok(e, o->index);
+    k_em_put_bytes(e, ");", 2);
+    return take(e, vl);
+}
+
+/* Allman (backend §5.7, rule 5): the body's `{` on a line of its own, in the line [a, b), takes
+ * the binder's declaration after it; the header is on another line (its `foreach` writes the block) */
+static void body_brace_line(Emit *e, size_t n, const Over *o, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    if (!o->braced) return;
+    size_t bo = k_em_tok_off(ast, o->body);
+    if (bo < a || bo >= b) return;
+    size_t vl;
+    const char *val = o->array ? array_value(e, o, &vl) : container_value(e, n, o, &vl);
+    if (!val) return;
+    size_t ob = k_em_tok_end(ast, o->body);
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = " ", .text_len = 1 });
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = val, .text_len = vl });
+}
+
 /* `foreach (T v, I i : arr) body` over an `array` variable (spec §4.2: C syntax, no verbs):
  *   { for (I i = 0; i < N; i++) { T v = arr[i]; body } }       (T *v = &arr[i] for a pointer binder)
  * N is the dimension as the declaration writes it, or `keel__<binder>` for a parameter. */
@@ -336,14 +381,8 @@ static void edits_over_array(Emit *e, size_t n, const Over *o, size_t a, size_t 
     size_t hl;
     const char *head = take(e, &hl);
     if (!head) return;
-    k_em_put_range(e, o->vtype_a, o->vtype_b);
-    if (!word(ast, o->vtype_b - 1, "*")) put_s(e, " ");
-    put_tok(e, o->value);
-    put_s(e, o->ptr_binder ? " = &" : " = ");
-    k_em_put_range(e, o->cont, o->cont + 1);
-    put_s(e, "["); put_tok(e, o->index); put_s(e, "];");
     size_t vl;
-    const char *val = take(e, &vl);
+    const char *val = array_value(e, o, &vl);
     if (!val) return;
     size_t j = 0;
     for (size_t k = 0; k < *cnt; k++)
@@ -374,6 +413,7 @@ static void edits_over(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     size_t at = k_em_tok_off(ast, kw), end = k_em_tok_end(ast, o->close);
     if (at < a || at >= b) {            /* not the header's line: the block's `}` may close the outer block here */
         if (o->braced) push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " }", .text_len = 2 });
+        body_brace_line(e, n, o, a, b, ed, cnt);
         return;
     }
     if (k_em_declared_at(e, o->value) || k_em_declared_at(e, o->index)) { e->ok = false; return; }
@@ -401,19 +441,8 @@ static void edits_over(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     size_t hl;
     const char *head = take(e, &hl);
     if (!head) return;
-    /* the value binder: `T v = S_get(keel__c<N>, i);` */
-    k_em_put_range(e, o->vtype_a, o->vtype_b);
-    if (!word(ast, o->vtype_b - 1, "*")) k_em_put_bytes(e, " ", 1);
-    put_tok(e, o->value);
-    k_em_put_bytes(e, " = ", 3);
-    k_em_put_bytes(e, o->sym, o->sym_len);
-    if (o->ptr_binder) k_em_put_bytes(e, "_ptr1(keel__c", 13);   /* the element's address (rule 3) */
-    else k_em_put_bytes(e, "_get(keel__c", 12);
-    put_uint(e, n);
-    k_em_put_bytes(e, ", ", 2); put_tok(e, o->index);
-    k_em_put_bytes(e, ");", 2);
     size_t vl;
-    const char *val = take(e, &vl);
+    const char *val = container_value(e, n, o, &vl);   /* the value binder: `T v = S_get(keel__c<N>, i);` */
     if (!val) return;
     /* the header's tokens were renamed by the module's rules: they are all replaced */
     size_t j = 0;
@@ -462,6 +491,23 @@ static bool verb_symbol(Emit *e, const char *sym, size_t sym_len, const char *ve
     return false;
 }
 
+/* whether the tokens [a, b) spell the module's dotted name (`app.sf`: idents and dots, alternating) */
+static bool names_module(const Emit *e, size_t a, size_t b) {
+    size_t pos = 0;
+    if (b <= a) return false;
+    for (size_t i = a; i < b; i++) {
+        if ((i - a) % 2 == 1) {
+            if (!word(e->ast, i, ".") || pos >= e->module.len || e->module.ptr[pos] != '.') return false;
+            pos++;
+            continue;
+        }
+        KToken t = k_em_tok(e->ast, i);
+        if (pos + t.len > e->module.len || memcmp(e->module.ptr + pos, t.ptr, t.len) != 0) return false;
+        pos += t.len;
+    }
+    return pos == e->module.len;
+}
+
 /* `walk (T *p, C c : x) body` (§5.11):
  *   {   S *keel__c<N> = x; C c = S_begin(keel__c<N>); while (S_has_next(keel__c<N>, &c)) { T *p = S_next(keel__c<N>, &c); body } }
  * on the line of the `walk`. The cursor is written with its type; the verbs are the container's. */
@@ -488,17 +534,25 @@ static void edits_walk(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     if (!o->by_pointer && !o->value_copy) put_s(e, "&");
     k_em_put_range(e, o->cont, o->cont + 1);
     put_s(e, "; ");
-    /* `lst.cursor` names the module's own type: only the declaration, renamed */
-    /* `lst.cursor` names the module's own type, as one token or as three: only the name, mangled */
-    KToken qual = {0}, nm_tok = {0};
-    if (o->itype_b - o->itype_a == 3 && word(ast, o->itype_a + 1, ".")) { qual = k_em_tok(ast, o->itype_a); nm_tok = k_em_tok(ast, o->itype_a + 2); }
-    else if (o->itype_b - o->itype_a == 1) {
+    /* `lst.cursor` and `app.sf.cursor` name the module's own type, as one token or as several: only
+     * the name is written, mangled (the qualifier is the module's dotted name, e->module) */
+    KToken nm_tok = {0};
+    bool own = false;
+    size_t ncnt = o->itype_b - o->itype_a;
+    if (ncnt >= 3 && ncnt % 2 == 1 && names_module(e, o->itype_a, o->itype_b - 2)) {
+        own = true;
+        nm_tok = k_em_tok(ast, o->itype_b - 1);
+    } else if (ncnt == 1) {
         KToken ct = k_em_tok(ast, o->itype_a);
         size_t dot = ct.len;
         for (size_t q = 0; q < ct.len; q++) if (ct.ptr[q] == '.') dot = q;
-        if (dot < ct.len) { qual = (KToken){ .ptr = ct.ptr, .len = dot }; nm_tok = (KToken){ .ptr = ct.ptr + dot + 1, .len = ct.len - dot - 1 }; }
+        if (dot < ct.len) {
+            KToken qual = { .ptr = ct.ptr, .len = dot };
+            own = qual.len == e->module.len && memcmp(qual.ptr, e->module.ptr, qual.len) == 0;
+            nm_tok = (KToken){ .ptr = ct.ptr + dot + 1, .len = ct.len - dot - 1 };
+        }
     }
-    if (qual.len && qual.len == e->module.len && memcmp(qual.ptr, e->module.ptr, qual.len) == 0) {
+    if (own) {
         char nm[NAME_CAP];
         size_t q = k_mangle_decl(e->module, (keel_slice_char){ nm_tok.len, (char *)nm_tok.ptr }, true, (keel_slice_char){ sizeof nm, nm });
         if (q > sizeof nm) { e->ok = false; return; }

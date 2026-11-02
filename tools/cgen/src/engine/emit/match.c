@@ -20,7 +20,10 @@
  * Consecutive labels stack before one brace. A `break` of the arm is a jump to the end;
  * a `break` inside a loop, `switch` or `match` of the arm belongs to that construct and
  * stays. An arm whose instruction shares the label's line is closed at the end of that
- * line (`A: { r = 1; }`), and its own line is the whole arm.
+ * line (`A: { r = 1; }`), and its own line is the whole arm; a comment after the instruction
+ * is left out. Labels stacked on one line (`A: B:`) take one brace. A match whose `{` and `}`
+ * share the line of its arms (`match (s) { A: r = 1; B: r = 2; }`) gets the dispatch, then
+ * the arms on one output line, each closed before the next label.
  * The edits are text on the lines of the source: the `match` line becomes the dispatch
  * (several output lines, mapped on from the line), a label line becomes the close of the
  * previous arm and its own label (EDIT_LINES, so that the label gets its own `#line`),
@@ -29,11 +32,13 @@
  * Refused (k_em_handles_match answers false, and the module is refused with
  * implementation-limit): an operand that is not a variable of a `tagged` type declared in
  * the function, or a field `x->f` / `x.f` whose struct and field this module does not
- * declare as `tagged <Set> <T>`; a label whose instruction goes on to the next line; a
- * match whose labels share a line with other text. */
+ * declare as `tagged <Set> <T>` (a struct of this module or of an import); a label whose
+ * instruction goes on to the next line; labels sharing a line with other text, unless
+ * stacked or on a one-line match; a one-line match whose operand is a column. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 #include "engine/names.h"
+#include "engine/symtab.h"
 
 #define NO_TOKEN ((size_t)-1)
 #define MAX_LABELS 32
@@ -48,9 +53,10 @@ typedef struct {
     size_t set_len;
     char disc[NAME_CAP];            /* what `switch` reads: `st->tag`, `s`, `keel_corot_tag(r)` */
     size_t disc_len;
-    bool field;                     /* the operand is `x->f` or `x.f`: the field of a struct of this module */
+    bool field;                     /* the operand is `x->f` or `x.f`: the field of a struct of this module or of an imported one */
+    bool oneline;                   /* the match's `{` and `}` are on one line, with its arms */
     size_t label[MAX_LABELS], colon[MAX_LABELS];
-    bool inl[MAX_LABELS];           /* the arm's instruction shares the label's line */
+    bool inl[MAX_LABELS];           /* the group's last label is followed by its instruction on the same line */
     size_t n;
 } Match;
 
@@ -86,6 +92,13 @@ static bool ends_line(const KAst *ast, size_t off) {
     for (size_t p = off; p < ast->source.len && ast->source.ptr[p] != '\n'; p++)
         if (ast->source.ptr[p] != ' ' && ast->source.ptr[p] != '\t') return false;
     return true;
+}
+
+/* whether the source bytes [a, b) hold a line break */
+static bool has_newline(const KAst *ast, size_t a, size_t b) {
+    for (size_t p = a; p < b && p < ast->source.len; p++)
+        if (ast->source.ptr[p] == '\n') return true;
+    return false;
 }
 
 /* the offset of the '\n' that ends the line holding `off` (the source's end if none) */
@@ -124,63 +137,93 @@ static bool decl_of(const KAst *ast, size_t kw, KToken name, size_t *out) {
     return false;
 }
 
+/* The struct type named `name` that the module `own` declares (`typedef struct {...} Name;`), or NULL. */
+static const KAstNode *struct_type(const KAst *own, keel_slice_char name) {
+    for (size_t k = 0; k < own->nodes.len; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&own->nodes, k);
+        if (n->kind != K_AST_TYPE || n->name_end != n->name_first + 1) continue;
+        KToken t = k_em_tok(own, n->name_first);
+        if (t.len == name.len && memcmp(t.ptr, name.ptr, name.len) == 0) return n;
+    }
+    return NULL;
+}
+
+/* The set a field's `tagged <Set> <T>` names, as the module that declares the struct resolves it:
+ * `owner` NULL is this module (its table), else the module of an imported struct (its exported
+ * symbols, where the set is declared). */
+static const KSymbol *field_set(const KAst *ast, const KModule *owner, KToken setk) {
+    keel_slice_char name = { setk.len, (char *)setk.ptr };
+    if (!owner) {
+        const KSymbol *s = ast->symbols ? k_symbol_resolve(ast->symbols, name) : NULL;
+        return s && s->kind == K_SYM_TAGS ? s : NULL;
+    }
+    for (size_t i = 0; i < owner->symbol_count; i++)
+        if (owner->symbols[i].kind == K_SYM_TAGS && k_symtab_same_name(owner->symbols[i].name, name)) return &owner->symbols[i];
+    return NULL;
+}
+
 /* The field operand `h->state` (or `h.state`), backend §5.6 rule 3: the type of `h` is a struct
- * declared in this module (`struct Holder` or `typedef struct {...} Holder`), and its field
- * `state` is `tagged <Set> <T>`, by value or by pointer. What switch reads is the operand as
- * written, with the field's label: `h->state.tag`, or `->tag` for a pointer field. */
+ * that this module declares (`struct Holder` or `typedef struct {...} Holder`), or the one an
+ * import brings unqualified (`Gate` of `import app.lib.other as other types;`), and its field
+ * `state` is `tagged <Set> <T>`, by value or by pointer. The struct is read in the module that
+ * declares it, and the set through field_set. What switch reads is the operand as written, with
+ * the field's label: `h->state.tag`, or `->tag` for a pointer field. */
 static bool field_operand(const KAst *ast, Match *m) {
     KToken var = k_em_tok(ast, m->operand), op = k_em_tok(ast, m->kw + 3), fld = k_em_tok(ast, m->kw + 4);
     size_t dj;
     if (!decl_of(ast, m->kw, var, &dj) || dj < 2) return false;
     size_t tt = word(ast, dj - 1, "*") ? dj - 2 : dj - 1;
-    /* a qualified name (`other.Holder`) is a type of another module: not this module's */
+    /* a qualified name (`other.Holder`) is written with its module: refused */
     if (tt == 0 || !word_like(ast, tt) || word(ast, tt - 1, ".")) return false;
     KToken tname = k_em_tok(ast, tt);
-    for (size_t k = 0; k < ast->nodes.len; k++) {
-        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-        if (n->kind != K_AST_TYPE || n->name_end != n->name_first + 1 || !same_text(k_em_tok(ast, n->name_first), tname)) continue;
-        size_t o = NO_TOKEN, c = NO_TOKEN, depth = 0, s = NO_TOKEN;
-        for (size_t j = n->first; j < n->end && o == NO_TOKEN; j++) {
-            if (word(ast, j, "struct")) s = j;
-            if (word(ast, j, "{")) o = j;
+    const KAst *own = ast;
+    const KModule *owner = NULL;
+    const KAstNode *n = struct_type(ast, (keel_slice_char){ tname.len, (char *)tname.ptr });
+    if (!n) {
+        const KSymbol *ts = ast->symbols ? k_symbol_resolve(ast->symbols, (keel_slice_char){ tname.len, (char *)tname.ptr }) : NULL;
+        if (!ts || ts->kind != K_SYM_TYPE || !ts->origin || !ts->origin->ast || ts->origin->ast == ast) return false;
+        own = ts->origin->ast;
+        owner = ts->origin;
+        n = struct_type(own, ts->name);
+        if (!n) return false;
+    }
+    size_t o = NO_TOKEN, c = NO_TOKEN, depth = 0, s = NO_TOKEN;
+    for (size_t j = n->first; j < n->end && o == NO_TOKEN; j++) {
+        if (word(own, j, "struct")) s = j;
+        if (word(own, j, "{")) o = j;
+    }
+    if (o == NO_TOKEN || s == NO_TOKEN) return false;
+    for (size_t j = o; j < n->end && c == NO_TOKEN; j++) {
+        if (word(own, j, "{")) depth++;
+        else if (word(own, j, "}") && --depth == 0) c = j;
+    }
+    if (c == NO_TOKEN) return false;
+    /* the fields at the struct's own level: `tagged <Set> <T> [*]name;` */
+    depth = 0;
+    for (size_t j = o + 1; j < c; j++) {
+        if (word(own, j, "{") || word(own, j, "(") || word(own, j, "[")) depth++;
+        else if (word(own, j, "}") || word(own, j, ")") || word(own, j, "]")) depth--;
+        else if (!depth && word(own, j, "tagged") && (word(own, j - 1, "{") || word(own, j - 1, ";"))) {
+            size_t semi = j;
+            while (semi < c && !word(own, semi, ";")) semi++;
+            if (semi >= c || semi < j + 4 || !same_text(k_em_tok(own, semi - 1), fld)) continue;
+            size_t name = semi - 1;
+            if (!ident(own, j + 1) || !(word_like(own, name - 1) || word(own, name - 1, "*"))) return false;
+            const KSymbol *sym = field_set(own, owner, k_em_tok(own, j + 1));
+            if (!sym) return false;
+            m->set_len = k_mangle_symbol(sym, (keel_slice_char){ sizeof m->set, m->set });
+            if (m->set_len == 0 || m->set_len > sizeof m->set) return false;
+            bool fptr = word(own, name - 1, "*");
+            const char *label = fptr ? "->tag" : ".tag";
+            size_t q = 0;
+            if (var.len + op.len + fld.len + 6 > sizeof m->disc) return false;
+            memcpy(m->disc + q, var.ptr, var.len); q += var.len;
+            memcpy(m->disc + q, op.ptr, op.len); q += op.len;
+            memcpy(m->disc + q, fld.ptr, fld.len); q += fld.len;
+            memcpy(m->disc + q, label, strlen(label)); q += strlen(label);
+            m->disc_len = q;
+            return true;
         }
-        if (o == NO_TOKEN || s == NO_TOKEN) return false;
-        for (size_t j = o; j < n->end && c == NO_TOKEN; j++) {
-            if (word(ast, j, "{")) depth++;
-            else if (word(ast, j, "}") && --depth == 0) c = j;
-        }
-        if (c == NO_TOKEN) return false;
-        /* the fields at the struct's own level: `tagged <Set> <T> [*]name;` */
-        depth = 0;
-        for (size_t j = o + 1; j < c; j++) {
-            if (word(ast, j, "{") || word(ast, j, "(") || word(ast, j, "[")) depth++;
-            else if (word(ast, j, "}") || word(ast, j, ")") || word(ast, j, "]")) depth--;
-            else if (!depth && word(ast, j, "tagged") && (word(ast, j - 1, "{") || word(ast, j - 1, ";"))) {
-                size_t semi = j;
-                while (semi < c && !word(ast, semi, ";")) semi++;
-                if (semi >= c || semi < j + 4 || !same_text(k_em_tok(ast, semi - 1), fld)) continue;
-                size_t name = semi - 1;
-                if (!ident(ast, j + 1) || !(word_like(ast, name - 1) || word(ast, name - 1, "*"))) return false;
-                /* the set, as the type of the module's own tags */
-                KToken setk = k_em_tok(ast, j + 1);
-                if (!ast->symbols) return false;
-                const KSymbol *sym = k_symbol_resolve(ast->symbols, (keel_slice_char){ setk.len, (char *)setk.ptr });
-                if (!sym || sym->kind != K_SYM_TAGS) return false;
-                m->set_len = k_mangle_symbol(sym, (keel_slice_char){ sizeof m->set, m->set });
-                if (m->set_len == 0 || m->set_len > sizeof m->set) return false;
-                bool fptr = word(ast, name - 1, "*");
-                const char *label = fptr ? "->tag" : ".tag";
-                size_t q = 0;
-                if (var.len + op.len + fld.len + 6 > sizeof m->disc) return false;
-                memcpy(m->disc + q, var.ptr, var.len); q += var.len;
-                memcpy(m->disc + q, op.ptr, op.len); q += op.len;
-                memcpy(m->disc + q, fld.ptr, fld.len); q += fld.len;
-                memcpy(m->disc + q, label, strlen(label)); q += strlen(label);
-                m->disc_len = q;
-                return true;
-            }
-        }
-        return false;
     }
     return false;
 }
@@ -373,9 +416,14 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
         else if (word(ast, j, "}") && --depth == 0) { m->close = j; break; }
     }
     if (m->close == NO_TOKEN) return false;
-    if (!ends_line(ast, k_em_tok_end(ast, m->open)) || !starts_line(ast, k_em_tok_off(ast, m->close)) ||
-        !ends_line(ast, k_em_tok_end(ast, m->close)))
+    /* the whole match on one line (`match (s) { A: r = 1; B: r = 2; }`), its arms on that line too */
+    m->oneline = !has_newline(ast, k_em_tok_off(ast, m->open), k_em_tok_off(ast, m->close));
+    if (m->oneline) {
+        if (m->column || !ends_line(ast, k_em_tok_end(ast, m->close))) return false;
+    } else if (!ends_line(ast, k_em_tok_end(ast, m->open)) || !starts_line(ast, k_em_tok_off(ast, m->close)) ||
+               !ends_line(ast, k_em_tok_end(ast, m->close))) {
         return false;
+    }
 
     /* declared with a `*` or not: the first earlier use of the name that follows a type */
     KToken name = k_em_tok(ast, m->operand);
@@ -399,27 +447,33 @@ labels:
         else if (!depth && ident(ast, j) && word(ast, j + 1, ":") &&
                  (word(ast, j - 1, "{") || word(ast, j - 1, ";") || word(ast, j - 1, "}") || word(ast, j - 1, ":"))) {
             if (m->n == MAX_LABELS) return false;
-            /* a label has its line to itself, or its instruction shares the line (checked below) */
-            if (!starts_line(ast, k_em_tok_off(ast, j))) return false;
-            m->inl[m->n] = !ends_line(ast, k_em_tok_end(ast, j + 1));
+            /* a label has its line to itself, or it follows the previous label's colon on that line
+             * (`A: B:`), or the whole match is on one line */
+            size_t off = k_em_tok_off(ast, j);
+            bool stacked = m->n > 0 && j == m->colon[m->n - 1] + 1 &&
+                           !has_newline(ast, k_em_tok_end(ast, m->colon[m->n - 1]), off);
+            if (!m->oneline && !stacked && !starts_line(ast, off)) return false;
             m->label[m->n] = j;
             m->colon[m->n++] = j + 1;
         }
     }
     if (m->n == 0) return false;
 
-    /* an instruction on the label's line is the whole arm (backend §5.6, rule 6): the line ends
-     * with its `;` or `}`, and the next token after the line is the next label or the match's `}` */
+    /* the group's last label (the next one is not stacked on it) is followed by its instruction
+     * on the same line when it has one: that instruction is the whole arm (backend §5.6, rule 12).
+     * Its last token is the `;` or `}` before the next group's label, or the match's `}`, and on
+     * a multi-line match that token is on the label's line. A comment after it is left out. */
+    for (size_t i = 0; i < m->n; i++) {
+        bool stacked_after = i + 1 < m->n && m->label[i + 1] == m->colon[i] + 1;
+        m->inl[i] = !stacked_after && !ends_line(ast, k_em_tok_end(ast, m->colon[i]));
+    }
     for (size_t i = 0; i < m->n; i++) {
         if (!m->inl[i]) continue;
-        size_t nl = line_end(ast, k_em_tok_end(ast, m->colon[i]));
-        size_t p = nl;
-        while (p > 0 && (ast->source.ptr[p - 1] == ' ' || ast->source.ptr[p - 1] == '\t')) p--;
-        if (p == 0 || (ast->source.ptr[p - 1] != ';' && ast->source.ptr[p - 1] != '}')) return false;
         size_t lim = i + 1 < m->n ? m->label[i + 1] : m->close;
-        size_t t = m->colon[i] + 1;
-        while (t < lim && k_em_tok_off(ast, t) < nl) t++;
-        if (t != lim) return false;
+        if (lim <= m->colon[i] + 1) return false;                  /* no instruction after the label */
+        size_t last = lim - 1;
+        if (!m->oneline && k_em_tok_off(ast, last) >= line_end(ast, k_em_tok_end(ast, m->colon[i]))) return false;
+        if (!word(ast, last, ";") && !word(ast, last, "}")) return false;
     }
 
     /* a `break` of the arm is a jump to the end, unless a construct of the arm owns it */
@@ -517,6 +571,19 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
                     .text = w, .text_len = sizeof "switch (" - 1 });
                 push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, m.rp), .skip = k_em_tok_end(ast, m.open) - k_em_tok_off(ast, m.rp),
                     .text = w + sizeof "switch (" - 1, .text_len = q - (sizeof "switch (" - 1) });
+            } else if (m.oneline) {
+                /* the first arm's label starts the arms' line, which follows the dispatch: the match's
+                 * `{` and that label (`A:`) are replaced at once, and the arms go on from there */
+                KToken tag = k_em_tok(ast, m.label[0]);
+                q = put(w, q, "\n", 1);
+                q = put(w, q, ind, ind_n);
+                q = put(w, q, "keel__m", sizeof "keel__m" - 1);
+                q = put(w, q, id, idn);
+                q = put(w, q, "_", 1);
+                q = put(w, q, tag.ptr, tag.len);
+                q = m.n > 1 && m.label[1] == m.colon[0] + 1 ? put(w, q, ":", 1) : put(w, q, ": {", 3);
+                push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = kw_off, .skip = k_em_tok_end(ast, m.colon[0]) - kw_off,
+                    .text = w, .text_len = q });
             } else {
                 push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = kw_off, .skip = k_em_tok_end(ast, m.open) - kw_off,
                     .text = w, .text_len = q });
@@ -538,54 +605,78 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
                 push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_DROP, .at = a, .skip = delta });
         }
 
-        /* the labels */
+        /* the labels: an arm's label at the start of its line, or on the line of the previous label */
         for (size_t i = 0; i < m.n; i++) {
             size_t first_off = k_em_tok_off(ast, m.label[i]);
             if (first_off < a || first_off >= b) continue;
+            if (m.oneline && i == 0) continue;                          /* written with the dispatch */
             bool stacked_after = i + 1 < m.n && m.label[i + 1] == m.colon[i] + 1;   /* the next label follows at once */
             bool starts_group = i == 0 || m.label[i] != m.colon[i - 1] + 1;
             KToken tag = k_em_tok(ast, m.label[i]);
-            size_t from = line_start(ast, first_off), to = k_em_tok_end(ast, m.colon[i]);
-            size_t need = 3 * ind_n + 2 * tag.len + 128;
-            char *w = k_em_scratch(e, need);
+            size_t to = k_em_tok_end(ast, m.colon[i]);
+            char *w = k_em_scratch(e, 3 * ind_n + 2 * tag.len + 128);
             if (!w) return;
             size_t q = 0;
-            if (starts_group && i > 0 && m.inl[i - 1]) {
-                /* the previous arm closed on its own line: only its jump to the end comes here */
-                q = put(w, q, "L", sizeof "L" - 1);
-                q = put_uint(w, q, ln_of_a);
-                q = put(w, q, "|", sizeof "|" - 1);
-                q = put(w, q, ind, ind_n);
-                q = put(w, q, "goto keel__m", sizeof "goto keel__m" - 1);
+            if (!starts_line(ast, first_off)) {
+                /* on the line of the previous label: a stacked one (`A: B:`) takes the blank before it;
+                 * on a one-line match, a new group also closes the previous arm (`} goto keel__m0_end;`) */
+                size_t from = starts_group ? first_off : k_em_tok_end(ast, m.colon[i - 1]);
+                if (starts_group) {
+                    q = put(w, q, "} goto keel__m", sizeof "} goto keel__m" - 1);
+                    q = put(w, q, id, idn);
+                    q = put(w, q, "_end; ", sizeof "_end; " - 1);
+                } else {
+                    q = put(w, q, " ", 1);
+                }
+                q = put(w, q, "keel__m", sizeof "keel__m" - 1);
                 q = put(w, q, id, idn);
-                q = put(w, q, "_end;\nT|", sizeof "_end;\nT|" - 1);
-            } else if (starts_group && i > 0) {
-                /* the close of the previous arm, as lines of their own; the label then gets its `#line` */
-                q = put(w, q, "L", sizeof "L" - 1);
-                q = put_uint(w, q, ln_of_a);
-                q = put(w, q, "|", sizeof "|" - 1);
-                q = put(w, q, ind, ind_n);
-                q = put(w, q, "}\nL", sizeof "}\nL" - 1);
-                q = put_uint(w, q, ln_of_a + 1);
-                q = put(w, q, "|", sizeof "|" - 1);
-                q = put(w, q, ind, ind_n);
-                q = put(w, q, "goto keel__m", sizeof "goto keel__m" - 1);
-                q = put(w, q, id, idn);
-                q = put(w, q, "_end;\nT|", sizeof "_end;\nT|" - 1);
-            }
-            q = put(w, q, ind, ind_n);
-            q = put(w, q, "keel__m", sizeof "keel__m" - 1);
-            q = put(w, q, id, idn);
-            q = put(w, q, "_", sizeof "_" - 1);
-            q = put(w, q, tag.ptr, tag.len);
-            q = stacked_after ? put(w, q, ":", 1) : put(w, q, ": {", 3);
-            if (starts_group && i > 0)
-                push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = from, .skip = to - from, .text = w, .text_len = q });
-            else
+                q = put(w, q, "_", sizeof "_" - 1);
+                q = put(w, q, tag.ptr, tag.len);
+                q = stacked_after ? put(w, q, ":", 1) : put(w, q, ": {", 3);
                 push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = from, .skip = to - from, .text = w, .text_len = q });
-            /* an instruction on the label's line: the arm closes at the end of that line */
-            if (m.inl[i])
-                push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = line_end(ast, to), .skip = 0, .text = " }", .text_len = 2 });
+            } else {
+                size_t from = line_start(ast, first_off);
+                if (starts_group && i > 0 && m.inl[i - 1]) {
+                    /* the previous arm closed on its own line: only its jump to the end comes here */
+                    q = put(w, q, "L", sizeof "L" - 1);
+                    q = put_uint(w, q, ln_of_a);
+                    q = put(w, q, "|", sizeof "|" - 1);
+                    q = put(w, q, ind, ind_n);
+                    q = put(w, q, "goto keel__m", sizeof "goto keel__m" - 1);
+                    q = put(w, q, id, idn);
+                    q = put(w, q, "_end;\nT|", sizeof "_end;\nT|" - 1);
+                } else if (starts_group && i > 0) {
+                    /* the close of the previous arm, as lines of their own; the label then gets its `#line` */
+                    q = put(w, q, "L", sizeof "L" - 1);
+                    q = put_uint(w, q, ln_of_a);
+                    q = put(w, q, "|", sizeof "|" - 1);
+                    q = put(w, q, ind, ind_n);
+                    q = put(w, q, "}\nL", sizeof "}\nL" - 1);
+                    q = put_uint(w, q, ln_of_a + 1);
+                    q = put(w, q, "|", sizeof "|" - 1);
+                    q = put(w, q, ind, ind_n);
+                    q = put(w, q, "goto keel__m", sizeof "goto keel__m" - 1);
+                    q = put(w, q, id, idn);
+                    q = put(w, q, "_end;\nT|", sizeof "_end;\nT|" - 1);
+                }
+                q = put(w, q, ind, ind_n);
+                q = put(w, q, "keel__m", sizeof "keel__m" - 1);
+                q = put(w, q, id, idn);
+                q = put(w, q, "_", sizeof "_" - 1);
+                q = put(w, q, tag.ptr, tag.len);
+                q = stacked_after ? put(w, q, ":", 1) : put(w, q, ": {", 3);
+                if (starts_group && i > 0)
+                    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = from, .skip = to - from, .text = w, .text_len = q });
+                else
+                    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = from, .skip = to - from, .text = w, .text_len = q });
+            }
+            /* a multi-line arm whose instruction shares the group's last label's line closes at the
+             * end of that instruction; a comment after it is dropped by comment_edits (one-line: the next
+             * label or the match's `}` closes it) */
+            if (!m.oneline && m.inl[i]) {
+                size_t lim = i + 1 < m.n ? m.label[i + 1] : m.close;
+                push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, lim - 1), .skip = 0, .text = " }", .text_len = 2 });
+            }
         }
 
         /* the arm's `break` is the jump to the end, unless a construct of the arm owns it */
@@ -607,8 +698,11 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
             char *w = k_em_scratch(e, 2 * ind_n + 48);
             if (!w) return;
             size_t q = 0;
-            /* the last arm closed on its own line already: only the end label is left */
-            if (!m.inl[m.n - 1]) {
+            if (m.oneline) {
+                /* the last arm closes here, on the line of the arms */
+                q = put(w, q, "} ", 2);
+            } else if (!m.inl[m.n - 1]) {
+                /* the last arm closed on its own line already: only the end label is left */
                 q = put(w, q, "}\n", sizeof "}\n" - 1);
                 q = put(w, q, ind, ind_n);
             }

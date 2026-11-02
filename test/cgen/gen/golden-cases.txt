@@ -44,12 +44,12 @@ test/cgen/gen/share|use.k|-
 044-array-range|app/rg.k|-
 045-extern-forms|app/ef.k|-
 046-array-leftovers|app/al.k|-
-047-match-more|app/mm.k|-|wip
+047-match-more|app/mm.k|-
 048-parallel-more|app/pm.k|-|wip
 049-adapt-foreach|app/af.k|-|wip
 050-else-default|app/ed.k|-|wip
 051-generic-forms|inst.k|-|wip
-052-match-foreign|app/lib/other.k app/fm.k|-|wip
+052-match-foreign|app/lib/other.k app/fm.k|-
 053-generic-module-instance|inst3.k|-|wip
 010-routine|ag2.k|-
 019-walk|lst.k|-

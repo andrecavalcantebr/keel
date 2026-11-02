@@ -26,6 +26,14 @@
  * dimensions:
  *
  *   keel.length(v)              ->   2 * 3
+ *   keel.dim(v, 1)              ->   3
+ *
+ * A field of a struct (`b->v`, `b.v`, the container named by its own name) is
+ * a declaration of the struct, read as the others are; its dimensions may be a
+ * constexpr of a decimal literal, like a module array's (`priv array i32 tab[K]`):
+ *
+ *   keel.length(b->v)           ->   sizeof(b->v)/sizeof(i32)
+ *   keel.length(tab)            ->   sizeof(app_lf_tab)/sizeof(i32)     (K = 3)
  *
  * The element type of the `sizeof` is written as the C text names it, a module
  * declaration renamed (`array Box bs[3]`: sizeof(bs)/sizeof(app_al_Box)).
@@ -34,10 +42,10 @@
  * an edit another construction made inside them is dropped (emit.c, drop_nested).
  *
  * Refused (k_em_handles_core answers false, and the module is refused with
- * implementation-limit): `keel.capacity` or `keel.dim` over a parameter without
- * a binder; `keel.length` over a module array whose dimensions are not literal;
- * a `keel.dim` index that is not a decimal literal, or not below the number of
- * dimensions. */
+ * implementation-limit): `keel.capacity` over a parameter without a binder;
+ * `keel.length` over a module array whose dimensions are not decimal (a literal,
+ * or a constexpr of one); a `keel.dim` index that is not a decimal literal, or not
+ * below the number of dimensions. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -113,15 +121,21 @@ static bool read_call(const KAst *ast, const KIsland *is, Call *c) {
     if (!tok_is(ast, i + 3, "(") || !ident(ast, i + 4)) return false;
     c->open = i + 3;
     c->arg = i + 4;
+    /* a field, `b->v` or `b.v`: the argument is the container's name, and its field is read from its type */
+    size_t q = i + 5;
+    if (tok_is(ast, q, "->") || tok_is(ast, q, ".")) {
+        if (!ident(ast, q + 1)) return false;
+        q += 2;
+    }
     if (strcmp(c->verb, "keel.dim") == 0) {
         long k;
-        if (!tok_is(ast, i + 5, ",") || !decimal_at(ast, i + 6, &k) || !tok_is(ast, i + 7, ")")) return false;
-        c->index = i + 6;
-        c->close = i + 7;
+        if (!tok_is(ast, q, ",") || !decimal_at(ast, q + 1, &k) || !tok_is(ast, q + 2, ")")) return false;
+        c->index = q + 1;
+        c->close = q + 2;
     } else {
-        if (!tok_is(ast, i + 5, ")")) return false;
+        if (!tok_is(ast, q, ")")) return false;
         c->index = NO_TOKEN;
-        c->close = i + 5;
+        c->close = q;
     }
     return true;
 }
@@ -162,11 +176,11 @@ static bool plan(const KAst *ast, const KAstNode *fn, const Call *c, Plan *p) {
     p->whole = false;
     p->len = 0;
     p->type_a = p->type_b = 0;
-    if (param && !r.binder) {
+    if (param && !r.binder && capacity) return false;   /* not lowered yet */
+    if (param && !r.binder && !dim) {
         /* backend §5.3, rule 7: the extent of a parameter without a binder is not in its C
          * type (`i32 v[static 2][3]` is a pointer), so its length is the product of the
-         * literal dimensions; a capacity or a dim of one is not lowered yet */
-        if (capacity || dim) return false;
+         * literal dimensions; its dim is the literal dimension below (the common branch) */
         p->whole = true;
         for (size_t k = 0; k < r.ndims; k++) {
             long v;
@@ -209,10 +223,10 @@ static bool plan(const KAst *ast, const KAstNode *fn, const Call *c, Plan *p) {
     }
     /* length and capacity: the table's own extent, sizeof over the element type */
     if (module) {
-        /* a module array's extent is sizeof only when every dimension is a literal */
+        /* a module array's extent is sizeof only when every dimension is decimal (a literal, or a constexpr of one) */
         for (size_t k = 0; k < r.ndims; k++) {
             long v;
-            if (r.dim_end[k] != r.dim_first[k] + 1 || !decimal_at(ast, r.dim_first[k], &v)) return false;
+            if (!k_em_array_dim(ast, fn, &r, k, &v)) return false;
         }
     }
     p->type_a = r.arr + 1;

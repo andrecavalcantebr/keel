@@ -13,8 +13,10 @@
  * the start. An open end reads the array's length, which takes the same
  * dimension after the name: `v[2..]` is `keel_array_i32_as_slice2(v, 6, 2,
  * keel_array_i32_length(v, 6))`, and `v[..]` passes 0 and that length.
- * Refused (k_em_handles_subscript answers false): a container that is not a
- * plain name (`s.f[i]`), a comma between indices (§5.3.1), a name preceded by
+ * An array field is the same range over the container's name: `b->v[1..4]` is
+ * `keel_array_i32_as_slice2(b->v, 5, 1, 4)`, the 5 the field's dimension 0.
+ * Refused (k_em_handles_subscript answers false): a field that is not an array
+ * (`s.f[i]`), a comma between indices (§5.3.1), a name preceded by
  * `&` (rule 2 collapses `&*`, not lowered yet), a bracket group over two lines,
  * an island outside a function body, and an array range whose dimension is not
  * known. */
@@ -31,7 +33,7 @@ typedef struct { const char *p; size_t n; } Word;
 
 /* the bracket group after a container's name, and what its island says */
 typedef struct {
-    size_t open, close;         /* the `[` (the name's next token) and its `]` */
+    size_t open, close;         /* the `[` (the name's next token, or the field's after `b->v`) and its `]` */
     size_t dots;                /* range-index: its `..`; NO_TOKEN for an index */
     bool low, high;             /* range-index: a bound before the `..`, and after it */
     bool addr;                  /* the detail's `&1`: the container goes by address */
@@ -126,16 +128,20 @@ static bool read_sugar(const KAst *ast, const KIsland *is, Sugar *s) {
     bool range = is->kind == K_ISLAND_RANGE_INDEX;
     size_t t = is->anchor;
     if (!range && is->kind != K_ISLAND_INDEX) return false;
-    if (!word(ast, t + 1, "[") || (t > 0 && word(ast, t - 1, "&"))) return false;
+    /* the bracket follows the name, or the field of it (`b->v[1..4]`: an array's field, see below) */
+    bool field = word(ast, t + 1, "->") || word(ast, t + 1, ".");
+    size_t lb = field ? t + 3 : t + 1;
+    if (field && !(t + 2 < ast->tokens.len && k_token_is_ident(k_em_tok(ast, t + 2)))) return false;
+    if (!word(ast, lb, "[") || (t > 0 && word(ast, t - 1, "&"))) return false;
     const KAstNode *fn = enclosing_fn(ast, t);
     if (!fn) return false;
-    size_t close = closing_of(ast, t + 1, fn->end);
+    size_t close = closing_of(ast, lb, fn->end);
     if (close == NO_TOKEN || !one_line(ast, k_em_tok_off(ast, t), k_em_tok_end(ast, close))) return false;
 
     /* one index only (§5.3.1 is the comma form); the `..` of a range-index, and
      * no `..` in an index */
     size_t dots = NO_TOKEN, depth = 0;
-    for (size_t i = t + 2; i < close; i++) {
+    for (size_t i = lb + 1; i < close; i++) {
         if (opens(ast, i)) depth++;
         else if (closes(ast, i)) depth--;
         else if (depth == 0 && word(ast, i, ",")) return false;
@@ -150,11 +156,13 @@ static bool read_sugar(const KAst *ast, const KIsland *is, Sugar *s) {
     if (s->dim) nw--;
     s->addr = nw > 1 && is_addr(w[nw - 1]);
     if (s->addr) nw--;
+    /* a field container is an array's field only: the modifiers' fields are not lowered here */
+    if (field && !s->dim) return false;
     s->verb = w[0];
-    s->open = t + 1;
+    s->open = lb;
     s->close = close;
     s->dots = dots;
-    s->low = range && dots > t + 2;
+    s->low = range && dots > lb + 1;
     s->high = range && close > dots + 1;
     /* an index: the symbol; a range-index: the symbol, and `length` when the end is open */
     size_t want = !range || s->high ? 1 : 2;

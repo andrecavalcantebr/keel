@@ -36,7 +36,7 @@ test/cgen/gen/share|use.k|-
 036-constexpr-lines|app/cl.k|-
 037-defer-forms|app/df.k|-
 038-decl-forms|app/dc.k|-
-039-array-forms|app/ar.k|-|wip
+039-array-forms|app/ar.k|-|
 040-match-forms|app/mf.k|-|wip
 041-parallel-forms|app/pf.k|-|wip
 042-else-lines|app/es.k|-|wip

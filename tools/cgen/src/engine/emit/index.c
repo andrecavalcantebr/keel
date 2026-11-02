@@ -139,19 +139,14 @@ static bool split_outer(const KAst *ast, size_t first, size_t end, Span *out, si
     return depth == 0;
 }
 
-/* Reads the declaration whose word `array` is token `arr`. False when the tokens
- * do not read as `array T name[...]` at all; d->simple says whether array.c lowers
- * it (no binder in the dimensions, no second declarator). */
-static bool read_decl(const KAst *ast, const KAstNode *fn, size_t arr, Decl *d) {
-    if (!word(ast, arr, "array")) return false;
-    size_t lbr = arr + 1;
-    for (;; lbr++) {
-        if (lbr >= fn->end) return false;
-        if (word(ast, lbr, "[")) break;
-        if (word(ast, lbr, ";") || word(ast, lbr, ",") || word(ast, lbr, ")") ||
-            word(ast, lbr, "{") || word(ast, lbr, "}")) return false;
-    }
-    if (lbr < arr + 3 || !is_word(ast, lbr - 1)) return false;   /* a type, then the name */
+/* Reads the declarator of the declaration whose word `array` is token `arr` and
+ * whose dimension brackets open at token lbr. False when the tokens do not read
+ * as `array T name[...]` at all; d->simple says whether array.c lowers it (no
+ * binder in the dimensions, and no declarator after it outside a function
+ * body: a module variable and a field do not declare several). */
+static bool read_decl_at(const KAst *ast, const KAstNode *fn, size_t arr, size_t lbr, Decl *d) {
+    if (!word(ast, arr, "array") || lbr < arr + 3 || !word(ast, lbr, "[") || !is_word(ast, lbr - 1))
+        return false;                                               /* a type, then the name */
     size_t rbr = closing_of(ast, lbr, fn->end);
     if (rbr == NO_TOKEN) return false;
     d->arr = arr;
@@ -169,15 +164,108 @@ static bool read_decl(const KAst *ast, const KAstNode *fn, size_t arr, Decl *d) 
                 else d->simple = false;
             }
     d->ndims = n;
-    if (d->simple && arr >= fn->body_first && rbr + 1 < fn->end && word(ast, rbr + 1, ","))
-        d->simple = false;                                          /* a second declarator */
+    if (d->simple && fn->kind != K_AST_FUNCTION && rbr + 1 < fn->end && word(ast, rbr + 1, ","))
+        d->simple = false;                                          /* a second declarator, not in a function */
     return true;
 }
 
-/* The declaration of the array that the use at token `u` names: the nearest
+/* Reads the first declarator of the declaration whose word `array` is token `arr`. */
+static bool read_decl(const KAst *ast, const KAstNode *fn, size_t arr, Decl *d) {
+    if (!word(ast, arr, "array")) return false;
+    size_t lbr = arr + 1;
+    for (;; lbr++) {
+        if (lbr >= fn->end) return false;
+        if (word(ast, lbr, "[")) break;
+        if (word(ast, lbr, ";") || word(ast, lbr, ",") || word(ast, lbr, ")") ||
+            word(ast, lbr, "{") || word(ast, lbr, "}")) return false;
+    }
+    return read_decl_at(ast, fn, arr, lbr, d);
+}
+
+/* The declarator of the declaration at `arr` that is named by token `name`. The
+ * declarators are read in order (`array i32 a[3], b[4];`), but only a local of a
+ * function body has more than one; a parameter's `,` separates parameters. */
+static bool declarator_named(const KAst *ast, const KAstNode *fn, size_t arr, size_t name, Decl *out) {
+    Decl c;
+    if (!read_decl(ast, fn, arr, &c)) return false;
+    for (;;) {
+        if (same_text(k_em_tok(ast, c.lbr - 1), k_em_tok(ast, name))) {
+            *out = c;
+            return true;
+        }
+        if (fn->kind != K_AST_FUNCTION || arr < fn->body_first) return false;
+        size_t nx = c.rbr + 1;
+        if (!word(ast, nx, ",") || !is_word(ast, nx + 1) || !word(ast, nx + 2, "[")) return false;
+        if (!read_decl_at(ast, fn, arr, nx + 2, &c)) return false;
+    }
+}
+
+/* The name a use spells: `v` in `v[i]`, and `v` in `b->v[i]` or `b.v[i]`, where
+ * the island is anchored at the container `b`. */
+static size_t use_name(const KAst *ast, size_t anchor) {
+    if (anchor + 2 < ast->tokens.len && (word(ast, anchor + 1, "->") || word(ast, anchor + 1, ".")) &&
+        is_word(ast, anchor + 2))
+        return anchor + 2;
+    return anchor;
+}
+
+/* The module type (a `typedef struct`, a K_AST_TYPE with a name) that token t spells, or NULL. */
+static const KAstNode *module_type(const KAst *ast, size_t t) {
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind == K_AST_TYPE && n->name_first < n->name_end && same_text(k_em_tok(ast, n->name_first), k_em_tok(ast, t)))
+            return n;
+    }
+    return NULL;
+}
+
+/* The type of the container at token c (`b` in `b->v`): the nearest declaration of
+ * the name in the function, a parameter or a local, `T b` or `T *b`, where T is a
+ * module type. Its token is *tt. False when there is none. */
+static bool container_type(const KAst *ast, const KAstNode *fn, size_t c, size_t *tt) {
+    for (size_t j = c; j > fn->first; ) {
+        j--;
+        if (j == c || !is_word(ast, j) || !same_text(k_em_tok(ast, j), k_em_tok(ast, c))) continue;
+        size_t t = j;
+        if (t > fn->first && word(ast, t - 1, "*")) t--;
+        if (t == fn->first || !is_word(ast, t - 1)) continue;
+        t--;
+        if (!word(ast, j + 1, ",") && !word(ast, j + 1, ")") && !word(ast, j + 1, "=") && !word(ast, j + 1, ";"))
+            continue;
+        if (!module_type(ast, t)) continue;
+        *tt = t;
+        return true;
+    }
+    return false;
+}
+
+/* The declaration of the field `c->f` (anchor c is the container, f its name): the
+ * `array` field named f in the struct of the container's type. Refused when the
+ * container's type is not known, or the struct has two fields of that name. */
+static bool field_decl(const KAst *ast, const KAstNode *fn, size_t c, Decl *out) {
+    size_t f = c + 2, tt;
+    if (!container_type(ast, fn, c, &tt)) return false;
+    const KAstNode *t = module_type(ast, tt);
+    if (!t) return false;
+    bool found = false;
+    for (size_t i = t->first; i < t->end && i < ast->tokens.len; i++) {
+        if (!word(ast, i, "array")) continue;
+        Decl d;
+        if (!read_decl(ast, t, i, &d) || !same_text(k_em_tok(ast, d.lbr - 1), k_em_tok(ast, f))) continue;
+        if (found) return false;
+        *out = d;
+        found = true;
+    }
+    return found && out->simple && !out->binder;
+}
+
+/* The declaration of the array that the use at anchor names: the nearest
  * `array` before it, in this function, with the same name. False when there is
- * none, or the nearest one is not a form this file lowers. */
-static bool find_decl(const KAst *ast, const KAstNode *fn, size_t u, Decl *out) {
+ * none, or the nearest one is not a form this file lowers. A use through a
+ * container (`b->v`) names the field of the container's type. */
+static bool find_decl(const KAst *ast, const KAstNode *fn, size_t anchor, Decl *out) {
+    if (use_name(ast, anchor) != anchor) return field_decl(ast, fn, anchor, out);
+    size_t u = anchor;
     bool found = false;
     size_t best = 0;
     Decl d;
@@ -187,7 +275,7 @@ static bool find_decl(const KAst *ast, const KAstNode *fn, size_t u, Decl *out) 
         if (is->kind != K_ISLAND_ARRAY || arr < fn->first || arr >= u) continue;
         if (found && arr < best) continue;
         Decl c;
-        if (!read_decl(ast, fn, arr, &c) || !same_text(k_em_tok(ast, c.lbr - 1), k_em_tok(ast, u))) continue;
+        if (!declarator_named(ast, fn, arr, u, &c)) continue;
         best = arr;
         d = c;
         found = true;
@@ -202,7 +290,7 @@ static bool find_decl(const KAst *ast, const KAstNode *fn, size_t u, Decl *out) 
                 const KAstNode *v = keel_buffer_KAstNode_ptr(&ast->nodes, q);
                 if (v->kind != K_AST_VARIABLE || is->anchor < v->first || is->anchor >= v->end) continue;
                 Decl c;
-                if (!read_decl(ast, v, is->anchor, &c) || !same_text(k_em_tok(ast, c.lbr - 1), k_em_tok(ast, u))) continue;
+                if (!declarator_named(ast, v, is->anchor, u, &c)) continue;
                 d = c;
                 found = true;
             }
@@ -294,7 +382,7 @@ void k_em_edits_index(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         if (is->kind != K_ISLAND_ARRAY_INDEX || u < fn->first || u >= fn->end) continue;
         Use x;
         Decl d;
-        if (!read_use(ast, u, fn->end, &x) || !find_decl(ast, fn, u, &d) || x.count > d.ndims) continue;
+        if (!read_use(ast, use_name(ast, u), fn->end, &x) || !find_decl(ast, fn, u, &d) || x.count > d.ndims) continue;
 
         /* the indices: each one passes through keel_index, unless it and its
          * dimension are both known decimals (rule 6) */
@@ -335,5 +423,28 @@ bool k_em_handles_index(const KAst *ast, const KIsland *is) {
     if (!fn) return false;
     Use x;
     Decl d;
-    return read_use(ast, is->anchor, fn->end, &x) && find_decl(ast, fn, is->anchor, &d) && x.count <= d.ndims;
+    return read_use(ast, use_name(ast, is->anchor), fn->end, &x) && find_decl(ast, fn, is->anchor, &d) &&
+           x.count <= d.ndims;
+}
+
+bool k_em_array_of(const KAst *ast, const KAstNode *fn, size_t name, KArrayRef *out) {
+    Decl d;
+    if (!find_decl(ast, fn, name, &d)) return false;
+    out->arr = d.arr;
+    out->lbr = d.lbr;
+    out->rbr = d.rbr;
+    out->ndims = d.ndims;
+    out->binder = d.binder;
+    for (size_t k = 0; k < d.ndims; k++) {
+        out->dim_first[k] = d.dim[k].first;
+        out->dim_end[k] = d.dim[k].end;
+    }
+    return true;
+}
+
+bool k_em_array_dim(const KAst *ast, const KAstNode *fn, const KArrayRef *r, size_t k, long *v) {
+    if (k >= r->ndims) return false;
+    Decl d = { .arr = r->arr };
+    Span s = { r->dim_first[k], r->dim_end[k] };
+    return dim_value(ast, fn, &d, s, v);
 }

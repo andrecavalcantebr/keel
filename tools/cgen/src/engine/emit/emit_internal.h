@@ -150,12 +150,29 @@ void k_em_sort_edits(Edit *ed, size_t from, size_t cnt);
 
 void k_em_edits_array(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_array(const KAst *ast, const KIsland *is);
+/* the `array` fields of a struct type n (no island): lowered like a declaration, and whether
+ * every one is a form the file lowers (supported() refuses the module when one is not) */
+void k_em_edits_struct_arrays(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
+bool k_em_supported_struct_arrays(const KAst *ast, const KAstNode *n);
 
 void k_em_edits_foreach(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_foreach(const KAst *ast, const KIsland *is);
 
 void k_em_edits_index(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_index(const KAst *ast, const KIsland *is);
+/* the `array` declaration a plain name refers to in function fn (its own, a parameter's,
+ * or the module's), for the verbs of the core: the token spans of its dimensions. */
+#define K_ARRAY_RANK 8
+typedef struct {
+    size_t arr;                                         /* the word `array` */
+    size_t lbr, rbr;                                    /* the brackets of its own declarator */
+    size_t dim_first[K_ARRAY_RANK], dim_end[K_ARRAY_RANK];
+    size_t ndims;
+    bool binder;                                        /* dimension 0 is `T n` of a parameter (§5.18) */
+} KArrayRef;
+bool k_em_array_of(const KAst *ast, const KAstNode *fn, size_t name, KArrayRef *out);
+/* dimension k of the array, as a decimal (a literal, or a constexpr of one): *v is set */
+bool k_em_array_dim(const KAst *ast, const KAstNode *fn, const KArrayRef *r, size_t k, long *v);
 
 /* roles.c: the roles, the erased `type T`, the arity suffix of a function's signature.
  * k_em_arity_suffix writes the digits (or nothing) into out[8] and returns their count. */

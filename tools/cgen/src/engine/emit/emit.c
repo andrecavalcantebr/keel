@@ -100,6 +100,7 @@ static bool first_of_span(const KAst *ast, const KAstNode *n) {
 
 static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
+    size_t entry = *cnt;
     bool value = k_em_declares_value(n->kind);
     if (n->kind == K_AST_TYPE || n->kind == K_AST_TAGS || value) {
         size_t at = k_em_tok_off(ast, n->first);
@@ -250,6 +251,11 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
     }
     /* the uses of another module's names, by their islands (uses.c) */
     if (n->kind != K_AST_MODULE && n->kind != K_AST_IMPORT) k_em_edits_uses(e, n, a, b, ed, cnt);
+    /* the `array` fields of a struct (array.c); an extent's columns are its own (extent.c) */
+    if (n->kind == K_AST_TYPE && !k_em_is_extent(ast, n)) {
+        k_em_edits_struct_arrays(e, n, a, b, ed, cnt);
+        k_em_sort_edits(ed, entry, *cnt);
+    }
     /* the prelude's static_assert in C11 (backend §4.2, §9): only the keyword changes */
     if (n->kind == K_AST_OPAQUE && !e->opt.c23 && k_em_text_is(k_em_tok(ast, n->first), "static_assert")) {
         size_t at = k_em_tok_off(ast, n->first);
@@ -923,6 +929,7 @@ static bool supported(const Emit *e) {
                 const KAstNode *p = keel_buffer_KAstNode_ptr(&ast->nodes, i - 1);
                 if (p->first == n->first && p->kind != K_AST_TYPE) return false;
             }
+            if (!k_em_supported_struct_arrays(ast, n)) return false;
             break;
         }
         case K_AST_TAGS: {

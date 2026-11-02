@@ -438,6 +438,7 @@ coll/coll_stack_i32.type.h         coll/coll_stack_i32.h
 3. O header alcança o argumento pela camada (§4.3.1): inclui o `.type.h` do argumento que aparece por valor, e escreve a declaração adiantada do que aparece por ponteiro. Não depende de ordem de inclusão.
 4. Quem instancia é quem usa, e não quem declara o tipo argumento. Dois módulos que usam `buffer i32` geram o mesmo header, byte a byte (§7.1), e a segunda escrita não muda nada.
 5. Quem inclui o `.h` de um módulo recebe, por transitividade, os tipos, os protótipos e os corpos das instâncias que ele usa.
+6. Uma declaração de módulo genérico que cita parâmetro e nenhum modificador — `pub constexpr size_t CAP = N;`, ou um tipo que só cita `T` — pertence à **instância do módulo**, e não à de um modificador. Sai uma vez, nos headers `M_<args>.type.h` e `M_<args>.h` (`gd_3_i32.type.h` e `gd_3_i32.h`), com o nome `M_<args>_<nome>` (`gd_3_i32_CAP`), e o `.type.h` de cada instância de modificador do módulo o inclui. Esses headers só existem quando o módulo tem uma declaração assim. É a partição do §4.4.1 uma camada abaixo: lá, a declaração que não cita parâmetro (`keel_buffer.h`); aqui, a que cita o módulo mas nenhum modificador; e a que cita o modificador fica no header dele (`keel_buffer_i32.h`).
 
 ```keel
 //keel

@@ -91,3 +91,11 @@ golden/cases/030-readme-scan/expected/c23/scan.c	}
 golden/cases/030-readme-scan/expected/c23/scan.c	{ keel_buffer_i32 *keel__c0 = xs;
 golden/cases/031-readme-coop/expected/c11/coop.c	case coop_Cycle_END: goto keel__m0_END;
 golden/cases/031-readme-coop/expected/c23/coop.c	case coop_Cycle_END: goto keel__m0_END;
+golden/cases/033-debug-more/expected/c11/app/app_dbg.h	static inline u8 *app_dbg_image_r_ptr(struct app_dbg_image *p, size_t i0, size_t i1);
+golden/cases/033-debug-more/expected/c11/app/app_dbg.h	static inline u8 *app_dbg_image_r_ptr(struct app_dbg_image *p, size_t i0, size_t i1) {
+golden/cases/033-debug-more/expected/c11/app/app_dbg.h	return &p->r[i0][i1];
+golden/cases/033-debug-more/expected/c11/app/app_dbg.type.h	static const size_t app_dbg_H__chk = 2; _Static_assert(sizeof(app_dbg_H__chk) > 0, "constexpr");
+golden/cases/033-debug-more/expected/c11/app/app_dbg.type.h	static const size_t app_dbg_W__chk = 3; _Static_assert(sizeof(app_dbg_W__chk) > 0, "constexpr");
+golden/cases/033-debug-more/expected/c23/app/app_dbg.h	static inline u8 *app_dbg_image_r_ptr(struct app_dbg_image *p, size_t i0, size_t i1);
+golden/cases/033-debug-more/expected/c23/app/app_dbg.h	static inline u8 *app_dbg_image_r_ptr(struct app_dbg_image *p, size_t i0, size_t i1) {
+golden/cases/033-debug-more/expected/c23/app/app_dbg.h	return &p->r[i0][i1];

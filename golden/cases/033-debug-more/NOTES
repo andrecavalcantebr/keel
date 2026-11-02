@@ -1,0 +1,17 @@
+Notas do caso.
+
+Completa o 026 com os `debug` que dependiam de `extent` e `routine`
+(`tag-out-of-range` já é do 009, pelo `VERIFY`). O runner roda o executável uma
+vez por linha do `DEBUG`, sob `KEEL_CHECKS=1`, e confere o `abort()` e a linha
+`<arquivo.k>:<linha>: keel: <id>` (backend §5.17, regra 4).
+
+- 1: o acesso `img.r[1, 0]` com `h = 1`. A função de acesso leva o `#line` da
+  coluna (app/dbg.k:14, backend §5.15 r3) antes da assinatura, e o `KEEL_CHECK`
+  está na linha seguinte: o `abort` relata app/dbg.k:15, e o segundo índice, :16.
+  É a posição que o esperado produz, mas não a da coluna; ver a pergunta ao André
+  no relatório da sessão (backend §5.17, regra 4).
+- 2: `routine.par` com alvo 3 sobre 2 entradas; a verificação está no corpo do
+  verbo (keel/routine.k:55).
+- 3: `routine.mask` sobre 65 entradas (keel/routine.k:76).
+
+O `expected/keel/` das instâncias `i16` é o do 031: mesmas instâncias, mesmos bytes.

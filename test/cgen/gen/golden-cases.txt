@@ -27,6 +27,7 @@ test/cgen/gen/share|use.k|-
 029-match-corot|mc.k|-
 030-readme-scan|scan.k|-
 031-readme-coop|coop.k|-
+033-debug-more|app/dbg.k|app.dbg
 010-routine|ag2.k|-
 019-walk|lst.k|-
 011-else|app/el.k|-

@@ -125,3 +125,14 @@ golden/cases/041-parallel-forms/expected/c11/app/app_pf.type.h	static const size
 golden/cases/041-parallel-forms/expected/c23/app/app_pf.c	for (size_t w = 0; w < 4; w++) {
 golden/cases/041-parallel-forms/expected/c23/app/app_pf.c	{ keel_buffer_i32 *keel__c0 = xs;
 golden/cases/041-parallel-forms/expected/c23/app/app_pf.c	keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
+golden/cases/045-extern-forms/expected/c11/app/app_ef.type.h	static const size_t app_ef_K__chk = (1 +
+golden/cases/047-match-more/expected/c11/app/app_mm.c	}
+golden/cases/047-match-more/expected/c11/app/app_mm.c	case app_mm_Cycle_A: goto keel__m0_A;
+golden/cases/047-match-more/expected/c11/app/app_mm.c	case app_mm_Cycle_B: goto keel__m0_B;
+golden/cases/047-match-more/expected/c11/app/app_mm.c	default: KEEL_CHECK(0, "tag-out-of-range"); goto keel__m0_end;
+golden/cases/047-match-more/expected/c11/app/app_mm.c	keel__m0_A: { r = 1; } goto keel__m0_end; keel__m0_B: { r = 2; } keel__m0_end: ;
+golden/cases/047-match-more/expected/c23/app/app_mm.c	}
+golden/cases/047-match-more/expected/c23/app/app_mm.c	case app_mm_Cycle_A: goto keel__m0_A;
+golden/cases/047-match-more/expected/c23/app/app_mm.c	case app_mm_Cycle_B: goto keel__m0_B;
+golden/cases/047-match-more/expected/c23/app/app_mm.c	default: KEEL_CHECK(0, "tag-out-of-range"); goto keel__m0_end;
+golden/cases/047-match-more/expected/c23/app/app_mm.c	keel__m0_A: { r = 1; } goto keel__m0_end; keel__m0_B: { r = 2; } keel__m0_end: ;

@@ -11,10 +11,14 @@
  * the tail (`else`, its blanks) become `; if (F(x)) ` (and `W(&x, ` for default);
  * the `;` that ends a default value gets the `)` that closes W.
  *
+ * A tail on a line after the `else` (backend §5.12 r2) is not joined to it: the
+ * edit stops at the end of the `else` line, the line break stays, and the tail is
+ * emitted as its own line. The header is then `; if (F(x))`, with no blank after.
+ *
  * Refused (k_em_handles_else answers false, and the module is refused with
  * implementation-limit): a detail that does not read as the form above, a win
- * without `&1`, an `else` with no token after it, and a default with no `;` that
- * ends it. */
+ * without `&1`, an `else` with no token after it, a default with no `;` that
+ * ends it, and a default whose `;` is on a line after the `else`. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -85,12 +89,20 @@ static size_t value_end(const KAst *ast, size_t at) {
     return NO_TOKEN;
 }
 
+/* true when no line break lies between token i and token j (i before j) */
+static bool same_line(const KAst *ast, size_t i, size_t j) {
+    size_t from = k_em_tok_end(ast, i), to = k_em_tok_off(ast, j);
+    return memchr(ast->source.ptr + from, '\n', to - from) == NULL;
+}
+
 bool k_em_handles_else(const KAst *ast, const KIsland *is) {
     if (is->kind != K_ISLAND_ELSE || is->anchor + 1 >= ast->tokens.len) return false;
     if (!k_em_text_is(k_em_tok(ast, is->anchor), "else")) return false;
     ElseParts x;
     if (!read_parts(ast, is, &x)) return false;
-    return x.exit || value_end(ast, is->anchor) != NO_TOKEN;
+    if (x.exit) return true;
+    size_t semi = value_end(ast, is->anchor);
+    return semi != NO_TOKEN && same_line(ast, is->anchor, semi);
 }
 
 /* appends x when its position is in the line [a, b) */
@@ -115,8 +127,16 @@ void k_em_edits_else(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, 
         ElseParts x;
         if (!read_parts(ast, is, &x)) continue;
 
-        /* the header: from the end of the token before `else` up to the tail */
+        /* the header: from the end of the token before `else` up to the tail, or
+         * to the end of the `else` line when the tail is on a later line (then the
+         * edit must not span the line break: emit_range would skip the tail's line) */
+        const char *s = ast->source.ptr;
         size_t from = k_em_tok_end(ast, at - 1), to = k_em_tok_off(ast, at + 1);
+        bool tail_here = to < b;
+        if (!tail_here) {
+            to = b;
+            if (s[to - 1] == '\n') to--;
+        }
         size_t need = x.fail_len + x.tgt_len + (x.exit ? 0 : x.win_len + x.tgt_len) + 32;
         char *w = k_em_scratch(e, need);
         if (!w) return;
@@ -125,7 +145,8 @@ void k_em_edits_else(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, 
         q = put(w, q, x.fail, x.fail_len);
         q = put(w, q, "(", 1);
         q = put(w, q, x.tgt, x.tgt_len);
-        q = put(w, q, ")) ", 3);
+        q = put(w, q, "))", 2);
+        if (tail_here) q = put(w, q, " ", 1);
         if (!x.exit) {
             q = put(w, q, x.win, x.win_len);
             q = put(w, q, "(&", 2);

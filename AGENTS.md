@@ -11,9 +11,13 @@ para cá.
 - **A memória do projeto está em [`.claude/memory/`](.claude/memory/MEMORY.md).**
   Leia o `MEMORY.md` primeiro: é o índice, e cada linha aponta para um fato.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code, e
-  atualizada em 2026-11-01 (29 dos 32 casos do golden saem do cgen). O
+  atualizada em 2026-11-02 (32 dos 35 casos do golden saem do cgen). O
   que diverge do repositório vale menos que o repositório.
-- **Nenhuma pendência em aberto nos normativos.** P16 (visibilidade do C que
+- **Pendências de normativo, com proposta e sem "sim" ainda:** `priv tags` e
+  `extent priv` contra D29, `-c` com `--main`, o `constexpr` multilinha sob C11 e a
+  linha do `KEEL_CHECK` do acessor de `extent` na tabela do §6. O registro está na
+  última seção de [`tools/agents/passagem-2026-10-28.md`](tools/agents/passagem-2026-10-28.md).
+  Fora isso, nenhuma: P16 (visibilidade do C que
   atravessa um módulo) foi resolvida em 2026-09-21; o registro está em
   `design/cgen-tool.md` §13, e o briefing que a levantou, em
   [`.claude/p16-visibilidade-do-c.md`](.claude/p16-visibilidade-do-c.md), fica

@@ -74,3 +74,12 @@ tratam do jeito dele, derrubando três casos que fechavam (009, 012, 029). A
 correção foi guardar a varredura com "há `defer` nesta função" antes de entrar.
 Rodar `gen_golden` inteiro ao tocar um arquivo de construção, não só o caso
 novo: a cobertura de regressão são os outros casos da tabela.
+
+**Atualização (2026-11-02):** **32 dos 35 casos** saem do cgen (só 022–024 fora); os 9 `debug`
+do catálogo têm teste (casos 009, 026 e 033); entraram `#line` da coluna nos `KEEL_CHECK` do
+`extent`, `priv tags` no `.c` (034), `match` sobre coluna de `extent` (035),
+`--parallel-lowering=serie` (oráculo em `test/cgen/gen/serie/`) e a fase do `cc` com depfile
+(`tool/run_cc.c`, `cli/cc_phase.sh`). Abertos, com proposta e sem "sim": `priv tags`/`extent priv`
+contra D29, `-c` com `--main` e `--instance` sem `--stop-after` (um `cc` por unidade),
+`constexpr` multilinha, e `defer { }`/multilinha em `defer.c`. Detalhe na última seção da
+passagem.

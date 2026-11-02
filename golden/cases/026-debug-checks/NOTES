@@ -17,7 +17,6 @@ verificação (regra 4): num verbo da base, a do verbo, e não a do chamador.
 - 5: `arena.alloc` cru, com `n * sz` que não cabe em `size_t`
   (keel/arena.k:51).
 
-Os outros quatro `debug` do catálogo (`tag-out-of-range`,
-`extent-index-out-of-bounds`, `par-target-above-total`,
-`mask-above-64-slots`) pedem `match`, `extent` e `routine`, e entram em casos
-próprios.
+Os outros quatro `debug` do catálogo estão em outros casos:
+`tag-out-of-range` no 009 (`VERIFY`), e `extent-index-out-of-bounds`,
+`par-target-above-total` e `mask-above-64-slots` no 033 (`DEBUG`).

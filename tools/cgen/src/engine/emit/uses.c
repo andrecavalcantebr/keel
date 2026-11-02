@@ -78,26 +78,25 @@ static bool declared_here(const KAst *ast, const Detail *d) {
     return false;
 }
 
-/* The marks are `&<k>` (argument k by address) and `type:<k>` (argument k is
- * a type, erased into its size and alignment: backend §5.16); out: a bit per
- * argument (1-based) for each. */
-static bool marks_of3(const Detail *d, unsigned *amp, unsigned *type, unsigned *dim);
-static bool marks_of(const Detail *d, unsigned *amp, unsigned *type) {
-    unsigned dim;
-    return marks_of3(d, amp, type, &dim) && dim == 0;
-}
+/* The marks are `&<k>` (argument k by address), `*<k>` (argument k, a value
+ * parameter given a pointer, by dereference: spec §4.4, rule 5) and `type:<k>`
+ * (argument k is a type, erased into its size and alignment: backend §5.16); out:
+ * a bit per argument (1-based) for each. */
+static bool marks_of3(const Detail *d, unsigned *amp, unsigned *type, unsigned *dim, unsigned *deref);
 
-/* the three marks; `dim:<k>`: argument k is an `array`, and its dimension 0
+/* the four marks; `dim:<k>`: argument k is an `array`, and its dimension 0
  * goes after it as an argument (backend §5.2, §5.18) */
-static bool marks_of3(const Detail *d, unsigned *amp, unsigned *type, unsigned *dim) {
+static bool marks_of3(const Detail *d, unsigned *amp, unsigned *type, unsigned *dim, unsigned *deref) {
     *amp = 0;
     *type = 0;
     *dim = 0;
+    *deref = 0;
     size_t p = 0;
     while (p < d->marks_len) {
         if (d->marks[p] == ' ') { p++; continue; }
         unsigned *set = amp;
         if (d->marks[p] == '&') p++;
+        else if (d->marks[p] == '*') { p++; set = deref; }
         else if (p + 5 <= d->marks_len && memcmp(d->marks + p, "type:", 5) == 0) { p += 5; set = type; }
         else if (p + 4 <= d->marks_len && memcmp(d->marks + p, "dim:", 4) == 0) { p += 4; set = dim; }
         else return false;
@@ -322,15 +321,15 @@ bool k_em_handles_use(const KAst *ast, const KIsland *is) {
     Detail d;
     if (!k_em_foreign_island(ast, is) || !detail_of(ast, is, &d)) return false;
     if (d.sym_len == 4 && memcmp(d.sym, "core", 4) == 0) return false;   /* lowered by the core: not a rename */
-    unsigned amp, type, dim;
-    if (!marks_of3(&d, &amp, &type, &dim)) return false;
+    unsigned amp, type, dim, deref;
+    if (!marks_of3(&d, &amp, &type, &dim, &deref)) return false;
     size_t end = span_end(ast, is->anchor, &d);
     if (end == NO_TOKEN) return false;
-    if (is->kind != K_ISLAND_CALL) return amp == 0 && type == 0 && dim == 0;
+    if (is->kind != K_ISLAND_CALL) return amp == 0 && type == 0 && dim == 0 && deref == 0;
     size_t first[17], last[17], argc;
     if (!call_args(ast, end, first, last, &argc)) return false;
     for (unsigned k = 1; k <= 16; k++) {
-        if (((amp | type | dim) & (1u << k)) && k > argc) return false;
+        if (((amp | type | dim | deref) & (1u << k)) && k > argc) return false;
         const char *dp;
         size_t dl;
         if ((dim & (1u << k)) && (last[k] != first[k] + 1 || !array_dim0(ast, first[k], &dp, &dl, NULL))) return false;
@@ -388,15 +387,17 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
         if (!k_em_handles_use(ast, is)) {
             /* a call of the module's own verb: the name is renamed by emit.c, the `&` are here */
             Detail o;
-            unsigned amp, type;
+            unsigned amp, type, dim, deref;
             size_t f[17], l[17], n_args, end;
             if (is->kind != K_ISLAND_CALL || k_em_foreign_island(ast, is) || !detail_of(ast, is, &o) ||
-                !marks_of(&o, &amp, &type) || amp == 0 || (end = span_end(ast, is->anchor, &o)) == NO_TOKEN ||
-                !call_args(ast, end, f, l, &n_args)) continue;
+                !marks_of3(&o, &amp, &type, &dim, &deref) || dim || (amp | deref) == 0 ||
+                (end = span_end(ast, is->anchor, &o)) == NO_TOKEN || !call_args(ast, end, f, l, &n_args)) continue;
             for (size_t k = 1; k <= n_args; k++) {
                 size_t p = k_em_tok_off(ast, f[k]);
                 if ((amp & (1u << k)) && p >= a && p < b)
                     k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "&", .text_len = 1 });
+                if ((deref & (1u << k)) && p >= a && p < b)
+                    k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "*", .text_len = 1 });
             }
             continue;
         }
@@ -404,11 +405,11 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
         detail_of(ast, is, &d);
         size_t end = span_end(ast, is->anchor, &d);
         size_t at = k_em_tok_off(ast, is->anchor);
-        unsigned amp = 0, type = 0, dim = 0;
+        unsigned amp = 0, type = 0, dim = 0, deref = 0;
         size_t first[17], last[17], argc = 0;
         unsigned sel = 0;
         if (is->kind == K_ISLAND_CALL) {
-            marks_of3(&d, &amp, &type, &dim);
+            marks_of3(&d, &amp, &type, &dim, &deref);
             call_args(ast, end, first, last, &argc);
             size_t name;
             const KAst *m = callee_module(ast, is->anchor, end, &name);
@@ -445,6 +446,8 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
             }
             if (amp & (1u << k))
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "&", .text_len = 1 });
+            if (deref & (1u << k))
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = p, .skip = 0, .text = "*", .text_len = 1 });
             if (dim & (1u << k)) {
                 /* the array's dimension 0, from the declaration, as one argument more */
                 const char *dp;
@@ -497,6 +500,19 @@ bool k_em_type_symbol(const KAst *ast, const char *spelled, size_t len, const ch
     return false;
 }
 
+/* the symbol of the type island anchored at token `at` (a type written in a signature): false
+ * when no type island starts there */
+bool k_em_type_island_at(const KAst *ast, size_t at, const char **sym, size_t *sym_len) {
+    for (size_t i = 0; i < ast->islands.len; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        Detail d;
+        if (is->kind != K_ISLAND_TYPE || is->anchor != at || !detail_of(ast, is, &d)) continue;
+        *sym = d.sym; *sym_len = d.sym_len;
+        return true;
+    }
+    return false;
+}
+
 bool k_em_type_by_value(const KAst *ast, const char *sym, size_t len) {
     for (size_t c = 0; c < ast->closure.len; c++) {
         const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, c);
@@ -526,17 +542,19 @@ int k_em_range_use(const KAst *ast, size_t i, KRangeUse *r) {
         if (!detail_of(ast, is, &d)) continue;
         bool foreign = k_em_handles_use(ast, is);
         if (!foreign && (is->kind != K_ISLAND_CALL || k_em_foreign_island(ast, is))) continue;
-        unsigned amp, type, dim;
-        if (!marks_of3(&d, &amp, &type, &dim)) return -1;
+        unsigned amp, type, dim, deref;
+        if (!marks_of3(&d, &amp, &type, &dim, &deref)) return -1;
         if (type || dim) return -1;
         size_t end = span_end(ast, is->anchor, &d);
         if (end == NO_TOKEN) return -1;
         *r = (KRangeUse){ .sym = foreign ? d.sym : NULL, .sym_len = foreign ? d.sym_len : 0, .end = end };
-        if (is->kind == K_ISLAND_CALL && amp) {
+        if (is->kind == K_ISLAND_CALL && (amp | deref)) {
             size_t first[17], last[17], argc;
             if (!call_args(ast, end, first, last, &argc)) return -1;
-            for (size_t a = 1; a <= argc; a++)
+            for (size_t a = 1; a <= argc; a++) {
                 if (amp & (1u << a)) r->amp[r->namp++] = first[a];
+                if (deref & (1u << a)) r->star[r->nstar++] = first[a];
+            }
         }
         return 1;
     }
@@ -927,13 +945,13 @@ void k_em_use_includes(Emit *e) {
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         Detail d;
-        unsigned amp, type, dim;
+        unsigned amp, type, dim, deref;
         if (is->kind != K_ISLAND_RANGE_INDEX || !detail_of(ast, is, &d)) continue;
         /* an open end writes its `core` word before the marks (parser_islands_index.c) */
         if (d.marks_len >= 5 && memcmp(d.marks, " core", 5) == 0 && (d.marks_len == 5 || d.marks[5] == ' ')) {
             d.marks += 5; d.marks_len -= 5;
         }
-        if (!marks_of3(&d, &amp, &type, &dim) || !dim) continue;
+        if (!marks_of3(&d, &amp, &type, &dim, &deref) || !dim) continue;
         size_t n = d.sym_len;
         while (n > 0 && d.sym[n - 1] >= '0' && d.sym[n - 1] <= '9') n--;
         if (n < 9 || memcmp(d.sym + n - 9, "_as_slice", 9) != 0) continue;

@@ -1007,6 +1007,10 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             continue;
         }
         if (sig.p[k].pointer && ak && ak->pointers == 0 && ak->lvalue) { isl_put_str(&t, " &"); isl_put_uint(&t, k + 1); }
+        /* a value parameter takes a pointer symbol `x` as `*x` (rule 5); only a bare name, not an
+           expression, and not an array, whose record counts its dimension as a pointer */
+        else if (!sig.p[k].pointer && ak && ak->pointers > 0 && ak->kind != KT_ARRAY &&
+                 args[k].end == args[k].first + 1 && isl_ident(a, args[k].first)) { isl_put_str(&t, " *"); isl_put_uint(&t, k + 1); }
     }
     isl_emit(c, K_ISLAND_CALL, callee, &t);
     if (proto_of && !isl_returns_associated(proto_home, fsig.fn))

@@ -176,17 +176,20 @@ void k_em_put_continued(Emit *e, size_t tok_a, size_t tok_b) {
 void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b) {
     const KAst *ast = e->ast;
     size_t amp[16], namp = 0;   /* the tokens that take `&` before them (uses.c) */
+    size_t star[16], nstar = 0; /* the tokens that take `*` before them (uses.c) */
     for (size_t i = tok_a; i < tok_b && e->ok; i++) {
         if (i > tok_a) {   /* the gap between the two tokens, as written, without its comments */
             size_t g0 = k_em_tok_end(ast, i - 1), g1 = k_em_tok_off(ast, i);
             k_em_put_source(e, g0, g1);
         }
         for (size_t k = 0; k < namp; k++) if (amp[k] == i) k_em_put_bytes(e, "&", 1);
+        for (size_t k = 0; k < nstar; k++) if (star[k] == i) k_em_put_bytes(e, "*", 1);
         KRangeUse u;
         int r = k_em_range_use(ast, i, &u);
         if (r < 0) { e->ok = false; return; }
         if (r > 0) {
             for (size_t k = 0; k < u.namp && namp < 16; k++) amp[namp++] = u.amp[k];
+            for (size_t k = 0; k < u.nstar && nstar < 16; k++) star[nstar++] = u.star[k];
             if (u.sym) {
                 if (u.end > tok_b) { e->ok = false; return; }
                 k_em_put_bytes(e, u.sym, u.sym_len);

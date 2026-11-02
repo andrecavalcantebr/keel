@@ -17,7 +17,7 @@ size_t app_af_adapt(keel_slice_i32 *sp, keel_range *r) {
 
 size_t app_af_over_range(keel_range *r) {
     size_t t = 0;
-    { size_t keel__f0 = keel_range_first(*r); size_t keel__l0 = keel_range_limit(*r); for (size_t v = keel__f0; v < keel__l0; v++) t += v; }
+    { size_t keel__f0 = keel_range_first(*r); size_t keel__l0 = keel_range_limit(*r); for (size_t v = keel__f0; v < keel__l0; v++) { t += v; } }
     return t;
 }
 

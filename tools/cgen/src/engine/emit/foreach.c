@@ -2,11 +2,13 @@
  * codegen design E5: one file per construction; backend §5.7, §5.3 rule 9).
  * Lowered here: `foreach (T b : A..B)` over a literal range, with one binder;
  * `foreach (T v, I i : c)` over a container variable `c`, with two binders and
- * the value binder by value (§5.7, rules 1 to 5); and `foreach (T b : r)` and
- * `foreach (T v, I i : r)` over a `range` variable `r` by value (§5.7, rule 6
- * and the two-binder form). Each with a body that is a braced block or one
- * simple statement. Every other `foreach` (a value binder by pointer, a range
- * by pointer, the countable form of another type) stays refused. */
+ * the value binder by value (§5.7, rules 1 to 5); `foreach (T v, I i : f(args))`
+ * over a call of a function of this module that returns `X *` (§5.7, rule 1: the
+ * call is evaluated once, into the temporary); and `foreach (T b : r)` and
+ * `foreach (T v, I i : r)` over a `range` variable `r`, by value or by pointer
+ * (§5.7, rule 6 and the two-binder form). Each with a body that is a braced block
+ * or one simple statement. Every other `foreach` (a value binder by pointer, the
+ * countable form of another type, a call returning a value) stays refused. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -118,6 +120,7 @@ typedef struct {
     bool walk;                  /* `walk (T *p, C c : x)`: the cursor protocol, not the index one */
     bool ptr_binder;            /* `T *v`: the element's address (`ptr`), not a copy (`get`) */
     bool array;                 /* the container is an `array` variable: C syntax, no verbs (spec §4.2) */
+    size_t cont_end;            /* the container's last token, exclusive: cont + 1 for a variable */
     const char *dim; size_t dim_len; bool dim_binder;   /* its dimension 0 */
     const char *sym; size_t sym_len;   /* the container's instance */
 } Over;
@@ -130,6 +133,7 @@ typedef struct {
     size_t cont;                /* the range variable */
     size_t close, body, last;
     bool braced;
+    bool by_pointer;            /* `range *r`: the temporaries read `*r` */
 } RangeVar;
 
 /* the body after the `)` at close: a braced block or one simple statement */
@@ -157,8 +161,38 @@ static bool read_body(const KAst *ast, size_t close, size_t *body, size_t *last,
     return false;
 }
 
+/* the symbol and the pointer-ness of the call `f(args)` in [a, close), a call of a function
+ * of this module that returns `X *` (the return type's own island gives `X`'s symbol): the
+ * temporary takes the result (§5.7, rule 1). A value return, an unknown callee, and an
+ * argument with `[` or `..` (its own islands are not copied) are refused. */
+static bool analyze_call_over(const KAst *ast, size_t a, size_t close, Over *o) {
+    for (size_t i = a + 2; i < close - 1; i++)
+        if (word(ast, i, "[") || word(ast, i, "..")) return false;
+    const KAstNode *fn = NULL;
+    KToken name = k_em_tok(ast, a);
+    for (size_t k = 0; k < ast->nodes.len && !fn; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind != K_AST_FUNCTION || n->name_first >= n->name_end || n->name_first < 2) continue;
+        KToken t = k_em_tok(ast, n->name_first);
+        if (t.len == name.len && memcmp(t.ptr, name.ptr, t.len) == 0) fn = n;
+    }
+    if (!fn) return false;
+    size_t n = fn->name_first;
+    if (!word(ast, n - 1, "*") || word(ast, n - 2, "*")) return false;   /* exactly one `*`: `X *` */
+    size_t s = fn->first;
+    while (s < n && (word(ast, s, "pub") || word(ast, s, "priv") || word(ast, s, "inline") ||
+                     word(ast, s, "static") || word(ast, s, "extern"))) s++;
+    if (!k_em_type_island_at(ast, s, &o->sym, &o->sym_len)) return false;
+    o->cont = a;
+    o->cont_end = close;
+    o->array = false;
+    o->by_pointer = true;      /* the temporary is a pointer: the call's result, no `&` */
+    o->value_copy = false;
+    return true;
+}
+
 /* `( T v , I i : c )` with the container's type in the island's detail:
- * `v, i : c (buffer i32)` */
+ * `v, i : c (buffer i32)`; or the container is a call (analyze_call_over) */
 static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KAstNode *fn, Over *o) {
     o->walk = word(ast, kw, "walk");
     if ((!word(ast, kw, "foreach") && !o->walk) || !word(ast, kw + 1, "(")) return false;
@@ -168,17 +202,21 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
     for (size_t i = kw + 2; i < close; i++) {
         if (word(ast, i, ",") && comma == NO_TOKEN) comma = i;
         else if (word(ast, i, ":")) colon = i;
-        else if (word(ast, i, "(") || word(ast, i, "[") || word(ast, i, "..")) return false;
+        else if (word(ast, i, "..") || (colon == NO_TOKEN && (word(ast, i, "(") || word(ast, i, "[")))) return false;
     }
-    if (comma == NO_TOKEN || colon == NO_TOKEN || comma < kw + 4 || colon < comma + 3 || colon + 2 != close) return false;
+    bool call = colon != NO_TOKEN && word_like(ast, colon + 1) && word(ast, colon + 2, "(") &&
+                closing(ast, colon + 2, "(", ")") == close - 1;
+    if (comma == NO_TOKEN || colon == NO_TOKEN || comma < kw + 4 || colon < comma + 3 || (colon + 2 != close && !call)) return false;
     o->vtype_a = kw + 2; o->vtype_b = comma - 1; o->value = comma - 1;
     o->itype_a = comma + 1; o->itype_b = colon - 1; o->index = colon - 1;
     o->cont = colon + 1;
+    o->cont_end = o->cont + 1;
     o->close = close;
     if (!word_like(ast, o->value) || !word_like(ast, o->index) || !word_like(ast, o->cont)) return false;
     o->ptr_binder = false;
     for (size_t i = o->vtype_a; i < o->vtype_b && !o->walk; i++) if (word(ast, i, "*")) o->ptr_binder = true;
     if (!read_body(ast, close, &o->body, &o->last, &o->braced)) return false;
+    if (call) return !o->walk && analyze_call_over(ast, colon + 1, close, o);
     /* over an `array` variable the detail has no container type: `sl, i : steps` */
     {
         const char *dd = keel_buffer_char_ptr(&ast->island_text, is->text);
@@ -223,13 +261,20 @@ static bool analyze_range_var(const KAst *ast, const KIsland *is, size_t kw, con
     const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
     size_t len = is->text_len;
     if (len < 7 || memcmp(d + len - 7, "(range)", 7) != 0) return false;
-    /* the range by value: the declaration `range r` in the function, not `range *r` */
+    /* the range by value (`range r`) or by pointer (`range *r`, its declaration): the temporaries
+     * read `r` or `*r` (§5.7, rule 6); any other use of the name before the loop is refused */
     KToken c = k_em_tok(ast, r->cont);
     bool found = false;
+    r->by_pointer = false;
     for (size_t i = fn->first + 1; i < kw && !found; i++) {
         KToken t = k_em_tok(ast, i);
         if (t.len != c.len || memcmp(t.ptr, c.ptr, c.len) != 0) continue;
-        if (word(ast, i - 1, "*")) return false;
+        if (word(ast, i - 1, "*")) {
+            if (!word(ast, i - 2, "range")) return false;
+            r->by_pointer = true;
+            found = true;
+            continue;
+        }
         if (word_like(ast, i - 1) && (word(ast, i + 1, "=") || word(ast, i + 1, ";") || word(ast, i + 1, ",") || word(ast, i + 1, ")")))
             found = true;
     }
@@ -341,7 +386,7 @@ static void edits_over(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     put_uint(e, n);
     k_em_put_bytes(e, " = ", 3);
     if (!o->by_pointer && !o->value_copy) k_em_put_bytes(e, "&", 1);
-    k_em_put_range(e, o->cont, o->cont + 1);
+    k_em_put_range(e, o->cont, o->cont_end);
     k_em_put_bytes(e, "; size_t keel__n", 16); put_uint(e, n);
     k_em_put_bytes(e, " = ", 3);
     k_em_put_bytes(e, o->sym, o->sym_len);
@@ -515,9 +560,9 @@ static void edits_range_var(Emit *e, const KAstNode *fn, size_t kw, const RangeV
     /* `foreach` -> the two temporaries, then `for` */
     e->n = 0;
     put_s(e, "{ size_t keel__f"); put_uint(e, n);
-    put_s(e, " = keel_range_first("); k_em_put_range(e, r->cont, r->cont + 1);
+    put_s(e, " = keel_range_first("); if (r->by_pointer) put_s(e, "*"); k_em_put_range(e, r->cont, r->cont + 1);
     put_s(e, "); size_t keel__l"); put_uint(e, n);
-    put_s(e, " = keel_range_limit("); k_em_put_range(e, r->cont, r->cont + 1);
+    put_s(e, " = keel_range_limit("); if (r->by_pointer) put_s(e, "*"); k_em_put_range(e, r->cont, r->cont + 1);
     put_s(e, "); for");
     size_t hl;
     const char *head = take(e, &hl);

@@ -1,7 +1,7 @@
 /* tool/output.c — where a phase that stops before the C compiler writes
  * (cgen-tool-spec §4.2): `stdout`, or the file of `-o` as gcc reads it with
  * `-E`; `-o -` is `stdout`. The file follows the writing rules of §6: an
- * identical file is not touched, and the bytes go to a temporary in the same
+ * identical file is not touched (unless `-f`: then it is written, and its timestamp moves), and the bytes go to a temporary in the same
  * directory that is then renamed over it. */
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
@@ -10,6 +10,10 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+static bool force_write;   /* -f: write even when the content is the same (cgen-tool-spec §4.1) */
+
+void cgen_output_force(bool on) { force_write = on; }
 
 static bool same_content(const char *path, const char *data, size_t n) {
     FILE *f = fopen(path, "rb");
@@ -32,7 +36,7 @@ int cgen_write_output(const char *path, const char *data, size_t n) {
         if (fflush(stdout) != 0) goto stdout_failed;
         return 0;
     }
-    if (same_content(path, data, n)) return 0;
+    if (!force_write && same_content(path, data, n)) return 0;
     size_t len = strlen(path);
     char *tmp = malloc(len + 32);
     if (!tmp) goto failed;

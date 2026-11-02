@@ -10,6 +10,7 @@
 bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, const char **value);
 bool cgen_source_under_root(const char *source, const char *root);
 bool cgen_source_in_multiple_roots(const char *source, const char *const *roots, int root_count);
+void cgen_output_force(bool on);
 extern char *cgen_resolve_base_dir(keel_arena *, const char *explicit_base_dir);
 int cgen_stop_after_lex(keel_arena *, const char *path, const char *out);
 int cgen_stop_after_parse(keel_arena *, const char *path,const char *const *roots,int n,const char *base,const char *out);
@@ -283,7 +284,7 @@ int main(int argc, char *argv[]) {
 
     /* parsed and validated, consumed by the cc and depfile milestones (M4) */
     (void)pedantic_names;
-    (void)f_flag;
+    cgen_output_force(f_flag);
 
     keel_arena arena;
     if (!cgen_memory_init(&arena)) return 2;

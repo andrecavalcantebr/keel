@@ -39,7 +39,7 @@ int cgen_stop_after_parse(keel_arena *arena,const char *path,const char *const *
     KLoadResult result=cgen_load_path(tool,path,name,&module);
     cgen_loader_report(tool,&sink);
     int rc=1;
-    if(result==K_LOAD_NOT_FOUND)fprintf(stderr,"%s: error: cannot read source [module-not-found]\n",path);
+    if(result==K_LOAD_NOT_FOUND){fprintf(stderr,"cgen: error: cannot read source '%s' [source-not-found]\n",path);rc=2;}
     if(result==K_LOAD_OK&&module&&k_diag_count(&sink,K_ERROR)==0) {
         size_t need=k_dump_ast(module->ast,path,(keel_slice_char){0});
         char *dump=cgen_alloc(arena,need?need:1,1,1,false,"AST dump");

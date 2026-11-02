@@ -333,7 +333,7 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
     KLoadResult result = cgen_load_path(tool, path, name, &module);
     cgen_loader_report(tool, &sink);
     int rc = 1;
-    if (result == K_LOAD_NOT_FOUND) fprintf(stderr, "%s: error: cannot read source [module-not-found]\n", path);
+    if (result == K_LOAD_NOT_FOUND) { fprintf(stderr, "cgen: error: cannot read source '%s' [source-not-found]\n", path); rc = 2; }
     if (result == K_LOAD_OK && module && k_diag_count(&sink, K_ERROR) == 0) {
         KModule *prelude = NULL;
         KLoadResult pr = cgen_load(tool, k_diag_text("keel"), &prelude);

@@ -1024,11 +1024,14 @@ static bool supported(const Emit *e) {
                 /* the plain form (.h) and `priv` (.c); `pub extern_c {` is not a form */
                 if (!k_em_text_is(k_em_tok(ast, k + 1), "{")) return false;
                 if (k != n->first && !extern_c_priv(ast, n)) return false;
-                /* the lines of its text are the ones the header and the .c take: `{` and `}` on one line leave none */
+            }
+            if (n->body_first == (size_t)-1 || n->body_end == (size_t)-1) return false;
+            /* the lines of its text are the ones a header or the .c take: `{` and `}` on one line leave none,
+             * and the text would be lost in silence */
+            {
                 size_t o1 = k_em_tok_off(ast, n->body_first - 1), o2 = k_em_tok_off(ast, n->body_end);
                 if (!memchr(ast->source.ptr + o1, '\n', o2 - o1)) return false;
             }
-            if (n->body_first == (size_t)-1 || n->body_end == (size_t)-1) return false;
             break;
         }
         case K_AST_FUNCTION:

@@ -109,7 +109,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `--pedantic-names` | baixa o teto de comprimento de nome gerado de 255 para o mínimo do padrão: 31 para nome com ligação externa, 63 para os demais; ver backend §2.4 | desligado |
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de execução emitido para `parallel`; ver §4.8 | `auto` |
 | `--profile=<c11\|c23\|auto>` | padrão C a que o gerado se conforma; ver §4.9 | `auto` |
-| `-f` | força regeração, ignorando timestamp; aceito e sem efeito enquanto o cgen gera sempre (§5) | desligado |
+| `-f` | força a escrita de todo gerado, mesmo com conteúdo idêntico ao que está em disco: o timestamp muda, e é ele que faz o build refazer o que depende do gerado (§5, §6) | desligado |
 | `--cgen-version` | imprime a versão do cgen e sai 0 | — |
 | `--cgen-help`, `--help` | imprimem a sinopse e as opções do cgen, e saem 0 | — |
 
@@ -448,7 +448,7 @@ redundância se paga sozinha.
 
 O mesmo do make, resolvido com chamadas ao sistema.
 
-> **Estado da v1: o cgen gera sempre.** Em cada invocação ele carrega o fonte e os imports, gera em memória e compara com o que está em `--dest-dir`; o arquivo só é escrito se o conteúdo difere (§6, regra 2), e arquivo idêntico não tem o timestamp tocado. Quem decide *quando chamar* o cgen é o build, pelo depfile (§4.5, §4.10): o `.k` ou um importado mudou. O `-f` é aceito e não tem efeito, porque não há o que forçar. O critério descrito abaixo é a otimização prevista: **se o tempo de geração passar a pesar no build, implementa-se o critério por timestamp**, com a comparação também pelas opções de lowering (a limitação que a seção descreve ao fim). Até lá, regerar sempre custa um parse e uma geração por invocação, e não tem o defeito de deixar a árvore com módulos de perfis diferentes.
+> **Estado da v1: o cgen gera sempre.** Em cada invocação ele carrega o fonte e os imports, gera em memória e compara com o que está em `--dest-dir`; o arquivo só é escrito se o conteúdo difere (§6, regra 2), e arquivo idêntico não tem o timestamp tocado. Quem decide *quando chamar* o cgen é o build, pelo depfile (§4.5, §4.10): o `.k` ou um importado mudou. O `-f` força a escrita: o gerado é gravado ainda que idêntico, e o timestamp novo é a indicação ao build de que o que depende dele deve ser refeito. O critério descrito abaixo é a otimização prevista: **se o tempo de geração passar a pesar no build, implementa-se o critério por timestamp**, com a comparação também pelas opções de lowering (a limitação que a seção descreve ao fim). Até lá, regerar sempre custa um parse e uma geração por invocação, e não tem o defeito de deixar a árvore com módulos de perfis diferentes.
 
 > **O gerado de um módulo é função do fonte dele e da interface dos módulos que
 > ele importa** (backend §7.2). O critério compara, então, o gerado com **o
@@ -529,7 +529,7 @@ O caso irmão — "o módulo genérico mudou" — **não** é limitação: ele t
 Três regras, todas com motivo concreto:
 
 1. **Gerar em memória primeiro.** Não se escreve nada se houver diagnóstico de severidade `error` — a ferramenta não deixa saída pela metade. É o que dá sentido operacional ao "`error` interrompe a geração" da spec da linguagem.
-2. **Não tocar arquivo idêntico.** Comparar o conteúdo gerado com o existente; se igual, não escrever, nem o timestamp. Senão a compilação C é retriggada à toa, e o critério da §5 passa a mentir.
+2. **Não tocar arquivo idêntico.** Comparar o conteúdo gerado com o existente; se igual, não escrever, nem o timestamp. Senão a compilação C é retriggada à toa, e o critério da §5 passa a mentir. A exceção é o `-f` (§4.1), que escreve de qualquer modo, justamente para mover o timestamp.
 3. **Temporário e rename.** Escrever em temporário **no mesmo diretório**, com nome único por processo, e renomear. `rename()` é atômico: nenhum leitor jamais vê arquivo pela metade. O mesmo diretório importa porque rename entre sistemas de arquivos deixa de ser atômico; o nome único, porque senão dois processos colidem no próprio temporário.
 
 A regra 3 existe por causa de `make -j`: o mesmo header de instância pode ser gerado por dois cgen concorrentes e lido por um `cc1` no mesmo instante. O que torna essa corrida **inofensiva** é o determinismo do conteúdo, que é obrigação do backend (backend §7): os dois escritores produzem os mesmos bytes, então tanto faz quem renomeia por último.

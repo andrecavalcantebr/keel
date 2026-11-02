@@ -31,8 +31,8 @@ mkdir -p "$WORK/good"
 : > "$WORK/good/keel.k"
 out=$("$CGEN" --base-dir "$WORK/good" hello.k 2>&1)
 code=$?
-if [ "$code" != 1 ]; then
-    fail "explicit valid base-dir: exit code $code, want 1 (proceeds to load the source)"
+if [ "$code" != 2 ]; then
+    fail "explicit valid base-dir: exit code $code, want 2 (proceeds to load the source)"
 elif ! echo "$out" | grep -q "cannot read source"; then
     fail "explicit valid base-dir: expected 'cannot read source', got '$out'"
 fi
@@ -53,8 +53,8 @@ mkdir -p "$WORK/okinstall/bin" "$WORK/okinstall/lib/base"
 cp "$CGEN" "$WORK/okinstall/bin/cgen"
 out=$("$WORK/okinstall/bin/cgen" hello.k 2>&1)
 code=$?
-if [ "$code" != 1 ]; then
-    fail "default valid base: exit code $code, want 1"
+if [ "$code" != 2 ]; then
+    fail "default valid base: exit code $code, want 2"
 elif ! echo "$out" | grep -q "cannot read source"; then
     fail "default valid base: expected 'cannot read source', got '$out'"
 fi

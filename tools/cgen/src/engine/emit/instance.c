@@ -10,9 +10,13 @@
  *            `inline` is the business of the module that places the instance.
  *
  * Refused (K_EMIT_UNSUPPORTED): a type, a constant or a `priv` function that
- * names a binder; a declaration that spans lines where one line is needed
- * (the modifier, a prototype); a comment inside a declaration; a generic
- * module with dimension or tag binders. */
+ * names a binder; a prototype that spans lines; a `priv inline` function; a
+ * generic module with dimension or tag binders. A modifier may span lines (its
+ * line breaks stay, one `#line` for the block), and a comment inside a
+ * declaration leaves the text with its blanks as written (backend §6, rule 3).
+ *
+ * A `priv` function is the instance's, and not the header's: its body goes to
+ * the .c of the module that places the instance, as `static` (backend §4.4). */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -198,13 +202,27 @@ static void put_token(Emit *e, size_t i, bool fields) {
     k_em_put_bytes(e, t.ptr, t.len);
 }
 
-/* A gap between two tokens: blanks and breaks. A comment would carry its text
- * into a line of C: refused. */
+/* A gap between two tokens: blanks and breaks, as written. A comment leaves its
+ * text and nothing else: the blanks around it stay (backend §6, rule 3), and so
+ * does the break that ends a `//` comment. A block comment over several lines
+ * would drop breaks and shift the .k lines: refused. */
 static void put_gap(Emit *e, size_t g0, size_t g1) {
     const char *s = e->ast->source.ptr;
-    for (size_t p = g0; p + 1 < g1; p++)
-        if (s[p] == '/' && (s[p + 1] == '/' || s[p + 1] == '*')) { e->ok = false; return; }
-    k_em_put_bytes(e, s + g0, g1 - g0);
+    size_t p = g0;
+    while (p < g1 && e->ok) {
+        if (s[p] == '/' && p + 1 < g1 && s[p + 1] == '/') {
+            while (p < g1 && s[p] != '\n') p++;
+        } else if (s[p] == '/' && p + 1 < g1 && s[p + 1] == '*') {
+            size_t ce = p + 2;
+            while (ce + 1 < g1 && !(s[ce] == '*' && s[ce + 1] == '/')) ce++;
+            ce = ce + 2 <= g1 ? ce + 2 : g1;
+            if (memchr(s + p, '\n', ce - p)) { e->ok = false; return; }
+            p = ce;
+        } else {
+            k_em_put_bytes(e, s + p, 1);
+            p++;
+        }
+    }
 }
 
 /* The tokens of `n` in the source bytes [a, b), with the gaps as written. The
@@ -265,7 +283,6 @@ static void emit_modifier(Emit *e, const KAstNode *n) {
     for (size_t j = n->name_first + 1; j < open; j++)
         if (!k_em_text_is(k_em_tok(ast, j), "byref")) { e->ok = false; return; }
     size_t a = k_em_tok_off(ast, open), b = k_em_tok_end(ast, close - 1);
-    if (!one_line(e, k_em_first_off(e, n), b)) { e->ok = false; return; }
     Edit ed[MAX_EDITS];
     size_t ned = 0;
     k_em_edits_uses(e, n, a, b, ed, &ned);
@@ -342,7 +359,7 @@ static void emit_body(Emit *e, const KAstNode *n, bool vis_static) {
 /* whether the declaration is one the instance can carry */
 static bool carried(const Emit *e, const KAstNode *n) {
     if (n->kind == K_AST_MODIFIER || (n->kind == K_AST_TYPE && e->inst->unit_len)) return true;
-    return is_function_with_body(e, n) && n->is_public;
+    return is_function_with_body(e, n) && (n->is_public || !n->is_inline);
 }
 
 static bool has_modifier(const KAst *ast) {
@@ -361,7 +378,7 @@ static bool instance_supported(const Emit *e) {
     bool modifier = false;
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
-        if (n->first >= n->end || !k_em_generic_out(ast, n)) continue;
+        if (n->first >= n->end || !k_em_generic_out(ast, n) || k_em_other_modifier(e, n)) continue;
         if (!carried(e, n)) return false;
         if (n->kind == K_AST_MODIFIER) {
             if (!same_slice(k_em_tok(ast, n->name_first), e->inst->modifier)) return false;
@@ -373,10 +390,11 @@ static bool instance_supported(const Emit *e) {
     return modifier || (!has_modifier(ast) && !e->inst->modifier.len);
 }
 
+/* a `pub` function: its prototype is in the .h (a `priv` one is not) */
 static bool has_function(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION) return true;
+        if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_public && !k_em_other_modifier(e, n)) return true;
     }
     return false;
 }
@@ -384,7 +402,7 @@ static bool has_function(const Emit *e) {
 static bool has_inline(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_inline) return true;
+        if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_inline && !k_em_other_modifier(e, n)) return true;
     }
     return false;
 }
@@ -407,7 +425,7 @@ int k_em_binder_use(const Emit *e, size_t k) {
     int use = 0;
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
-        if (n->kind != K_AST_MODIFIER) continue;
+        if (n->kind != K_AST_MODIFIER || k_em_other_modifier(e, n)) continue;
         for (size_t j = n->name_first + 1; j < n->end; j++)
             if (same_text(k_em_tok(ast, j), name)) {
                 if (j + 1 < n->end && k_em_text_is(k_em_tok(ast, j + 1), "*")) { if (use < 1) use = 1; }
@@ -463,7 +481,7 @@ static void emit_file(Emit *e, KEmitFile which) {
         if (has_modifier(e->ast) && !e->inst->proto_fn.len && !ahead) raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-            if (n->kind == K_AST_MODIFIER && !e->inst->proto_fn.len) emit_modifier(e, n);
+            if (n->kind == K_AST_MODIFIER && !e->inst->proto_fn.len && !k_em_other_modifier(e, n)) emit_modifier(e, n);
             else if (n->kind == K_AST_TYPE && e->inst->unit_len && k_em_generic_out(e->ast, n)) emit_typedef(e, n);
         }
     } else {
@@ -471,7 +489,7 @@ static void emit_file(Emit *e, KEmitFile which) {
         if (has_function(e)) raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-            if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION) emit_proto(e, n);
+            if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
         }
         if (has_inline(e)) raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
@@ -596,8 +614,9 @@ void k_em_placement_c(Emit *e) {
         g.w.mapped = 0;
         for (size_t k = 0; k < g.ast->nodes.len && g.ok; k++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&g.ast->nodes, k);
-            if (k_em_generic_out(g.ast, n) && n->kind == K_AST_FUNCTION && n->is_public && !n->is_inline)
-                emit_body(&g, n, false);
+            /* a `pub` body loses its visibility word; a `priv` one is `static` (backend §4.4) */
+            if (k_em_generic_out(g.ast, n) && n->kind == K_AST_FUNCTION && !n->is_inline && !k_em_other_modifier(&g, n))
+                emit_body(&g, n, !n->is_public);
         }
         g.w.src_path = e->w.src_path;
         g.w.mapped = 0;
@@ -634,7 +653,7 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
 bool k_emit_instance_redundant(const KAst *generic) {
     for (size_t i = 0; i < generic->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&generic->nodes, i);
-        if (k_em_generic_out(generic, n) && n->kind == K_AST_FUNCTION && n->is_public && !n->is_inline) return false;
+        if (k_em_generic_out(generic, n) && n->kind == K_AST_FUNCTION && !n->is_inline) return false;
     }
     return true;
 }

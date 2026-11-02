@@ -102,6 +102,10 @@ bool k_em_verb_on_modifier(const Emit *e, const KAstNode *fn);
 void k_em_instance_h(Emit *e);
 /* whether the file being written leaves the declaration `n` out (emit.c) */
 bool k_em_skip(const Emit *e, const KAstNode *n);
+/* whether `n` belongs to another modifier of the generic than the instance's: a
+ * modifier of another name, or a function whose signature names one (the instance
+ * of that modifier writes it). False for a module without modifiers, or a protocol instance. */
+bool k_em_other_modifier(const Emit *e, const KAstNode *n);
 void k_em_instance_c(Emit *e);
 
 /* the start of the line holding `off`, and just past the newline ending it */

@@ -685,6 +685,25 @@ static void type_h_body(Emit *e) {
 
 static void raw(Emit *e, const char *s);
 
+static bool same_slice(KToken t, keel_slice_char s) { return t.len == s.len && memcmp(t.ptr, s.ptr, s.len) == 0; }
+
+bool k_em_other_modifier(const Emit *e, const KAstNode *n) {
+    if (!e->inst || !e->inst->modifier.len || e->inst->proto_fn.len) return false;
+    const KAst *ast = e->ast;
+    if (n->kind == K_AST_MODIFIER) return n->name_first < n->name_end && !same_slice(k_em_tok(ast, n->name_first), e->inst->modifier);
+    if (n->kind != K_AST_FUNCTION || n->name_first >= n->name_end) return false;
+    size_t end = n->body_first != (size_t)-1 ? n->body_first : n->end;
+    for (size_t i = n->name_first + 1; i < end; i++) {
+        KToken t = k_em_tok(ast, i);
+        if (!k_token_is_ident(t) || same_slice(t, e->inst->modifier)) continue;
+        for (size_t k = 0; k < ast->nodes.len; k++) {
+            const KAstNode *m = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+            if (m->kind == K_AST_MODIFIER && m->name_first < m->name_end && same_text(k_em_tok(ast, m->name_first), t)) return true;
+        }
+    }
+    return false;
+}
+
 /* whether this file leaves `n` out: a module writes its share (k_em_generic_out
  * false); an instance (e->inst), the functions that belong to it */
 bool k_em_skip(const Emit *e, const KAstNode *n);
@@ -699,6 +718,7 @@ bool k_em_skip(const Emit *e, const KAstNode *n) {
         return t.len != e->inst->proto_fn.len || memcmp(t.ptr, e->inst->proto_fn.ptr, t.len) != 0;
     }
     if (!(out && n->kind == K_AST_FUNCTION && !over_protocol(e->ast, n))) return true;
+    if (k_em_other_modifier(e, n)) return true;
     /* a verb the instance loses (spec §4.3, rules 11 to 13): the parser's list */
     KToken name = k_em_tok(e->ast, n->name_first);
     size_t arity = k_em_param_count(e->ast, n);

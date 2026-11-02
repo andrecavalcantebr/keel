@@ -45,7 +45,7 @@ test/cgen/gen/share|use.k|-
 045-extern-forms|app/ef.k|-
 046-array-leftovers|app/al.k|-
 047-match-more|app/mm.k|-
-048-parallel-more|app/pm.k|-|wip
+048-parallel-more|app/pm.k|-
 049-adapt-foreach|app/af.k|-|wip
 050-else-default|app/ed.k|-
 051-generic-forms|inst.k|-|wip

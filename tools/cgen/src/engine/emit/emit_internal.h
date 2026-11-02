@@ -59,7 +59,8 @@ typedef struct {
     char buf[LINE_CAP];        /* the line being built */
     size_t n;                  /* bytes in buf */
     size_t block_ordinal;      /* unused: the ordinal is computed from the tokens (constexpr_block.c) */
-    char scratch[1024];        /* text that edits point to; reset when the edits are copied */
+    char scratch[2048];        /* text that edits point to; reset when the edits are copied (a one-line parallel
+                                * block takes a header of up to 1000 bytes, and its body and `}` after it) */
     size_t scratch_n;
 } Emit;
 
@@ -202,6 +203,9 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
 void k_em_edits_worker_exit(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_parallel(const KAst *ast, const KIsland *is);
 bool k_em_handles_worker_exit(const KAst *ast, const KIsland *is);
+/* the offset where the body of a one-line parallel block begins, when its header lies in [a, b);
+ * 0 otherwise. emit_range writes the line in two parts there, so the body gets its own #line. */
+size_t k_em_parallel_cut(const KAst *ast, size_t a, size_t b);
 bool k_em_parallel_interrupted(Emit *e, const KIsland *is, size_t a, size_t b, Edit *ed, size_t *cnt);
 /* match.c: the `match` of a tagged label (backend §5.6) */
 void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);

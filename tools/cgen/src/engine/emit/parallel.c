@@ -25,9 +25,13 @@
  * The header may run over several lines (its edit covers them: emit.c leaves them out) and the
  * `{` may stand on a line of its own; the workers are `0..K` with K a decimal or a constexpr of
  * a decimal (the literal is written, backend §5.9 r4). The policy is ALL, ANY, a decimal or a
- * constexpr of a decimal (its literal is written). Refused (k_em_handles_parallel answers
- * false): a `{` that does not end its line, workers other than `0..K`, any other policy, a
- * partition binder with more than one name, a capture not declared in the function. */
+ * constexpr of a decimal (its literal is written). A block may also stand on one line with its
+ * header and its `}` (`parallel v ALL (…) { foreach (…) { … } }`): the body then starts a line of
+ * its own, one level deeper, and emit_range writes the header's line and the body's as two parts,
+ * so the body gets its own #line. Refused (k_em_handles_parallel answers false): a `{` that does
+ * not end its line when the block spans lines, a one-line block with no blank after its `{`,
+ * workers other than `0..K`, any other policy, a partition binder with more than one name, a
+ * capture not declared in the function. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -47,6 +51,7 @@ typedef struct {
     const char *sym; size_t sym_len;        /* the container's instance */
     const char *part; size_t part_len;      /* the partition verb's symbol */
     bool by_pointer;
+    bool one_line;                  /* the header, the body and the `}` stand on one line */
     size_t target;
 } Par;
 
@@ -72,6 +77,18 @@ static bool ends_line(const KAst *ast, size_t off) {
 static bool starts_line(const KAst *ast, size_t off) {
     for (size_t p = line_start(ast, off); p < off; p++)
         if (ast->source.ptr[p] != ' ' && ast->source.ptr[p] != '\t') return false;
+    return true;
+}
+
+/* whether a line break lies in [a, b) */
+static bool newline_between(const KAst *ast, size_t a, size_t b) {
+    for (size_t p = a; p < b; p++) if (ast->source.ptr[p] == '\n') return true;
+    return false;
+}
+
+/* whether [a, b) holds only blanks (none is fine) */
+static bool blanks(const KAst *ast, size_t a, size_t b) {
+    for (size_t p = a; p < b; p++) if (ast->source.ptr[p] != ' ' && ast->source.ptr[p] != '\t') return false;
     return true;
 }
 
@@ -145,14 +162,23 @@ static bool analyze(const KAst *ast, const KIsland *is, const KAstNode *fn, Par 
     }
     if (!word(ast, j, ")") || !word(ast, j + 1, "{")) return false;
     p->brace = j + 1;
-    if (!ends_line(ast, k_em_tok_end(ast, p->brace)) || !starts_line(ast, k_em_tok_off(ast, p->kw))) return false;
+    if (!starts_line(ast, k_em_tok_off(ast, p->kw))) return false;
     size_t depth = 0;
     p->close = NO_TOKEN;
     for (size_t i = p->brace; i < ast->tokens.len; i++) {
         if (word(ast, i, "{")) depth++;
         else if (word(ast, i, "}") && --depth == 0) { p->close = i; break; }
     }
-    if (p->close == NO_TOKEN || !starts_line(ast, k_em_tok_off(ast, p->close)) || !ends_line(ast, k_em_tok_end(ast, p->close))) return false;
+    if (p->close == NO_TOKEN || !ends_line(ast, k_em_tok_end(ast, p->close))) return false;
+    /* one line: the header, the body and the block's `}` on the header's line, with blanks between them;
+     * otherwise the `{` ends its line and the `}` starts one */
+    p->one_line = !newline_between(ast, k_em_tok_off(ast, p->kw), k_em_tok_end(ast, p->close));
+    if (p->one_line) {
+        /* the body keeps a blank after its `{` (the cut of emit_range is there) */
+        if (p->close == p->brace + 1 || k_em_tok_off(ast, p->brace + 1) == k_em_tok_end(ast, p->brace) ||
+                !blanks(ast, k_em_tok_end(ast, p->brace), k_em_tok_off(ast, p->brace + 1)) ||
+                !blanks(ast, k_em_tok_end(ast, p->close - 1), k_em_tok_off(ast, p->close))) return false;
+    } else if (!ends_line(ast, k_em_tok_end(ast, p->brace)) || !starts_line(ast, k_em_tok_off(ast, p->close))) return false;
 
     /* the island: `NAME POLICY (w : 0..K; part : C (<type>)[; (caps)]) → <partition symbol>` */
     const char *t = keel_buffer_char_ptr(&ast->island_text, is->text);
@@ -357,6 +383,7 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
             q = LIT(w, q, ", ");
             q = put(w, q, wn.ptr, wn.len);
             q = LIT(w, q, ");");
+            if (p.one_line) q = LIT(w, q, "\n");   /* the body starts on the next line (emit_range cuts it) */
             if (q > 1000) { e->ok = false; return; }
             /* the header's tokens were renamed by the module's rules: they are all replaced */
             size_t end = k_em_tok_end(ast, p.brace), j = 0;
@@ -374,12 +401,29 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
             if (a + lead < b && src[a + lead] != '\n')
                 push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = a, .skip = 0, .text = "    ", .text_len = 4 });
         }
+        /* a one-line block: its body is the line after the header, one level deeper than the header
+         * (the blank after the `{` becomes the indent; emit_range wrote the header's line before it) */
+        if (p.one_line && k_em_tok_end(ast, p.brace) >= a && k_em_tok_end(ast, p.brace) < b) {
+            size_t cut = k_em_tok_end(ast, p.brace);
+            char *w = k_em_scratch(e, ind_n + 8);
+            if (!w) return;
+            size_t q = spaces(w, 0, ind_n + 8);
+            push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = cut, .skip = k_em_tok_off(ast, p.brace + 1) - cut, .text = w, .text_len = q });
+        }
 
-        /* the block's `}`: the label that ends a worker, and the closes of the loop and of the block */
+        /* the block's `}`: the label that ends a worker, and the closes of the loop and of the block.
+         * One line: the blank before it goes, and the label stands on a line of its own */
         if (close_off >= a && close_off < b) {
             char *w = k_em_scratch(e, 3 * ind_n + 64);
             if (!w) return;
-            size_t q = spaces(w, 0, 8);
+            size_t q = 0, at = close_off, skip = 1;
+            if (p.one_line) {
+                at = k_em_tok_end(ast, p.close - 1);
+                skip = close_off + 1 - at;
+                w[q++] = '\n';
+                q = spaces(w, q, ind_n);
+            }
+            q = spaces(w, q, 8);
             q = LIT(w, q, "keel__end");
             q = put_uint(w, q, M);
             q = LIT(w, q, ": ;\n");
@@ -387,9 +431,20 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
             q = LIT(w, q, "}\n");
             q = spaces(w, q, ind_n);
             q = LIT(w, q, "}");
-            push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = close_off, .skip = 1, .text = w, .text_len = q });
+            push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = skip, .text = w, .text_len = q });
         }
     }
+}
+
+size_t k_em_parallel_cut(const KAst *ast, size_t a, size_t b) {
+    for (size_t k = 0; k < ast->islands.len; k++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, k);
+        if (is->kind != K_ISLAND_PARALLEL || k_em_tok_off(ast, is->anchor) < a || k_em_tok_off(ast, is->anchor) >= b) continue;
+        const KAstNode *fn = fn_of(ast, is->anchor);
+        Par p;
+        if (fn && analyze(ast, is, fn, &p) && p.one_line) return k_em_tok_end(ast, p.brace);
+    }
+    return 0;
 }
 
 bool k_em_handles_worker_exit(const KAst *ast, const KIsland *is) {

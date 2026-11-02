@@ -429,6 +429,18 @@ static void emit_line(Emit *e, size_t ln, size_t a, size_t b) {
     k_em_post_lines_constblock(e, ln, a, b);
 }
 
+/* one source line [a, b) with its .k number; a one-line parallel block is written as two
+ * parts (its header, and its body from the cut on), so the body gets its own #line */
+static void emit_split(Emit *e, size_t ln, size_t a, size_t b) {
+    size_t cut = k_em_parallel_cut(e->ast, a, b);
+    if (cut) {
+        emit_line(e, ln, a, cut);
+        emit_line(e, ln, cut, b);
+    } else {
+        emit_line(e, ln, a, b);
+    }
+}
+
 /* the whole lines [a, b), each with its own .k number */
 static void emit_range(Emit *e, size_t a, size_t b) {
     size_t ln = k_em_line_at(e, a);
@@ -436,7 +448,7 @@ static void emit_range(Emit *e, size_t a, size_t b) {
     while (a < b && e->ok) {
         size_t next = k_em_line_end(e, a);
         if (a >= written) {
-            emit_line(e, ln, a, next);
+            emit_split(e, ln, a, next);
             if (spanned_end > next) written = spanned_end;
         }
         a = next;
@@ -911,7 +923,7 @@ static void emit_c(Emit *e) {
         } else if (empty) {
             if (!k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ 1, nl })) e->ok = false;
         } else {
-            emit_line(e, k_em_line_at(e, a), a, b);
+            emit_split(e, k_em_line_at(e, a), a, b);
             if (spanned_end > b) written = spanned_end;
         }
         a = b;

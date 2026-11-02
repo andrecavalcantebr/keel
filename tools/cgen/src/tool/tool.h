@@ -14,4 +14,12 @@ void cgen_loader_report(void *, const KDiagnosticSink *);
 bool cgen_path_normalize(const char *, char *, size_t);
 bool cgen_module_name_of(const char *, const char *, char *, size_t);
 bool cgen_module_path(const char *, size_t, const char *, char *, size_t);
+/* the translation units a phase hands to the C compiler (cgen-tool-spec §4.3, §4.7) */
+#define CGEN_SOURCES_CAP 1024
+typedef struct {
+    char unit[8192], entry[8192];
+    const char *sources[CGEN_SOURCES_CAP];   /* every .k the module reaches by import, the base's too (§4.5) */
+    size_t source_count;
+} CgenUnits;
+size_t cgen_loader_sources(void *, const char **, size_t cap);
 #endif

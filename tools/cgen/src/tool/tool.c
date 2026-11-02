@@ -144,6 +144,15 @@ static bool check_stem(CgenTool *t, const char *path, keel_slice_char at) {
     return ok;
 }
 
+/* the path of every source loaded, in load order, for the depfile (cgen-tool-spec §4.5) */
+size_t cgen_loader_sources(void *v, const char **out, size_t cap) {
+    CgenTool *t = v;
+    size_t n = 0;
+    for (CgenModuleEntry *e = t->mods; e && n < cap; e = e->next)
+        if (e->path.ptr && e->state == CGEN_DONE) out[n++] = str_cstr(e->path);
+    return n;
+}
+
 static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path,
                              long long mtime, KModule **out, const keel_slice_char *given) {
     size_t before=k_diag_count(t->diag,K_ERROR);

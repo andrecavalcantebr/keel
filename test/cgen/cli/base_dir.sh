@@ -26,15 +26,15 @@ fi
 failures=0
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
-# --- explicit --base-dir, has keel.k: resolution succeeds, falls through ---
+# --- explicit --base-dir, has keel.k: resolution succeeds, the run proceeds to the source ---
 mkdir -p "$WORK/good"
 : > "$WORK/good/keel.k"
 out=$("$CGEN" --base-dir "$WORK/good" hello.k 2>&1)
 code=$?
 if [ "$code" != 1 ]; then
-    fail "explicit valid base-dir: exit code $code, want 1 (falls through to 'not yet implemented')"
-elif ! echo "$out" | grep -q "not yet implemented"; then
-    fail "explicit valid base-dir: expected 'not yet implemented', got '$out'"
+    fail "explicit valid base-dir: exit code $code, want 1 (proceeds to load the source)"
+elif ! echo "$out" | grep -q "cannot read source"; then
+    fail "explicit valid base-dir: expected 'cannot read source', got '$out'"
 fi
 
 # --- explicit --base-dir, no keel.k: base-not-found ---
@@ -55,8 +55,8 @@ out=$("$WORK/okinstall/bin/cgen" hello.k 2>&1)
 code=$?
 if [ "$code" != 1 ]; then
     fail "default valid base: exit code $code, want 1"
-elif ! echo "$out" | grep -q "not yet implemented"; then
-    fail "default valid base: expected 'not yet implemented', got '$out'"
+elif ! echo "$out" | grep -q "cannot read source"; then
+    fail "default valid base: expected 'cannot read source', got '$out'"
 fi
 
 # --- default resolution, synthetic install tree WITHOUT keel.k ---

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include "tool/memory.h"
 #include "tool/cli_limits.h"
+#include "tool/tool.h"
 
 bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, const char **value);
 bool cgen_source_under_root(const char *source, const char *root);
@@ -13,7 +14,9 @@ extern char *cgen_resolve_base_dir(keel_arena *, const char *explicit_base_dir);
 int cgen_stop_after_lex(keel_arena *, const char *path, const char *out);
 int cgen_stop_after_parse(keel_arena *, const char *path,const char *const *roots,int n,const char *base,const char *out);
 int cgen_stop_after_instance(keel_arena *, const char *use, const char *const *roots, int n, const char *base, const char *dest_dir, const char *profile, const char *const *pass, int pass_n, bool line_on, const char *lowering);
-int cgen_stop_after_gen(keel_arena *, const char *path, const char *const *roots, int n, const char *base, const char *dest_dir, const char *profile, const char *const *pass, int pass_n, bool line_on, const char *main_module, const char *lowering);
+int cgen_gen_depfile(const char *const *pass, int pass_n, const CgenUnits *units);
+int cgen_run_cc(const char *cc, const char *const *pass, int pass_n, const char *dest, bool checks_off, const CgenUnits *units);
+int cgen_stop_after_gen(keel_arena *, const char *path, const char *const *roots, int n, const char *base, const char *dest_dir, const char *profile, const char *const *pass, int pass_n, bool line_on, const char *main_module, const char *lowering, CgenUnits *units);
 
 static void fatal(const char *diagnostic_id, const char *message) {
     fprintf(stderr, "cgen: error: %s [%s]\n", message, diagnostic_id);
@@ -292,10 +295,19 @@ int main(int argc, char *argv[]) {
         if (!base) result=2;
         else if (stop_after && strcmp(stop_after,"parse") == 0)
             result=cgen_stop_after_parse(&arena,k_file,roots,root_count,base,output);
-        else if (stop_after && strcmp(stop_after,"gen") == 0)
+        else if (stop_after && strcmp(stop_after,"gen") == 0) {
+            static CgenUnits units;
             result=cgen_stop_after_gen(&arena,k_file,roots,root_count,base,dest_dir,profile,passthrough,passthrough_count,
-                                       !(line && strcmp(line,"off") == 0),main_module,parallel_lowering);
-        else fprintf(stderr,"cgen: not yet implemented\n");
+                                       !(line && strcmp(line,"off") == 0),main_module,parallel_lowering,&units);
+            if (result == 0) result=cgen_gen_depfile(passthrough,passthrough_count,&units);
+        } else {
+            /* the default phase: generate, then hand the unit to the C compiler (cgen-tool-spec §4) */
+            static CgenUnits units;
+            result=cgen_stop_after_gen(&arena,k_file,roots,root_count,base,dest_dir,profile,passthrough,passthrough_count,
+                                       !(line && strcmp(line,"off") == 0),main_module,parallel_lowering,&units);
+            if (result == 0)
+                result=cgen_run_cc(cc,passthrough,passthrough_count,dest_dir ? dest_dir : "gen",checks && strcmp(checks,"off") == 0,&units);
+        }
     } else if (instance && k_file_count == 0 && stop_after && strcmp(stop_after,"gen") == 0) {
         if (root_count == 0) roots[root_count++] = ".";
         char *base=cgen_resolve_base_dir(&arena,base_dir);

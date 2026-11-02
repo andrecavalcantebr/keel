@@ -307,7 +307,7 @@ static bool has_public_main(const KAst *ast) {
 int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *roots, int n,
                         const char *base, const char *dest_dir, const char *profile,
                         const char *const *pass, int pass_n, bool line_on, const char *main_module,
-                        const char *lowering) {
+                        const char *lowering, CgenUnits *units) {
     if (n < 0 || n > CGEN_CLI_ROOTS_CAP) {
         fprintf(stderr, "cgen: error: search roots exceed configured limit %d; adjust CGEN_CLI_ROOTS_CAP [implementation-limit]\n", CGEN_CLI_ROOTS_CAP);
         return 2;
@@ -370,6 +370,18 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
             written.seen[written.n++] = module;
             if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt, true);
             if (!rc && main_module) rc = emit_one(arena, dest, NULL, mod, src_path, K_EMIT_ENTRY, NULL, opt);
+            if (!rc && units) {
+                /* the translation units the C compiler is given (cgen-tool-spec §4.3, §4.7) */
+                char rel[4096];
+                size_t rl = k_mangle_path(mod, ".c", (keel_slice_char){ sizeof rel, rel });
+                if (rl >= sizeof rel || snprintf(units->unit, sizeof units->unit, "%s/%.*s", dest, (int)rl, rel) >= (int)sizeof units->unit) rc = write_failed(dest);
+                units->entry[0] = '\0';
+                units->source_count = cgen_loader_sources(tool, units->sources, CGEN_SOURCES_CAP);
+                if (!rc && main_module) {
+                    rl = k_mangle_entry(mod, (keel_slice_char){ sizeof rel, rel });
+                    if (rl >= sizeof rel || snprintf(units->entry, sizeof units->entry, "%s/%.*s", dest, (int)rl, rel) >= (int)sizeof units->entry) rc = write_failed(dest);
+                }
+            }
         }
     }
     cgen_loader_destroy(tool);

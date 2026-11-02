@@ -410,9 +410,14 @@ Fora: `dim-generates-declaration` espera definição; os sete de molde, v1;
 `emit/` existe e é o maior pedaço do motor. O desenho e o mapa dos arquivos —
 quais existem e a que item da tabela do corte correspondem — estão em
 [codegen-design.md §2](../../../../design/codegen-design.md). O que ele cobre
-hoje: **28 dos 32 casos do `golden/` saem byte a byte, nos dois perfis**, e a
+hoje: **29 dos 32 casos do `golden/` saem byte a byte, nos dois perfis**, e a
 base inteira (`test/cgen/base.sh`). Os oráculos são `test/cgen/gen_golden.sh`
-(com a tabela `test/cgen/gen/golden-cases.txt`) e `test/cgen/base.sh`.
+(com a tabela `test/cgen/gen/golden-cases.txt`) e `test/cgen/base.sh`. O caso
+032 (`defer` com `goto` e em bloco interno, backend §5.5.2 r6) foi o último a
+fechar: `goto` deixou de ser recusa geral de `defer.c`, e o `defer` de bloco
+interno saiu da forma de ladder-por-bloco (que não existe sem marca em
+runtime) para inline em toda saída do bloco, com a ladder só do escopo da
+função.
 
 Duas fronteiras valem lembrar, porque passagem 3 e emissor se apoiam uma na
 outra:

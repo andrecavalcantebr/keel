@@ -37,10 +37,9 @@ int reading_first(const char *path) {
 > ela.** Os quatro documentos normativos estão completos, a biblioteca base está
 > escrita em keel, e há 32 casos de teste com a saída C esperada nos dois perfis
 > (três em construção). O `cgen` lê um `.k`, resolve os imports, reconhece toda a
-> gramática, verifica as regras de keel e emite C (`--stop-after=gen`): **28 dos
+> gramática, verifica as regras de keel e emite C (`--stop-after=gen`): **29 dos
 > 32 casos saem byte a byte**, nos dois perfis, e a base inteira sai dele. Ficam
-> fora os três casos em construção, o `defer` com `goto` ou em bloco interno, e o
-> caminho que chama o compilador C.
+> fora os três casos em construção e o caminho que chama o compilador C.
 
 ---
 

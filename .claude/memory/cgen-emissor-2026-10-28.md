@@ -58,3 +58,19 @@ separada e a evitar); o emissor para de renomear local e parâmetro, com diagnó
 sombreamento. Em aberto: a regra do `defer` de bloco interno (a escada por bloco não existe sem
 marca em runtime; o texto proposto é "sai inline em cada saída do bloco"). O estado detalhado
 está na última seção de `tools/agents/passagem-2026-10-28.md`.
+
+**Atualização (2026-11-01, à noite):** **29 dos 32 casos do golden saem do cgen
+byte a byte** (`gen_golden` 38 ok, 0 wip). Fechou o 032: `defer` com `goto`
+saindo de escopo, e `defer` de bloco interno numa função cuja escada é do
+escopo da função. `emit/defer.c` passou a decidir o modo (`RET_NONE`/
+`RET_INLINE`/`RET_LADDER`) pelos `defer` do **próprio escopo da função**, e não
+mais da função inteira; um `defer` de bloco interno é sempre inline, em toda
+saída desse bloco (backend §5.5.2 r6, decisão do André: a escada por bloco não
+existe sem marca em runtime). `goto` deixou de ser recusa geral.
+
+Lição registrada: ao tocar `defer.c`, a varredura de saídas corria em toda
+função mesmo sem `defer` — e tropeçou no `break` que `match` e `parallel` já
+tratam do jeito dele, derrubando três casos que fechavam (009, 012, 029). A
+correção foi guardar a varredura com "há `defer` nesta função" antes de entrar.
+Rodar `gen_golden` inteiro ao tocar um arquivo de construção, não só o caso
+novo: a cobertura de regressão são os outros casos da tabela.

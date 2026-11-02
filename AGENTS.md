@@ -11,7 +11,7 @@ para cá.
 - **A memória do projeto está em [`.claude/memory/`](.claude/memory/MEMORY.md).**
   Leia o `MEMORY.md` primeiro: é o índice, e cada linha aponta para um fato.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code, e
-  atualizada em 2026-11-01 (28 dos 32 casos do golden saem do cgen). O
+  atualizada em 2026-11-01 (29 dos 32 casos do golden saem do cgen). O
   que diverge do repositório vale menos que o repositório.
 - **Nenhuma pendência em aberto nos normativos.** P16 (visibilidade do C que
   atravessa um módulo) foi resolvida em 2026-09-21; o registro está em

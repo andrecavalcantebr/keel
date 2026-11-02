@@ -362,8 +362,8 @@ app/cfg.k  →  app/app_cfg.type.h                tipos
 | C de topo que não é diretiva nem construção keel (`static_assert`) | o conteúdo, intacto | — | — |
 
 8. O `.type.h` recebe os `import_c`, as definições de tipo (`struct`, `union`, `enum`, `typedef`, `tags` e `extent`), públicas e `priv`, as declarações adiantadas dos campos por ponteiro e os `constexpr` de módulo. [D29](#10-decisões-de-emissão)
-9. O `.h` recebe os protótipos e as declarações `extern`, depois os corpos `static inline`, e inclui o `.type.h`: é o arquivo que se inclui para usar o módulo.
-10. O `.c` recebe os corpos fora de linha, as definições de variável e o conteúdo de `priv extern_c`.
+9. O `.h` recebe os protótipos e as declarações `extern`, depois os corpos `static inline`, e inclui o `.type.h`: é o arquivo que se inclui para usar o módulo. O conteúdo de `extern_c { … }` sem `[type_h]` entra no `.h` na ordem do fonte, entre os protótipos e as declarações `extern` das declarações vizinhas, intacto e precedido de `#line` com a linha do seu primeiro caractere (§6), para que um erro de C dentro dele caia no `.k`. Os corpos `static inline` de `pub inline` continuam depois de todos os protótipos.
+10. O `.c` recebe os corpos fora de linha, as definições de variável e o conteúdo de `priv extern_c`, este na posição do fonte. O `.c` não repete linha a linha o `.k`: o que a regra 9 e as outras levam aos headers deixa de estar nele, e o `#line` aparece onde o contador diverge (§6).
 11. Quem decide o arquivo é `pub`/`priv` (linguagem §4.1) e a camada (§4.3.1), pela tabela acima.
 12. `pub inline` sai `static inline` no `.h`, com o protótipo na seção de protótipos e o corpo depois dela (§4.3.2, regra 3).
 13. Variável pública nunca sai `static` no `.h`, e `const` não é exceção: `pub const float PI = 3.14f;` sai `extern const float PI;` no `.h` e a definição no `.c`. [D30](#10-decisões-de-emissão)

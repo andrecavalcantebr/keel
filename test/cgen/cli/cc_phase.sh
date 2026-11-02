@@ -51,5 +51,13 @@ grep -q "$K/keel/routine.k" "$dep" || bad "the depfile lacks a .k the module rea
 (cd "$tmp/w" && "$BIN" --base-dir "$K" -I "$CASE" --dest-dir gen --stop-after=gen -MMD -MF g.d -MT tgt "$CASE/app/dbg.k" >/dev/null 2>&1)
 head -1 "$tmp/w/g.d" | grep -q '^tgt:' || bad "--stop-after=gen depfile target"
 
+# --instance is a unit of its own (§4.3): compiled to an object, with its depfile
+(cd "$tmp/w" && "$BIN" -std=c2x --base-dir "$K" --dest-dir gi -MMD -c --instance "keel.buffer.buffer i32" -o bi.o >/dev/null 2>&1) || bad "--instance -c failed"
+[ -f "$tmp/w/bi.o" ] || bad "--instance -c wrote no object"
+head -1 "$tmp/w/bi.d" | grep -q '^bi.o:' || bad "--instance depfile target"
+grep -q "$K/keel/buffer.k" "$tmp/w/bi.d" || bad "--instance depfile lacks the generic's .k"
+"$BIN" --cc="$tmp/fakecc" --base-dir "$K" --dest-dir "$tmp/gj" --instance "keel.buffer.buffer i32" >/dev/null 2>&1
+[ $? -eq 7 ] || bad "--instance did not reach the compiler"
+
 [ $fail -eq 0 ] && echo "cc phase: ok"
 exit $fail

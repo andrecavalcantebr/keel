@@ -411,7 +411,7 @@ static bool ident_char(char c) { return c == '_' || (c >= 'a' && c <= 'z') || (c
 
 int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *const *roots, int n,
                              const char *base, const char *dest_dir, const char *profile,
-                             const char *const *pass, int pass_n, bool line_on, const char *lowering) {
+                             const char *const *pass, int pass_n, bool line_on, const char *lowering, CgenUnits *units) {
     if (n < 0 || n > CGEN_CLI_ROOTS_CAP) {
         fprintf(stderr, "cgen: error: search roots exceed configured limit %d; adjust CGEN_CLI_ROOTS_CAP [implementation-limit]\n", CGEN_CLI_ROOTS_CAP);
         return 2;
@@ -638,10 +638,12 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
                 int w = rel_len < sizeof rel ? snprintf(path, sizeof path, "%s/%.*s", dest, (int)rel_len, rel) : -1;
                 if (w < 0 || (size_t)w >= sizeof path || !make_parents(path)) rc = write_failed(dest);
                 else rc = cgen_write_output(path, data, need);
+                if (!rc && units && snprintf(units->unit, sizeof units->unit, "%s", path) >= (int)sizeof units->unit) rc = write_failed(dest);
             }
         }
     }
     (void)generic_len;
+    if (!rc && units) units->source_count = cgen_loader_sources(tool, units->sources, CGEN_SOURCES_CAP);
     cgen_loader_destroy(tool);
     return rc;
 }

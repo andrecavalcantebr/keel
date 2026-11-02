@@ -13,7 +13,7 @@ bool cgen_source_in_multiple_roots(const char *source, const char *const *roots,
 extern char *cgen_resolve_base_dir(keel_arena *, const char *explicit_base_dir);
 int cgen_stop_after_lex(keel_arena *, const char *path, const char *out);
 int cgen_stop_after_parse(keel_arena *, const char *path,const char *const *roots,int n,const char *base,const char *out);
-int cgen_stop_after_instance(keel_arena *, const char *use, const char *const *roots, int n, const char *base, const char *dest_dir, const char *profile, const char *const *pass, int pass_n, bool line_on, const char *lowering);
+int cgen_stop_after_instance(keel_arena *, const char *use, const char *const *roots, int n, const char *base, const char *dest_dir, const char *profile, const char *const *pass, int pass_n, bool line_on, const char *lowering, CgenUnits *units);
 int cgen_gen_depfile(const char *const *pass, int pass_n, const CgenUnits *units);
 int cgen_run_cc(const char *cc, const char *const *pass, int pass_n, const char *dest, bool checks_off, const CgenUnits *units);
 int cgen_stop_after_gen(keel_arena *, const char *path, const char *const *roots, int n, const char *base, const char *dest_dir, const char *profile, const char *const *pass, int pass_n, bool line_on, const char *main_module, const char *lowering, CgenUnits *units);
@@ -308,12 +308,20 @@ int main(int argc, char *argv[]) {
             if (result == 0)
                 result=cgen_run_cc(cc,passthrough,passthrough_count,dest_dir ? dest_dir : "gen",checks && strcmp(checks,"off") == 0,&units);
         }
-    } else if (instance && k_file_count == 0 && stop_after && strcmp(stop_after,"gen") == 0) {
+    } else if (instance && k_file_count == 0 && (!stop_after || strcmp(stop_after,"gen") == 0)) {
+        /* the instance is a translation unit of its own (cgen-tool-spec §4.3): generated, and then compiled unless gen stops it */
+        static CgenUnits units;
         if (root_count == 0) roots[root_count++] = ".";
         char *base=cgen_resolve_base_dir(&arena,base_dir);
         if (!base) result=2;
-        else result=cgen_stop_after_instance(&arena,instance,roots,root_count,base,dest_dir,profile,passthrough,passthrough_count,
-                                             !(line && strcmp(line,"off") == 0),parallel_lowering);
+        else {
+            result=cgen_stop_after_instance(&arena,instance,roots,root_count,base,dest_dir,profile,passthrough,passthrough_count,
+                                            !(line && strcmp(line,"off") == 0),parallel_lowering,&units);
+            if (result == 0 && stop_after) result=units.unit[0] ? cgen_gen_depfile(passthrough,passthrough_count,&units) : 0;
+            else if (result == 0 && !units.unit[0]) fprintf(stderr,"cgen: info: the instance is a function over a protocol, entirely inline: no translation unit to compile\n");
+            else if (result == 0)
+                result=cgen_run_cc(cc,passthrough,passthrough_count,dest_dir ? dest_dir : "gen",checks && strcmp(checks,"off") == 0,&units);
+        }
     } else fprintf(stderr,"cgen: not yet implemented\n");
     cgen_memory_destroy(&arena);
     return result;

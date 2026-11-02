@@ -921,6 +921,25 @@ void k_em_use_includes(Emit *e) {
         if (pl == sl && memcmp(path, self, pl) == 0) continue;
         if (pl && !add_include(&s, path, pl)) { e->ok = false; return; }
     }
+    /* a range over an `array` (subscript.c) calls the verbs of the array's instance, which no
+     * closure names: its header is the symbol less `_as_slice` and its arity (`keel_array_i32_as_slice2`
+     * -> keel/keel_array_i32.h) */
+    for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
+        Detail d;
+        unsigned amp, type, dim;
+        if (is->kind != K_ISLAND_RANGE_INDEX || !detail_of(ast, is, &d) || !marks_of3(&d, &amp, &type, &dim) || !dim) continue;
+        size_t n = d.sym_len;
+        while (n > 0 && d.sym[n - 1] >= '0' && d.sym[n - 1] <= '9') n--;
+        if (n < 9 || memcmp(d.sym + n - 9, "_as_slice", 9) != 0) continue;
+        size_t stem = n - 9;
+        char path[NAME_CAP];
+        if (5 + stem + 2 > sizeof path) { e->ok = false; return; }
+        memcpy(path, "keel/", 5);
+        memcpy(path + 5, d.sym, stem);
+        memcpy(path + 5 + stem, ".h", 2);
+        if (!add_include(&s, path, 5 + stem + 2)) { e->ok = false; return; }
+    }
     /* the control symbol of a `parallel` block is a type of keel.parallel */
     for (size_t i = 0; i < ast->islands.len && e->ok; i++)
         if (k_em_handles_parallel(ast, keel_buffer_KIsland_ptr(&ast->islands, i)) && !add_include(&s, "keel/keel_parallel.h", 20)) { e->ok = false; return; }

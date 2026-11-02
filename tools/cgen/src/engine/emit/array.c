@@ -8,12 +8,13 @@
  * a struct (`typedef struct { array i32 m[2, 3]; } Grid;`), which has no island of its own:
  * k_em_edits_struct_arrays finds its declarations by their tokens.
  *
- * A local may have several declarators (`array i32 a[3], b[4];` -> `i32 a[3], b[4];`):
- * the word goes once, and the commas of each declarator's dimensions become `][`.
+ * A local or a module variable may have several declarators (`array i32 a[3], b[4];`
+ * -> `i32 a[3], b[4];`, `priv array i32 p[3], q[2];` -> `static i32 p[3], q[2];`): the
+ * word goes once, and the commas of each declarator's dimensions become `][`.
  * The forms this slice does not lower are refused (k_em_handles_array answers
- * false, and the module is refused with implementation-limit): a module variable
- * with more than one declarator, and a parameter whose dimension has a binder
- * (`array T v[size_t n]`, backend §5.18). */
+ * false, and the module is refused with implementation-limit): several declarators
+ * of one `array` field of a struct, and a parameter whose dimension has a binder
+ * (`array T v[size_t n]`, backend §5.18), or a binder outside a parameter. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -23,6 +24,7 @@ typedef struct {
     size_t lbr, rbr;            /* the dimension brackets: `[` and its `]` */
     bool param;                 /* in the signature, before the body (rule 3) */
     bool in_function;           /* in a function (a parameter or a local) */
+    bool in_type;               /* in a type (a field of a struct): one declarator only */
     bool binder;                /* dimension 0 is `T name` (backend §5.18) */
     size_t bend;                /* binder: the token that ends dimension 0 (`,` or `]`) */
     size_t fn_end;              /* the end of the enclosing function */
@@ -65,6 +67,19 @@ static size_t blanks_after(const KAst *ast, size_t i) {
     const char *s = ast->source.ptr;
     while (p < lim && (s[p] == ' ' || s[p] == '\t')) p++;
     return p - k_em_tok_end(ast, i);
+}
+
+/* The token after the declarator that ends at token rbr: its initializer (`= INIT`)
+ * is skipped, up to the `,` or `;` at depth 0 (or lim). */
+static size_t after_declarator(const KAst *ast, size_t rbr, size_t lim) {
+    if (!tok_is(ast, rbr + 1, "=")) return rbr + 1;
+    int depth = 0;
+    for (size_t i = rbr + 2; i < lim; i++) {
+        if (tok_opens(ast, i)) depth++;
+        else if (tok_closes(ast, i)) depth--;
+        else if (depth == 0 && (tok_is(ast, i, ",") || tok_is(ast, i, ";"))) return i;
+    }
+    return lim;
 }
 
 /* The `]` that closes the `[` at token open, before lim (0 when none). */
@@ -114,6 +129,7 @@ static bool array_decl(const KAst *ast, size_t arr, ArrayDecl *d) {
     d->arr = arr; d->lbr = lbr; d->rbr = rbr;
     d->param = fn->kind == K_AST_FUNCTION && arr < fn->body_first;
     d->in_function = fn->kind == K_AST_FUNCTION;
+    d->in_type = fn->kind == K_AST_TYPE;
     /* no dimension: `array char s[] = "..."` keeps the `[]` for the initializer to size (spec §4.2);
        a parameter with none is not a form this file knows */
     if (rbr == lbr + 1 && d->param) return false;
@@ -136,9 +152,9 @@ static bool array_decl(const KAst *ast, size_t arr, ArrayDecl *d) {
         for (size_t j = lbr + 1; j < rbr; j++)   /* another binder among the rest */
             if (j > d->bend && tok_is_word(ast, j) && tok_is_word(ast, j + 1)) return false;
     }
-    /* a module variable or a struct field with a second declarator: refused (one each);
-     * a local's declarators are read in turn */
-    if (!d->in_function && rbr + 1 < fn->end && tok_is(ast, rbr + 1, ",")) return false;
+    /* a struct field with a second declarator: refused (one each); a local's and a
+     * module variable's declarators are read in turn */
+    if (d->in_type && rbr + 1 < fn->end && tok_is(ast, rbr + 1, ",")) return false;
     return true;
 }
 
@@ -206,9 +222,10 @@ static void declarator_edits(Emit *e, const ArrayDecl *d, size_t a, size_t b, Ed
                 .skip = 1 + blanks_after(ast, i), .text = "][", .text_len = 2 });
         }
         /* the next declarator of a local: `, name[` */
-        if (d->param || !d->in_function || rb + 3 >= d->fn_end || !tok_is(ast, rb + 1, ",") ||
-            !tok_is_word(ast, rb + 2) || !tok_is(ast, rb + 3, "[")) break;
-        lb = rb + 3;
+        size_t nx = after_declarator(ast, rb, d->fn_end);
+        if (d->param || d->in_type || nx + 3 >= d->fn_end || !tok_is(ast, nx, ",") ||
+            !tok_is_word(ast, nx + 1) || !tok_is(ast, nx + 2, "[")) break;
+        lb = nx + 2;
         rb = close_of(ast, lb, d->fn_end);
         if (rb == 0) break;
     }

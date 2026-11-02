@@ -142,8 +142,7 @@ static bool split_outer(const KAst *ast, size_t first, size_t end, Span *out, si
 /* Reads the declarator of the declaration whose word `array` is token `arr` and
  * whose dimension brackets open at token lbr. False when the tokens do not read
  * as `array T name[...]` at all; d->simple says whether array.c lowers it (no
- * binder in the dimensions, and no declarator after it outside a function
- * body: a module variable and a field do not declare several). */
+ * binder in the dimensions, and no declarator after it in a struct field). */
 static bool read_decl_at(const KAst *ast, const KAstNode *fn, size_t arr, size_t lbr, Decl *d) {
     if (!word(ast, arr, "array") || lbr < arr + 3 || !word(ast, lbr, "[") || !is_word(ast, lbr - 1))
         return false;                                               /* a type, then the name */
@@ -164,8 +163,8 @@ static bool read_decl_at(const KAst *ast, const KAstNode *fn, size_t arr, size_t
                 else d->simple = false;
             }
     d->ndims = n;
-    if (d->simple && fn->kind != K_AST_FUNCTION && rbr + 1 < fn->end && word(ast, rbr + 1, ","))
-        d->simple = false;                                          /* a second declarator, not in a function */
+    if (d->simple && fn->kind == K_AST_TYPE && rbr + 1 < fn->end && word(ast, rbr + 1, ","))
+        d->simple = false;                                          /* a second declarator of a field: refused */
     return true;
 }
 
@@ -182,9 +181,23 @@ static bool read_decl(const KAst *ast, const KAstNode *fn, size_t arr, Decl *d) 
     return read_decl_at(ast, fn, arr, lbr, d);
 }
 
+/* The token after the declarator that ends at token rbr: its initializer (`= INIT`,
+ * with the braces of a list) is skipped, up to the `,` or `;` at depth 0 (or fn->end). */
+static size_t after_declarator(const KAst *ast, const KAstNode *fn, size_t rbr) {
+    if (!word(ast, rbr + 1, "=")) return rbr + 1;
+    size_t depth = 0;
+    for (size_t i = rbr + 2; i < fn->end; i++) {
+        if (opens(ast, i)) depth++;
+        else if (closes(ast, i)) depth--;
+        else if (depth == 0 && (word(ast, i, ",") || word(ast, i, ";"))) return i;
+    }
+    return fn->end;
+}
+
 /* The declarator of the declaration at `arr` that is named by token `name`. The
- * declarators are read in order (`array i32 a[3], b[4];`), but only a local of a
- * function body has more than one; a parameter's `,` separates parameters. */
+ * declarators are read in order (`array i32 a[3], b[4];`), in a local of a function
+ * body and in a module variable; a parameter's `,` separates parameters, and a
+ * struct field declares one. */
 static bool declarator_named(const KAst *ast, const KAstNode *fn, size_t arr, size_t name, Decl *out) {
     Decl c;
     if (!read_decl(ast, fn, arr, &c)) return false;
@@ -193,11 +206,19 @@ static bool declarator_named(const KAst *ast, const KAstNode *fn, size_t arr, si
             *out = c;
             return true;
         }
-        if (fn->kind != K_AST_FUNCTION || arr < fn->body_first) return false;
-        size_t nx = c.rbr + 1;
+        if (fn->kind == K_AST_TYPE || (fn->kind == K_AST_FUNCTION && arr < fn->body_first)) return false;
+        size_t nx = after_declarator(ast, fn, c.rbr);
         if (!word(ast, nx, ",") || !is_word(ast, nx + 1) || !word(ast, nx + 2, "[")) return false;
         if (!read_decl_at(ast, fn, arr, nx + 2, &c)) return false;
     }
+}
+
+/* the name token of the first declarator of the `array` at token arr: the token before its
+ * first `[` (arr + 1 when there is none, which an element type check refuses) */
+static size_t name_of_first(const KAst *ast, const KAstNode *fn, size_t arr) {
+    size_t i = arr + 1;
+    while (i < fn->end && !word(ast, i, "[")) i++;
+    return i > arr + 1 && i < fn->end ? i - 1 : arr + 1;
 }
 
 /* The name a use spells: `v` in `v[i]`, and `v` in `b->v[i]` or `b.v[i]`, where
@@ -438,6 +459,10 @@ bool k_em_array_of(const KAst *ast, const KAstNode *fn, size_t name, KArrayRef *
     if (!find_decl(ast, fn, name, &d)) return false;
     out->arr = d.arr;
     out->lbr = d.lbr;
+    /* the element type ends at the first declarator's name, which a later declarator of
+     * the same word does not repeat (`array i32 p[3] = {1}, q[2];`: `i32` is the type of both) */
+    size_t first = name_of_first(ast, fn, d.arr);
+    out->type_b = first;
     out->rbr = d.rbr;
     out->ndims = d.ndims;
     out->binder = d.binder;

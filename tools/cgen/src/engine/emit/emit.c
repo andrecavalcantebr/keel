@@ -1001,7 +1001,7 @@ static bool supported(const Emit *e) {
         }
         case K_AST_VARIABLE: {
             /* several declarators (`pub int x = 1, y = 2;`): one node each, sharing the span; an
-             * `array` list is not done (array.c takes one declarator) */
+             * `array` list takes its declarators after the first as `name[` (array.c reads them) */
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
             bool arr = k < n->end && k_em_text_is(k_em_tok(ast, k), "array");
             size_t depth = 0;
@@ -1009,7 +1009,8 @@ static bool supported(const Emit *e) {
                 KToken t = k_em_tok(ast, p);
                 if (k_em_text_is(t, "(") || k_em_text_is(t, "[") || k_em_text_is(t, "{")) depth++;
                 else if (k_em_text_is(t, ")") || k_em_text_is(t, "]") || k_em_text_is(t, "}")) depth--;
-                else if (depth == 0 && k_em_text_is(t, ",")) return false;
+                else if (depth == 0 && k_em_text_is(t, ",") &&
+                         !(p + 2 < n->end && k_em_text_is(k_em_tok(ast, p + 2), "["))) return false;
             }
             break;
         }

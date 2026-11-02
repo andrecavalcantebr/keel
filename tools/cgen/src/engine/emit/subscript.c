@@ -6,10 +6,16 @@
  * `<name> <a..b> → <as_slice> [<length>]` (a range-index), and a trailing `&1`
  * when the container goes by address. The indices and the bounds stay as
  * written; the edits wrap the container's name and replace the brackets.
+ * Over an `array` (the detail's `dim:1`, backend §5.3 r7 and §5.18), the range
+ * takes the array's dimension 0 after the container: `v[1..4]` is
+ * `keel_array_i32_as_slice2(v, 6, 1, 4)`, the 6 read from the declaration (a
+ * decimal, or keel__n for a parameter with a binder), and `v[..3]` passes 0 as
+ * the start. The open ends of an array are refused for now.
  * Refused (k_em_handles_subscript answers false): a container that is not a
  * plain name (`s.f[i]`), a comma between indices (§5.3.1), a name preceded by
  * `&` (rule 2 collapses `&*`, not lowered yet), a bracket group over two lines,
- * and an island outside a function body. */
+ * an island outside a function body, and an array range whose dimension is not
+ * known. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -27,6 +33,9 @@ typedef struct {
     size_t dots;                /* range-index: its `..`; NO_TOKEN for an index */
     bool low, high;             /* range-index: a bound before the `..`, and after it */
     bool addr;                  /* the detail's `&1`: the container goes by address */
+    bool dim;                   /* the detail's `dim:1`: an array, its dimension 0 goes after it */
+    KArrayRef ref;              /* dim: the declaration of the array */
+    long dimv;                  /* dim: dimension 0 as a decimal (not for a binder) */
     Word verb, length;          /* the symbol, and the `length` of an open end */
 } Sugar;
 
@@ -90,6 +99,10 @@ static bool is_addr(Word w) {
     return w.n == 2 && w.p[0] == '&' && w.p[1] == '1';
 }
 
+static bool is_dim(Word w) {
+    return w.n == 5 && memcmp(w.p, "dim:1", 5) == 0;
+}
+
 /* Reads the island at `is` as one of the two forms this file lowers: an index
  * over a plain name (`x[i]`) or a range-index (`x[a..b]`, `x[a..]`, `x[..b]`,
  * `x[..]`). False for any other island, and for a form this file refuses. */
@@ -117,6 +130,8 @@ static bool read_sugar(const KAst *ast, const KIsland *is, Sugar *s) {
     Word w[MAX_WORDS];
     size_t nw = detail_words(ast, is, w);
     if (nw == NO_WORDS || nw == 0) return false;
+    s->dim = nw > 1 && is_dim(w[nw - 1]);
+    if (s->dim) nw--;
     s->addr = nw > 1 && is_addr(w[nw - 1]);
     if (s->addr) nw--;
     s->verb = w[0];
@@ -129,7 +144,39 @@ static bool read_sugar(const KAst *ast, const KIsland *is, Sugar *s) {
     size_t want = !range || s->high ? 1 : 2;
     if (nw != want) return false;
     if (range && !s->high) s->length = w[1];
+    if (s->dim) {
+        /* an array's range: closed ends only, and dimension 0 from the declaration */
+        if (!range || !s->high) return false;
+        if (!k_em_array_of(ast, fn, t, &s->ref) || s->ref.ndims == 0) return false;
+        if (!s->ref.binder && !k_em_array_dim(ast, fn, &s->ref, 0, &s->dimv)) return false;
+    }
     return true;
+}
+
+/* The dimension 0 of the array of a range, as the argument text: its decimal, or
+ * keel__ and the binder's name (backend §5.18). NULL (and e->ok false) when the
+ * scratch is full. */
+static const char *dim_arg(Emit *e, const KAst *ast, const Sugar *s, size_t *len) {
+    char *p;
+    if (s->ref.binder) {
+        KToken nm = k_em_tok(ast, s->ref.dim_end[0] - 1);
+        p = k_em_scratch(e, 6 + nm.len);
+        if (!p) return NULL;
+        memcpy(p, "keel__", 6);
+        memcpy(p + 6, nm.ptr, nm.len);
+        *len = 6 + nm.len;
+        return p;
+    }
+    /* the decimal, written from the last digit (dimv is a token's value: never negative) */
+    p = k_em_scratch(e, 24);
+    if (!p) return NULL;
+    char tmp[24];
+    size_t n = 0;
+    long v = s->dimv;
+    do { tmp[n++] = (char)('0' + v % 10); v /= 10; } while (v > 0 && n < sizeof tmp);
+    for (size_t i = 0; i < n; i++) p[i] = tmp[n - 1 - i];
+    *len = n;
+    return p;
 }
 
 bool k_em_handles_subscript(const KAst *ast, const KIsland *is) {
@@ -174,7 +221,18 @@ void k_em_edits_subscript(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit 
         put_text(e, ed, cnt, a, b, name, 0, s.verb.p, s.verb.n);
         put_text(e, ed, cnt, a, b, name, 0, "(", 1);
         if (s.addr) put_text(e, ed, cnt, a, b, name, 0, "&", 1);
-        if (s.low) put_text(e, ed, cnt, a, b, open, 1, ", ", 2);
+        if (s.dim) {
+            /* an array: `, <dim0>, a` after the container (backend §5.18) */
+            size_t dl = 0;
+            const char *dp = dim_arg(e, ast, &s, &dl);
+            size_t tl = s.low ? 2 : 3;
+            char *ot = dp ? k_em_scratch(e, 2 + dl + tl) : NULL;
+            if (!ot) { e->ok = false; return; }
+            ot[0] = ','; ot[1] = ' ';
+            memcpy(ot + 2, dp, dl);
+            memcpy(ot + 2 + dl, s.low ? ", " : ", 0", tl);
+            put_text(e, ed, cnt, a, b, open, 1, ot, 2 + dl + tl);
+        } else if (s.low) put_text(e, ed, cnt, a, b, open, 1, ", ", 2);
         else put_text(e, ed, cnt, a, b, open, 1, ", 0", 3);
         size_t dots = k_em_tok_off(ast, s.dots), dots_end = k_em_tok_end(ast, s.dots);
         put_text(e, ed, cnt, a, b, dots, 2, ", ", 2);

@@ -211,7 +211,7 @@ static bool plan(const KAst *ast, const KAstNode *fn, const Call *c, Plan *p) {
         }
     }
     p->type_a = r.arr + 1;
-    p->type_b = r.lbr - 1;
+    p->type_b = r.type_b;
     if (p->type_b <= p->type_a || names_declaration(ast, p->type_a, p->type_b)) return false;
     return true;
 }

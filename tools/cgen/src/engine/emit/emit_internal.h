@@ -166,6 +166,7 @@ bool k_em_handles_index(const KAst *ast, const KIsland *is);
 typedef struct {
     size_t arr;                                         /* the word `array` */
     size_t lbr, rbr;                                    /* the brackets of its own declarator */
+    size_t type_b;                                      /* the element type is [arr + 1, type_b): the first name */
     size_t dim_first[K_ARRAY_RANK], dim_end[K_ARRAY_RANK];
     size_t ndims;
     bool binder;                                        /* dimension 0 is `T n` of a parameter (§5.18) */

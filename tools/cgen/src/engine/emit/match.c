@@ -17,7 +17,10 @@
  *                           keel__m0_ST2: {  ...  }
  *                           keel__m0_end: ;
  *
- * Consecutive labels stack before one brace. A `break` of the arm is a jump to the end.
+ * Consecutive labels stack before one brace. A `break` of the arm is a jump to the end;
+ * a `break` inside a loop, `switch` or `match` of the arm belongs to that construct and
+ * stays. An arm whose instruction shares the label's line is closed at the end of that
+ * line (`A: { r = 1; }`), and its own line is the whole arm.
  * The edits are text on the lines of the source: the `match` line becomes the dispatch
  * (several output lines, mapped on from the line), a label line becomes the close of the
  * previous arm and its own label (EDIT_LINES, so that the label gets its own `#line`),
@@ -25,8 +28,9 @@
  *
  * Refused (k_em_handles_match answers false, and the module is refused with
  * implementation-limit): an operand that is not a variable of a `tagged` type declared in
- * the function, a match whose labels share a line with other text, a `break` in an arm that
- * also has a loop, a `switch` or a nested `match`. */
+ * the function, or a field `x->f` / `x.f` whose struct and field this module does not
+ * declare as `tagged <Set> <T>`; a label whose instruction goes on to the next line; a
+ * match whose labels share a line with other text. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 #include "engine/names.h"
@@ -44,9 +48,17 @@ typedef struct {
     size_t set_len;
     char disc[NAME_CAP];            /* what `switch` reads: `st->tag`, `s`, `keel_corot_tag(r)` */
     size_t disc_len;
+    bool field;                     /* the operand is `x->f` or `x.f`: the field of a struct of this module */
     size_t label[MAX_LABELS], colon[MAX_LABELS];
+    bool inl[MAX_LABELS];           /* the arm's instruction shares the label's line */
     size_t n;
 } Match;
+
+/* the walk of break_owner: the open braces of the arm, the constructs among them */
+#define BLOCK_CAP 32
+#define BREAK_OWN 0
+#define BREAK_ARM 1
+#define BREAK_DEEP 2
 
 static bool word(const KAst *ast, size_t i, const char *s) {
     return i < ast->tokens.len && k_em_text_is(k_em_tok(ast, i), s);
@@ -74,6 +86,167 @@ static bool ends_line(const KAst *ast, size_t off) {
     for (size_t p = off; p < ast->source.len && ast->source.ptr[p] != '\n'; p++)
         if (ast->source.ptr[p] != ' ' && ast->source.ptr[p] != '\t') return false;
     return true;
+}
+
+/* the offset of the '\n' that ends the line holding `off` (the source's end if none) */
+static size_t line_end(const KAst *ast, size_t off) {
+    while (off < ast->source.len && ast->source.ptr[off] != '\n') off++;
+    return off;
+}
+
+/* a word of the keel text, keywords included (`void` is one): a letter or `_` first */
+static bool word_like(const KAst *ast, size_t i) {
+    KToken t = k_em_tok(ast, i);
+    return t.len && ((t.ptr[0] >= 'a' && t.ptr[0] <= 'z') || (t.ptr[0] >= 'A' && t.ptr[0] <= 'Z') || t.ptr[0] == '_');
+}
+
+static bool same_text(KToken a, KToken b) {
+    return a.len == b.len && memcmp(a.ptr, b.ptr, a.len) == 0;
+}
+
+/* the name token of the declaration of `name` in the function that holds the match at kw: the
+ * first earlier use of the name that follows a type or a `*` (`Holder *h`) */
+static bool decl_of(const KAst *ast, size_t kw, KToken name, size_t *out) {
+    size_t from = 0;
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *fn = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (fn->kind == K_AST_FUNCTION && kw >= fn->first && kw < fn->end) from = fn->first;
+    }
+    for (size_t j = from ? from : 1; j < kw; j++) {
+        KToken x = k_em_tok(ast, j);
+        if (x.len != name.len || memcmp(x.ptr, name.ptr, x.len) != 0 || j == 0) continue;
+        bool star = word(ast, j - 1, "*");
+        /* a type word before the name: an identifier, or a C keyword such as `void` */
+        if (!star && !word_like(ast, j - 1)) continue;
+        *out = j;
+        return true;
+    }
+    return false;
+}
+
+/* The field operand `h->state` (or `h.state`), backend §5.6 rule 3: the type of `h` is a struct
+ * declared in this module (`struct Holder` or `typedef struct {...} Holder`), and its field
+ * `state` is `tagged <Set> <T>`, by value or by pointer. What switch reads is the operand as
+ * written, with the field's label: `h->state.tag`, or `->tag` for a pointer field. */
+static bool field_operand(const KAst *ast, Match *m) {
+    KToken var = k_em_tok(ast, m->operand), op = k_em_tok(ast, m->kw + 3), fld = k_em_tok(ast, m->kw + 4);
+    size_t dj;
+    if (!decl_of(ast, m->kw, var, &dj) || dj < 2) return false;
+    size_t tt = word(ast, dj - 1, "*") ? dj - 2 : dj - 1;
+    /* a qualified name (`other.Holder`) is a type of another module: not this module's */
+    if (tt == 0 || !word_like(ast, tt) || word(ast, tt - 1, ".")) return false;
+    KToken tname = k_em_tok(ast, tt);
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind != K_AST_TYPE || n->name_end != n->name_first + 1 || !same_text(k_em_tok(ast, n->name_first), tname)) continue;
+        size_t o = NO_TOKEN, c = NO_TOKEN, depth = 0, s = NO_TOKEN;
+        for (size_t j = n->first; j < n->end && o == NO_TOKEN; j++) {
+            if (word(ast, j, "struct")) s = j;
+            if (word(ast, j, "{")) o = j;
+        }
+        if (o == NO_TOKEN || s == NO_TOKEN) return false;
+        for (size_t j = o; j < n->end && c == NO_TOKEN; j++) {
+            if (word(ast, j, "{")) depth++;
+            else if (word(ast, j, "}") && --depth == 0) c = j;
+        }
+        if (c == NO_TOKEN) return false;
+        /* the fields at the struct's own level: `tagged <Set> <T> [*]name;` */
+        depth = 0;
+        for (size_t j = o + 1; j < c; j++) {
+            if (word(ast, j, "{") || word(ast, j, "(") || word(ast, j, "[")) depth++;
+            else if (word(ast, j, "}") || word(ast, j, ")") || word(ast, j, "]")) depth--;
+            else if (!depth && word(ast, j, "tagged") && (word(ast, j - 1, "{") || word(ast, j - 1, ";"))) {
+                size_t semi = j;
+                while (semi < c && !word(ast, semi, ";")) semi++;
+                if (semi >= c || semi < j + 4 || !same_text(k_em_tok(ast, semi - 1), fld)) continue;
+                size_t name = semi - 1;
+                if (!ident(ast, j + 1) || !(word_like(ast, name - 1) || word(ast, name - 1, "*"))) return false;
+                /* the set, as the type of the module's own tags */
+                KToken setk = k_em_tok(ast, j + 1);
+                if (!ast->symbols) return false;
+                const KSymbol *sym = k_symbol_resolve(ast->symbols, (keel_slice_char){ setk.len, (char *)setk.ptr });
+                if (!sym || sym->kind != K_SYM_TAGS) return false;
+                m->set_len = k_mangle_symbol(sym, (keel_slice_char){ sizeof m->set, m->set });
+                if (m->set_len == 0 || m->set_len > sizeof m->set) return false;
+                bool fptr = word(ast, name - 1, "*");
+                const char *label = fptr ? "->tag" : ".tag";
+                size_t q = 0;
+                if (var.len + op.len + fld.len + 6 > sizeof m->disc) return false;
+                memcpy(m->disc + q, var.ptr, var.len); q += var.len;
+                memcpy(m->disc + q, op.ptr, op.len); q += op.len;
+                memcpy(m->disc + q, fld.ptr, fld.len); q += fld.len;
+                memcpy(m->disc + q, label, strlen(label)); q += strlen(label);
+                m->disc_len = q;
+                return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
+/* Whether the `break` at token `target` of the arm (between open and close) is the arm's own:
+ * BREAK_ARM when no loop, `switch`, `foreach` or `match` of the arm encloses it, BREAK_OWN when
+ * one does, BREAK_DEEP when the nesting is past BLOCK_CAP. The walk keeps the open braces of
+ * the arm, and for each one whether it is a construct's body; a construct without braces
+ * (`for (...) r += i;`) owns the statement up to its `;`, an `else` included. */
+static int break_owner(const KAst *ast, size_t open, size_t close, size_t target) {
+    bool owned[BLOCK_CAP];
+    size_t nb = 0, paren = 0;
+    int hdr = 0;                    /* 1: a construct's header is open; 2: its body starts next */
+    size_t hdr_paren = 0;
+    bool unb = false;               /* inside an unbraced body */
+    size_t unb_depth = 0, unb_paren = 0;
+    for (size_t j = open + 1; j < close; j++) {
+        if (j == target) {
+            if (hdr == 2 || unb) return BREAK_OWN;
+            for (size_t b = 0; b < nb; b++)
+                if (owned[b]) return BREAK_OWN;
+            return BREAK_ARM;
+        }
+        if (hdr == 1) {
+            if (word(ast, j, "(")) paren++;
+            else if (word(ast, j, ")") && --paren == hdr_paren) hdr = 2;
+            continue;
+        }
+        if (hdr == 2) {
+            hdr = 0;
+            if (word(ast, j, "{")) {
+                if (nb == BLOCK_CAP) return BREAK_DEEP;
+                owned[nb++] = true;
+                continue;
+            }
+            unb = true;                 /* the body is one statement */
+            unb_depth = nb;
+            unb_paren = paren;
+        }
+        if (word(ast, j, "for") || word(ast, j, "while") || word(ast, j, "switch") ||
+            word(ast, j, "foreach") || word(ast, j, "match") || word(ast, j, "do")) {
+            if (word(ast, j + 1, "(")) {
+                hdr = 1;
+                hdr_paren = paren;
+            } else {
+                hdr = 2;
+            }
+            continue;
+        }
+        if (word(ast, j, "{")) {
+            if (nb == BLOCK_CAP) return BREAK_DEEP;
+            owned[nb++] = false;
+        } else if (word(ast, j, "}")) {
+            if (nb == 0) return BREAK_DEEP;
+            nb--;
+            if (unb && nb == unb_depth && !word(ast, j + 1, "else")) unb = false;
+        } else if (word(ast, j, "(")) {
+            paren++;
+        } else if (word(ast, j, ")")) {
+            if (paren == 0) return BREAK_DEEP;
+            paren--;
+        } else if (word(ast, j, ";") && unb && nb == unb_depth && paren == unb_paren && !word(ast, j + 1, "else")) {
+            unb = false;
+        }
+    }
+    return BREAK_DEEP;
 }
 
 /* The set the labels come from and what `switch` reads (backend §5.6, rule 3), by the type in
@@ -166,8 +339,13 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
     if (!word(ast, m->kw, "match") || !word(ast, m->kw + 1, "(")) return false;
     m->operand = m->kw + 2;
     m->column = false;
+    m->field = false;
     if (ident(ast, m->kw + 2) && word(ast, m->kw + 3, ")")) {
         m->rp = m->kw + 3;
+    } else if (ident(ast, m->kw + 2) && (word(ast, m->kw + 3, "->") || word(ast, m->kw + 3, ".")) &&
+               ident(ast, m->kw + 4) && word(ast, m->kw + 5, ")")) {
+        m->rp = m->kw + 5;
+        m->field = true;
     } else {
         /* a column of an extent holding a set (backend §5.6, rule 3) */
         size_t depth = 0, j = m->kw + 1;
@@ -202,26 +380,13 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
     /* declared with a `*` or not: the first earlier use of the name that follows a type */
     KToken name = k_em_tok(ast, m->operand);
     if (m->column) goto labels;
-    m->ptr = false;
-    bool found = false;
-    /* in the function that holds the match: another function may declare the name otherwise */
-    size_t from = 0;
-    for (size_t k = 0; k < ast->nodes.len; k++) {
-        const KAstNode *fn = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-        if (fn->kind == K_AST_FUNCTION && m->kw >= fn->first && m->kw < fn->end) from = fn->first;
+    if (m->field) {
+        if (!field_operand(ast, m)) return false;
+        goto labels;
     }
-    for (size_t j = from ? from : 1; j < m->kw && !found; j++) {
-        KToken x = k_em_tok(ast, j);
-        if (x.len != name.len || memcmp(x.ptr, name.ptr, x.len) != 0 || j == 0) continue;
-        bool star = word(ast, j - 1, "*");
-        /* a type word before the name: an identifier, or a C keyword such as `void` */
-        KToken pv = k_em_tok(ast, j - 1);
-        bool wordlike = pv.len && ((pv.ptr[0] >= 'a' && pv.ptr[0] <= 'z') || (pv.ptr[0] >= 'A' && pv.ptr[0] <= 'Z') || pv.ptr[0] == '_');
-        if (!star && !wordlike) continue;
-        m->ptr = star;
-        found = true;
-    }
-    if (!found) return false;
+    size_t dj;
+    if (!decl_of(ast, m->kw, name, &dj)) return false;
+    m->ptr = word(ast, dj - 1, "*");
     if (!resolve_operand(ast, is, m, name)) return false;
 
 labels:
@@ -234,23 +399,33 @@ labels:
         else if (!depth && ident(ast, j) && word(ast, j + 1, ":") &&
                  (word(ast, j - 1, "{") || word(ast, j - 1, ";") || word(ast, j - 1, "}") || word(ast, j - 1, ":"))) {
             if (m->n == MAX_LABELS) return false;
-            /* a label has its line to itself */
-            if (!starts_line(ast, k_em_tok_off(ast, j)) || !ends_line(ast, k_em_tok_end(ast, j + 1))) return false;
+            /* a label has its line to itself, or its instruction shares the line (checked below) */
+            if (!starts_line(ast, k_em_tok_off(ast, j))) return false;
+            m->inl[m->n] = !ends_line(ast, k_em_tok_end(ast, j + 1));
             m->label[m->n] = j;
             m->colon[m->n++] = j + 1;
         }
     }
     if (m->n == 0) return false;
 
-    /* a `break` of the arm is a jump to the end: only when no inner construct could own it */
-    bool brk = false, inner = false;
-    for (size_t j = m->open + 1; j < m->close; j++) {
-        if (word(ast, j, "break")) brk = true;
-        if (word(ast, j, "for") || word(ast, j, "while") || word(ast, j, "do") || word(ast, j, "switch") ||
-            word(ast, j, "foreach") || word(ast, j, "match"))
-            inner = true;
+    /* an instruction on the label's line is the whole arm (backend §5.6, rule 6): the line ends
+     * with its `;` or `}`, and the next token after the line is the next label or the match's `}` */
+    for (size_t i = 0; i < m->n; i++) {
+        if (!m->inl[i]) continue;
+        size_t nl = line_end(ast, k_em_tok_end(ast, m->colon[i]));
+        size_t p = nl;
+        while (p > 0 && (ast->source.ptr[p - 1] == ' ' || ast->source.ptr[p - 1] == '\t')) p--;
+        if (p == 0 || (ast->source.ptr[p - 1] != ';' && ast->source.ptr[p - 1] != '}')) return false;
+        size_t lim = i + 1 < m->n ? m->label[i + 1] : m->close;
+        size_t t = m->colon[i] + 1;
+        while (t < lim && k_em_tok_off(ast, t) < nl) t++;
+        if (t != lim) return false;
     }
-    return !(brk && inner);
+
+    /* a `break` of the arm is a jump to the end, unless a construct of the arm owns it */
+    for (size_t j = m->open + 1; j < m->close; j++)
+        if (word(ast, j, "break") && break_owner(ast, m->open, m->close, j) == BREAK_DEEP) return false;
+    return true;
 }
 
 bool k_em_handles_match(const KAst *ast, const KIsland *is) {
@@ -375,7 +550,16 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
             char *w = k_em_scratch(e, need);
             if (!w) return;
             size_t q = 0;
-            if (starts_group && i > 0) {
+            if (starts_group && i > 0 && m.inl[i - 1]) {
+                /* the previous arm closed on its own line: only its jump to the end comes here */
+                q = put(w, q, "L", sizeof "L" - 1);
+                q = put_uint(w, q, ln_of_a);
+                q = put(w, q, "|", sizeof "|" - 1);
+                q = put(w, q, ind, ind_n);
+                q = put(w, q, "goto keel__m", sizeof "goto keel__m" - 1);
+                q = put(w, q, id, idn);
+                q = put(w, q, "_end;\nT|", sizeof "_end;\nT|" - 1);
+            } else if (starts_group && i > 0) {
                 /* the close of the previous arm, as lines of their own; the label then gets its `#line` */
                 q = put(w, q, "L", sizeof "L" - 1);
                 q = put_uint(w, q, ln_of_a);
@@ -399,13 +583,17 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
                 push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = from, .skip = to - from, .text = w, .text_len = q });
             else
                 push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = from, .skip = to - from, .text = w, .text_len = q });
+            /* an instruction on the label's line: the arm closes at the end of that line */
+            if (m.inl[i])
+                push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = line_end(ast, to), .skip = 0, .text = " }", .text_len = 2 });
         }
 
-        /* the arm's `break` is the jump to the end */
+        /* the arm's `break` is the jump to the end, unless a construct of the arm owns it */
         for (size_t j = m.open + 1; j < m.close; j++) {
             if (!word(ast, j, "break")) continue;
             size_t off = k_em_tok_off(ast, j);
             if (off < a || off >= b) continue;
+            if (break_owner(ast, m.open, m.close, j) != BREAK_ARM) continue;
             char *w = k_em_scratch(e, 32);
             if (!w) return;
             size_t q = put(w, 0, "goto keel__m", sizeof "goto keel__m" - 1);
@@ -418,8 +606,12 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         if (close_off >= a && close_off < b) {
             char *w = k_em_scratch(e, 2 * ind_n + 48);
             if (!w) return;
-            size_t q = put(w, 0, "}\n", sizeof "}\n" - 1);
-            q = put(w, q, ind, ind_n);
+            size_t q = 0;
+            /* the last arm closed on its own line already: only the end label is left */
+            if (!m.inl[m.n - 1]) {
+                q = put(w, q, "}\n", sizeof "}\n" - 1);
+                q = put(w, q, ind, ind_n);
+            }
             q = put(w, q, "keel__m", sizeof "keel__m" - 1);
             q = put(w, q, id, idn);
             q = put(w, q, "_end: ;", sizeof "_end: ;" - 1);

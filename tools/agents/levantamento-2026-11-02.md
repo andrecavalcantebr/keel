@@ -56,3 +56,13 @@ mostrando as formas do pacote em `OK`; (5) commit. Dois pacotes não rodam ao me
 4. **WP4** `parallel` e **WP5** `else`: casos 041 e 042 (formas de escrita; mexem na leitura de
    linhas como o `defer` mexeu).
 5. **WP6** ferramenta: testes em `test/cgen/cli/`, sem golden.
+
+## Resultado (2026-11-02, noite)
+
+As 28 formas do levantamento dão `OK` nos dois perfis (`sh tools/agents/survey/run.sh`). Pacotes e
+commits: WP1 `001c36d` (T11), WP2 `512b7c1` (T12) e WP2b `4829f6b` (T17), WP3 `1e7164d` (T13),
+WP4 `cd943d4` (T14), WP5 `ed6de62` (T15), WP1b `a34bb6b` (T16, `extern_c`), WP6 `760cf83`
+(`source-not-found`, `-f`, recusa do `extern_c [type_h]` de uma linha). Casos novos do golden: 038 a 044.
+Ficam recusados, de propósito ou por falta de oráculo: `pub extern_c { … }`, as formas abertas
+`v[a..]` e `v[..]` sobre `array`, `0..W` com `W` importado, campo de `tagged` de outro módulo, e
+`typedef` e variável com `array` de vários declaradores em campo de struct.

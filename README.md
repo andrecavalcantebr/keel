@@ -35,10 +35,10 @@ int reading_first(const char *path) {
 
 > **Estado: a linguagem está fechada, e o compilador emite C para quase toda
 > ela.** Os quatro documentos normativos estão completos, a biblioteca base está
-> escrita em keel, e há 37 casos de teste com a saída C esperada nos dois perfis
+> escrita em keel, e há 44 casos de teste com a saída C esperada nos dois perfis
 > (três em construção). O `cgen` lê um `.k`, resolve os imports, reconhece toda a
 > gramática, verifica as regras de keel, emite C (`--stop-after=gen`) e chama o
-> compilador C sobre ele: **34 dos 37 casos saem byte a byte**, nos dois perfis, e a
+> compilador C sobre ele: **41 dos 44 casos saem byte a byte**, nos dois perfis, e a
 > base inteira sai dele. Ficam fora os três casos em construção.
 
 ---
@@ -686,7 +686,7 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`keel-c-backend.md`](keel-c-backend.md) | o que depende do alvo: nomes, artefatos, perfis |
 | [`cgen-tool-spec.md`](cgen-tool-spec.md) | o que depende da invocação |
 | [`base/`](base/) | os onze módulos da base, em keel: o prelúdio `keel` e os dez de `keel/` |
-| [`golden/`](golden/) | 37 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
+| [`golden/`](golden/) | 44 casos com a saída C esperada, nos dois perfis; três ainda em construção (`WIP`) |
 | [`tools/cgen/`](tools/cgen/) | o transpilador: lê, verifica e emite C (`--stop-after=gen`) |
 | [`design/`](design/) | desenho da implementação, e as ideias que não são v0 |
 

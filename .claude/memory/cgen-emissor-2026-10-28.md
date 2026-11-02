@@ -83,3 +83,8 @@ do catálogo têm teste (casos 009, 026 e 033); entraram `#line` da coluna nos `
 contra D29, `-c` com `--main` e `--instance` sem `--stop-after` (um `cc` por unidade),
 `constexpr` multilinha, e `defer { }`/multilinha em `defer.c`. Detalhe na última seção da
 passagem.
+
+**Atualização (2026-11-02, noite):** **41 dos 44 casos** saem do cgen (só 022–024 fora). O levantamento de
+28 formas recusadas (`tools/agents/survey/`) fechou inteiro, em sete cartões ao Haiku (T11–T17), com
+oráculos à mão (casos 038–044). M4 feito (`cc`, depfile, `--instance`, `-f` grava sempre). Normativo sem
+pendência. Próximo: `linux-list` (022–024). Detalhe: última seção da passagem e `levantamento-2026-11-02.md`.

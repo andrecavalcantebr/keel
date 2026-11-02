@@ -156,6 +156,23 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
                 isl_diag3(c, K_DIAG_PROTOCOL_NOT_SATISFIED, name, path, k_diag_text("Sliceable"), k_diag_text("length, as_slice"));
                 return close + 1;
             }
+            /* the call takes the instance `keel.array <elem>`, as a verb of keel.array does
+               (parser_islands_types.c): its headers belong to the closure, or the .c does not compile */
+            int inst = isl_kt_new(c);
+            if (inst >= 0) {
+                isl_kt(c, inst)->kind = KT_MODIFIER;
+                isl_kt(c, inst)->module = am;
+                isl_kt(c, inst)->argc = 1;
+                isl_kt(c, inst)->arg[0] = k->elem;
+                Text own = { .ok = true };
+                isl_put_module_prefix(&own, isl_ast_of(c, am));
+                isl_put_str(&own, "_");
+                isl_put_str(&own, elem);
+                if (own.ok && own.n < K_SYMBOL_MAX) {
+                    own.s[own.n] = 0;
+                    isl_record_seed(c, inst, own.s, K_CLOSURE_INSTANCE, am);
+                }
+            }
             bool high = range + 1 < close;
             isl_put(&tx, path.ptr, path.len);
             isl_put_str(&tx, " ");

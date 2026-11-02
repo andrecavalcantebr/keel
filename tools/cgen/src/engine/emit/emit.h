@@ -1,9 +1,8 @@
 /* engine/emit/emit.h — the module emitter of M3 (codegen-design §2; backend
  * §4.1, §4.3, §5.8, §6). One call produces one generated file from the parsed
- * module. The slice of the language it covers today is the one the hello
- * oracle and the prelude exercise: `module`, `import_c`, `typedef`, opaque
- * top-level C, `extern_c [type_h]`, protocols (which emit no C) and plain
- * functions. Anything else is K_EMIT_UNSUPPORTED, so a module that needs more
+ * module. It covers the language the golden cases and the base exercise (see
+ * tools/agents/levantamento-2026-11-02.md for the forms still refused). Any
+ * form it does not lower is K_EMIT_UNSUPPORTED, so a module that needs more
  * is refused instead of mistranslated.
  *
  * Memory: the convention of `k_dump_ast` and the KWriter — the caller hands an

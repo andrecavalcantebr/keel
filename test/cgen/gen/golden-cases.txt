@@ -40,7 +40,7 @@ test/cgen/gen/share|use.k|-
 040-match-forms|app/mf.k|-
 041-parallel-forms|app/pf.k|-|
 042-else-lines|app/es.k|-
-043-extern-c|app/xc.k|-|wip
+043-extern-c|app/xc.k|-
 044-array-range|app/rg.k|-|wip
 010-routine|ag2.k|-
 019-walk|lst.k|-

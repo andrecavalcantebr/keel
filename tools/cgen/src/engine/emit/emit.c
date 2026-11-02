@@ -573,6 +573,25 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
 
 /* ---- the header bodies ---- */
 
+/* The three forms of extern_c (backend §4.3.2, rules 9 and 10): `[type_h]` goes
+ * to the .type.h, a plain one to the .h in the order of the source, and `priv`
+ * to the .c, where its text stays. */
+static bool extern_c_type_h(const KAst *ast, const KAstNode *n) {
+    size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
+    return k + 1 < n->end && k_em_text_is(k_em_tok(ast, k + 1), "[");
+}
+
+static bool extern_c_priv(const KAst *ast, const KAstNode *n) {
+    return k_em_text_is(k_em_tok(ast, n->first), "priv");
+}
+
+/* the lines between the braces of an extern_c: from the line after its `{` up
+ * to the line of its `}` (not included) */
+static void extern_c_lines(const Emit *e, const KAstNode *n, size_t *a, size_t *b) {
+    *a = k_em_line_end(e, k_em_tok_off(e->ast, n->body_first - 1));
+    *b = k_em_line_start(e, k_em_tok_off(e->ast, n->body_end));
+}
+
 /* .type.h: the typedefs, the opaque C, the import_c lines and the body of
  * `extern_c [type_h]`, each with its own .k line (cgen design §8.3). A line
  * shared by two constructions (two typedefs) is written once. */
@@ -606,9 +625,8 @@ static void type_h_body(Emit *e) {
             if (a < b) { emit_range(e, a, b); e->done = b; }
             break;
         case K_AST_EXTERN_C:
-            /* the lines after the `{` line, up to the `}` line (not included) */
-            a = k_em_line_end(e, k_em_tok_off(ast, n->body_first - 1));
-            b = k_em_line_start(e, k_em_tok_off(ast, n->body_end));
+            if (!extern_c_type_h(ast, n)) break;   /* the plain and the priv forms: h_body and emit_c */
+            extern_c_lines(e, n, &a, &b);
             if (a < e->done) a = e->done;
             if (a < b) { emit_range(e, a, b); e->done = b; }
             break;
@@ -655,6 +673,12 @@ static void h_body(Emit *e) {
             if (i == 0 || keel_buffer_KAstNode_ptr(&e->ast->nodes, i - 1)->first != n->first) emit_extern(e, i);
         }
         else if (n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n)) k_em_extent_protos(e, n);
+        else if (n->kind == K_AST_EXTERN_C && !extern_c_type_h(e->ast, n) && !extern_c_priv(e->ast, n)) {
+            /* a plain extern_c: its text, in its place among the prototypes (backend §4.3.2, rule 9) */
+            size_t a, b;
+            extern_c_lines(e, n, &a, &b);
+            if (a < b) emit_range(e, a, b);
+        }
     }
     /* then the bodies of the `pub inline` functions, each with its own .k lines */
     bool blank = false;
@@ -678,8 +702,8 @@ static bool type_h_has_content(const Emit *e) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (k_em_generic_out(e->ast, n)) continue;
         KAstKind k = n->kind;
-        if (k == K_AST_IMPORT_C || k == K_AST_TYPE || k == K_AST_OPAQUE || k == K_AST_EXTERN_C ||
-            k == K_AST_CONSTEXPR || k == K_AST_TAGS) return true;
+        if (k == K_AST_IMPORT_C || k == K_AST_TYPE || k == K_AST_OPAQUE || k == K_AST_CONSTEXPR || k == K_AST_TAGS) return true;
+        if (k == K_AST_EXTERN_C && extern_c_type_h(e->ast, n)) return true;
     }
     return false;
 }
@@ -708,6 +732,7 @@ static bool h_has_content(const Emit *e) {
         if (skip(e, n)) continue;
         if ((n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) && n->is_public) return true;
         if (n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n)) return true;
+        if (n->kind == K_AST_EXTERN_C && !extern_c_type_h(e->ast, n) && !extern_c_priv(e->ast, n)) return true;
     }
     return false;
 }
@@ -828,6 +853,12 @@ static void emit_c(Emit *e) {
             if (!k_em_overlaps(e, n, a, b)) continue;
             if (is_pub_inline(e->ast, n)) empty = true;   /* its body is in the .h */
             else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
+            else if (n->kind == K_AST_EXTERN_C && extern_c_priv(e->ast, n)) {
+                /* a priv extern_c: its text is the .c's (backend §4.3.2, rule 10); its braces are not */
+                size_t ba, bb;
+                extern_c_lines(e, n, &ba, &bb);
+                if (a < ba || b > bb) empty = true;
+            }
             else empty = true;   /* every other kind in the slice has no C in the .c */
         }
         if (fn && empty) { e->ok = false; return; }
@@ -984,10 +1015,18 @@ static bool supported(const Emit *e) {
         }
         case K_AST_EXTERN_C: {
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
-            if (k + 4 >= n->end) return false;
-            if (!k_em_text_is(k_em_tok(ast, k), "extern_c") || !k_em_text_is(k_em_tok(ast, k + 1), "[") ||
-                !k_em_text_is(k_em_tok(ast, k + 2), "type_h") || !k_em_text_is(k_em_tok(ast, k + 3), "]") ||
-                !k_em_text_is(k_em_tok(ast, k + 4), "{")) return false;
+            if (k + 1 >= n->end || !k_em_text_is(k_em_tok(ast, k), "extern_c")) return false;
+            if (k_em_text_is(k_em_tok(ast, k + 1), "[")) {
+                if (k + 4 >= n->end || !k_em_text_is(k_em_tok(ast, k + 2), "type_h") ||
+                    !k_em_text_is(k_em_tok(ast, k + 3), "]") || !k_em_text_is(k_em_tok(ast, k + 4), "{")) return false;
+            } else {
+                /* the plain form (.h) and `priv` (.c); `pub extern_c {` is not a form */
+                if (!k_em_text_is(k_em_tok(ast, k + 1), "{")) return false;
+                if (k != n->first && !extern_c_priv(ast, n)) return false;
+                /* the lines of its text are the ones the header and the .c take: `{` and `}` on one line leave none */
+                size_t o1 = k_em_tok_off(ast, n->body_first - 1), o2 = k_em_tok_off(ast, n->body_end);
+                if (!memchr(ast->source.ptr + o1, '\n', o2 - o1)) return false;
+            }
             if (n->body_first == (size_t)-1 || n->body_end == (size_t)-1) return false;
             break;
         }

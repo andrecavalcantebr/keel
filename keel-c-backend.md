@@ -361,7 +361,7 @@ app/cfg.k  →  app/app_cfg.type.h                tipos
 | diretiva de topo | — | preservada | — |
 | C de topo que não é diretiva nem construção keel (`static_assert`) | o conteúdo, intacto | — | — |
 
-8. O `.type.h` recebe os `import_c`, as definições de tipo, públicas e `priv`, as declarações adiantadas dos campos por ponteiro e os `constexpr` de módulo. [D29](#10-decisões-de-emissão)
+8. O `.type.h` recebe os `import_c`, as definições de tipo (`struct`, `union`, `enum`, `typedef`, `tags` e `extent`), públicas e `priv`, as declarações adiantadas dos campos por ponteiro e os `constexpr` de módulo. [D29](#10-decisões-de-emissão)
 9. O `.h` recebe os protótipos e as declarações `extern`, depois os corpos `static inline`, e inclui o `.type.h`: é o arquivo que se inclui para usar o módulo.
 10. O `.c` recebe os corpos fora de linha, as definições de variável e o conteúdo de `priv extern_c`.
 11. Quem decide o arquivo é `pub`/`priv` (linguagem §4.1) e a camada (§4.3.1), pela tabela acima.
@@ -1222,7 +1222,7 @@ typedef enum keel_corot_Status {
 
 **Regras**
 
-1. O conjunto sai como `enum` nomeado `M_<conjunto>`, com as constantes `M_<conjunto>_<tag>` (§2.1), na ordem da lista declarada; um valor escrito sai literalmente. **O `enum` segue a escrita do autor:** `tags Nome [ … ];` vira `typedef enum M_Nome { … } M_Nome;`. O `[` troca-se por `{`, o `]` por `}`, cada nome de tag ganha o prefixo, e todo o resto (espaços, quebras de linha, valores) sai como foi escrito. A declaração ocupa, no C, as mesmas linhas que ocupava no `.k`. `pub` põe o `enum` no `.type.h`, `priv` no `.c` (§4.3.2). [D11](#10-decisões-de-emissão)
+1. O conjunto sai como `enum` nomeado `M_<conjunto>`, com as constantes `M_<conjunto>_<tag>` (§2.1), na ordem da lista declarada; um valor escrito sai literalmente. **O `enum` segue a escrita do autor:** `tags Nome [ … ];` vira `typedef enum M_Nome { … } M_Nome;`. O `[` troca-se por `{`, o `]` por `}`, cada nome de tag ganha o prefixo, e todo o resto (espaços, quebras de linha, valores) sai como foi escrito. A declaração ocupa, no C, as mesmas linhas que ocupava no `.k`. O `enum` vai ao `.type.h`, `pub` ou `priv`: a privacidade é de keel (D29, §4.3.2). [D11](#10-decisões-de-emissão)
 2. O despacho é um `switch` que contém só saltos: um `case` por tag, com `goto` para o rótulo do braço, e `default`. [R: estrutura de controle](keel-rationale.md#estrutura-de-controle-e-máquina-completa)
 3. O operando é lido uma vez: o próprio valor, quando o tipo declarado é o conjunto — `switch (k)`, ou `switch (*app_ast_ast_kind_ptr(&t, i))` sobre coluna de `extent` (§5.15); o campo de etiqueta, sobre instância de `tagged`; a chamada do verbo `tag`, sobre outro tipo que o declare, como `corot`. [R: conjuntos fechados](keel-rationale.md#conjuntos-fechados-e-exaustividade)
 4. Cada braço é um bloco, com o rótulo `keel__m<N>_<TAG>` antes da chave de abertura. Rótulos consecutivos empilham antes da mesma chave: `keel__m0_ADD: keel__m0_MUL: { … }`. [D10](#10-decisões-de-emissão)
@@ -1718,7 +1718,7 @@ static inline i32 *app_grid_grid_v_ptr(struct app_grid_grid *p, size_t i0, size_
 
 1. O struct sai como escrito. A tag é o nome manglado `M_NOME` (§2.1), e não se emite `typedef`: o programa escreve `struct NOME`. A coluna embutida sai com colchetes sucessivos, como qualquer `array` (§5.3); `array T *col` sai `T *col`. Nenhum campo é inserido.
 2. Há uma função de acesso por coluna, `static inline`, com o nome `M_NOME_col_ptr`. Ela recebe o struct por ponteiro e um `size_t` por grupo, `i0` a `iₙ₋₁`, e devolve o endereço do elemento. Um nome do programa que coincida com ela é `canonical-name-collision` (linguagem §4.2).
-3. Com o `extent` `pub`, o struct vai ao `.type.h` e as funções ao `.h`, pelas camadas do §4.3.2; com `priv`, os dois vão ao `.c`. Cada função leva o `#line` da coluna.
+3. O struct vai ao `.type.h` e as funções de acesso ao `.h`, pelas camadas do §4.3.2, `pub` ou `priv`: a privacidade é de keel (D29). Cada função leva o `#line` da coluna.
 4. Na coluna embutida, o endereço é `&p->col[i0][i1]…`. Na coluna por ponteiro, Horner sobre as capacidades internas: `&p->col[(i0 * c1 + i1) * c2 + i2]`. Uma capacidade que é campo sai `p->campo`; uma `constexpr`, com o nome C da constante; um literal, como escrito. A capacidade externa não aparece no endereço.
 5. `P.col[…]` sai `*f(&P, …)`, e `P->col[…]` sai `*f(P, …)`. O `&*` colapsa: `&P.col[i]` sai `f(&P, i)`. O caminho `P` é copiado como escrito, entre parênteses quando não é expressão pós-fixa.
 6. Um `KEEL_CHECK` por índice precede o retorno, com o invariante inteiro do grupo. É o `extent-index-out-of-bounds` (§5.17). Quando o índice e a capacidade são decimais conhecidos, a tradução pode recusar o acesso por `extent-index-above-capacity`, mas isso não dispensa a verificação de debug: a contagem continua dinâmica. O backend conserva `i < contagem && contagem <= capacidade`, inclusive para índice literal; capacidade 100 e contagem 3 não autorizam o índice 10. O controle por `KEEL_CHECKS` segue a §5.17.
@@ -2065,7 +2065,7 @@ static void app_f(struct S *s) {
 
 **Regras**
 
-1. `constexpr T K = INIT;` sai `#define M_K ((T)INIT)`: a macro do símbolo manglado, com o cast. `INIT` entra entre parênteses quando tem mais de um token (`1 << 4`, `-1`), e sem eles quando é um só (`4`, `N`). [D57](#10-decisões-de-emissão) · [R: `constexpr` sob C11](keel-rationale.md#constexpr-sob-c11)
+1. `constexpr T K = INIT;` sai `#define M_K ((T)INIT)`: a macro do símbolo manglado, com o cast. `INIT` entra entre parênteses quando tem mais de um token (`1 << 4`, `-1`), e sem eles quando é um só (`4`, `N`). As quebras de linha do `INIT` são conservadas, em linha de continuação (`\`) no `#define`. [D57](#10-decisões-de-emissão) · [R: `constexpr` sob C11](keel-rationale.md#constexpr-sob-c11)
 2. Um objeto de conferência, `static const T M_K__chk = INIT;`, com `INIT` pela mesma regra de parênteses, submete `INIT` à restrição de tipo da inicialização e à exigência de expressão constante: é o que recusa `constexpr char *S = 10;` e `constexpr int K = f();`. A mesma linha leva um uso do objeto que não gera código: `(void)M_K__chk;` em escopo de bloco, `_Static_assert(sizeof(M_K__chk) > 0, "constexpr");` em escopo de arquivo. [D58](#10-decisões-de-emissão) · [R](keel-rationale.md#constexpr-sob-c11)
 3. Resta uma diferença: o C23 exige valor exatamente representável no tipo, e a inicialização do C11 só converte. `constexpr u8 B = 300;` é erro sob C23, e no máximo `-Woverflow` sob C11 (linguagem §6.3).
 4. Em escopo de bloco, a macro recebe nome gerado, `keel__<símbolo>_<N>`, onde `<N>` é o contador por função do §2.3 (regra 2), e o backend reescreve os usos dentro do bloco. `IDENT` precedido de `.` ou `->`, e o designador `.x =`, não são reescritos: são nome de membro. [D59](#10-decisões-de-emissão) · [R](keel-rationale.md#constexpr-sob-c11)

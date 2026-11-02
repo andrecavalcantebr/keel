@@ -1,11 +1,9 @@
 Notas do caso.
 
-`priv tags` (backend §5.6, regra 1): o `enum` vai ao `.c`, na linha em que o
-fonte o escreve, e o `.type.h` fica só com o quadro. O conjunto não atravessa o
-módulo, então a função mostra o percurso como número (`pt_trail() == 111`).
+`priv tags` (backend §5.6, regra 1; D29): a privacidade é de keel, e o `enum` vai ao
+`.type.h` como o de um conjunto `pub`. É por isso que a instância `tagged Mode void`
+fecha: o `tag` dela devolve o conjunto, e o header da instância nomeia o `enum`. O
+conjunto não atravessa o módulo, então a função mostra o percurso como número
+(`pt_trail() == 111`).
 
-O `match` é sobre o próprio conjunto (`Mode m`), o `switch` lê `m` (regra 3).
-Não há `tagged Mode …` aqui, de propósito: a instância de `tagged` é um header
-que nomeia o `enum` (o `tag` devolve o conjunto), e um conjunto `priv` não está
-em header nenhum. Esse caso fica sem emissão até o backend dizer onde mora a
-instância de um conjunto `priv`.
+Os headers da instância são os do 009 com os nomes trocados.

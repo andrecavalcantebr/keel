@@ -4,7 +4,7 @@
 
 #include "pt.type.h"
 
-#line 7 "pt.k"
+#line 8 "pt.k"
 i32 pt_trail(void);
 
 #endif /* PT_H */

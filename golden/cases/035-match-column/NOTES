@@ -4,3 +4,6 @@ Notas do caso.
 (spec §4.9 e §4.11; backend §5.6, regra 3). O operando fica no lugar, e a
 função de acesso do §5.15 o lê: `switch (*app_nd_nodes_kind_ptr(t, i))`. O
 `KEEL_CHECK` do índice está no acessor, não no despacho.
+
+O `extent` é `priv`: o struct vai ao `.type.h` e os acessores ao `.h` do mesmo jeito (backend
+§5.15 r3; D29).

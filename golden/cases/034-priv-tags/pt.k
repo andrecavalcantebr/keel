@@ -1,11 +1,13 @@
 module pt;
+import keel.tagged as tagged types;
 
 priv tags Mode [OFF = 1, ON = 3, AUTO = 7];
 
-/* The set is private: its enum is a line of the .c, and the function shows the
-   path as a number. */
+/* The set is private to keel, and the enum is in the .type.h all the same: the
+   instance of `tagged` names it (backend §5.6, rule 1; D29). */
 pub i32 trail(void) {
-    Mode m = OFF;
+    tagged Mode void m = {0};
+    tagged.mark(m, OFF);
     i32 n = 0;
     bool done = false;
 
@@ -13,10 +15,10 @@ pub i32 trail(void) {
         match (m) {
             OFF:
                 n += 1;
-                m = ON;
+                tagged.mark(m, ON);
             ON:
                 n += 10;
-                m = AUTO;
+                tagged.mark(m, AUTO);
             AUTO:
                 n += 100;
                 done = true;

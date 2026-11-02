@@ -6,7 +6,7 @@
 
 #line 3 "app/nd.k"
 typedef enum app_nd_Kind {app_nd_Kind_LIT, app_nd_Kind_ADD} app_nd_Kind;
-#line 6 "app/nd.k"
+#line 8 "app/nd.k"
 struct app_nd_nodes {
     app_nd_Kind *kind;
     size_t n, cap;

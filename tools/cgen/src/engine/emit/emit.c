@@ -529,8 +529,6 @@ static void type_h_body(Emit *e) {
             e->done = b;
             break;
         case K_AST_TAGS:
-            if (!n->is_public) break;   /* a priv set's enum is a line of the .c (backend §5.6, rule 1) */
-            /* fall through */
         case K_AST_TYPE:
         case K_AST_OPAQUE:
             a = k_em_line_start(e, k_em_first_off(e, n));
@@ -584,13 +582,13 @@ static void h_body(Emit *e) {
         if (skip(e, n)) continue;
         if (n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
         else if (n->kind == K_AST_VARIABLE && n->is_public) emit_extern(e, n);
-        else if (n->kind == K_AST_TYPE && n->is_public && k_em_is_extent(e->ast, n)) k_em_extent_protos(e, n);
+        else if (n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n)) k_em_extent_protos(e, n);
     }
     /* then the bodies of the `pub inline` functions, each with its own .k lines */
     bool blank = false;
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        bool extent = n->kind == K_AST_TYPE && n->is_public && k_em_is_extent(e->ast, n);
+        bool extent = n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n);
         if (skip(e, n) || !(is_pub_inline(e->ast, n) || extent)) continue;
         if (!blank) {
             raw(e, "\n");
@@ -609,7 +607,7 @@ static bool type_h_has_content(const Emit *e) {
         if (k_em_generic_out(e->ast, n)) continue;
         KAstKind k = n->kind;
         if (k == K_AST_IMPORT_C || k == K_AST_TYPE || k == K_AST_OPAQUE || k == K_AST_EXTERN_C ||
-            k == K_AST_CONSTEXPR || (k == K_AST_TAGS && n->is_public)) return true;
+            k == K_AST_CONSTEXPR || k == K_AST_TAGS) return true;
     }
     return false;
 }
@@ -637,7 +635,7 @@ static bool h_has_content(const Emit *e) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (skip(e, n)) continue;
         if ((n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) && n->is_public) return true;
-        if (n->kind == K_AST_TYPE && n->is_public && k_em_is_extent(e->ast, n)) return true;
+        if (n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n)) return true;
     }
     return false;
 }
@@ -755,7 +753,7 @@ static void emit_c(Emit *e) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (!k_em_overlaps(e, n, a, b)) continue;
             if (is_pub_inline(e->ast, n)) empty = true;   /* its body is in the .h */
-            else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE || (n->kind == K_AST_TAGS && !n->is_public)) fn = true;
+            else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
             else empty = true;   /* every other kind in the slice has no C in the .c */
         }
         if (fn && empty) { e->ok = false; return; }
@@ -850,16 +848,16 @@ static bool supported(const Emit *e) {
             break;
         case K_AST_TYPE: {
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
-            /* `extent struct`: a shape of its own (backend §5.15); `priv` sends the
-             * struct and the accessors to the .c, which has no golden yet */
-            if (k_em_text_is(k_em_tok(ast, k), "extent")) { if (!k_em_is_extent(ast, n) || !n->is_public) return false; break; }
+            /* `extent struct`: a shape of its own (backend §5.15); `pub` or `priv`, the struct goes to the
+             * .type.h and the accessors to the .h (backend §5.15, rule 3) */
+            if (k_em_text_is(k_em_tok(ast, k), "extent")) { if (!k_em_is_extent(ast, n)) return false; break; }
             if (k >= n->end || !k_em_text_is(k_em_tok(ast, k), "typedef")) return false;
             /* one declarator per typedef: a list shares the span of its nodes */
             if (i > 0 && keel_buffer_KAstNode_ptr(&ast->nodes, i - 1)->first == n->first) return false;
             break;
         }
         case K_AST_TAGS: {
-            /* [pub|priv] tags N [A, B = 3]; a value is a number, optionally negative */
+            /* [pub|priv] tags N [A, B = 3]; both go to the .type.h (backend §5.6, rule 1); a value is a number, optionally negative */
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
             if (n->name_first >= n->name_end || n->name_first != k + 1) return false;
             if (n->end - n->name_first < 4 || !k_em_text_is(k_em_tok(ast, n->name_first + 1), "[")) return false;

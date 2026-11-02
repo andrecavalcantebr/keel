@@ -112,6 +112,62 @@ int cgen_gen_depfile(const char *const *pass, int pass_n, const CgenUnits *units
     return fuse_depfile(path, target, false, units);
 }
 
+/* one compiler process; its exit code, or 128+signal */
+static int spawn(const char *cc, char *const *argv) {
+    fflush(NULL);
+    pid_t pid = fork();
+    if (pid < 0) { perror("fork"); return 2; }
+    if (pid == 0) {
+        execvp(cc, argv);
+        fprintf(stderr, "cgen: error: cannot run the C compiler '%s' [cc-not-found]\n", cc);
+        _exit(127);
+    }
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) { perror("waitpid"); return 2; }
+    return WIFEXITED(status) ? WEXITSTATUS(status) : WIFSIGNALED(status) ? 128 + WTERMSIG(status) : 2;
+}
+
+static bool is_dep_option(const char *a) {
+    return strcmp(a, "-MMD") == 0 || strcmp(a, "-MD") == 0 || strcmp(a, "-MP") == 0 || strcmp(a, "-MF") == 0 ||
+           strcmp(a, "-MT") == 0 || strcmp(a, "-MQ") == 0;
+}
+
+/* The entry unit under `-c`, `-S` or `-E` (§4.7, §4.10): a unit, an output, so a second compiler
+ * run, as a build would write it. The output goes beside the module's, named after the unit
+ * (`main_app_dbg.o`); the dependency options are the module's, and stay out of this run. */
+static int compile_entry(const char *cc, const char *const *pass, int pass_n, const char *dest_flag,
+                         bool checks_off, const char *entry) {
+    char *argv[CGEN_CLI_ARGS_CAP + 8];
+    char out[8192];
+    int argc = 0;
+    argv[argc++] = (char *)cc;
+    const char *module_out = NULL;
+    bool asm_only = false, pre_only = false;
+    for (int i = 0; i < pass_n; i++) {
+        if (strcmp(pass[i], "-o") == 0 && i + 1 < pass_n) { module_out = pass[++i]; continue; }
+        if (strcmp(pass[i], "-S") == 0) asm_only = true;
+        if (strcmp(pass[i], "-E") == 0) pre_only = true;
+        if (is_dep_option(pass[i])) { if (strcmp(pass[i], "-MF") == 0 || strcmp(pass[i], "-MT") == 0 || strcmp(pass[i], "-MQ") == 0) i++; continue; }
+        argv[argc++] = (char *)pass[i];
+    }
+    if (module_out) {
+        const char *base = strrchr(entry, '/') ? strrchr(entry, '/') + 1 : entry;
+        const char *slash = strrchr(module_out, '/');
+        size_t dir = slash ? (size_t)(slash - module_out) + 1 : 0;
+        int w = snprintf(out, sizeof out, "%.*s%s", (int)dir, module_out, base);
+        char *dot = strrchr(out, '.');
+        if (w < 0 || (size_t)w >= sizeof out - 3 || !dot) return 2;
+        strcpy(dot, asm_only ? ".s" : pre_only ? ".i" : ".o");
+        argv[argc++] = (char *)"-o";
+        argv[argc++] = out;
+    }
+    argv[argc++] = (char *)dest_flag;
+    if (checks_off) argv[argc++] = (char *)"-DKEEL_CHECKS=0";
+    argv[argc++] = (char *)entry;
+    argv[argc] = NULL;
+    return spawn(cc, argv);
+}
+
 int cgen_run_cc(const char *cc, const char *const *pass, int pass_n, const char *dest, bool checks_off, const CgenUnits *units) {
     char *argv[CGEN_CLI_ARGS_CAP + 8];
     int argc = 0;
@@ -125,25 +181,17 @@ int cgen_run_cc(const char *cc, const char *const *pass, int pass_n, const char 
     argv[argc++] = dest_flag;
     if (checks_off) argv[argc++] = (char *)"-DKEEL_CHECKS=0";
     argv[argc++] = (char *)units->unit;
-    /* `-c`, `-S` and `-E` are one unit, one output (§4.10): the entry unit is written, and left
-     * to its own invocation */
+    /* `-c`, `-S` and `-E` are one unit, one output (§4.10): the entry unit is a run of its own;
+     * otherwise both units go to one run, which links them */
     bool one_unit = false;
     for (int i = 0; i < pass_n; i++)
         if (strcmp(pass[i], "-c") == 0 || strcmp(pass[i], "-S") == 0 || strcmp(pass[i], "-E") == 0) one_unit = true;
     if (units->entry[0] && !one_unit) argv[argc++] = (char *)units->entry;
     argv[argc] = NULL;
 
-    fflush(NULL);
-    pid_t pid = fork();
-    if (pid < 0) { perror("fork"); return 2; }
-    if (pid == 0) {
-        execvp(cc, argv);
-        fprintf(stderr, "cgen: error: cannot run the C compiler '%s' [cc-not-found]\n", cc);
-        _exit(127);
-    }
-    int status = 0;
-    if (waitpid(pid, &status, 0) < 0) { perror("waitpid"); return 2; }
-    int code = WIFEXITED(status) ? WEXITSTATUS(status) : WIFSIGNALED(status) ? 128 + WTERMSIG(status) : 2;
+    int code = spawn(cc, argv);
+    if (code == 0 && units->entry[0] && one_unit)
+        code = compile_entry(cc, pass, pass_n, dest_flag, checks_off, units->entry);
     if (code == 0 && wants_depfile(pass, pass_n)) {
         char path[8192], target[8192];
         depfile_path(path, sizeof path, pass, pass_n, units->unit);

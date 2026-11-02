@@ -24,10 +24,18 @@ rc=$?
 want="-I $CASE -O2 -Wall -I$tmp/gen $tmp/gen/app/app_dbg.c $tmp/gen/main_app_dbg.c"
 [ "$(cat "$tmp/log")" = "$want" ] || bad "arguments: want [$want] got [$(cat "$tmp/log")]"
 
-"$BIN" --cc="$tmp/fakecc" --base-dir "$K" -I "$CASE" --dest-dir "$tmp/gen" --checks=off -c -o x.o \
-    "$CASE/app/dbg.k" >/dev/null 2>&1
-want="-I $CASE -c -o x.o -I$tmp/gen -DKEEL_CHECKS=0 $tmp/gen/app/app_dbg.c"
-[ "$(cat "$tmp/log")" = "$want" ] || bad "arguments with -c: want [$want] got [$(cat "$tmp/log")]"
+# -c: one unit, one object (§4.10), so --main is a second run, with its object beside the module's
+cat > "$tmp/fakecc2" <<EOT
+#!/bin/sh
+echo "\$@" >> "$tmp/log2"
+EOT
+chmod +x "$tmp/fakecc2"
+(cd "$tmp" && "$BIN" --cc="$tmp/fakecc2" --base-dir "$K" -I "$CASE" --dest-dir "$tmp/gen" --main app.dbg --checks=off -MMD -MF z.d -c -o out/x.o \
+    "$CASE/app/dbg.k" >/dev/null 2>&1)
+want1="-I $CASE -MMD -MF z.d -c -o out/x.o -I$tmp/gen -DKEEL_CHECKS=0 $tmp/gen/app/app_dbg.c"
+want2="-I $CASE -c -o out/main_app_dbg.o -I$tmp/gen -DKEEL_CHECKS=0 $tmp/gen/main_app_dbg.c"
+[ "$(sed -n 1p "$tmp/log2")" = "$want1" ] || bad "-c module run: want [$want1] got [$(sed -n 1p "$tmp/log2")]"
+[ "$(sed -n 2p "$tmp/log2")" = "$want2" ] || bad "-c entry run: want [$want2] got [$(sed -n 2p "$tmp/log2")]"
 
 # a language error stops before the compiler
 rm -f "$tmp/log"

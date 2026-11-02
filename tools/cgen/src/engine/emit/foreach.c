@@ -508,6 +508,39 @@ static bool names_module(const Emit *e, size_t a, size_t b) {
     return pos == e->module.len;
 }
 
+/* the binder's declaration of a walk: `T *p = S_next(keel__c<N>, &c);` (the scratch); `next` is the
+ * symbol of the container's `next` verb */
+static const char *walk_value(Emit *e, size_t n, const Over *o, const char *next, size_t nl, size_t *vl) {
+    const KAst *ast = e->ast;
+    e->n = 0;
+    k_em_put_range(e, o->vtype_a, o->vtype_b);
+    if (!word(ast, o->vtype_b - 1, "*")) put_s(e, " ");
+    put_tok(e, o->value);
+    put_s(e, " = "); k_em_put_bytes(e, next, nl);
+    put_s(e, "(keel__c"); put_uint(e, n);
+    put_s(e, ", &"); put_tok(e, o->index);
+    put_s(e, ");");
+    return take(e, vl);
+}
+
+/* Allman (backend §5.7, rule 5), for a walk: the body's `{` on a line of its own, in the line [a, b),
+ * takes the binder's declaration after it, as body_brace_line does for a foreach */
+static void walk_brace_line(Emit *e, size_t n, const Over *o, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    if (!o->braced) return;
+    size_t bo = k_em_tok_off(ast, o->body);
+    if (bo < a || bo >= b) return;
+    char nx[NAME_CAP];
+    size_t nl;
+    if (!verb_symbol(e, o->sym, o->sym_len, "next", nx, NAME_CAP, &nl)) return;
+    size_t vl;
+    const char *val = walk_value(e, n, o, nx, nl, &vl);
+    if (!val) return;
+    size_t ob = k_em_tok_end(ast, o->body);
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = " ", .text_len = 1 });
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = ob, .skip = 0, .text = val, .text_len = vl });
+}
+
 /* `walk (T *p, C c : x) body` (§5.11):
  *   {   S *keel__c<N> = x; C c = S_begin(keel__c<N>); while (S_has_next(keel__c<N>, &c)) { T *p = S_next(keel__c<N>, &c); body } }
  * on the line of the `walk`. The cursor is written with its type; the verbs are the container's. */
@@ -515,8 +548,9 @@ static void edits_walk(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     const KAst *ast = e->ast;
     size_t n = k_em_capture_ordinal(ast, fn, kw);
     size_t at = k_em_tok_off(ast, kw), end = k_em_tok_end(ast, o->close);
-    if (at < a || at >= b) {
+    if (at < a || at >= b) {            /* not the header's line: the block's `}` may close the outer block here */
         if (o->braced) push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, o->last), .skip = 0, .text = " }", .text_len = 2 });
+        walk_brace_line(e, n, o, a, b, ed, cnt);
         return;
     }
     if (k_em_declared_at(e, o->value) || k_em_declared_at(e, o->index)) { e->ok = false; return; }
@@ -570,15 +604,8 @@ static void edits_walk(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     size_t hl;
     const char *head = take(e, &hl);
     if (!head) return;
-    k_em_put_range(e, o->vtype_a, o->vtype_b);
-    if (!word(ast, o->vtype_b - 1, "*")) put_s(e, " ");
-    put_tok(e, o->value);
-    put_s(e, " = "); k_em_put_bytes(e, vb[2], vl3[2]);
-    put_s(e, "(keel__c"); put_uint(e, n);
-    put_s(e, ", &"); put_tok(e, o->index);
-    put_s(e, ");");
     size_t vl;
-    const char *val = take(e, &vl);
+    const char *val = walk_value(e, n, o, vb[2], vl3[2], &vl);
     if (!val) return;
     size_t j = 0;
     for (size_t k = 0; k < *cnt; k++)

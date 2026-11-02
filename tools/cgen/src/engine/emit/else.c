@@ -14,11 +14,13 @@
  * A tail on a line after the `else` (backend §5.12 r2) is not joined to it: the
  * edit stops at the end of the `else` line, the line break stays, and the tail is
  * emitted as its own line. The header is then `; if (F(x))`, with no blank after.
+ * A default's W(&x, then goes in front of the value on that line (k_em_edits_else_tail),
+ * with the value's indentation as written; a `;` on a later line gets its `)` there too.
  *
  * Refused (k_em_handles_else answers false, and the module is refused with
  * implementation-limit): a detail that does not read as the form above, a win
- * without `&1`, an `else` with no token after it, a default with no `;` that
- * ends it, and a default whose `;` is on a line after the `else`. */
+ * without `&1`, an `else` with no token after it, and a default with no `;` that
+ * ends it. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -101,8 +103,7 @@ bool k_em_handles_else(const KAst *ast, const KIsland *is) {
     ElseParts x;
     if (!read_parts(ast, is, &x)) return false;
     if (x.exit) return true;
-    size_t semi = value_end(ast, is->anchor);
-    return semi != NO_TOKEN && same_line(ast, is->anchor, semi);
+    return value_end(ast, is->anchor) != NO_TOKEN;
 }
 
 /* appends x when its position is in the line [a, b) */
@@ -122,45 +123,76 @@ void k_em_edits_else(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, 
         if (!k_em_handles_else(ast, is)) continue;
         size_t at = is->anchor;
         if (at < fn->first || at >= fn->end) continue;
-        /* only the `else` of this line: the scratch holds one line's text */
-        if (k_em_tok_off(ast, at) < a || k_em_tok_off(ast, at) >= b) continue;
         ElseParts x;
         if (!read_parts(ast, is, &x)) continue;
+        size_t at_off = k_em_tok_off(ast, at), tail_off = k_em_tok_off(ast, at + 1);
+        bool else_here = at_off >= a && at_off < b;
 
-        /* the header: from the end of the token before `else` up to the tail, or
-         * to the end of the `else` line when the tail is on a later line (then the
-         * edit must not span the line break: emit_range would skip the tail's line) */
-        const char *s = ast->source.ptr;
-        size_t from = k_em_tok_end(ast, at - 1), to = k_em_tok_off(ast, at + 1);
-        bool tail_here = to < b;
-        if (!tail_here) {
-            to = b;
-            if (s[to - 1] == '\n') to--;
-        }
-        size_t need = x.fail_len + x.tgt_len + (x.exit ? 0 : x.win_len + x.tgt_len) + 32;
-        char *w = k_em_scratch(e, need);
-        if (!w) return;
-        size_t q = 0;
-        q = put(w, q, "; if (", 6);
-        q = put(w, q, x.fail, x.fail_len);
-        q = put(w, q, "(", 1);
-        q = put(w, q, x.tgt, x.tgt_len);
-        q = put(w, q, "))", 2);
-        if (tail_here) q = put(w, q, " ", 1);
-        if (!x.exit) {
-            q = put(w, q, x.win, x.win_len);
-            q = put(w, q, "(&", 2);
+        /* the header, on the `else` line: from the end of the token before `else` up to
+         * the tail, or to the end of the `else` line when the tail is on a later line
+         * (then the edit must not span the line break: emit_range would skip the tail's
+         * line). The tail's W(&x, goes on the tail's line, below. */
+        if (else_here) {
+            const char *s = ast->source.ptr;
+            size_t from = k_em_tok_end(ast, at - 1), to = tail_off;
+            bool tail_here = to < b;
+            if (!tail_here) {
+                to = b;
+                if (s[to - 1] == '\n') to--;
+            }
+            size_t need = x.fail_len + x.tgt_len + (x.exit ? 0 : x.win_len + x.tgt_len) + 32;
+            char *w = k_em_scratch(e, need);
+            if (!w) return;
+            size_t q = 0;
+            q = put(w, q, "; if (", 6);
+            q = put(w, q, x.fail, x.fail_len);
+            q = put(w, q, "(", 1);
             q = put(w, q, x.tgt, x.tgt_len);
-            q = put(w, q, ", ", 2);
+            q = put(w, q, "))", 2);
+            if (tail_here) q = put(w, q, " ", 1);
+            if (!x.exit && tail_here) {
+                q = put(w, q, x.win, x.win_len);
+                q = put(w, q, "(&", 2);
+                q = put(w, q, x.tgt, x.tgt_len);
+                q = put(w, q, ", ", 2);
+            }
+            push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = from, .skip = to - from,
+                .text = w, .text_len = q });
         }
-        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = from, .skip = to - from,
-            .text = w, .text_len = q });
 
-        /* the default value ends with the `;` of the statement: W's `)` goes before it */
+        /* the default value ends with the `;` of the statement: W's `)` goes before it,
+         * on whichever line the `;` is */
         if (!x.exit) {
             size_t semi = value_end(ast, at);
             push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, semi), .skip = 0,
                 .text = ")", .text_len = 1 });
         }
+    }
+}
+
+/* The W(&x, of a default whose value starts a line of its own (the tail is on a later line
+ * than the `else`): written here, on the tail's line, in front of the value. It is a separate
+ * pass, run after uses.c (emit.c): uses.c drops the edits inside a foreign call it rewrites,
+ * and an insertion at the call's first token is one of them. */
+void k_em_edits_else_tail(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    for (size_t k = 0; k < ast->islands.len; k++) {
+        const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, k);
+        if (!k_em_handles_else(ast, is)) continue;
+        size_t at = is->anchor;
+        if (at < fn->first || at >= fn->end) continue;
+        ElseParts x;
+        if (!read_parts(ast, is, &x) || x.exit || same_line(ast, at, at + 1)) continue;
+        size_t tail_off = k_em_tok_off(ast, at + 1);
+        if (tail_off < a || tail_off >= b) continue;
+        char *w = k_em_scratch(e, x.win_len + x.tgt_len + 8);
+        if (!w) return;
+        size_t q = 0;
+        q = put(w, q, x.win, x.win_len);
+        q = put(w, q, "(&", 2);
+        q = put(w, q, x.tgt, x.tgt_len);
+        q = put(w, q, ", ", 2);
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = tail_off, .skip = 0,
+            .text = w, .text_len = q });
     }
 }

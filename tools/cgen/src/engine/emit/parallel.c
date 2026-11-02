@@ -24,10 +24,10 @@
  *
  * The header may run over several lines (its edit covers them: emit.c leaves them out) and the
  * `{` may stand on a line of its own; the workers are `0..K` with K a decimal or a constexpr of
- * a decimal (the literal is written, backend §5.9 r4). Refused (k_em_handles_parallel answers
- * false): a `{` that does not end its line, workers other than `0..K`, a policy that is not ALL,
- * ANY or a decimal, a partition binder with more than one name, a capture not declared in the
- * function. */
+ * a decimal (the literal is written, backend §5.9 r4). The policy is ALL, ANY, a decimal or a
+ * constexpr of a decimal (its literal is written). Refused (k_em_handles_parallel answers
+ * false): a `{` that does not end its line, workers other than `0..K`, any other policy, a
+ * partition binder with more than one name, a capture not declared in the function. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -88,13 +88,18 @@ static bool analyze(const KAst *ast, const KIsland *is, const KAstNode *fn, Par 
     p->name = p->kw + 1;
     p->policy = p->kw + 2;
     p->open = p->kw + 3;
-    /* the policy is the target: ALL is 0 (nobody fails), ANY is 1, a decimal N is N wins */
+    /* the policy is the target: ALL is 0 (nobody fails), ANY is 1, a decimal N is N wins, and a
+     * constexpr of a decimal is its value, written as the literal (backend §5.9, rule 10) */
     KToken pol = k_em_tok(ast, p->policy);
     p->target = 0;
     if (k_em_text_is(pol, "ALL")) p->target = 0;
     else if (k_em_text_is(pol, "ANY")) p->target = 1;
     else if (decimal(pol)) for (size_t i = 0; i < pol.len; i++) p->target = p->target * 10 + (size_t)(pol.ptr[i] - '0');
-    else return false;       /* a constant by name is not lowered yet */
+    else {
+        long v = 0;
+        if (!k_token_is_ident(pol) || !k_em_constexpr_value(ast, fn, p->kw, p->policy, &v) || v < 0) return false;
+        p->target = (size_t)v;
+    }
 
     /* `size_t w : 0 .. K ;` */
     size_t c1 = NO_TOKEN;

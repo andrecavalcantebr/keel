@@ -36,6 +36,7 @@ bool app_pm_one_line(keel_buffer_i32 *xs) {
                 shared(keel__c0, v)
         for (size_t w = 0; w < 4; w++) {
             keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
+#line 16 "app/pm.k"
             { keel_slice_i32 keel__c1 = part; size_t keel__n1 = keel_slice_i32_length(keel__c1); for (size_t i = 0; i < keel__n1; i++) { i32 x = keel_slice_i32_get(keel__c1, i); if (x < 0) { atomic_fetch_add_explicit(&v.fails, 1, memory_order_relaxed); goto keel__end0; } } }
             keel__end0: ;
         }

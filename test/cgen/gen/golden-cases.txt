@@ -47,7 +47,7 @@ test/cgen/gen/share|use.k|-
 047-match-more|app/mm.k|-
 048-parallel-more|app/pm.k|-|wip
 049-adapt-foreach|app/af.k|-|wip
-050-else-default|app/ed.k|-|wip
+050-else-default|app/ed.k|-
 051-generic-forms|inst.k|-|wip
 052-match-foreign|app/lib/other.k app/fm.k|-
 053-generic-module-instance|inst3.k|-|wip

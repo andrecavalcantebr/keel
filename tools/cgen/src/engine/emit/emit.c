@@ -251,6 +251,12 @@ static void node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed,
     }
     /* the uses of another module's names, by their islands (uses.c) */
     if (n->kind != K_AST_MODULE && n->kind != K_AST_IMPORT) k_em_edits_uses(e, n, a, b, ed, cnt);
+    /* a default whose value starts a line of its own: after uses.c, which drops the edits in a call it rewrites */
+    if (n->kind == K_AST_FUNCTION) {
+        size_t before = *cnt;
+        k_em_edits_else_tail(e, n, a, b, ed, cnt);
+        k_em_sort_edits(ed, before, *cnt);
+    }
     /* the `array` fields of a struct (array.c); an extent's columns are its own (extent.c) */
     if (n->kind == K_AST_TYPE && !k_em_is_extent(ast, n)) {
         k_em_edits_struct_arrays(e, n, a, b, ed, cnt);

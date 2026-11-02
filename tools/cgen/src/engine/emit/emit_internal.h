@@ -192,6 +192,8 @@ void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edi
 
 /* else.c: the `else` of a result (spec §4.10, backend §5.12) */
 void k_em_edits_else(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
+/* the W(&x, of a default whose value is on a later line: after uses.c, see else.c */
+void k_em_edits_else_tail(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_else(const KAst *ast, const KIsland *is);
 /* parallel.c: the `parallel` block, the `win;`/`fail;` of its worker and the interrupted
  * query (backend §5.9). k_em_parallel_interrupted writes the edit for a call island and

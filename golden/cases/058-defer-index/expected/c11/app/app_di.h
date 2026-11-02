@@ -5,7 +5,7 @@
 #include "app/app_di.type.h"
 
 #line 4 "app/di.k"
-int app_di_last(void);
+int  app_di_last(void);
 #line 8 "app/di.k"
 void app_di_clear_var(size_t i);
 #line 16 "app/di.k"

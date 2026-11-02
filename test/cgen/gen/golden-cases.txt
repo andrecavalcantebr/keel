@@ -68,4 +68,4 @@ test/cgen/gen/share|use.k|-
 055-defer-return-index|app/dr2.k|-|
 054-style-forms|app/sf.k|-
 057-walk-allman|app/wa.k|-|
-058-defer-index|app/di.k|-|wip
+058-defer-index|app/di.k|-

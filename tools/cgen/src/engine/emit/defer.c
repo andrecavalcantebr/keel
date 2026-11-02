@@ -493,27 +493,27 @@ static void open_record(Emit *e, size_t kw) { open_record_line(e, line_no(e->ast
 
 static void close_record(Emit *e) { k_em_put_bytes(e, "\n", 1); }
 
-/* The body of a defer into e->buf: the tokens of the statement, through its last
- * one (the `;`, or the `}` of a block), with the gaps between them as written and
- * every name renamed as in the C text (k_em_put_range); under [now], a captured
- * name becomes keel__c<n>.<name> (not after `.` or `->`). A line break of the
- * body ends the record and starts the next one, mapped to the next .k line (kw is
- * the defer's keyword, on the first). */
-static void put_body(Emit *e, const Defer *d, size_t n, size_t kw) {
+/* The bytes [p, q) of a defer body into e->buf, token by token: the gaps as written
+ * (a line break ends the record and starts the next, mapped to the next .k line, ln),
+ * and each token whose start is in [p, q) renamed as in the C text (k_em_put_range);
+ * under [now], a captured name becomes keel__c<n>.<name> (not after `.` or `->`). */
+static void put_body_bytes(Emit *e, const Defer *d, size_t n, size_t p, size_t q, size_t *ln) {
     const KAst *ast = e->ast;
-    size_t ln = line_no(ast, kw);
     for (size_t i = d->body; i <= d->semi && e->ok; i++) {
+        size_t off = k_em_tok_off(ast, i);
         if (i > d->body) {
-            size_t g0 = k_em_tok_end(ast, i - 1), g1 = k_em_tok_off(ast, i);
-            for (size_t p = g0; p < g1; p++) {
-                if (ast->source.ptr[p] == '\n') {
+            size_t g0 = k_em_tok_end(ast, i - 1);
+            for (size_t b = g0; b < off; b++) {
+                if (b < p || b >= q) continue;
+                if (ast->source.ptr[b] == '\n') {
                     close_record(e);
-                    open_record_line(e, ++ln);
+                    open_record_line(e, ++*ln);
                 } else {
-                    k_em_put_bytes(e, ast->source.ptr + p, 1);
+                    k_em_put_bytes(e, ast->source.ptr + b, 1);
                 }
             }
         }
+        if (off < p || off >= q) continue;
         bool member = i > d->body && (word(ast, i - 1, ".") || word(ast, i - 1, "->"));
         bool captured = false;
         if (d->now && !member)
@@ -530,13 +530,38 @@ static void put_body(Emit *e, const Defer *d, size_t n, size_t kw) {
     }
 }
 
+/* The body of a defer into e->buf: the tokens of the statement, through its last
+ * one (the `;`, or the `}` of a block), with the gaps between them as written and
+ * every name renamed as in the C text (put_body_bytes). The verified indices of the
+ * body are the index edits of the body's bytes (k_em_edits_index, as put_expr does
+ * for an inline return): `v[i]` is `v[keel_index(i, 3)]`, a literal index keeps its
+ * bracket. A line break of the body ends the record and starts the next one, mapped
+ * to the next .k line (kw is the defer's keyword, on the first). */
+static void put_body(Emit *e, const KAstNode *fn, const Defer *d, size_t n, size_t kw) {
+    const KAst *ast = e->ast;
+    size_t ln = line_no(ast, kw);
+    size_t a = k_em_tok_off(ast, d->body), b = k_em_tok_end(ast, d->semi), pos = a;
+    Edit ix[MAX_EDITS];
+    size_t cnt = 0;
+    k_em_edits_index(e, fn, a, b, ix, &cnt);
+    k_em_sort_edits(ix, 0, cnt);
+    for (size_t k = 0; k < cnt && e->ok; k++) {
+        put_body_bytes(e, d, n, pos, ix[k].at, &ln);
+        if (ix[k].kind == EDIT_TEXT) k_em_put_bytes(e, ix[k].text, ix[k].text_len);
+        else if (ix[k].kind == EDIT_TOKS) k_em_put_range(e, ix[k].tok_a, ix[k].tok_b);
+        else { e->ok = false; return; }
+        pos = ix[k].at + ix[k].skip;
+    }
+    put_body_bytes(e, d, n, pos, b, &ln);
+}
+
 /* the defer's cleanup, with the indentation of its `defer`: one record per line
  * of the body (put_body) */
 static void put_cleanup(Emit *e, const KAstNode *fn, size_t kw, const Defer *d) {
     size_t ind = indent_before(e->ast, kw);
     open_record(e, kw);
     k_em_put_bytes(e, e->ast->source.ptr + k_em_tok_off(e->ast, kw) - ind, ind);
-    put_body(e, d, capture_ordinal(e->ast, fn, kw), kw);
+    put_body(e, fn, d, capture_ordinal(e->ast, fn, kw), kw);
     close_record(e);
 }
 
@@ -787,7 +812,7 @@ static void close_ladder(Emit *e, const KAstNode *fn, size_t c, size_t a, size_t
         k_em_put_bytes(e, "keel__e", 7);
         put_uint(e, defers_before(ast, fn, j));
         k_em_put_bytes(e, ": ", 2);
-        put_body(e, &d, capture_ordinal(ast, fn, j), j);
+        put_body(e, fn, &d, capture_ordinal(ast, fn, j), j);
         close_record(e);
         first = j;
     }

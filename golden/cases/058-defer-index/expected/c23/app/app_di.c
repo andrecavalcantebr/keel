@@ -4,7 +4,7 @@
 
 
 static int app_di_seen = -1;
-int app_di_last(void) { return app_di_seen; }
+int  app_di_last(void) { return app_di_seen; }
 
 
 

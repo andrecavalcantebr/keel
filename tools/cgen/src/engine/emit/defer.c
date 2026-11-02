@@ -34,9 +34,9 @@
  * implementation-limit): a `defer` outside a function; a `}` that is not the first
  * token of its line; a `break` or `continue` with no loop to leave; a `goto`
  * whose label is not in the function, or whose block does not enclose it; and a
- * `return` that does not fit its mode (multi-line or with an index, for the
- * function's own RET_INLINE). The tokens of a defer body are opaque to the scans
- * of exits and blocks (in_body). */
+ * `return` that does not fit its mode (multi-line, for the function's own
+ * RET_INLINE: its expression is rebuilt, with its indices, by put_expr). The
+ * tokens of a defer body are opaque to the scans of exits and blocks (in_body). */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -133,7 +133,7 @@ static size_t block_close(const KAst *ast, size_t open) {
     return NO_TOKEN;
 }
 
-/* What the `{` at open opens: 1 a loop body (`for (...)`, `while (...)`, `do`),
+/* What the `{` at open opens: 1 a loop body (`for (...)`, `while (...)`, `foreach (...)`, `do`),
  * 2 a switch body, 0 anything else. */
 static int block_kind(const KAst *ast, size_t open) {
     if (open == NO_TOKEN || open == 0) return 0;
@@ -145,7 +145,7 @@ static int block_kind(const KAst *ast, size_t open) {
         else if (word(ast, q, "(")) {
             if (depth > 0) { depth--; continue; }
             if (q == 0) return 0;
-            if (word(ast, q - 1, "for") || word(ast, q - 1, "while")) return 1;
+            if (word(ast, q - 1, "for") || word(ast, q - 1, "while") || word(ast, q - 1, "foreach")) return 1;
             if (word(ast, q - 1, "switch")) return 2;
             return 0;
         }
@@ -453,11 +453,9 @@ static Plan plan_of(const KAst *ast, const KAstNode *fn) {
         /* `return;` in a void function, `return expr;` in any other */
         if ((semi == r + 1) != void_fn) { p.ok = false; return p; }
         /* a `return` whose cleanup is inline has its expression rebuilt from the
-         * tokens: it must be one line, without comment and without an index */
+         * tokens (put_expr): it must be one line, without comment */
         if (p.mode != RET_LADDER || inner_pending(ast, fn, r) > 0) {
             if (!plain_span(ast, k_em_tok_off(ast, r), k_em_tok_end(ast, semi))) { p.ok = false; return p; }
-            for (size_t j = r; j <= semi; j++)
-                if (word(ast, j, "[")) { p.ok = false; return p; }
         }
     }
     return p;
@@ -670,12 +668,47 @@ static size_t inline_ordinal(const KAst *ast, const KAstNode *fn, size_t r) {
     return n;
 }
 
+/* The source bytes [p, q), both at token boundaries of [from, to): the tokens that
+ * lie in them as put_range writes them, and the blanks between (comments left out). */
+static void put_span(Emit *e, size_t from, size_t to, size_t p, size_t q) {
+    const KAst *ast = e->ast;
+    size_t ta = from, tb = from;
+    while (ta < to && k_em_tok_off(ast, ta) < p) ta++;
+    while (tb < to && k_em_tok_off(ast, tb) < q) tb++;
+    if (tb == ta) { k_em_put_source(e, p, q); return; }
+    if (p < k_em_tok_off(ast, ta)) k_em_put_source(e, p, k_em_tok_off(ast, ta));
+    k_em_put_range(e, ta, tb);
+    if (q > k_em_tok_end(ast, tb - 1)) k_em_put_source(e, k_em_tok_end(ast, tb - 1), q);
+}
+
+/* The expression of an inline `return`, tokens [from, to), written into e->buf as the
+ * source has it, with the indices verified (index.c: keel_index around each index
+ * that is not a checked decimal, a comma as `][`) and every name renamed. The index
+ * edits are computed here and applied at their token boundaries: the statement is
+ * rebuilt whole, so the edits of the line that it spans are dropped (inline_exit). */
+static void put_expr(Emit *e, const KAstNode *fn, size_t from, size_t to) {
+    const KAst *ast = e->ast;
+    Edit ix[MAX_EDITS];
+    size_t n = 0;
+    size_t a = k_em_tok_off(ast, from), b = k_em_tok_end(ast, to - 1), pos = a;
+    k_em_edits_index(e, fn, a, b, ix, &n);
+    k_em_sort_edits(ix, 0, n);
+    for (size_t k = 0; k < n && e->ok; k++) {
+        put_span(e, from, to, pos, ix[k].at);
+        if (ix[k].kind == EDIT_TEXT) k_em_put_bytes(e, ix[k].text, ix[k].text_len);
+        else if (ix[k].kind == EDIT_TOKS) k_em_put_range(e, ix[k].tok_a, ix[k].tok_b);
+        else { e->ok = false; return; }
+        pos = ix[k].at + ix[k].skip;
+    }
+    put_span(e, from, to, pos, b);
+}
+
 /* An exit that is inline (RET_INLINE, backend §5.5.2): the statement is one
  * edit, split between braces, with the cleanup in between:
  *   return;        ->  { <cleanup> return; }
  *   return expr;   ->  { T keel__rv<n> = expr; <cleanup> return keel__rv<n>; }
  *   break;         ->  { <cleanup> break; }      (and continue, the same)
- * The statement is one line and has no index (plan_of). target is the `{` the
+ * The statement is one line (plan_of); its expression is put_expr's. target is the `{` the
  * exit leaves to: the function's for a return, the loop's (or switch's) for a
  * jump. The defers it runs are the pending ones (pending_at), last first. */
 static void inline_exit(Emit *e, const KAstNode *fn, size_t r, size_t target, size_t ladder_k,
@@ -701,7 +734,7 @@ static void inline_exit(Emit *e, const KAstNode *fn, size_t r, size_t target, si
             put_uint(e, n);
         }
         k_em_put_bytes(e, " = ", 3);
-        k_em_put_range(e, r + 1, semi);
+        put_expr(e, fn, r + 1, semi);
         k_em_put_bytes(e, ";\n", 2);
     } else {
         k_em_put_bytes(e, "H|{\n", 4);

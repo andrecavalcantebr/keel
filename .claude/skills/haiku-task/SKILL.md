@@ -9,6 +9,20 @@ The workflow since 2026-10-22 (`tools/agents/README.md`): Opus orchestrates,
 Haiku implements. This skill has two halves: what the orchestrator does, and
 what the Haiku agent does. The card is the contract between them.
 
+## Oracle-author cards (pilot, 2026-11-02)
+
+The oracle of an implementation task may be written by a Haiku agent **of its own**, never the one
+that implements, and with a clean context (it knows only the skill and its card). The card gives the
+form to cover (a `.k` or a description), the rules of the backend and spec that govern the output, and
+the files to create: `golden/cases/<NNN>-<name>/` with the `.k`, `proof.c`, `expected/c23/` and
+`expected/c11/`, written **by hand from the spec and from analogous existing goldens** (name them in
+the card). The author **must not run `tools/cgen/cgen` on the new case, nor read the emitter's sources**
+(that would capture the tool's own output). It runs `golden/run.sh` to check that the expected files
+compile, run and satisfy the layout and `#line` checks, adds any needed lines to `golden/line-check.allow`
+only for injected code, and adds the case to `test/cgen/gen/golden-cases.txt` with `|wip`. The
+orchestrator reviews the case against the spec; a divergence between an oracle and the implementation is
+settled by the spec, not by whoever wrote it.
+
 ## Orchestrator: before writing a card
 
 - **Decide whether it is delegable.** Delegate: a new file or function with a

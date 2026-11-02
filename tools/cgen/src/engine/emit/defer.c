@@ -1,32 +1,39 @@
 /* engine/emit/defer.c — `defer` of a function body (emit_internal.h; codegen
  * design E5, backend §5.5, degrees D1 and D2). The registration goes out (an
  * empty line for `defer` and `defer [later]`; a struct copy for `defer [now ...]`),
- * and every exit of the function runs the bodies of the defers registered before
- * it, in reverse order of registration (backend §5.5, rules 1 and 4):
+ * and every exit runs the bodies of the defers registered before it, in reverse
+ * order of registration (backend §5.5, rules 1 and 4):
  *
- *   - the natural end of a block: its `}` gets one line per defer (D1);
- *   - a `return` that is the only exit of the function (RET_INLINE): the
- *     cleanup goes in the `return`'s own line, between braces (backend §5.5.2);
- *   - two exits or more (RET_LADDER): the `return` stores its value in
- *     keel__rv0 and jumps to a label, and the labels of the defers are a ladder
- *     before the closing `}` of the function (backend §5.5.2). A `void`
- *     function has no keel__rv0: `return;` becomes `goto keel__e<k>;` and the
- *     ladder ends in the `}`.
- *
- *   - a `break` or `continue` anywhere in the function (D3): every exit is
- *     inline (RET_INLINE), and each `break`/`continue` runs the defers of the
- *     blocks it leaves, up to the innermost loop (or switch, for `break`)
- *     (backend §5.5, rule 2; §5.5.2, rules 1, 2 and 5).
+ *   - the natural end of a block: its `}` gets one line per defer, still
+ *     pending, that block registered (D1);
+ *   - the function's own scope, with a `return` as its only exit (RET_INLINE):
+ *     the cleanup goes in the `return`'s own line, between braces (§5.5.2);
+ *   - the function's own scope, with two exits or more (RET_LADDER): the
+ *     `return` stores its value in keel__rv0 and jumps to a label, and the
+ *     labels of that scope's own defers are a ladder before the closing `}` of
+ *     the function (§5.5.2, rules 1 and 5). A `void` function has no keel__rv0:
+ *     `return;` becomes `goto keel__e<k>;` and the ladder ends in the `}`.
+ *   - a `defer` of an inner block: always inline at every exit of that block —
+ *     `break`, `continue`, `goto` and `return` alike — never carried by the
+ *     ladder (§5.5.2, rule 6). A `return` that also leaves a RET_LADDER
+ *     function's own scope runs the inner cleanup inline and then jumps to the
+ *     ladder, which runs the outer one.
+ *   - `break`, `continue` and `goto`: inline wherever they exit, up to the
+ *     target they jump to — the innermost loop (or switch, for `break`) for a
+ *     `break`/`continue`, the block holding the label for a `goto` (§5.5, rule
+ *     1; §5.5.2, rules 1 and 2). A `goto` into a scope is refused before the
+ *     emitter runs (`jump-over-defer`, linguagem §4.6); a `goto` out of one
+ *     always has somewhere to land, because the label it names is the walk's
+ *     own evidence that the jump leaves to an enclosing block.
  *
  * Each cleanup line is mapped to the line of the `defer` that wrote it, through
  * EDIT_LINES (backend §5.5, rule 4; D61). Refused (k_em_handles_defer answers
- * false, and the module is refused with implementation-limit): `goto`; a
- * `defer` statement that spans lines, has a comment, a body with braces or an
- * index; a `defer` in a nested block of a function that has a `return` but no
- * `break` or `continue` (that would be a ladder per block); a `}` that is not
- * the first token of its line; a `break` or
- * `continue` with no loop to leave; and a `return` that does not fit its mode
- * (multi-line or with an index, for RET_INLINE). */
+ * false, and the module is refused with implementation-limit): a `defer`
+ * statement that spans lines, has a comment, a body with braces or an index; a
+ * `}` that is not the first token of its line; a `break` or `continue` with no
+ * loop to leave; a `goto` whose label is not in the function, or whose block
+ * does not enclose it; and a `return` that does not fit its mode (multi-line or
+ * with an index, for the function's own RET_INLINE). */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -52,6 +59,7 @@ typedef struct {
     RetMode mode;
     bool ok;                /* false: the function is refused */
     bool ends_ret;          /* the body ends in a `return`: the natural end is no exit */
+    bool any;               /* at least one `defer`, anywhere in the body (own scope or inner) */
 } Plan;
 
 static bool word(const KAst *ast, size_t i, const char *s) {
@@ -90,18 +98,9 @@ static const KAstNode *fn_of(const KAst *ast, size_t tok) {
     return NULL;
 }
 
-/* whether the body of fn has a `goto` (refused for now) */
-static bool has_goto(const KAst *ast, const KAstNode *fn) {
-    for (size_t i = fn->body_first; i < fn->body_end; i++)
-        if (word(ast, i, "goto")) return true;
-    return false;
-}
-
-/* whether the body of fn has a `break` or a `continue` (D3: every exit is inline) */
-static bool has_jump(const KAst *ast, const KAstNode *fn) {
-    for (size_t i = fn->body_first; i < fn->body_end; i++)
-        if (word(ast, i, "break") || word(ast, i, "continue")) return true;
-    return false;
+/* an identifier token (a label's name) */
+static bool ident(const KAst *ast, size_t i) {
+    return i < ast->tokens.len && k_token_is_ident(k_em_tok(ast, i));
 }
 
 /* The `{` that opens the block holding token `from`, searched back from from-1
@@ -164,6 +163,42 @@ static size_t exit_target(const KAst *ast, const KAstNode *fn, size_t p, bool wa
     return NO_TOKEN;
 }
 
+/* whether the defer at token j was registered in the function's own scope: its
+ * cleanup is the one the ladder can carry (backend §5.5.2, rule 6) */
+static bool at_fn_scope(const KAst *ast, const KAstNode *fn, size_t j) {
+    size_t lo = fn->body_first - 1;
+    return block_open(ast, j, lo) == lo;
+}
+
+/* The `{` of the block holding the label a `goto` names, or NO_TOKEN when the
+ * label is not in the function or its block does not enclose the `goto`: the
+ * jump would enter a scope, which the language refuses (spec §4.6, rule 9). The
+ * label is `<name> :` at the start of a statement. */
+static size_t goto_target(const KAst *ast, const KAstNode *fn, size_t g) {
+    if (!word(ast, g + 1, ";") && !ident(ast, g + 1)) return NO_TOKEN;
+    KToken name = k_em_tok(ast, g + 1);
+    if (name.len == 0 || !word(ast, g + 2, ";")) return NO_TOKEN;
+    size_t lo = fn->body_first - 1, label = NO_TOKEN;
+    for (size_t i = fn->body_first; i < fn->body_end; i++) {
+        KToken t = k_em_tok(ast, i);
+        if (t.len != name.len || memcmp(t.ptr, name.ptr, t.len) != 0) continue;
+        if (!word(ast, i + 1, ":")) continue;
+        if (!(word(ast, i - 1, ";") || word(ast, i - 1, "{") || word(ast, i - 1, "}") || word(ast, i - 1, ":")))
+            continue;
+        label = i;
+        break;
+    }
+    if (label == NO_TOKEN) return NO_TOKEN;
+    size_t o = block_open(ast, label, lo);
+    if (o == NO_TOKEN) return NO_TOKEN;
+    /* the label's block must enclose the goto: walk the goto's blocks out to it */
+    for (size_t q = block_open(ast, g, lo); q != NO_TOKEN; q = block_open(ast, q, lo)) {
+        if (q == o) return o;
+        if (q == lo) break;
+    }
+    return o == lo ? lo : NO_TOKEN;
+}
+
 /* Whether the defer at token j is still pending at the exit at token p, whose
  * target block is `target` (the function's `{` for a `return`, the loop's `{`
  * for a jump): its block is target or inside it, and encloses p (j < p). */
@@ -180,6 +215,25 @@ static size_t pending_count(const KAst *ast, const KAstNode *fn, size_t p, size_
     for (size_t j = fn->body_first; j < p; j++)
         if (word(ast, j, "defer") && pending_at(ast, fn, j, p, target)) n++;
     return n;
+}
+
+/* The defers of an inner block that are pending at the exit at token p: they go
+ * inline even when the function's own scope has a ladder (backend §5.5.2, r6). */
+static size_t inner_pending(const KAst *ast, const KAstNode *fn, size_t p) {
+    size_t lo = fn->body_first - 1, n = 0;
+    for (size_t j = fn->body_first; j < p; j++)
+        if (word(ast, j, "defer") && !at_fn_scope(ast, fn, j) && pending_at(ast, fn, j, p, lo)) n++;
+    return n;
+}
+
+/* The label of the ladder an exit at token p jumps to: the ordinal of the last
+ * defer of the function's own scope registered before it, or NO_TOKEN when none
+ * is (the exit precedes every one of them). */
+static size_t ladder_label(const KAst *ast, const KAstNode *fn, size_t p) {
+    size_t found = NO_TOKEN;
+    for (size_t j = fn->body_first; j < p; j++)
+        if (word(ast, j, "defer") && at_fn_scope(ast, fn, j)) found = j;
+    return found;
 }
 
 /* whether token `tok` is the first token of its line (only blanks before it) */
@@ -325,32 +379,36 @@ static bool ends_in_return(const KAst *ast, const KAstNode *fn, size_t r) {
  * inline cleanup; two or more are the ladder. Also checks the shape of each
  * `return` for its mode. */
 static Plan plan_of(const KAst *ast, const KAstNode *fn) {
-    Plan p = { RET_NONE, true, false };
-    size_t lo = fn->body_first - 1;
-    bool any = false, nested = false;
-    size_t first_reg = fn->body_end;   /* the first registration: an earlier `return` is no exit of the cleanup */
+    Plan p = { RET_NONE, true, false, false };
+    bool any = false, own = false;
+    size_t first_reg = fn->body_end;   /* the first registration of the function's own scope */
     for (size_t i = 0; i < ast->islands.len; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         if (is->kind != K_ISLAND_DEFER || is->anchor < fn->body_first || is->anchor >= fn->body_end) continue;
         any = true;
+        if (!at_fn_scope(ast, fn, is->anchor)) continue;   /* an inner block is always inline (rule 6) */
+        own = true;
         if (is->anchor < first_reg) first_reg = is->anchor;
-        if (block_open(ast, is->anchor, lo) != lo) nested = true;
     }
+    p.any = any;
     if (!any) return p;
-    size_t nret = 0, last = NO_TOKEN;
-    for (size_t i = first_reg; i < fn->body_end; i++)   /* a `return` before the first registration is no exit of the cleanup */
-        if (word(ast, i, "return")) { nret++; last = i; }
-    bool jump = has_jump(ast, fn);
-    if (nret == 0 && !jump) return p;   /* no exit but the natural end: the D1 cleanup */
-    if (nested && !jump) { p.ok = false; return p; }
-    /* a break or continue must leave a loop (or a switch, for break) */
+    /* a break or continue must leave a loop (or a switch, for break); a goto must
+     * leave to a block that encloses it */
     for (size_t i = fn->body_first; i < fn->body_end; i++) {
         if (word(ast, i, "break") && exit_target(ast, fn, i, true) == NO_TOKEN) { p.ok = false; return p; }
         if (word(ast, i, "continue") && exit_target(ast, fn, i, false) == NO_TOKEN) { p.ok = false; return p; }
+        if (word(ast, i, "goto") && goto_target(ast, fn, i) == NO_TOKEN) { p.ok = false; return p; }
     }
+    /* The mode is the function's own scope: its exits are the `return`s and the
+     * natural end, and a jump never leaves it (backend §5.5.2, rules 1 and 6). */
+    size_t nret = 0, last = NO_TOKEN;
+    if (own)
+        for (size_t i = first_reg; i < fn->body_end; i++)   /* a `return` before the first registration is no exit of it */
+            if (word(ast, i, "return")) { nret++; last = i; }
     bool void_fn = is_void(ast, fn);
     p.ends_ret = nret > 0 && ends_in_return(ast, fn, last);
-    if (jump || (nret == 1 && p.ends_ret)) p.mode = RET_INLINE;
+    if (!own || nret == 0) p.mode = RET_NONE;   /* only the D1 cleanup at the `}` */
+    else if (nret == 1 && p.ends_ret) p.mode = RET_INLINE;
     else p.mode = RET_LADDER;
     for (size_t r = fn->body_first; r < fn->body_end; r++) {
         if (word(ast, r, "break") || word(ast, r, "continue")) {
@@ -363,9 +421,11 @@ static Plan plan_of(const KAst *ast, const KAstNode *fn) {
         if (semi == NO_TOKEN) { p.ok = false; return p; }
         /* `return;` in a void function, `return expr;` in any other */
         if ((semi == r + 1) != void_fn) { p.ok = false; return p; }
-        if (p.mode == RET_INLINE) {
+        /* a `return` whose cleanup is inline has its expression rebuilt from the
+         * tokens: it must be one line, without comment and without an index */
+        if (p.mode != RET_LADDER || inner_pending(ast, fn, r) > 0) {
             if (!plain_span(ast, k_em_tok_off(ast, r), k_em_tok_end(ast, semi))) { p.ok = false; return p; }
-            for (size_t j = r; j <= semi; j++)     /* the expression is rebuilt from its tokens */
+            for (size_t j = r; j <= semi; j++)
                 if (word(ast, j, "[")) { p.ok = false; return p; }
         }
     }
@@ -565,20 +625,28 @@ static size_t inline_ordinal(const KAst *ast, const KAstNode *fn, size_t r) {
  * The statement is one line and has no index (plan_of). target is the `{` the
  * exit leaves to: the function's for a return, the loop's (or switch's) for a
  * jump. The defers it runs are the pending ones (pending_at), last first. */
-static void inline_exit(Emit *e, const KAstNode *fn, size_t r, size_t target, size_t a, size_t b, Edit *ed, size_t *cnt) {
+static void inline_exit(Emit *e, const KAstNode *fn, size_t r, size_t target, size_t ladder_k,
+                        size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     size_t semi = stmt_semi(ast, fn, r);
     size_t at = k_em_tok_off(ast, r), end = k_em_tok_end(ast, semi);
     bool value = word(ast, r, "return") && semi != r + 1;   /* `return expr;` */
-    size_t n = value ? inline_ordinal(ast, fn, r) : 0;
+    bool to_ladder = ladder_k != NO_TOKEN;                  /* the tail is the jump to the ladder */
+    size_t n = value && !to_ladder ? inline_ordinal(ast, fn, r) : 0;
     size_t lb;
     size_t blanks = line_blanks(ast, r, &lb);
     e->n = 0;
     if (value) {
         k_em_put_bytes(e, "H|{ ", 4);
-        put_rettype(e, fn);
-        k_em_put_bytes(e, " keel__rv", 9);
-        put_uint(e, n);
+        if (to_ladder) {
+            /* the ladder's temporary is already declared, on the line of the
+             * first defer of the function (backend §5.5, rule 5) */
+            k_em_put_bytes(e, "keel__rv0", 9);
+        } else {
+            put_rettype(e, fn);
+            k_em_put_bytes(e, " keel__rv", 9);
+            put_uint(e, n);
+        }
         k_em_put_bytes(e, " = ", 3);
         k_em_put_range(e, r + 1, semi);
         k_em_put_bytes(e, ";\n", 2);
@@ -587,13 +655,18 @@ static void inline_exit(Emit *e, const KAstNode *fn, size_t r, size_t target, si
     }
     for (size_t j = r; j-- > fn->body_first; ) {       /* the pending defers, last first */
         if (!word(ast, j, "defer") || !pending_at(ast, fn, j, r, target)) continue;
+        if (to_ladder && at_fn_scope(ast, fn, j)) continue;   /* the ladder carries that one */
         Defer d;
         if (!analyze(ast, j, &d)) { e->ok = false; return; }
         put_cleanup(e, fn, j, &d);
     }
     k_em_put_bytes(e, "T|", 2);
     k_em_put_bytes(e, ast->source.ptr + lb, blanks);
-    if (value) {
+    if (to_ladder) {
+        k_em_put_bytes(e, "goto keel__e", 12);
+        put_uint(e, ladder_k);
+        k_em_put_bytes(e, "; }", 3);
+    } else if (value) {
         k_em_put_bytes(e, "return keel__rv", 15);
         put_uint(e, n);
         k_em_put_bytes(e, "; }", 3);
@@ -601,7 +674,7 @@ static void inline_exit(Emit *e, const KAstNode *fn, size_t r, size_t target, si
     size_t len;
     char *text = take_buf(e, &len);
     if (!e->ok || !text) { e->ok = false; return; }
-    if (!value) {
+    if (!value && !to_ladder) {
         /* the statement stays in the second half; the brace closes after its `;` */
         push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_LINES, .at = at, .skip = 0, .text = text, .text_len = len });
         push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = end, .skip = 0, .text = " }", .text_len = 2 });
@@ -621,7 +694,7 @@ static void close_ladder(Emit *e, const KAstNode *fn, size_t c, size_t a, size_t
     size_t first = NO_TOKEN;
     e->n = 0;
     for (size_t j = c; j-- > fn->body_first; ) {
-        if (!word(ast, j, "defer")) continue;
+        if (!word(ast, j, "defer") || !at_fn_scope(ast, fn, j)) continue;   /* rule 6 */
         Defer d;
         if (!analyze(ast, j, &d)) { e->ok = false; return; }
         open_record(e, j);
@@ -699,22 +772,31 @@ void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
         edit_registration(e, fn, kw, &d, temp, a, b, ed, cnt);
     }
 
-    /* the exits that run cleanups: a `return` after a defer, and (D3) a break or continue */
-    if (p.mode != RET_NONE) {
-        for (size_t r = fn->body_first; r < fn->body_end && e->ok; r++) {
-            bool ret = word(ast, r, "return"), brk = word(ast, r, "break"), cnt_ = word(ast, r, "continue");
-            if (!ret && !brk && !cnt_) continue;
-            size_t at = k_em_tok_off(ast, r);
-            if (at < a || at >= b) continue;
-            if (p.mode == RET_LADDER) {         /* a ladder has returns only (no jump) */
-                size_t nd = defers_before(ast, fn, r);
-                if (nd > 0) ladder_return(e, fn, r, nd - 1, a, b, ed, cnt);
-                continue;
-            }
-            size_t target = ret ? fn->body_first - 1 : exit_target(ast, fn, r, brk);
-            if (pending_count(ast, fn, r, target) == 0) continue;   /* nothing pending: the exit stays */
-            inline_exit(e, fn, r, target, a, b, ed, cnt);
+    /* The exits that run cleanups: a `return`, and a jump that leaves a scope —
+     * `break`, `continue` (D3) and `goto` (§5.5, rule 1). The function's own
+     * scope may have a ladder; an inner block is always inline (§5.5.2, r6), so
+     * a `return` of a ladder function with an inner defer pending runs that one
+     * inline and then jumps to the ladder. */
+    for (size_t r = fn->body_first; p.any && r < fn->body_end && e->ok; r++) {
+        bool ret = word(ast, r, "return"), brk = word(ast, r, "break");
+        bool cnt_ = word(ast, r, "continue"), jmp = word(ast, r, "goto");
+        if (!ret && !brk && !cnt_ && !jmp) continue;
+        size_t at = k_em_tok_off(ast, r);
+        if (at < a || at >= b) continue;
+        size_t target = ret ? fn->body_first - 1
+                      : jmp ? goto_target(ast, fn, r)
+                            : exit_target(ast, fn, r, brk);
+        if (target == NO_TOKEN) continue;   /* not ours: break/continue/goto of another construction */
+        if (pending_count(ast, fn, r, target) == 0) continue;   /* nothing pending: the exit stays */
+        if (ret && p.mode == RET_LADDER) {
+            size_t j = ladder_label(ast, fn, r);
+            if (j == NO_TOKEN) { e->ok = false; return; }
+            size_t k = defers_before(ast, fn, j);
+            if (inner_pending(ast, fn, r) == 0) ladder_return(e, fn, r, k, a, b, ed, cnt);
+            else inline_exit(e, fn, r, target, k, a, b, ed, cnt);
+            continue;
         }
+        inline_exit(e, fn, r, target, NO_TOKEN, a, b, ed, cnt);
     }
 
     /* the closing braces: the ladder at the function's `}`, the natural end of a block at its `}` */
@@ -731,7 +813,7 @@ void k_em_edits_defer(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
 bool k_em_handles_defer(const KAst *ast, const KIsland *is) {
     if (is->kind != K_ISLAND_DEFER) return false;
     const KAstNode *fn = fn_of(ast, is->anchor);
-    if (!fn || has_goto(ast, fn)) return false;
+    if (!fn) return false;
     Defer d;
     if (!analyze(ast, is->anchor, &d)) return false;
     size_t open = block_open(ast, is->anchor, fn->body_first - 1);

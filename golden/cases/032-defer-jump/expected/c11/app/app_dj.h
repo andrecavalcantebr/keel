@@ -10,7 +10,7 @@ size_t app_dj_walked_now(void);
 char app_dj_step(size_t i);
 #line 16 "app/dj.k"
 int app_dj_jumped(int k);
-#line 29 "app/dj.k"
+#line 30 "app/dj.k"
 int app_dj_nested(int k);
 
 #endif /* APP_APP_DJ_H */

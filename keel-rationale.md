@@ -1500,6 +1500,12 @@ registros correspondentes. Uma consulta que não sai de escopo, como
 regras de salto próprias: com o fim da finalização das composições, as
 restrições de entrada e saída voltam a ser as do cleanup léxico.
 
+A escada de rótulos vale onde o fim natural do escopo é o fim da função: o
+rótulo recebe tanto o `return` quanto a queda natural, e depois dele só resta
+retornar. Num bloco interno a queda natural segue para o comando seguinte, e um
+rótulo único não distinguiria as duas chegadas sem uma marca em runtime, que o
+lowering não tem.
+
 Referência: [spec §4.6](keel-spec.md#46-cleanup-léxico).
 
 ## Macros e sintaxe de keel

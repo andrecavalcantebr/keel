@@ -24,14 +24,16 @@ out:
     return -1;
 }
 
-/* A `defer` of an inner block in a function whose exits are all `return`: the
-   inner one is inline, and the outer one is the ladder of the function. */
+/* A `defer` of an inner block goes inline, and the ladder is the function's
+   (§5.5.2, rule 6). The third one is registered after the two returns, so they
+   do not run it (§5.5, rule 3). */
 pub int nested(int k) {
-    defer note('o');
+    defer note('1');
     {
-        defer note('i');
+        defer note('2');
         if (k == 0) return 1;
         if (k == 1) return 2;
+        defer note('3');
     }
     return 3;
 }

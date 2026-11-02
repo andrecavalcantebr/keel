@@ -35,25 +35,29 @@ out:
 
 
 
+
 int app_dj_nested(int k) {
     int keel__rv0;
     {
 
         if (k == 0) { keel__rv0 = 1;
-#line 32 "app/dj.k"
-        app_dj_note('i');
+#line 33 "app/dj.k"
+        app_dj_note('2');
         goto keel__e0; }
         if (k == 1) { keel__rv0 = 2;
-#line 32 "app/dj.k"
-        app_dj_note('i');
-#line 34 "app/dj.k"
-        goto keel__e0; }
-#line 32 "app/dj.k"
-        app_dj_note('i');
+#line 33 "app/dj.k"
+        app_dj_note('2');
 #line 35 "app/dj.k"
+        goto keel__e0; }
+
+#line 36 "app/dj.k"
+        app_dj_note('3');
+#line 33 "app/dj.k"
+        app_dj_note('2');
+#line 37 "app/dj.k"
     }
     keel__rv0 = 3; goto keel__e0;
-#line 30 "app/dj.k"
-keel__e0: app_dj_note('o');
-#line 37 "app/dj.k"
+#line 31 "app/dj.k"
+keel__e0: app_dj_note('1');
+#line 39 "app/dj.k"
     return keel__rv0; }

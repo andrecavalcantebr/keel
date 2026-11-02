@@ -1157,6 +1157,7 @@ keel__e0: s1(p);
 3. As duas formas só são equivalentes porque a linguagem recusa o sombreamento (`defer-later-shadowed`, linguagem §4.6): a escada emite o corpo uma vez, no fim do escopo do registro, e o inline o cola em cada saída, que pode estar num escopo mais interno. Se a recusa caísse, só a escada seria correta.
 4. A condição é sobre os cinco terminadores do C e não tem caso por construção: depois da expansão (§5.5.1), o corpo de um `parallel` tem saídas `goto`, e sai inline por dedução. O mesmo vale para `match`.
 5. A escada sai no lugar do `}` que fecha a função: os rótulos `keel__e<N>` em ordem inversa de registro (`e0` é o primeiro), cada um na linha do corpo do seu `defer` (§5.5, regra 4), e depois, na linha do `}`, `return keel__rv<N>;` e o `}`. `return expr;` com `defer` pendente vira `keel__rv0 = expr; goto keel__e<K>;`, onde `K` é o último registrado até ali; leva chaves só quando o `return` era o corpo de um `if`, `else` ou laço sem chaves. O inline sai sempre entre chaves, com o cleanup em linhas próprias entre as duas metades da instrução: `{`, o cleanup, `continue; }`. Um `return` anterior a qualquer registro não muda. O cleanup que fecha um bloco leva a indentação do `defer`.
+6. Um `defer` registrado em bloco interno sai inline em cada saída do bloco. A escada é só do escopo que termina com a função.
 
 ### 5.6 `tags` e `match`
 

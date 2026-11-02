@@ -2,7 +2,7 @@
  *
  * Each call checks the return value and the order of the cleanups the exit ran
  * (spec §4.6, rules 1 and 3: inner scopes are cleaned before outer ones, and an
- * exit before the registration does not run it). */
+ * exit before a registration does not run it). */
 #include <assert.h>
 #include <string.h>
 #include "app/app_dj.h"
@@ -24,18 +24,21 @@ int main(void) {
     assert(app_dj_jumped(1) == 0);
     trail_is("bg");
 
-    /* a `return` from the inner block: inner cleanup, then outer */
+    /* a `return` from the inner block: the inner cleanup registered before it,
+       then the function's ladder. The third `defer` is registered after, and
+       does not run. */
     app_dj_reset();
     assert(app_dj_nested(0) == 1);
-    trail_is("io");
+    trail_is("21");
 
     app_dj_reset();
     assert(app_dj_nested(1) == 2);
-    trail_is("io");
+    trail_is("21");
 
-    /* the block ends naturally, and the function returns past it */
+    /* the block ends naturally: both of its cleanups run, in reverse order of
+       registration, and the function's ladder follows */
     app_dj_reset();
     assert(app_dj_nested(2) == 3);
-    trail_is("io");
+    trail_is("321");
     return 0;
 }

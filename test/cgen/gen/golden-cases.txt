@@ -39,4 +39,4 @@ test/cgen/gen/share|use.k|-
 020-extent|app/pos.k|-
 025-of-range|app/ofr.k|-
 016-line|app/ml.k|-
-032-defer-jump|app/dj.k|-|wip
+032-defer-jump|app/dj.k|-

@@ -30,6 +30,17 @@ while IFS='|' read -r case src main flag opts; do
         done
         [ $failed = wip ] && { state=wip; break; }
         [ $failed = fail ] && { state=fail; continue; }
+        # the C it wrote must be a translation unit that compiles (every #include resolves in the
+        # generated tree): a header the closure forgot to write is found here, not by the user
+        std=$p; [ "$p" = c23 ] && std=c2x
+        if [ $failed = 0 ] && [ -d "$out" ]; then
+            for c in $(find "$out" -name '*.c' | sort); do
+                if ! cc -std=$std -fsyntax-only -w -I "$out" "$c" 2>"$tmp/cc.err"; then
+                    [ "$flag" = wip ] || { printf 'FAIL   %s %s: the generated %s does not compile\n' "$case" "$p" "${c#$out/}"; sed -n '1,3s/^/       /p' "$tmp/cc.err"; }
+                    state=fail
+                fi
+            done
+        fi
         for f in $(cd "$dir/expected/$p" && find . -type f | sort); do
             cmp -s "$dir/expected/$p/$f" "$out/$f" || {
                 [ "$flag" = wip ] || { printf 'FAIL   %s %s/%s differs\n' "$case" "$p" "${f#./}"

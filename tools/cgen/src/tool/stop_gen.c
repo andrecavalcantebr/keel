@@ -120,6 +120,8 @@ static keel_slice_char name_span(const KAst *a, size_t first, size_t end) {
  * #include, not the imports). The prelude and the compiled module are in `w`
  * already. A generic module writes what the emitter says it owns (backend
  * §4.4.1). */
+static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, KEmitOptions opt, bool base);
+
 static int emit_imports(keel_arena *arena, void *tool, const char *dest, const KModule *m,
                         Written *w, KEmitOptions opt, bool base) {
     const KAst *ast = m->ast;
@@ -145,6 +147,9 @@ static int emit_imports(keel_arena *arena, void *tool, const char *dest, const K
         keel_slice_char src_path = source_path(dep->name, src_buf, sizeof src_buf);
         int rc = emit_one(arena, dest, dep->ast, dep->name, src_path, K_EMIT_TYPE_H, ".type.h", opt);
         if (!rc) rc = emit_one(arena, dest, dep->ast, dep->name, src_path, K_EMIT_H, ".h", opt);
+        /* the instances the imported module's own headers name (a `tagged` field, a `buffer` in a signature): the
+         * closure of headers is complete without compiling the importer first (cgen-tool-spec §4.10) */
+        if (!rc) rc = emit_instances(arena, dest, dep->ast, opt, true);
         if (!rc) rc = emit_imports(arena, tool, dest, dep, w, opt, base);
         if (rc) return rc;
     }

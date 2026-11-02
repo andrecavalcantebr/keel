@@ -22,9 +22,12 @@
  * reads the flag where it stands (rules 8 to 11). The directive is always written: without
  * `-fopenmp` the C compiler ignores it (rule 5.9.1.2).
  *
- * Refused (k_em_handles_parallel answers false): a header over several lines, a `{` that does
- * not end its line, workers other than `0..K` with a decimal K, a policy that is not ALL, ANY or
- * a decimal, a partition binder with more than one name, a capture not declared in the function. */
+ * The header may run over several lines (its edit covers them: emit.c leaves them out) and the
+ * `{` may stand on a line of its own; the workers are `0..K` with K a decimal or a constexpr of
+ * a decimal (the literal is written, backend §5.9 r4). Refused (k_em_handles_parallel answers
+ * false): a `{` that does not end its line, workers other than `0..K`, a policy that is not ALL,
+ * ANY or a decimal, a partition binder with more than one name, a capture not declared in the
+ * function. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -36,6 +39,7 @@ typedef struct {
     size_t open;                    /* the header's `(` */
     size_t wtype_a, wtype_b, wname; /* `size_t w` */
     size_t zero, dots, count;       /* `0 .. K` */
+    size_t workers;                 /* K, as a number: the literal or the constexpr's value */
     size_t ptype_a, ptype_b, pname; /* `T part` */
     size_t cont;                    /* the container variable */
     size_t caps[MAX_CAPS], ncaps;
@@ -101,7 +105,14 @@ static bool analyze(const KAst *ast, const KIsland *is, const KAstNode *fn, Par 
     if (c1 == NO_TOKEN || c1 < p->open + 3 || !ident(ast, c1 - 1)) return false;
     p->wtype_a = p->open + 1; p->wtype_b = c1 - 1; p->wname = c1 - 1;
     p->zero = c1 + 1; p->dots = c1 + 2; p->count = c1 + 3;
-    if (!word(ast, p->zero, "0") || !word(ast, p->dots, "..") || !decimal(k_em_tok(ast, p->count)) || !word(ast, p->count + 1, ";")) return false;
+    if (!word(ast, p->zero, "0") || !word(ast, p->dots, "..") || !word(ast, p->count + 1, ";")) return false;
+    long k = 0;
+    if (decimal(k_em_tok(ast, p->count))) {
+        for (size_t i = 0; i < k_em_tok(ast, p->count).len; i++) k = k * 10 + (k_em_tok(ast, p->count).ptr[i] - '0');
+    } else if (!ident(ast, p->count) || !k_em_constexpr_value(ast, fn, p->kw, p->count, &k) || k < 0) {
+        return false;   /* the workers are a decimal, or a constexpr whose initializer is one */
+    }
+    p->workers = (size_t)k;
 
     /* `T part : C` */
     size_t c2 = NO_TOKEN;
@@ -255,8 +266,7 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
         size_t N = k_em_capture_ordinal(ast, fn, p.kw);
         size_t kw_off = k_em_tok_off(ast, p.kw), close_off = k_em_tok_off(ast, p.close);
         size_t ind_n = kw_off - line_start(ast, kw_off);
-        size_t W = 0;
-        for (size_t i = 0; i < k_em_tok(ast, p.count).len; i++) W = W * 10 + (size_t)(k_em_tok(ast, p.count).ptr[i] - '0');
+        size_t W = p.workers;
         KToken name = k_em_tok(ast, p.name);
 
         if (kw_off >= a && kw_off < b) {

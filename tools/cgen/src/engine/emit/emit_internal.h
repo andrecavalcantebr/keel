@@ -173,6 +173,8 @@ typedef struct {
 bool k_em_array_of(const KAst *ast, const KAstNode *fn, size_t name, KArrayRef *out);
 /* dimension k of the array, as a decimal (a literal, or a constexpr of one): *v is set */
 bool k_em_array_dim(const KAst *ast, const KAstNode *fn, const KArrayRef *r, size_t k, long *v);
+/* the name at token t as a constexpr of a decimal literal, seen from token `at` (index.c): *v is set */
+bool k_em_constexpr_value(const KAst *ast, const KAstNode *fn, size_t at, size_t t, long *v);
 
 /* roles.c: the roles, the erased `type T`, the arity suffix of a function's signature.
  * k_em_arity_suffix writes the digits (or nothing) into out[8] and returns their count. */

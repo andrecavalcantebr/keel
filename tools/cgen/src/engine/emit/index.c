@@ -417,6 +417,12 @@ void k_em_edits_index(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
     }
 }
 
+/* the decimal value of the name at token t, a constexpr of a decimal literal, seen from
+ * token `at` (constexpr_value; parallel.c reads the count of its workers with it) */
+bool k_em_constexpr_value(const KAst *ast, const KAstNode *fn, size_t at, size_t t, long *v) {
+    return constexpr_value(ast, fn, at, t, v);
+}
+
 bool k_em_handles_index(const KAst *ast, const KIsland *is) {
     if (is->kind != K_ISLAND_ARRAY_INDEX || is->anchor >= ast->tokens.len) return false;
     const KAstNode *fn = enclosing_fn(ast, is->anchor);

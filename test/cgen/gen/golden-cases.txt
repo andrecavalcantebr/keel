@@ -38,7 +38,7 @@ test/cgen/gen/share|use.k|-
 038-decl-forms|app/dc.k|-
 039-array-forms|app/ar.k|-|
 040-match-forms|app/mf.k|-
-041-parallel-forms|app/pf.k|-|wip
+041-parallel-forms|app/pf.k|-|
 042-else-lines|app/es.k|-|wip
 010-routine|ag2.k|-
 019-walk|lst.k|-

@@ -351,6 +351,11 @@ static void split_line(Emit *e, size_t ln, const char *p, size_t len) {
     if (tail) k_em_put_bytes(e, tail, tail_len);
 }
 
+/* the source offset up to which the last copy_edited consumed the text: past its
+ * line end when an edit spans the line break (the header of a `parallel` over
+ * two lines), and emit_range then leaves the lines that the edit covers out */
+static size_t spanned_end;
+
 static void copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, size_t cnt) {
     const char *s = e->ast->source.ptr;
     size_t pos = a;
@@ -373,7 +378,8 @@ static void copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, 
         }
         pos = ed[k].at + ed[k].skip;
     }
-    if (e->ok) k_em_put_bytes(e, s + pos, b - pos);
+    if (e->ok && pos < b) k_em_put_bytes(e, s + pos, b - pos);
+    spanned_end = pos;
     e->scratch_n = 0;   /* the edits' text is spent */
 }
 
@@ -396,6 +402,7 @@ static void drop_nested(Edit *ed, size_t *cnt) {
 static void emit_line(Emit *e, size_t ln, size_t a, size_t b) {
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
+    spanned_end = 0;
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (k_em_overlaps(e, n, a, b)) node_edits(e, n, a, b, ed, &cnt);
@@ -419,9 +426,13 @@ static void emit_line(Emit *e, size_t ln, size_t a, size_t b) {
 /* the whole lines [a, b), each with its own .k number */
 static void emit_range(Emit *e, size_t a, size_t b) {
     size_t ln = k_em_line_at(e, a);
+    size_t written = 0;   /* the lines before this offset went out with an edit that spans them */
     while (a < b && e->ok) {
         size_t next = k_em_line_end(e, a);
-        emit_line(e, ln, a, next);
+        if (a >= written) {
+            emit_line(e, ln, a, next);
+            if (spanned_end > next) written = spanned_end;
+        }
         a = next;
         ln++;
     }
@@ -807,8 +818,10 @@ static void emit_c(Emit *e) {
 
     size_t len = e->ast->source.len;
     char nl[] = "\n";
+    size_t written = 0;   /* the lines before this offset went out with an edit that spans them */
     for (size_t a = 0; a < len && e->ok; ) {
         size_t b = k_em_line_end(e, a);
+        if (a < written) { a = b; continue; }
         bool empty = false, fn = false;
         for (size_t i = 0; i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
@@ -822,6 +835,7 @@ static void emit_c(Emit *e) {
             if (!k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ 1, nl })) e->ok = false;
         } else {
             emit_line(e, k_em_line_at(e, a), a, b);
+            if (spanned_end > b) written = spanned_end;
         }
         a = b;
     }

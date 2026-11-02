@@ -88,3 +88,8 @@ passagem.
 28 formas recusadas (`tools/agents/survey/`) fechou inteiro, em sete cartões ao Haiku (T11–T17), com
 oráculos à mão (casos 038–044). M4 feito (`cc`, depfile, `--instance`, `-f` grava sempre). Normativo sem
 pendência. Próximo: `linux-list` (022–024). Detalhe: última seção da passagem e `levantamento-2026-11-02.md`.
+
+**Atualização (2026-11-02, noite):** **54 dos 57 casos** saem do cgen (só 022–024 fora), e o `gen_golden` agora também
+compila o C escrito. Levantamentos 2 e 3 fechados; oráculos 054–058 escritos por Haiku (piloto, skill haiku-task);
+cartões T18–T35. Pendente do André: instância de módulo genérico (`g01`) e `priv inline` em genérico (`g02`).
+Próximo: refatoração do `emit.c` por partes. Detalhe: última seção da passagem.

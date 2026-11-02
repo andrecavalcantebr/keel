@@ -277,6 +277,8 @@ A unidade gerada é curta, vai para arquivo próprio sob o destino, e a sua form
 
 Vale a mesma escrita idempotente da §6: rodar com e sem a flag não retriga compilação alheia.
 
+Sob `-c`, `-S` ou `-E` uma invocação produz uma unidade e uma saída (§4.10), então a unidade de entrada é compilada numa segunda execução do compilador C: o objeto sai ao lado do módulo, com o nome da unidade (`main_<símbolo>.o`), e as opções de dependência (`-MMD`, `-MD`, `-MF`, `-MT`, `-MQ`) são só da primeira execução. Sem essas opções, as duas unidades vão a uma execução só, que as liga.
+
 Diagnósticos próprios:
 
 - `--main` sobre módulo que não tem função de entrada.

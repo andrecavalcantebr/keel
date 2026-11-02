@@ -13,11 +13,8 @@ para cá.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code, e
   atualizada em 2026-11-02 (34 dos 37 casos do golden saem do cgen). O
   que diverge do repositório vale menos que o repositório.
-- **Pendências de normativo, com proposta e sem "sim" ainda:** a frase do backend §5.5 r4
-  sobre o corpo do `defer` copiado como foi escrito, `-c` com `--main` (dois `cc`, §4.7 da
-  ferramenta) e a linha do `KEEL_CHECK` do acessor de `extent` na tabela do §6. O registro
-  está na última seção de [`tools/agents/passagem-2026-10-28.md`](tools/agents/passagem-2026-10-28.md).
-  Fora isso, nenhuma: P16 (visibilidade do C que
+- **Nenhuma pendência de normativo em aberto** desde 2026-11-02 (a última leva, `defer` na forma
+  escrita, `-c` com `--main` e a linha do acessor de `extent`, foi escrita com o "sim" do André). P16 (visibilidade do C que
   atravessa um módulo) foi resolvida em 2026-09-21; o registro está em
   `design/cgen-tool.md` §13, e o briefing que a levantou, em
   [`.claude/p16-visibilidade-do-c.md`](.claude/p16-visibilidade-do-c.md), fica

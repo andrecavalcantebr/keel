@@ -124,7 +124,7 @@ buffer _Atomic u32      →  keel_buffer_atomic_u32
 3. O nome cai da árvore do tipo, e o prefixo aparece só na raiz: `buffer slice i32` é `buffer( slice( i32 ) )`, e sai `keel_buffer_keel_slice_i32`.
 4. A grafia gerada nunca contém `__` nem começa por `_` seguido de maiúscula. Um qualificador que começa por `_` perde o underscore inicial e baixa a caixa: `_Atomic u32` dá `atomic_u32`. É a única normalização de grafia do mangling. [D17](#10-decisões-de-emissão)
 5. Os três espaços de identificador do C — nome de tipo, tag e constante de enum — levam o prefixo do módulo, em escopo de arquivo. [D16](#10-decisões-de-emissão)
-6. A tag de struct repete o nome manglado, mesmo quando o fonte escreveu a struct sem tag (§4.3.1).
+6. A tag de struct repete o nome manglado, mesmo quando o fonte escreveu a struct sem tag (§4.3.1). Num `typedef` de vários declaradores, a tag da struct sem tag é a do primeiro: `typedef struct { int a; } P, *PP;` sai `typedef struct app_P { int a; } app_P, *app_PP;`.
 7. A constante de enum nomeado leva dois níveis, `M_Tipo_CONST`, porque seu escopo é o enum (linguagem §4.2). A de enum sem nome leva só o do módulo, `M_CONST`.
 8. Os nomes são reescritos também dentro do corpo do `enum`: `WALKING = STOPPED + 1` sai com os dois escopados.
 9. `enum` de bloco e o conteúdo de `extern_c` não são tocados.
@@ -1233,6 +1233,7 @@ typedef enum keel_corot_Status {
 9. Nada é emitido em volta do despacho: o laço é do programa, e escrever a etiqueta — `tagged.mark(t, MUL)` — é chamada comum, que não redespacha. [R: estrutura de controle](keel-rationale.md#estrutura-de-controle-e-máquina-completa)
 10. O campo de etiqueta do `tagged` é `i32`. Um parâmetro declarado com o nome do parâmetro `tags` sai com o tipo do `enum`: `void keel_tagged_ast_Kind_ast_NodeRef_mark(… , ast_Kind e)`. [R: conjuntos fechados](keel-rationale.md#conjuntos-fechados-e-exaustividade)
 11. O despacho diverge do mapeamento de linhas (§6): cada rótulo de braço é precedido de um `#line` com a linha do rótulo no `.k`, e o fim do `match`, de outro com a linha seguinte à do `}` que o fecha. Dentro de cada braço, o corpo mapeia 1:1. O exemplo acima omite os `#line`. [D35](#10-decisões-de-emissão)
+12. O braço conserva as linhas do autor. Um rótulo seguido de statement na mesma linha (`A: r = 1;`) sai `keel__m<N>_A: { r = 1; }` nessa linha, e o `goto keel__m<N>_end` na seguinte; o `}` do `match` que fecha um braço já fechado escreve só o rótulo de fim. O operando que é campo de struct (`h->state`) é lido como qualquer instância de `tagged`: `switch (h->state.tag)`, ou `->tag` quando o campo é ponteiro.
 
 **Verificações:** `tag-out-of-range`, no `default` (§5.17). A pertinência da etiqueta escrita é da tradução (linguagem §4.3).
 
@@ -1397,7 +1398,7 @@ atomic_load_explicit(&step.flag, memory_order_relaxed)
 1. O símbolo de controle é declarado fora do bloco do gestor, com o nome escrito e o tipo `keel_parallel_control`, porque é legível depois do bloco (linguagem §4.8). `workers` e `target` vão no inicializador.
 2. A diretiva reparte o laço dos workers, e nada mais: quem divide é `partition`, chamada uma vez por worker, antes do corpo do usuário. É o que permite particionar um contêiner cuja divisão o backend não conhece.
 3. A parte é ligada ao binder por valor, com o tipo que o módulo declara como produto de `partition`. Percorrer é do corpo, que é código comum (§5.7).
-4. `num_threads(k)` sai sempre, com o literal: uma thread por parte. [D47](#10-decisões-de-emissão)
+4. `num_threads(k)` sai sempre, com o literal: uma thread por parte. Workers escritos por um `constexpr` de valor decimal conhecido saem com o literal resolvido (`.workers`, `num_threads` e o limite do laço). [D47](#10-decisões-de-emissão)
 5. `default(none)` sai sempre: um local não listado na captura vira erro do compilador C que o nomeia, na linha do `.k`. [D48](#10-decisões-de-emissão)
 6. Os temporários gerados e o símbolo de controle entram nas cláusulas junto com as capturas, na ordem da [D6](#10-decisões-de-emissão).
 7. Captura escalar é `firstprivate`, e instância `byref` é `shared` (linguagem §4.8). Escrever num escalar capturado já é `captured-write` na linguagem.
@@ -1528,7 +1529,7 @@ keel_outcome_keel_string name = app_login(); if (keel_outcome_keel_string_failed
 
 **Regras**
 
-1. A declaração, ou a atribuição, sai como escrita, seguida de `if (M_failed(x))` na mesma linha. O teste é sempre a chamada a `failed` da instância, pelo despacho do §5.2, e nunca `if (!x)`. [D13](#10-decisões-de-emissão) [R: resultados finais](keel-rationale.md#resultados-finais-e-estados-cooperativos)
+1. A declaração, ou a atribuição, sai como escrita, seguida de `if (M_failed(x))` na mesma linha. A quebra de linha que a escrita tenha entre a cláusula e o statement, e a indentação dele, saem como escritas: o `else` só é trocado por `; if (…)`. O teste é sempre a chamada a `failed` da instância, pelo despacho do §5.2, e nunca `if (!x)`. [D13](#10-decisões-de-emissão) [R: resultados finais](keel-rationale.md#resultados-finais-e-estados-cooperativos)
 2. Na forma de saída, o statement entra no `if` como escrito. Na de default, o `if` chama `M_win1(&x, valor)`, com o valor como escrito. [R: resultado recebido pelo verbo](keel-rationale.md#resultado-recebido-pelo-verbo)
 3. O receptor de `win` é o próprio símbolo, por endereço. Não há temporário, reatribuição da cópia devolvida, literal composto nem escrita direta de campo. [R: resultado recebido pelo verbo](keel-rationale.md#resultado-recebido-pelo-verbo)
 4. Nada é sintetizado dentro do operando: não há desembrulho, conversão nem `return` implícito.

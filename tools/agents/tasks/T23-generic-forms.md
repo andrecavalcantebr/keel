@@ -1,4 +1,4 @@
-# T23 — módulo genérico: modificador em várias linhas, comentário na declaração e função `priv`
+# T23 — módulo genérico: modificador em várias linhas, comentário na declaração, função `priv` e instância do módulo
 
 ## Objetivo
 
@@ -10,29 +10,29 @@ Oráculo: **`golden/cases/051-generic-forms`** (escrito à mão: `gx.k`, `inst.k
 
 ## Arquivos
 
-Pode editar, em `tools/cgen/src/engine/emit/`: `instance.c`, `emit.c`, `emit_internal.h`. Pode apagar o `|wip` da linha `051-generic-forms` de `test/cgen/gen/golden-cases.txt`. Pode criar `tools/agents/reports/T23-generic-forms.md`.
+Pode editar, em `tools/cgen/src/engine/emit/`: `instance.c`, `emit.c`, `emit_internal.h`. Pode apagar o `|wip` das linhas `051-generic-forms` e `053-generic-module-instance` de `test/cgen/gen/golden-cases.txt`. Pode criar `tools/agents/reports/T23-generic-forms.md`.
 
 Não toque: normativos, `golden/**/expected/**`, nenhum `proof.c`, nenhum outro caso. Não faça commit nem `git add`. Se um teste de unit afirmar o contrário, não o edite: guarde o patch fora do repositório e diga no relatório.
 
 ## Contrato
 
 - Código existente: o comentário do alto de `instance.c` (lista "Refused"), `put_gap` ("A comment would carry its text into a line of C: refused"), e o emissor do `.c` de quem declara `instance` (007: `golden/cases/007-instance/expected/c23/instances.c`).
-- **Fica recusado** (sem regra no backend; não implemente): tipo ou constante de um genérico que cita um parâmetro mas **nenhum modificador** (por exemplo `pub constexpr size_t CAP = N;`), porque o nome na instância é ambíguo. Recuse com `implementation-limit`.
+- **Instância do módulo** (backend §4.3 regra 6, caso **`golden/cases/053-generic-module-instance`**: `gd.k`, `inst3.k`, `expected/`): uma declaração do genérico que cita parâmetro e **nenhum modificador** (`pub constexpr size_t CAP = N;`, `pub typedef struct { T first; T last; } Pair;`) sai nos headers **`gd_3_i32.type.h`** e **`gd_3_i32.h`**, uma vez, com o nome `gd_3_i32_CAP` / `gd_3_i32_Pair` (`M_<args>_<nome>`; `N` vira `3` e `T` vira `i32`); o `.type.h` de cada instância de modificador (`gd_box_3_i32.type.h`) o inclui, e o corpo do verbo escreve `gd_3_i32_CAP`. Esses headers só existem quando o módulo tem uma declaração assim (sem ela, nada muda: 007 e a base). `instance gd.box(3) i32;` tem todo `pub inline`: o `inst3.c` é só `#include "inst3.h"` (já é o comportamento).
 
 ## Passos sugeridos
 
 1. `sh test/cgen/gen_golden.sh`: veja o `wip 051-generic-forms`; gere a saída e compare. **Não copie a saída para o esperado.**
 2. Uma forma por vez; `make -C tools/cgen -j8` e `sh test/cgen/gen_golden.sh` inteiro a cada passo (007 e `base.sh` usam genéricos: rode também `sh test/cgen/base.sh`).
-3. `sh tools/agents/survey/run.sh`: g02, g03 e g04 devem ir a `OK` (g01 fica `LIMIT`).
+3. `sh tools/agents/survey/run.sh`: g01, g02, g03 e g04 devem ir a `OK`.
 
 ## Aceitação
 
 ```sh
-sh test/cgen/gen_golden.sh      # 051 sai de wip; 0 fail
+sh test/cgen/gen_golden.sh      # 051 e 053 saem de wip; 0 fail
 sh test/cgen/base.sh            # "124 ok, 0 fail, 20 wip"
-golden/run.sh                   # "100 ok, 0 fail, 0 xfail, 0 xpass, 3 wip"
+golden/run.sh                   # "102 ok, 0 fail, 0 xfail, 0 xpass, 3 wip"
 sh tools/agents/verify.sh       # ALL OK, sem warnings novos
-sh tools/agents/survey/run.sh   # g02, g03, g04 com OK nos dois perfis
+sh tools/agents/survey/run.sh   # g01-g04 com OK nos dois perfis
 ```
 
 ## Relatório

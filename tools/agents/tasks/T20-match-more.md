@@ -30,7 +30,7 @@ Não toque: normativos, `golden/**/expected/**`, nenhum `proof.c`, nenhum outro 
 
 ```sh
 sh test/cgen/gen_golden.sh      # 047 e 052 saem de wip; 0 fail
-golden/run.sh                   # "100 ok, 0 fail, 0 xfail, 0 xpass, 3 wip"
+golden/run.sh                   # "102 ok, 0 fail, 0 xfail, 0 xpass, 3 wip"
 sh tools/agents/verify.sh       # ALL OK, sem warnings novos
 sh tools/agents/survey/run.sh   # t02, t04, t05, y01 com OK nos dois perfis
 ```

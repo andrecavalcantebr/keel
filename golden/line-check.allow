@@ -153,3 +153,4 @@ golden/cases/051-generic-forms/expected/c11/gx_stack_i32.type.h	typedef struct g
 golden/cases/051-generic-forms/expected/c23/gx_stack_i32.type.h	typedef struct gx_stack_i32 {
 golden/cases/052-match-foreign/expected/c11/app/app_fm.c	case app_lib_other_Phase_OFF: goto keel__m0_OFF;
 golden/cases/052-match-foreign/expected/c23/app/app_fm.c	case app_lib_other_Phase_OFF: goto keel__m0_OFF;
+golden/cases/053-generic-module-instance/expected/c11/gd_3_i32.type.h	static const size_t gd_3_i32_CAP__chk = 3; _Static_assert(sizeof(gd_3_i32_CAP__chk) > 0, "constexpr");

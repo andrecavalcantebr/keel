@@ -281,6 +281,7 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
             KToken cont = k_em_tok(ast, p.cont);
             q = put(w, q, cont.ptr, cont.len);
             q = LIT(w, q, ";\n\n");
+            size_t directive = q;   /* where the directive starts: --parallel-lowering=serie drops it */
             q = spaces(w, q, ind_n + 4);
             q = LIT(w, q, "#pragma omp parallel for num_threads(");
             q = put_uint(w, q, W);
@@ -305,6 +306,7 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
                 }
             if (!first) q = LIT(w, q, ")");
             q = LIT(w, q, "\n");
+            if (!e->opt.omp) q = directive;
             q = spaces(w, q, ind_n + 4);
             q = LIT(w, q, "for (");
             /* the worker's binder is written as the source has it */

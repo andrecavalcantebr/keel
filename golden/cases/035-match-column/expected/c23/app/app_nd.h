@@ -1,0 +1,19 @@
+/* app/app_nd.h — generated from app/nd.k by cgen, C23 profile. */
+#ifndef APP_APP_ND_H
+#define APP_APP_ND_H
+
+#include "app/app_nd.type.h"
+
+#line 7 "app/nd.k"
+static inline app_nd_Kind *app_nd_nodes_kind_ptr(struct app_nd_nodes *p, size_t i0);
+#line 11 "app/nd.k"
+i32 app_nd_weight(struct app_nd_nodes *t, size_t i);
+
+#line 7 "app/nd.k"
+static inline app_nd_Kind *app_nd_nodes_kind_ptr(struct app_nd_nodes *p, size_t i0) {
+#line 7 "app/nd.k"
+    KEEL_CHECK(i0 < p->n && p->n <= p->cap, "extent-index-out-of-bounds");
+    return &p->kind[i0];
+}
+
+#endif /* APP_APP_ND_H */

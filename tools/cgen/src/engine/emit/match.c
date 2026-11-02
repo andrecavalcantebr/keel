@@ -36,7 +36,9 @@
 
 typedef struct {
     size_t kw, open, close;         /* `match`, the match's `{` and `}` */
-    size_t operand;                 /* the variable's token */
+    size_t operand;                 /* the variable's token, or the first of a column access */
+    size_t rp;                      /* the `)` after the operand */
+    bool column;                    /* the operand is `P->col[i]` of an extent: its text stays, lowered by extent.c */
     bool ptr;                       /* declared with a `*` */
     char set[NAME_CAP];             /* the mangled set: `ag_Cycle` */
     size_t set_len;
@@ -161,11 +163,31 @@ static bool resolve_operand(const KAst *ast, const KIsland *is, Match *m, KToken
 static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
     if (is->kind != K_ISLAND_MATCH) return false;
     m->kw = is->anchor;
-    if (!word(ast, m->kw, "match") || !word(ast, m->kw + 1, "(") || !ident(ast, m->kw + 2) || !word(ast, m->kw + 3, ")") ||
-        !word(ast, m->kw + 4, "{"))
-        return false;
+    if (!word(ast, m->kw, "match") || !word(ast, m->kw + 1, "(")) return false;
     m->operand = m->kw + 2;
-    m->open = m->kw + 4;
+    m->column = false;
+    if (ident(ast, m->kw + 2) && word(ast, m->kw + 3, ")")) {
+        m->rp = m->kw + 3;
+    } else {
+        /* a column of an extent holding a set (backend §5.6, rule 3) */
+        size_t depth = 0, j = m->kw + 1;
+        for (; j < ast->tokens.len; j++) {
+            if (word(ast, j, "(")) depth++;
+            else if (word(ast, j, ")") && --depth == 0) break;
+        }
+        if (j >= ast->tokens.len) return false;
+        m->rp = j;
+        for (size_t k = 0; k < ast->islands.len && !m->column; k++) {
+            const KIsland *c = keel_buffer_KIsland_ptr(&ast->islands, k);
+            size_t close;
+            if (c->kind != K_ISLAND_COLUMN || c->anchor != m->operand) continue;
+            if (!k_em_column_set(ast, c, m->set, sizeof m->set, &m->set_len, &close) || close + 1 != m->rp) return false;
+            m->column = true;
+        }
+        if (!m->column) return false;
+    }
+    if (!word(ast, m->rp + 1, "{")) return false;
+    m->open = m->rp + 1;
     size_t depth = 0;
     m->close = NO_TOKEN;
     for (size_t j = m->open; j < ast->tokens.len; j++) {
@@ -179,6 +201,7 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
 
     /* declared with a `*` or not: the first earlier use of the name that follows a type */
     KToken name = k_em_tok(ast, m->operand);
+    if (m->column) goto labels;
     m->ptr = false;
     bool found = false;
     /* in the function that holds the match: another function may declare the name otherwise */
@@ -201,6 +224,7 @@ static bool analyze(const KAst *ast, const KIsland *is, Match *m) {
     if (!found) return false;
     if (!resolve_operand(ast, is, m, name)) return false;
 
+labels:
     /* the labels of the arms, at depth 1 of the match's braces */
     m->n = 0;
     depth = 0;
@@ -284,7 +308,7 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
             if (!w) return;
             size_t q = 0;
             q = put(w, q, "switch (", sizeof "switch (" - 1);
-            q = put(w, q, m.disc, m.disc_len);
+            if (!m.column) q = put(w, q, m.disc, m.disc_len);
             q = put(w, q, ") {", 3);
             for (size_t i = 0; i < m.n; i++) {
                 KToken tag = k_em_tok(ast, m.label[i]);
@@ -312,8 +336,16 @@ void k_em_edits_match(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
             q = put(w, q, "_end;\n", sizeof "_end;\n" - 1);
             q = put(w, q, ind, ind_n);
             q = put(w, q, "}", sizeof "}" - 1);
-            push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = kw_off, .skip = k_em_tok_end(ast, m.open) - kw_off,
-                .text = w, .text_len = q });
+            if (m.column) {
+                /* the operand stays where it is, for extent.c to lower: only `match (` and `) {` change */
+                push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = kw_off, .skip = k_em_tok_end(ast, m.kw + 1) - kw_off,
+                    .text = w, .text_len = sizeof "switch (" - 1 });
+                push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, m.rp), .skip = k_em_tok_end(ast, m.open) - k_em_tok_off(ast, m.rp),
+                    .text = w + sizeof "switch (" - 1, .text_len = q - (sizeof "switch (" - 1) });
+            } else {
+                push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = kw_off, .skip = k_em_tok_end(ast, m.open) - kw_off,
+                    .text = w, .text_len = q });
+            }
         }
 
         /* the arms are one level out: the body loses what the label has over the `match` */

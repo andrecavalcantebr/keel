@@ -22,6 +22,7 @@
  * (rule 5), by the column island the parser leaves there. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
+#include "engine/names.h"
 
 #define NO_TOKEN ((size_t)-1)
 #define MAX_GROUPS 4
@@ -278,6 +279,14 @@ void k_em_extent_protos(Emit *e, const KAstNode *n) {
     }
 }
 
+/* Writes the pending text as lines of the column's own .k line: the signature
+ * and each KEEL_CHECK carry the line of the column, so the abort reports it
+ * (§5.17, rule 4) and not the line after it. */
+static void flush_at(Emit *e, size_t line) {
+    if (e->ok && !k_emit_at(&e->w, line, (keel_slice_char){ e->n, e->buf })) e->ok = false;
+    e->n = 0;
+}
+
 /* One accessor per column: the signature, a KEEL_CHECK per index with the
  * group's whole invariant (rule 6), and the address (rule 4). */
 void k_em_extent_bodies(Emit *e, const KAstNode *n) {
@@ -286,8 +295,10 @@ void k_em_extent_bodies(Emit *e, const KAstNode *n) {
     if (!k_em_extent_at(ast, n, &x)) return;
     for (size_t c = 0; c < x.columns && e->ok; c++) {
         e->n = 0;
+        size_t line = column_line(e, &x, c);
         put_signature(e, &x, c);
         put_s(e, " {\n");
+        flush_at(e, line);
         for (size_t g = 0; g < x.groups; g++) {
             KToken count = k_em_tok(ast, x.count[g]);
             put_s(e, "    KEEL_CHECK(");
@@ -299,6 +310,7 @@ void k_em_extent_bodies(Emit *e, const KAstNode *n) {
             put_s(e, " <= ");
             put_cap(e, &x, g);
             put_s(e, ", \"extent-index-out-of-bounds\");\n");
+            flush_at(e, line);
         }
         put_s(e, "    return &p->");
         KToken col = k_em_tok(ast, x.col[c]);
@@ -320,7 +332,7 @@ void k_em_extent_bodies(Emit *e, const KAstNode *n) {
             put_s(e, "]");
         }
         put_s(e, ";\n}\n");
-        if (e->ok && !k_emit_at(&e->w, column_line(e, &x, c), (keel_slice_char){ e->n, e->buf })) e->ok = false;
+        if (e->ok && !k_emit_at(&e->w, line + 1, (keel_slice_char){ e->n, e->buf })) e->ok = false;
     }
 }
 
@@ -368,6 +380,38 @@ bool k_em_handles_column(const KAst *ast, const KIsland *is) {
     const char *sym;
     size_t sym_len, open, close;
     return column_at(ast, is, &sym, &sym_len, &open, &close);
+}
+
+/* The `tags` set a column holds, for a `match` whose operand is that column
+ * (backend §5.6, rule 3): the mangled name of the element type, found among the
+ * extents of this module by the accessor's symbol. False for a column of another
+ * module, or one whose elements are not a set. */
+bool k_em_column_set(const KAst *ast, const KIsland *is, char *out, size_t cap, size_t *len, size_t *close_tok) {
+    const char *sym;
+    size_t sym_len, open, close;
+    if (!ast->symbols || !column_at(ast, is, &sym, &sym_len, &open, &close)) return false;
+    *close_tok = close;
+    for (size_t i = 0; i < ast->nodes.len; i++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        Extent x;
+        if (!k_em_extent_at(ast, n, &x)) continue;
+        KToken tag = k_em_tok(ast, x.name);
+        for (size_t c = 0; c < x.columns; c++) {
+            KToken col = k_em_tok(ast, x.col[c]);
+            size_t want = tag.len + 1 + col.len + 4;   /* `<tag>_<col>_ptr` */
+            if (sym_len < want + 1 || sym[sym_len - want - 1] != '_') continue;
+            const char *w = sym + sym_len - want;
+            if (memcmp(w, tag.ptr, tag.len) != 0 || w[tag.len] != '_' ||
+                memcmp(w + tag.len + 1, col.ptr, col.len) != 0 || memcmp(w + tag.len + 1 + col.len, "_ptr", 4) != 0) continue;
+            if (x.type_b[c] - x.type_a[c] > 2) return false;   /* `Kind` or `Kind *` */
+            KToken ty = k_em_tok(ast, x.type_a[c]);
+            const KSymbol *ts = k_symbol_resolve(ast->symbols, (keel_slice_char){ ty.len, (char *)ty.ptr });
+            if (!ts || ts->kind != K_SYM_TAGS) return false;
+            *len = k_mangle_symbol(ts, (keel_slice_char){ cap, out });
+            return *len > 0 && *len <= cap;
+        }
+    }
+    return false;
 }
 
 /* `P->col[i, j]` -> `*f(P, i, j)`, `P.col[i]` -> `*f(&P, i)`, and `&P.col[i]`

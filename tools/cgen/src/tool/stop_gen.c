@@ -40,6 +40,16 @@ static bool profile_is_c23(const char *profile, const char *const *pass, int pas
     return false;
 }
 
+/* cgen-tool-spec §4.8: --parallel-lowering; `auto` (and no option) reads -fopenmp among the
+ * passed-through options. `openmp` without it was refused by the caller. */
+static bool parallel_is_omp(const char *lowering, const char *const *pass, int pass_n) {
+    if (lowering && strcmp(lowering, "serie") == 0) return false;
+    if (lowering && strcmp(lowering, "openmp") == 0) return true;
+    for (int i = 0; i < pass_n; i++)
+        if (strcmp(pass[i], "-fopenmp") == 0 || strncmp(pass[i], "-fopenmp=", 9) == 0) return true;
+    return false;
+}
+
 /* mkdir -p of the directories above `path` */
 static bool make_parents(const char *path) {
     char buf[8192];
@@ -296,7 +306,8 @@ static bool has_public_main(const KAst *ast) {
 
 int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *roots, int n,
                         const char *base, const char *dest_dir, const char *profile,
-                        const char *const *pass, int pass_n, bool line_on, const char *main_module) {
+                        const char *const *pass, int pass_n, bool line_on, const char *main_module,
+                        const char *lowering) {
     if (n < 0 || n > CGEN_CLI_ROOTS_CAP) {
         fprintf(stderr, "cgen: error: search roots exceed configured limit %d; adjust CGEN_CLI_ROOTS_CAP [implementation-limit]\n", CGEN_CLI_ROOTS_CAP);
         return 2;
@@ -327,7 +338,8 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
         KModule *prelude = NULL;
         KLoadResult pr = cgen_load(tool, k_diag_text("keel"), &prelude);
         const char *dest = dest_dir ? dest_dir : "gen";
-        KEmitOptions opt = { .c23 = profile_is_c23(profile, pass, pass_n), .line_on = line_on };
+        KEmitOptions opt = { .c23 = profile_is_c23(profile, pass, pass_n), .line_on = line_on,
+                          .omp = parallel_is_omp(lowering, pass, pass_n) };
         keel_slice_char mod = k_diag_text(name);
         char src_buf[8192];
         keel_slice_char src_path = source_path(mod, src_buf, sizeof src_buf);
@@ -387,7 +399,7 @@ static bool ident_char(char c) { return c == '_' || (c >= 'a' && c <= 'z') || (c
 
 int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *const *roots, int n,
                              const char *base, const char *dest_dir, const char *profile,
-                             const char *const *pass, int pass_n, bool line_on) {
+                             const char *const *pass, int pass_n, bool line_on, const char *lowering) {
     if (n < 0 || n > CGEN_CLI_ROOTS_CAP) {
         fprintf(stderr, "cgen: error: search roots exceed configured limit %d; adjust CGEN_CLI_ROOTS_CAP [implementation-limit]\n", CGEN_CLI_ROOTS_CAP);
         return 2;
@@ -576,7 +588,8 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
         return 2;
     }
     const char *dest = dest_dir ? dest_dir : "gen";
-    KEmitOptions opt = { .c23 = profile_is_c23(profile, pass, pass_n), .line_on = line_on };
+    KEmitOptions opt = { .c23 = profile_is_c23(profile, pass, pass_n), .line_on = line_on,
+                          .omp = parallel_is_omp(lowering, pass, pass_n) };
     keel_slice_char keel_mod = k_diag_text("keel"), keel_src = k_diag_text("keel.k");
     rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_TYPE_H, ".type.h", opt);
     if (!rc) rc = emit_one(arena, dest, prelude->ast, keel_mod, keel_src, K_EMIT_H, ".h", opt);

@@ -9,16 +9,17 @@ cd "$(dirname "$0")/../.." || exit 2
 BIN=$PWD/tools/cgen/cgen
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 bad=0 ok=0 wip=0
-while IFS='|' read -r case src main flag; do
+while IFS='|' read -r case src main flag opts; do
     case "$case" in ''|'#'*) continue ;; esac
     case "$case" in */*) dir=$PWD/$case ;; *) dir=$PWD/golden/cases/$case ;; esac
     state=ok
+    [ -n "$opts" ] || opts=-fopenmp
     for p in c23 c11; do
         key=$(printf %s "$case" | tr / _); out=$tmp/$key/$p; err=$tmp/$key.$p.err
         # the sources are run in order into the same --dest-dir; --main goes with the first
         first=1 failed=0
         for s in $src; do
-            set -- -std="$p" --base-dir "$PWD/base" --stop-after=gen -I "$dir" --dest-dir "$out"
+            set -- -std="$p" --base-dir "$PWD/base" --stop-after=gen $opts -I "$dir" --dest-dir "$out"
             [ "$main" = - ] || [ $first = 0 ] || set -- "$@" --main "$main"
             first=0
             if ! "$BIN" "$@" "$dir/$s" >/dev/null 2>"$err"; then

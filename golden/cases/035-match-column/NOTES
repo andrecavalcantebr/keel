@@ -1,0 +1,6 @@
+Notas do caso.
+
+`match` sobre uma coluna de `extent` cujo elemento é um conjunto `tags`
+(spec §4.9 e §4.11; backend §5.6, regra 3). O operando fica no lugar, e a
+função de acesso do §5.15 o lê: `switch (*app_nd_nodes_kind_ptr(t, i))`. O
+`KEEL_CHECK` do índice está no acessor, não no despacho.

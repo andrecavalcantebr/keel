@@ -26,6 +26,7 @@ typedef enum {
 typedef struct {
     bool c23;        /* the profile: C23 when true, C11 when false (backend §9) */
     bool line_on;    /* false under --line=off: no #line at all */
+    bool omp;        /* the `parallel` lowering: the OpenMP directive when true, series when false (backend §5.9.1) */
 } KEmitOptions;
 
 #define K_EMIT_UNSUPPORTED ((size_t)-1)

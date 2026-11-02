@@ -99,3 +99,19 @@ golden/cases/033-debug-more/expected/c11/app/app_dbg.type.h	static const size_t 
 golden/cases/033-debug-more/expected/c23/app/app_dbg.h	static inline u8 *app_dbg_image_r_ptr(struct app_dbg_image *p, size_t i0, size_t i1);
 golden/cases/033-debug-more/expected/c23/app/app_dbg.h	static inline u8 *app_dbg_image_r_ptr(struct app_dbg_image *p, size_t i0, size_t i1) {
 golden/cases/033-debug-more/expected/c23/app/app_dbg.h	return &p->r[i0][i1];
+golden/cases/020-extent/expected/c11/app/app_pos.h	KEEL_CHECK(i0 < p->rows && p->rows <= p->rcap, "extent-index-out-of-bounds");
+golden/cases/020-extent/expected/c11/app/app_pos.h	KEEL_CHECK(i1 < p->cols && p->cols <= p->ccap, "extent-index-out-of-bounds");
+golden/cases/020-extent/expected/c11/app/app_pos.h	return &p->r[i0][i1];
+golden/cases/020-extent/expected/c23/app/app_pos.h	KEEL_CHECK(i0 < p->rows && p->rows <= p->rcap, "extent-index-out-of-bounds");
+golden/cases/020-extent/expected/c23/app/app_pos.h	KEEL_CHECK(i1 < p->cols && p->cols <= p->ccap, "extent-index-out-of-bounds");
+golden/cases/020-extent/expected/c23/app/app_pos.h	return &p->r[i0][i1];
+golden/cases/034-priv-tags/expected/c11/pt.c	case pt_Mode_AUTO: goto keel__m0_AUTO;
+golden/cases/034-priv-tags/expected/c11/pt.c	case pt_Mode_ON: goto keel__m0_ON;
+golden/cases/034-priv-tags/expected/c23/pt.c	case pt_Mode_AUTO: goto keel__m0_AUTO;
+golden/cases/034-priv-tags/expected/c23/pt.c	case pt_Mode_ON: goto keel__m0_ON;
+golden/cases/035-match-column/expected/c11/app/app_nd.c	case app_nd_Kind_ADD: goto keel__m0_ADD;
+golden/cases/035-match-column/expected/c11/app/app_nd.h	KEEL_CHECK(i0 < p->n && p->n <= p->cap, "extent-index-out-of-bounds");
+golden/cases/035-match-column/expected/c11/app/app_nd.h	return &p->kind[i0];
+golden/cases/035-match-column/expected/c23/app/app_nd.c	case app_nd_Kind_ADD: goto keel__m0_ADD;
+golden/cases/035-match-column/expected/c23/app/app_nd.h	KEEL_CHECK(i0 < p->n && p->n <= p->cap, "extent-index-out-of-bounds");
+golden/cases/035-match-column/expected/c23/app/app_nd.h	return &p->kind[i0];

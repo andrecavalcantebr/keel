@@ -1,4 +1,4 @@
 # <argument> <diagnostic id> <the .k position the abort reports> (backend §5.17, rule 4)
-1 extent-index-out-of-bounds app/dbg.k:15
+1 extent-index-out-of-bounds app/dbg.k:14
 2 par-target-above-total keel/routine.k:55
 3 mask-above-64-slots keel/routine.k:76

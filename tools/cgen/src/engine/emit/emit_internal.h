@@ -204,6 +204,7 @@ void k_em_extent_bodies(Emit *e, const KAstNode *n);
 /* the use point: `P.col[…]` -> `*f(&P, …)`, `P->col[…]` -> `*f(P, …)` (rule 5) */
 void k_em_edits_column(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
 bool k_em_handles_column(const KAst *ast, const KIsland *is);
+bool k_em_column_set(const KAst *ast, const KIsland *is, char *out, size_t cap, size_t *len, size_t *close_tok);
 
 /* routine.c: the explicit zero of a modifier's field in a brace initializer
  * (backend §5.10, rule 2). It adds text to a line and refuses nothing, so there

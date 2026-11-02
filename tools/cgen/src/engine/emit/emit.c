@@ -529,6 +529,8 @@ static void type_h_body(Emit *e) {
             e->done = b;
             break;
         case K_AST_TAGS:
+            if (!n->is_public) break;   /* a priv set's enum is a line of the .c (backend §5.6, rule 1) */
+            /* fall through */
         case K_AST_TYPE:
         case K_AST_OPAQUE:
             a = k_em_line_start(e, k_em_first_off(e, n));
@@ -607,7 +609,7 @@ static bool type_h_has_content(const Emit *e) {
         if (k_em_generic_out(e->ast, n)) continue;
         KAstKind k = n->kind;
         if (k == K_AST_IMPORT_C || k == K_AST_TYPE || k == K_AST_OPAQUE || k == K_AST_EXTERN_C ||
-            k == K_AST_CONSTEXPR || k == K_AST_TAGS) return true;
+            k == K_AST_CONSTEXPR || (k == K_AST_TAGS && n->is_public)) return true;
     }
     return false;
 }
@@ -753,7 +755,7 @@ static void emit_c(Emit *e) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (!k_em_overlaps(e, n, a, b)) continue;
             if (is_pub_inline(e->ast, n)) empty = true;   /* its body is in the .h */
-            else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
+            else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE || (n->kind == K_AST_TAGS && !n->is_public)) fn = true;
             else empty = true;   /* every other kind in the slice has no C in the .c */
         }
         if (fn && empty) { e->ok = false; return; }
@@ -857,10 +859,9 @@ static bool supported(const Emit *e) {
             break;
         }
         case K_AST_TAGS: {
-            /* pub tags N [A, B = 3];  priv sends the enum to the .c, which is not in the slice;
-             * a value is a number, optionally negative */
+            /* [pub|priv] tags N [A, B = 3]; a value is a number, optionally negative */
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
-            if (!n->is_public || n->name_first >= n->name_end || n->name_first != k + 1) return false;
+            if (n->name_first >= n->name_end || n->name_first != k + 1) return false;
             if (n->end - n->name_first < 4 || !k_em_text_is(k_em_tok(ast, n->name_first + 1), "[")) return false;
             for (size_t i = n->name_first + 2; i + 2 < n->end; i++) {
                 if (!k_em_text_is(k_em_tok(ast, i), "=")) continue;

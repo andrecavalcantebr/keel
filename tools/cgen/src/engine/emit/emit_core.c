@@ -120,6 +120,32 @@ char *k_em_scratch(Emit *e, size_t n) {
     return p;
 }
 
+/* Whether the gaps between tokens [tok_a, tok_b) hold no comment: a macro that continues a line
+ * with `\` cannot carry one (a `//` would swallow the next line, backend §9.2, rule 1). */
+bool k_em_range_plain(const KAst *ast, size_t tok_a, size_t tok_b) {
+    for (size_t i = tok_a + 1; i < tok_b; i++)
+        for (size_t p = k_em_tok_end(ast, i - 1); p < k_em_tok_off(ast, i); p++)
+            if (ast->source.ptr[p] == '/') return false;
+    return true;
+}
+
+/* k_em_put_range for the body of a `#define`: each line break of the source becomes `\` and a
+ * line break, and the blanks around it stay (backend §9.2, rule 1). */
+void k_em_put_continued(Emit *e, size_t tok_a, size_t tok_b) {
+    size_t n0 = e->n;
+    k_em_put_range(e, tok_a, tok_b);
+    if (!e->ok) return;
+    size_t len = e->n - n0;
+    char *copy = k_em_scratch(e, len + 1);
+    if (!copy) { e->ok = false; return; }
+    memcpy(copy, e->buf + n0, len);
+    e->n = n0;
+    for (size_t i = 0; i < len; i++) {
+        if (copy[i] == '\n') k_em_put_bytes(e, " \\", 2);
+        k_em_put_bytes(e, copy + i, 1);
+    }
+}
+
 void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b) {
     const KAst *ast = e->ast;
     size_t amp[16], namp = 0;   /* the tokens that take `&` before them (uses.c) */

@@ -33,7 +33,7 @@ static const KAstNode *body_of(const KAst *ast, size_t i, bool closing) {
 
 /* `constexpr T N = INIT;` from the constexpr token c, in the form the C11 lowering
  * takes: a type (one or more tokens), an identifier, `=`, an initializer (one or
- * more tokens), `;`, all before `end` and on one line. */
+ * more tokens), `;`, all before `end`; the line breaks of the source stay (backend §9.2, rule 1). */
 static bool cb_parts(const KAst *ast, size_t end, size_t c, CbParts *p) {
     size_t eq = c + 1;
     while (eq < end && !k_em_text_is(k_em_tok(ast, eq), "=") && !k_em_text_is(k_em_tok(ast, eq), ";")) eq++;
@@ -43,9 +43,7 @@ static bool cb_parts(const KAst *ast, size_t end, size_t c, CbParts *p) {
     if (semi >= end || semi < eq + 2) return false;
     KToken name = k_em_tok(ast, eq - 1);
     if (!is_ident(name) || name.len > CB_NAME_MAX) return false;
-    size_t from = k_em_tok_off(ast, c), to = k_em_tok_end(ast, semi);
-    for (size_t off = from; off < to; off++)
-        if (ast->source.ptr[off] == '\n') return false;
+    if (!k_em_range_plain(ast, c, semi + 1)) return false;   /* a comment inside the statement */
     p->name = eq - 1;
     p->eq = eq;
     p->semi = semi;
@@ -132,7 +130,7 @@ static void put_define(Emit *e, const KAstNode *fn, size_t c) {
     k_em_put_range(e, c + 1, p.name);   /* T: the tokens between `constexpr` and N */
     k_em_put_bytes(e, ")", 1);
     if (paren) k_em_put_bytes(e, "(", 1);
-    k_em_put_range(e, p.eq + 1, p.semi);
+    k_em_put_continued(e, p.eq + 1, p.semi);
     if (paren) k_em_put_bytes(e, ")", 1);
     k_em_put_bytes(e, ")\n", 2);
 }
@@ -207,7 +205,8 @@ void k_em_edits_constblock(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit
     const KAst *ast = e->ast;
     for (size_t i = fn->body_first; i < fn->body_end && e->ok; i++) {
         size_t at = k_em_tok_off(ast, i);
-        if (at < a || at >= b) continue;
+        bool here = at >= a && at < b;
+        if (!here && !k_em_text_is(k_em_tok(ast, i), "constexpr")) continue;
         if (k_em_text_is(k_em_tok(ast, i), "constexpr")) {
             /* the statement: `static const`, the checked name, the check after `;` */
             CbParts p;
@@ -217,14 +216,17 @@ void k_em_edits_constblock(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit
                 e->ok = false;
                 return;
             }
-            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, i).len,
-                .name_tok = 0, .is_type = false, .text = "static const", .text_len = 12 });
+            if (here)
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, i).len,
+                    .name_tok = 0, .is_type = false, .text = "static const", .text_len = 12 });
             char *s = k_em_scratch(e, len + 5);
             if (!s) return;
             memcpy(s, name, len);
             memcpy(s + len, "__chk", 5);
-            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, p.name),
-                .skip = k_em_tok(ast, p.name).len, .name_tok = 0, .is_type = false, .text = s, .text_len = len + 5 });
+            size_t name_at = k_em_tok_off(ast, p.name);
+            if (name_at >= a && name_at < b)   /* the statement may span lines: each edit goes to its own */
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = name_at,
+                    .skip = k_em_tok(ast, p.name).len, .name_tok = 0, .is_type = false, .text = s, .text_len = len + 5 });
             if (p.semi > p.eq + 2) {   /* more than one token of INIT: parenthesized (backend §9.2, rule 2) */
                 size_t open = k_em_tok_off(ast, p.eq + 1), close = k_em_tok_end(ast, p.semi - 1);
                 if (open >= a && open < b)
@@ -239,8 +241,10 @@ void k_em_edits_constblock(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit
             memcpy(t, " (void)", 7);
             memcpy(t + 7, name, len);
             memcpy(t + 7 + len, "__chk;", 6);
-            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, p.semi),
-                .skip = 0, .name_tok = 0, .is_type = false, .text = t, .text_len = len + 13 });
+            size_t semi_end = k_em_tok_end(ast, p.semi);
+            if (semi_end >= a && semi_end <= b)
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = semi_end,
+                    .skip = 0, .name_tok = 0, .is_type = false, .text = t, .text_len = len + 13 });
         } else if (is_ident(k_em_tok(ast, i))) {
             size_t decl;
             if (!cb_use(ast, fn, i, &decl)) continue;
@@ -265,7 +269,7 @@ void k_em_post_lines_constblock(Emit *e, size_t ln, size_t a, size_t b) {
 }
 
 /* C23 takes the block constexpr verbatim, so every function is supported. C11
- * lowers the form `constexpr T N = INIT;` on one line; any other form makes the
+ * lowers the form `constexpr T N = INIT;`, INIT over one line or more; any other form makes the
  * call UNSUPPORTED (refused, not copied into invalid C). */
 bool k_em_supported_constblock(const Emit *e, const KAstNode *fn) {
     if (e->opt.c23) return true;

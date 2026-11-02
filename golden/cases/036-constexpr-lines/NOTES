@@ -1,0 +1,7 @@
+Notas do caso.
+
+Os `constexpr` de módulo (`K`) e de bloco (`N`) com o `INIT` em duas linhas. Sob C23 a
+declaração sai como foi escrita. Sob C11 (backend §9.2, regra 1) o `#define` continua cada
+linha com `\`, e o objeto de conferência mantém as quebras do autor; o `#line` resincroniza
+depois dos dois. Um comentário dentro do `INIT` continua recusado sob C11, porque o `//` de
+uma linha de continuação engoliria a seguinte.

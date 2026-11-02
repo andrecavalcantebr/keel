@@ -482,7 +482,10 @@ static void emit_constexpr_c11(Emit *e, const KAstNode *n) {
     k_em_put_bytes(e, s + ts, te - ts);
     k_em_put_bytes(e, ")", 1);
     if (paren) k_em_put_bytes(e, "(", 1);
-    k_em_put_bytes(e, s + is, ie - is);
+    for (size_t p = is; p < ie; p++) {   /* each line break of the INIT continues the macro (backend §9.2, rule 1) */
+        if (s[p] == '\n') k_em_put_bytes(e, " \\", 2);
+        k_em_put_bytes(e, s + p, 1);
+    }
     if (paren) k_em_put_bytes(e, ")", 1);
     k_em_put_bytes(e, ")\n", 2);
     if (e->ok && !k_emit_at(&e->w, ln, (keel_slice_char){ e->n, e->buf })) e->ok = false;
@@ -871,12 +874,11 @@ static bool supported(const Emit *e) {
             break;
         }
         case K_AST_CONSTEXPR: {
-            /* [pub|priv] constexpr T NAME = INIT; on one line, INIT not naming the module */
+            /* [pub|priv] constexpr T NAME = INIT; INIT not naming the module */
             size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
             if (n->name_first >= n->name_end || n->name_first + 2 >= n->end - 1 || n->name_first <= k + 1) return false;
             if (!k_em_text_is(k_em_tok(ast, k), "constexpr") || !k_em_text_is(k_em_tok(ast, n->name_first + 1), "=")) return false;
-            for (size_t p = k_em_tok_off(ast, n->first); p < k_em_tok_end(ast, n->end - 1); p++)
-                if (ast->source.ptr[p] == '\n') return false;
+            if (!ast->source.len || (!k_em_range_plain(ast, n->first, n->end))) return false;   /* a comment inside: no `\` can carry it */
             break;
         }
         case K_AST_VARIABLE: {

@@ -115,3 +115,4 @@ golden/cases/035-match-column/expected/c11/app/app_nd.h	return &p->kind[i0];
 golden/cases/035-match-column/expected/c23/app/app_nd.c	case app_nd_Kind_ADD: goto keel__m0_ADD;
 golden/cases/035-match-column/expected/c23/app/app_nd.h	KEEL_CHECK(i0 < p->n && p->n <= p->cap, "extent-index-out-of-bounds");
 golden/cases/035-match-column/expected/c23/app/app_nd.h	return &p->kind[i0];
+golden/cases/036-constexpr-lines/expected/c11/app/app_cl.type.h	static const size_t app_cl_K__chk = (1 +

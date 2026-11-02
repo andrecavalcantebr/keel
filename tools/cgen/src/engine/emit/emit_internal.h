@@ -120,6 +120,8 @@ char *k_em_scratch(Emit *e, size_t n);
  * every name renamed as in the generated C: a block constexpr by its macro
  * name (k_em_constblock_rename), a module declaration by its mangled name. */
 void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b);
+bool k_em_range_plain(const KAst *ast, size_t tok_a, size_t tok_b);
+void k_em_put_continued(Emit *e, size_t tok_a, size_t tok_b);
 /* whether the node's token span intersects the source bytes [a, b) */
 bool k_em_overlaps(const Emit *e, const KAstNode *n, size_t a, size_t b);
 

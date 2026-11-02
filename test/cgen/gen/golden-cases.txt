@@ -50,7 +50,6 @@ test/cgen/gen/share|use.k|-
 050-else-default|app/ed.k|-
 051-generic-forms|inst.k|-
 052-match-foreign|app/lib/other.k app/fm.k|-
-053-generic-module-instance|inst3.k|-|wip
 010-routine|ag2.k|-
 019-walk|lst.k|-
 011-else|app/el.k|-

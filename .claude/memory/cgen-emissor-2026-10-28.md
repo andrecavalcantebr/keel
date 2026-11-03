@@ -93,3 +93,7 @@ pendência. Próximo: `linux-list` (022–024). Detalhe: última seção da pass
 compila o C escrito. Levantamentos 2 e 3 fechados; oráculos 054–058 escritos por Haiku (piloto, skill haiku-task);
 cartões T18–T35. Pendente do André: instância de módulo genérico (`g01`) e `priv inline` em genérico (`g02`).
 Próximo: refatoração do `emit.c` por partes. Detalhe: última seção da passagem.
+
+**Próximos passos (2026-11-02):** ver a seção "Próximos passos" no fim de `tools/agents/passagem-2026-10-28.md` (decisões do
+André sobre genérico/`priv inline`, `linux-list`, `supported()` por construção e o corte de `uses.c`/`defer.c`, itens
+pequenos, piloto de oráculo por Haiku no `AGENTS.md`, rodar de novo o levantamento 3 antes dos testes de estresse).

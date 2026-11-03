@@ -98,12 +98,18 @@ chama construção, com uma exceção inevitável — `defer.c` roda **depois** 
 todas, sobre o corpo já emitido, porque precisa dos pontos de saída que as
 outras criaram (backend §5.5.1, "`defer` é a última passagem de fluxo").
 
-**Estado em 2026-11-01: o corte vale, e os nomes divergiram.** O que existe em
+**Estado em 2026-11-02: o corte vale, e os nomes divergiram.** O que existe em
 `engine/emit/` e a que item da tabela corresponde:
 
 | Arquivo | O que a tabela previa |
 | --- | --- |
-| `emit.c`, `emit_core.c`, `writer.c`, `mangle.c` | o orquestrador, o `KWriter`, o mangling; as camadas do `layer.c` ficaram em `emit.c` |
+| `emit.c` | só `k_em_node_edits`, o despachante das edições de um nó (desde 2026-11-02 o resto foi repartido, abaixo) |
+| `lines.c` | a mecânica de linhas e edições: `copy_edited`, `emit_line`, `emit_split`, `split_line`, `comment_edits`, `drop_nested`, `emit_range` |
+| `files.c` | a montagem dos arquivos: `type_h_body`, `h_body`, `emit_header`, `emit_entry`, `emit_c`, `k_emit_file` e a emissão do `.h`/`.c` de instância |
+| `decls.c` | as declarações de nível de arquivo: visibilidade, `typedef`, `tags`, `extern` de variável, protótipo, `import_c`, `constexpr` de módulo sob C11 e o `extern_c` |
+| `generic.c` | a partição de módulo genérico (backend §4.4.1): o que é do módulo e o que é da instância |
+| `supported.c` | `supported()` e `islands_supported()`: o que o emissor cobre e o que recusa (o redesenho, cada construção declarar a sua aceitação, está por fazer) |
+| `emit_core.c`, `writer.c`, `mangle.c` | a mecânica comum, o `KWriter`, o mangling; as camadas do `layer.c` ficaram em `files.c` |
 | `uses.c`, `roles.c` | `decl.c`: substituição local de nome, os usos de outro módulo, os papéis |
 | `instance.c` | o fecho e a emissão de instância, e também o `container.c` |
 | `array.c`, `index.c`, `subscript.c` | `index.c`: o `array`, o índice verificado, o açúcar |
@@ -118,7 +124,7 @@ Sem arquivo próprio: o `check.c` (as verificações de `debug` saem onde a
 construção as pede), o `binder.c` (o binder de dimensão é do `array.c` e do
 `uses.c`), o `protocol.c` (as instâncias de função sobre protocolo saem pelo
 `roles.c` e pelo `stop_gen.c`) e o `entry.c` (a unidade de entrada é do
-`emit.c`).
+`files.c`).
 
 ---
 

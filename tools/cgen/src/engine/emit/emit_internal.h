@@ -150,6 +150,44 @@ size_t k_em_capture_ordinal(const KAst *ast, const KAstNode *fn, size_t tok);
  * by `at` (insertion sort: few edits per line). */
 void k_em_sort_edits(Edit *ed, size_t from, size_t cnt);
 
+/* emit.c: the edits of every node that overlaps a line (the dispatcher of the constructions) */
+void k_em_node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
+
+/* lines.c: a source line with its edits (k_em_copy_edited), written with its .k number
+ * (k_em_emit_line); a one-line parallel block in two parts (k_em_emit_split); the lines
+ * [a, b) (k_em_emit_range); the comments left out (k_em_comment_edits); the edits a rewrite
+ * swallowed (k_em_drop_nested). k_em_spanned_end is the offset the last k_em_copy_edited
+ * consumed up to, past a line break an edit spans. */
+void k_em_comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt);
+void k_em_drop_nested(Edit *ed, size_t *cnt);
+void k_em_copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, size_t cnt);
+void k_em_emit_line(Emit *e, size_t ln, size_t a, size_t b);
+void k_em_emit_split(Emit *e, size_t ln, size_t a, size_t b);
+void k_em_emit_range(Emit *e, size_t a, size_t b);
+size_t k_em_spanned_end(void);
+
+/* decls.c: the module-level declarations, each as its file form (k_em_emit_import,
+ * k_em_emit_proto, k_em_emit_extern, k_em_emit_constexpr_c11), a `pub inline` function
+ * (k_em_is_pub_inline), the edits of a declaration (k_em_decl_edits), and the three
+ * forms of extern_c with their text (k_em_extern_c_*) */
+bool k_em_is_pub_inline(const KAst *ast, const KAstNode *n);
+bool k_em_decl_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
+void k_em_emit_import(Emit *e, const KAstNode *n, size_t a);
+void k_em_emit_proto(Emit *e, const KAstNode *n);
+void k_em_emit_extern(Emit *e, size_t i);
+void k_em_emit_constexpr_c11(Emit *e, const KAstNode *n);
+bool k_em_extern_c_type_h(const KAst *ast, const KAstNode *n);
+bool k_em_extern_c_priv(const KAst *ast, const KAstNode *n);
+void k_em_extern_c_lines(const Emit *e, const KAstNode *n, size_t *a, size_t *b);
+bool k_em_extern_c_inline(const KAst *ast, const KAstNode *n);
+void k_em_extern_c_text(Emit *e, const KAstNode *n);
+
+/* generic.c: whether an instance's .h includes the module's .type.h (backend §4.4.1, rule 4) */
+bool k_em_uses_share(const Emit *e);
+
+/* supported.c: whether the slice of emit.h covers every node of the module */
+bool k_em_supported(const Emit *e);
+
 /* ---- the construction files: one file each (codegen design E5) ----
  * edits_X: the edits this construction makes inside the function `fn`, in the
  * source [a, b), appended to `ed` (cnt counts them).

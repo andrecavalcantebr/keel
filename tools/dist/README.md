@@ -42,6 +42,6 @@ cd lib/src && ./build.sh      # escreve ./cgen
 
 ## Licenças
 
-O cgen e a base seguem `LICENSE.md` (GPLv3, com a exceção que isenta o código
-que a base contribui ao C gerado do usuário); os documentos, `LICENSE-DOCS.md`.
+O cgen e a base seguem `doc/LICENSE.md` (GPLv3, com a exceção que isenta o código
+que a base contribui ao C gerado do usuário); os documentos, `doc/LICENSE-DOCS.md`.
 Há versões em português (`*.pt.md`).

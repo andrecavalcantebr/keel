@@ -20,7 +20,6 @@ dist:
 	cp tools/dist/build.sh $(DIST)/lib/src/
 	cp tools/dist/README.md tools/dist/install.sh tools/dist/uninstall.sh $(DIST)/
 	cp $(DOCS) $(LICENSES) $(DIST)/doc/
-	cp LICENSE.md LICENSE.pt.md LICENSE-DOCS.md LICENSE-DOCS.pt.md $(DIST)/
 	cp -r editors/. $(DIST)/editors/
 	@echo "ok: $(DIST)/ ($$($(DIST)/bin/cgen --cgen-version))"
 

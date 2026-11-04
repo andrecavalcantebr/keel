@@ -19,3 +19,6 @@ compile_commands.json
 
 # o venv do tools/cgen/diag-sync.py (o pacote anthropic)
 /.venv/
+
+# a distribuição montada por `make dist`
+/dist/

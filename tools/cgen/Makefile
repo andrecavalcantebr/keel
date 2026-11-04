@@ -81,9 +81,19 @@ base:
 	done
 	@rm -rf $(GENDIR).new
 
-.PHONY: all clean ccjson base boundary run vars
+# o executável da distribuição (`make dist`, na raiz): -O2, sem -g nem -DDEBUG, em obj-release/
+# para não misturar objetos com os do build de desenvolvimento
+RELEASE_CFLAGS := -std=c2x -I $(SRCDIR) -I $(GENDIR) -Wall -Wextra -O2 -DNDEBUG -MMD -MP
+
+release: base boundary
+	@$(MAKE) --no-print-directory PRJ=cgen-release OBJDIR=./obj-release CFLAGS="$(RELEASE_CFLAGS)" cgen-release
+
+cgen-release: $(objects)
+	$(CC) $(objects) $(LDLIBS) -o cgen-release
+
+.PHONY: all clean ccjson base boundary run vars release cgen-release
 
 clean:
-	@rm -rf $(OBJDIR) $(PRJ)
+	@rm -rf $(OBJDIR) $(PRJ) obj-release cgen-release
 
 -include $(deps)

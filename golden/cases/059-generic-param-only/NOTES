@@ -1,0 +1,32 @@
+Notas do caso.
+
+Comentários dos esperados
+=========================
+
+Prosa que abria os arquivos esperados, movida para cá porque o cgen gera
+só o cabeçalho de uma linha (desenho do cgen §5.3).
+
+**`app/app_pbox.type.h`** e **`app/app_pbox.h`** (c23, c11)
+
+o par do módulo genérico, vazio: tudo que ele declara menciona o parâmetro `N`,
+o parâmetro `T` ou o modificador `box`, então pertence à instância (backend §4.3,
+regra 1; §4.4.1, regra 5). O par existe porque o módulo é importado (§4.1, regra 2).
+
+**`app/app_pbox_box_3_i32.type.h`** e **`app/app_pbox_box_3_i32.h`** (c23, c11)
+
+instância de `box(3) i32`, com o nome `M_mod_<D>_<A>` da tabela do §2.1 (`app_pbox`
+mais `box`, mais `3` e `i32`). O `constexpr CAP` e o `typedef Pair` citam só um
+parâmetro, e saem aqui, no mesmo par que o modificador, com o nome manglado pela
+instância: `app_pbox_box_3_i32_CAP`, `app_pbox_box_3_i32_Pair` (backend §4.3, regra 1).
+Em C11, `CAP` é macro do nome manglado, com o objeto de conferência (§9.2).
+
+O `.h` tem os dois `pub inline` do genérico. `cap` lê `CAP`, e `ends` lê o
+campo `v` com o índice `N - 1` já substituído por `3 - 1` (§4.9: o valor substitui
+a grafia). Nenhum corpo chama outro `.h`, então a seção 3 fica vazia.
+
+**`app/app_pbox_use.type.h`**, **`app/app_pbox_use.h`** e **`app/app_pbox_use.c`** (c23, c11)
+
+o módulo cliente. Declara só `pub` que não são `inline`: os protótipos vão ao `.h`,
+e os corpos ao `.c`. O `.c` inclui o `.h` da instância, e não o do genérico, porque
+não escreve nenhum nome da parte fixa (backend §4.4.1, regra 7). O `.type.h` não
+tem declaração, então não inclui a instância.

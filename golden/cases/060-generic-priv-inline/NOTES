@@ -1,0 +1,67 @@
+Notas do caso.
+
+Regra coberta
+=============
+
+`priv inline` em módulo genérico (backend §4.3, regra 6; §4.3.2, regra 3): a
+função sai `static inline` no `.h` da instância, com o protótipo na seção 2 e o
+corpo na seção 4. O módulo genérico não tem `.c` (backend §4.4, regra 6).
+
+Decisões pela spec
+==================
+
+**Nome C de `peek`: `app_peek_box_i32_peek`.** Pelo §2.1 o nome canônico da
+instância `app.peek.box i32` é `app_peek_box_i32`, e o verbo entra com `_<verbo>`, como
+no golden 007 (`coll_stack_i32_length`) e no 051 (`gx_cell_i32_peek`). A
+privacidade é por nome, e não por ligação (§4.3, regra 6): o nome não leva
+marca de `priv`.
+
+**Arquivos da instância: `app/app_peek_box_i32.h` e `.type.h`.** Os componentes-pai
+do módulo viram diretório (§4.1, regra 5); mesma regra da instância `coll.stack
+i32`, que sai em `coll/`.
+
+**Parte fixa do genérico: `app/app_peek.type.h` e `app/app_peek.h`.** Nenhuma
+declaração do módulo é só parâmetro, então nada sai no par fixo além do
+`#include` do `.type.h` (§4.4.1, regra 5), como em `gx.type.h`/`gx.h` (051).
+
+**Instância sem `#include` da parte fixa.** Nenhum corpo da instância usa
+constante ou tipo do genérico fixo, então o `.type.h` da instância só inclui
+`keel.type.h`, e o `.h` só o próprio `.type.h` (§4.3.2, regra 2; a regra "o
+include segue a necessidade" do 007).
+
+**Cliente com `.c`.** `app/app_peek_use.c` inclui o próprio `.h` e o `.h` de
+cada instância cujas funções chama (§4.3.2, regra 4). Não inclui
+`app/app_peek.h`: o cliente não escreve nome da parte fixa.
+
+**`priv` sem `inline` e `priv inline` não se confundem.** O 051 tem `priv T
+peek(...)` sem `inline`, e a sua saída é `static` no `.c` da instância. Aqui a
+forma é `priv inline`, e a saída é `static inline` no `.h`. A diferença é só o
+`inline`, pela regra 18 da linguagem §4.3 (o default do genérico é `pub inline`,
+e o `priv` explícito não o muda).
+
+**Cliente sem `#line` nas declarações de corpo.** Os corpos de `read_i32` e
+`read_i64` ocupam as linhas do `.k` 4 a 8 e 10 a 14, com a mesma numeração, então
+o `.c` tem um único `#line 1` e preenchimento de linhas em branco (§6; o
+invariante do `golden/README.md`).
+
+Dúvidas em aberto (para o orquestrador)
+=======================================
+
+1. **Chamada do verbo `get` sem qualificação.** O cliente escreve `get(b)` com
+   `import app.peek types;`. A linguagem §4.1, regra 6, diz que `types` não
+   injeta funções. O 007 chama `length(s)` e `push(s, 7)` do mesmo jeito, então
+   o caso segue o 007: o verbo chega pelo tipo da instância (`box i32 b`). A
+   spec não diz isso com todas as letras; vale a pena registrar.
+2. **Ponto de chamada qualificada.** `peek.get(b)` não foi escrito de propósito:
+   a regra 7 da §4.3 deixa chamadas qualificadas sem resolução sobre o `T`
+   opaco, e aqui não é o caso do `T`. Se o orquestrador quiser a forma
+   qualificada coberta, é outro caso.
+3. **Nome do cliente.** `read_i32` e `read_i64` saem como
+   `app_peek_use_read_i32` e `app_peek_use_read_i64` (§2.1, `M.nome` → `M_nome`).
+
+Esperado
+========
+
+Os dois perfis têm a mesma forma de texto: nada nos casos desta regra muda entre
+C11 e C23 (os corpos são `static inline` e `i32`/`i64` vêm do `keel.type.h` nos
+dois). A linha de cabeçalho diz o perfil, e é a única diferença, como no 007.

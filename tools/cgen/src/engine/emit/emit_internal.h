@@ -96,6 +96,8 @@ int k_em_binder_use(const Emit *e, size_t k);
  * the function takes the modifier itself as a parameter's type (`const slot *s`), and so
  * carries the modifier's symbol; any other verb of such an instance carries the unit's. */
 size_t k_em_unit_symbol(const KAst *user, const KClosure *c, char *buf, size_t cap);
+/* whether `d` is the typedef that names the instance's unit (backend §5.10, rule 1) */
+bool k_em_unit_typedef(const Emit *e, const KAstNode *d);
 bool k_em_verb_on_modifier(const Emit *e, const KAstNode *fn);
 /* emit.c: the .h of the instance e->inst, written by the module emitter over the
  * generic's tree and the instance's islands (k_collect_instance_islands) */

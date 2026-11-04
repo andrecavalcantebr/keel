@@ -9,14 +9,19 @@
  *            `pub inline` ones (`static inline`); the body of a `pub` without
  *            `inline` is the business of the module that places the instance.
  *
- * Refused (K_EMIT_UNSUPPORTED): a type, a constant or a `priv` function that
- * names a binder; a prototype that spans lines; a `priv inline` function; a
+ * A type or a constant that names a parameter goes to the .type.h of the instance,
+ * with the header's name as prefix (backend §4.3, rule 1). A `priv inline`
+ * function is `static inline` in the .h, prototype and body, under the instance's
+ * name (backend §4.3, rule 6).
+ *
+ * Refused (K_EMIT_UNSUPPORTED): a prototype or a constant that spans lines; a
  * generic module with dimension or tag binders. A modifier may span lines (its
  * line breaks stay, one `#line` for the block), and a comment inside a
  * declaration leaves the text with its blanks as written (backend §6, rule 3).
  *
- * A `priv` function is the instance's, and not the header's: its body goes to
- * the .c of the module that places the instance, as `static` (backend §4.4). */
+ * A `priv` function that is not inline is the instance's, and not the header's:
+ * its body goes to the .c of the module that places the instance, as `static`
+ * (backend §4.4). */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 
@@ -149,6 +154,28 @@ bool k_em_verb_on_modifier(const Emit *e, const KAstNode *fn) {
     return false;
 }
 
+/* the last component of the module name `m` ("keel.routine" -> "routine") */
+static keel_slice_char last_component(keel_slice_char m) {
+    size_t last = m.len;
+    while (last > 0 && m.ptr[last - 1] != '.') last--;
+    return (keel_slice_char){ m.len - last, m.ptr + last };
+}
+
+/* Whether `n` is the typedef that names the instance's unit: a typedef spelled
+ * like the module's last component, as `routine` in keel.routine (backend §5.10,
+ * rule 1). Any other typedef of a generic module is a declaration of the
+ * instance, named by its header (backend §4.3, rule 1). */
+static bool unit_typedef(const KAst *ast, const KAstNode *n, keel_slice_char m) {
+    if (n->kind != K_AST_TYPE || n->name_first >= n->name_end) return false;
+    KToken t = k_em_tok(ast, n->name_first);
+    keel_slice_char last = last_component(m);
+    return t.len == last.len && memcmp(t.ptr, last.ptr, t.len) == 0;
+}
+
+bool k_em_unit_typedef(const Emit *e, const KAstNode *d) {
+    return e->inst && unit_typedef(e->ast, d, e->inst->module);
+}
+
 size_t k_em_unit_symbol(const KAst *user, const KClosure *c, char *buf, size_t cap) {
     if (!c->module || !c->module->ast || !c->modifier.len || !k_em_module_is_generic(c->module->ast)) return 0;
     const KAst *g = c->module->ast;
@@ -159,7 +186,7 @@ size_t k_em_unit_symbol(const KAst *user, const KClosure *c, char *buf, size_t c
     bool typedefs = false;
     for (size_t i = 0; i < g->nodes.len && !typedefs; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&g->nodes, i);
-        typedefs = n->kind == K_AST_TYPE && k_em_generic_out(g, n);
+        typedefs = unit_typedef(g, n, m) && k_em_generic_out(g, n);
     }
     if (!typedefs) return 0;
     size_t n = k_mangle_module(m, (keel_slice_char){ cap, buf });
@@ -185,8 +212,8 @@ static void put_token(Emit *e, size_t i, bool fields) {
         const KAstNode *d = k_em_declared_at(e, i);
         if (d && fields && d->kind != K_AST_TYPE && d->kind != K_AST_TAGS) d = NULL;
         if (d) {
-            if (k_em_generic_out(ast, d) && d->kind == K_AST_TYPE) {
-                put_slice(e, k_emit_unit(e->inst));   /* the typedef is the module instance's */
+            if (k_em_generic_out(ast, d) && k_em_unit_typedef(e, d)) {
+                put_slice(e, k_emit_unit(e->inst));   /* the unit's own typedef (backend §5.10) */
             } else if (k_em_generic_out(ast, d)) {
                 put_slice(e, d->kind == K_AST_FUNCTION && !k_em_verb_on_modifier(e, d) ? k_emit_unit(e->inst) : e->inst->symbol);
                 k_em_put_bytes(e, "_", 1);
@@ -312,6 +339,7 @@ static void emit_modifier(Emit *e, const KAstNode *n) {
 /* `pub typedef corot (*routine)(C *ctx);` -> the same line: no visibility word, the
  * binders replaced, the module's names by the instance's */
 static void emit_typedef(Emit *e, const KAstNode *n) {
+    const KAst *ast = e->ast;
     size_t a = k_em_first_off(e, n), b = k_em_last_end(e, n);
     if (!one_line(e, a, b)) { e->ok = false; return; }
     Edit ed[MAX_EDITS];
@@ -319,9 +347,86 @@ static void emit_typedef(Emit *e, const KAstNode *n) {
     k_em_edits_uses(e, n, a, b, ed, &ned);
     k_em_sort_edits(ed, 0, ned);
     e->n = 0;
-    put_span(e, n, a, b, false, ed, ned);
+    /* `typedef struct { … } Name;`: the anonymous struct takes the tag of its first
+     * declarator (backend §2.1, rule 6), the instance's name for it */
+    size_t s = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
+    bool anonymous = s + 2 < n->end && k_em_text_is(k_em_tok(ast, s), "typedef") &&
+                     k_em_text_is(k_em_tok(ast, s + 1), "struct") && k_em_text_is(k_em_tok(ast, s + 2), "{") &&
+                     n->name_first < n->name_end;
+    if (anonymous) {
+        size_t cut = k_em_tok_end(ast, s + 1);
+        put_span(e, n, a, cut, false, ed, ned);
+        k_em_put_bytes(e, " ", 1);
+        put_token(e, n->name_first, false);
+        k_em_put_bytes(e, " ", 1);
+        put_span(e, n, k_em_tok_off(ast, s + 2), b, false, ed, ned);
+    } else {
+        put_span(e, n, a, b, false, ed, ned);
+    }
     k_em_put_bytes(e, "\n", 1);
     flush(e, k_em_line_at(e, a));
+}
+
+/* `constexpr T N = INIT;` of the generic, as the instance's constant (backend §4.3,
+ * rule 1): under C23 the declaration with the instance's name; under C11 the form
+ * of §9.2, a macro of that name and the checking object, both on its line. */
+static void emit_constexpr(Emit *e, const KAstNode *n) {
+    const KAst *ast = e->ast;
+    size_t a = k_em_first_off(e, n), b = k_em_last_end(e, n);
+    if (!one_line(e, a, b)) { e->ok = false; return; }
+    e->n = 0;
+    if (e->opt.c23) {
+        put_span(e, n, a, b, false, NULL, 0);
+        k_em_put_bytes(e, "\n", 1);
+        flush(e, k_em_line_at(e, a));
+        return;
+    }
+    size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0) + 1;   /* past `constexpr` */
+    size_t ts = k_em_tok_off(ast, k), te = k_em_tok_off(ast, n->name_first);
+    while (te > ts && (ast->source.ptr[te - 1] == ' ' || ast->source.ptr[te - 1] == '\t')) te--;
+    bool paren = n->end - 2 > n->name_first + 2;   /* the INIT is more than one token */
+    size_t ia = k_em_tok_off(ast, n->name_first + 2), ib = k_em_tok_end(ast, n->end - 2);
+    size_t ln = k_em_line_at(e, a);
+    k_em_put_bytes(e, "#define ", 8);
+    put_token(e, n->name_first, false);
+    k_em_put_bytes(e, " ((", 3);
+    k_em_put_bytes(e, ast->source.ptr + ts, te - ts);
+    k_em_put_bytes(e, ")", 1);
+    if (paren) k_em_put_bytes(e, "(", 1);
+    put_span(e, n, ia, ib, false, NULL, 0);
+    if (paren) k_em_put_bytes(e, ")", 1);
+    k_em_put_bytes(e, ")\n", 2);
+    flush(e, ln);
+    k_em_put_bytes(e, "static const ", 13);
+    k_em_put_bytes(e, ast->source.ptr + ts, te - ts);
+    k_em_put_bytes(e, " ", 1);
+    put_token(e, n->name_first, false);
+    k_em_put_bytes(e, "__chk = ", 8);
+    if (paren) k_em_put_bytes(e, "(", 1);
+    put_span(e, n, ia, ib, false, NULL, 0);
+    if (paren) k_em_put_bytes(e, ")", 1);
+    k_em_put_bytes(e, "; _Static_assert(sizeof(", 24);
+    put_token(e, n->name_first, false);
+    k_em_put_bytes(e, "__chk) > 0, \"constexpr\");\n", 26);
+    flush(e, ln);
+}
+
+/* the declarations of the generic that name a parameter, and go to the .type.h of
+ * the instance, in the order of the source (backend §4.3, rule 1): a constant, a
+ * typedef or the modifier */
+static bool type_h_node(const KAst *ast, const KAstNode *n) {
+    return k_em_generic_out(ast, n) && (n->kind == K_AST_TYPE || n->kind == K_AST_CONSTEXPR);
+}
+
+/* whether an earlier node of the tree shares the span of `n` (the declarators of
+ * one declaration, `typedef struct {…} P, *PP;`): the first one writes it all */
+static bool shares_earlier_span(const KAst *ast, const KAstNode *n) {
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (d == n) return false;
+        if (d->first == n->first) return true;
+    }
+    return false;
 }
 
 static bool is_function_with_body(const Emit *e, const KAstNode *n) {
@@ -358,8 +463,8 @@ static void emit_body(Emit *e, const KAstNode *n, bool vis_static) {
 
 /* whether the declaration is one the instance can carry */
 static bool carried(const Emit *e, const KAstNode *n) {
-    if (n->kind == K_AST_MODIFIER || (n->kind == K_AST_TYPE && e->inst->unit_len)) return true;
-    return is_function_with_body(e, n) && (n->is_public || !n->is_inline);
+    if (n->kind == K_AST_MODIFIER || n->kind == K_AST_TYPE || n->kind == K_AST_CONSTEXPR) return true;
+    return is_function_with_body(e, n);
 }
 
 static bool has_modifier(const KAst *ast) {
@@ -482,7 +587,10 @@ static void emit_file(Emit *e, KEmitFile which) {
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (n->kind == K_AST_MODIFIER && !e->inst->proto_fn.len && !k_em_other_modifier(e, n)) emit_modifier(e, n);
-            else if (n->kind == K_AST_TYPE && e->inst->unit_len && k_em_generic_out(e->ast, n)) emit_typedef(e, n);
+            else if (type_h_node(e->ast, n) && !shares_earlier_span(e->ast, n)) {
+                if (n->kind == K_AST_CONSTEXPR) emit_constexpr(e, n);
+                else emit_typedef(e, n);
+            }
         }
     } else {
         raw(e, "#include \""); raw_slice(e, type_path); raw(e, "\"\n");

@@ -433,11 +433,12 @@ coll/coll_stack_i32.type.h         coll/coll_stack_i32.h
 
 **Regras**
 
-1. Cada instância de modificador gera dois headers e nenhum `.c`, salvo quando é ela o que a invocação compila, por `--instance` (§4.1). O corte é o do §4.3.2.
+1. Cada instância de módulo genérico — o módulo e seus argumentos (linguagem §4.3) — gera dois headers e nenhum `.c`, salvo quando é ela o que a invocação compila, por `--instance` (§4.1). O nome é o do §2.1 para o primeiro modificador declarado do módulo: `keel_buffer_i32`, `coll_stack_i32`, `app_g01_box_3_i32`; `keel.routine` é a exceção do §5.10 (regra 1). Neles entra toda declaração do módulo que menciona um parâmetro ou um modificador, qualquer que seja o modificador usado: um `constexpr` ou `typedef` que cita só parâmetro sai no mesmo par que o modificador, com o nome do header como prefixo (`app_g01_box_3_i32_CAP`). O corte entre os dois headers é o do §4.3.2.
 2. O include guard deriva do nome manglado; as funções saem `static inline`; não há objeto de instância nem símbolo externo.
 3. O header alcança o argumento pela camada (§4.3.1): inclui o `.type.h` do argumento que aparece por valor, e escreve a declaração adiantada do que aparece por ponteiro. Não depende de ordem de inclusão.
 4. Quem instancia é quem usa, e não quem declara o tipo argumento. Dois módulos que usam `buffer i32` geram o mesmo header, byte a byte (§7.1), e a segunda escrita não muda nada.
 5. Quem inclui o `.h` de um módulo recebe, por transitividade, os tipos, os protótipos e os corpos das instâncias que ele usa.
+6. A função `priv inline` de módulo genérico sai `static inline` no `.h` da instância, com o protótipo na seção 2 e o corpo na seção 4 (§4.3.2). O módulo genérico não tem `.c` (§4.4, regra 6), e o `.h` de instância é o `.c` replicável (§4.3.2, regra 8). O nome manglado leva o prefixo do módulo, de modo que a privacidade é por nome e não por ligação.
 
 ```keel
 //keel
@@ -670,7 +671,7 @@ typedef struct keel_outcome_i32 { i32 code; i32 value; } keel_outcome_i32;
 
 **Regras**
 
-1. Declaração de genérico que não menciona parâmetro nem modificador do módulo sai uma vez, nos headers do módulo, e não no header de instância (linguagem §4.3). A partição é léxica e vem pronta da linguagem.
+1. Declaração de genérico que não menciona parâmetro nem modificador do módulo sai uma vez, nos headers do módulo, e não no header de instância (linguagem §4.3). A partição é léxica e vem pronta da linguagem. A que cita parâmetro e nenhum modificador pertence à instância (§4.3, regra 1).
 2. O nome não leva o argumento: `keel_outcome_OK`, e não `keel_outcome_i32_OK`.
 3. `constexpr` de módulo segue o §9.2, e não `static const`: `case outcome.OK:` exige expressão constante. Sob C11, sai macro de nome manglado, sem o tratamento de escopo de bloco, porque o prefixo já a torna única.
 4. A instância alcança o que é do genérico pelas regras do §4.3.2, e nunca o contrário: a constante e o cursor (§5.11) moram no `.type.h` do genérico, e a struct da instância, no dela.

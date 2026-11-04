@@ -60,12 +60,23 @@ static void type_h_body(Emit *e) {
 
 static void raw(Emit *e, const char *s);
 
+/* A function of the .h: a `pub` one, and in an instance a `priv inline` one too,
+ * which is `static inline` there under the instance's name (backend §4.3, rule 6) */
+static bool header_function(const Emit *e, const KAstNode *n) {
+    return n->kind == K_AST_FUNCTION && (n->is_public || (e->inst && n->is_inline));
+}
+
+/* a `pub inline` function, or in an instance a `priv inline` one: its body is in the .h */
+static bool header_body(const Emit *e, const KAstNode *n) {
+    return k_em_is_pub_inline(e->ast, n) || (e->inst && n->kind == K_AST_FUNCTION && n->is_inline);
+}
+
 static void h_body(Emit *e) {
     k_em_h_forward_decls(e);
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (skip(e, n)) continue;
-        if (n->kind == K_AST_FUNCTION && n->is_public) k_em_emit_proto(e, n);
+        if (header_function(e, n)) k_em_emit_proto(e, n);
         else if (n->kind == K_AST_VARIABLE && n->is_public) {
             /* a declaration of several declarators: written at its first node only */
             if (i == 0 || keel_buffer_KAstNode_ptr(&e->ast->nodes, i - 1)->first != n->first) k_em_emit_extern(e, i);
@@ -84,7 +95,7 @@ static void h_body(Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         bool extent = n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n);
-        if (skip(e, n) || !(k_em_is_pub_inline(e->ast, n) || extent)) continue;
+        if (skip(e, n) || !(header_body(e, n) || extent)) continue;
         if (!blank) {
             raw(e, "\n");
             /* section 3: the .h of what the bodies call (backend §4.3.2, rule 3) */
@@ -111,7 +122,7 @@ static bool h_has_content(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (skip(e, n)) continue;
-        if ((n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) && n->is_public) return true;
+        if (header_function(e, n) || (n->kind == K_AST_VARIABLE && n->is_public)) return true;
         if (n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n)) return true;
         if (n->kind == K_AST_EXTERN_C && !k_em_extern_c_type_h(e->ast, n) && !k_em_extern_c_priv(e->ast, n)) return true;
     }

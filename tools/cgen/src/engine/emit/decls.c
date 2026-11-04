@@ -119,6 +119,16 @@ bool k_em_decl_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
                         size_t q = k_mangle_decl(e->module, (keel_slice_char){ t.len, (char *)t.ptr }, false, (keel_slice_char){ NAME_CAP, w });
                         if (q > NAME_CAP) { e->ok = false; return false; }
                         txt = w; tl = q;
+                    } else if (d && (d->kind == K_AST_TYPE || d->kind == K_AST_CONSTEXPR) && k_em_generic_out(ast, d)) {
+                        /* a type or a constant of the generic: the instance's (backend §4.3, rule 1), the
+                         * unit's own typedef by the unit's name alone */
+                        bool own = k_em_unit_typedef(e, d);
+                        keel_slice_char pre = own ? k_emit_unit(e->inst) : e->inst->symbol;
+                        char *w = k_em_scratch(e, pre.len + (own ? 0 : 1 + t.len));
+                        if (!w) return false;
+                        memcpy(w, pre.ptr, pre.len);
+                        if (!own) { w[pre.len] = '_'; memcpy(w + pre.len + 1, t.ptr, t.len); }
+                        txt = w; tl = pre.len + (own ? 0 : 1 + t.len);
                     } else if (d && d->kind == K_AST_FUNCTION && k_em_generic_out(ast, d)) {
                         /* a verb of the instance: <symbol>_<name>, and the rank suffix */
                         keel_slice_char rank = {0};

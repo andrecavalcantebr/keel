@@ -365,6 +365,23 @@ static void drop_edits(Edit *ed, size_t *cnt, size_t lo, size_t hi) {
     *cnt = j;
 }
 
+/* A type or a constant of the generic that the instance declares (backend §4.3, rule 1):
+ * the module's name for it is the generic's, but it lives in the instance's .type.h, and
+ * the instance's name is written by decls.c. */
+static bool own_declaration(const Emit *e, const char *sym, size_t len) {
+    if (!e->inst) return false;
+    for (size_t k = 0; k < e->ast->nodes.len; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, k);
+        if ((n->kind != K_AST_TYPE && n->kind != K_AST_CONSTEXPR) || n->name_first >= n->name_end) continue;
+        if (!k_em_generic_out(e->ast, n)) continue;
+        KToken t = k_em_tok(e->ast, n->name_first);
+        char m[NAME_CAP];
+        size_t ml = k_mangle_decl(e->module, (keel_slice_char){ t.len, (char *)t.ptr }, false, (keel_slice_char){ sizeof m, m });
+        if (ml <= sizeof m && ml == len && memcmp(m, sym, len) == 0) return true;
+    }
+    return false;
+}
+
 void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     const char *align = e->opt.c23 ? "alignof(" : "_Alignof(";
@@ -403,6 +420,7 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
         }
         Detail d;
         detail_of(ast, is, &d);
+        if (is->kind == K_ISLAND_TYPE && own_declaration(e, d.sym, d.sym_len)) continue;   /* decls.c names it */
         size_t end = span_end(ast, is->anchor, &d);
         size_t at = k_em_tok_off(ast, is->anchor);
         unsigned amp = 0, type = 0, dim = 0, deref = 0;
@@ -588,7 +606,8 @@ static size_t arg_header(const Emit *e, const char *sym, size_t len, const char 
 /* whether `sym` is the instance being written, or one of its verbs */
 static bool own_instance(const Emit *e, const char *sym, size_t len) {
     return e->inst && (prefix_of(sym, len, e->inst->symbol.ptr, e->inst->symbol.len) ||
-                       (e->inst->unit_len && prefix_of(sym, len, e->inst->unit_buf, e->inst->unit_len)));
+                       (e->inst->unit_len && prefix_of(sym, len, e->inst->unit_buf, e->inst->unit_len)) ||
+                       own_declaration(e, sym, len));
 }
 
 /* whether `sym` is the symbol of a `tags` set: an `enum`, which C cannot declare ahead

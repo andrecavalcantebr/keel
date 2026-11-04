@@ -69,3 +69,5 @@ test/cgen/gen/share|use.k|-
 054-style-forms|app/sf.k|-
 057-walk-allman|app/wa.k|-|
 058-defer-index|app/di.k|-
+060-generic-priv-inline|app/peek_use.k|-|
+059-generic-param-only|app/pbox_use.k|-|

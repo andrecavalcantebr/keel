@@ -12,12 +12,21 @@
 /* .type.h: the typedefs, the opaque C, the import_c lines and the body of
  * `extern_c [type_h]`, each with its own .k line (cgen design §8.3). A line
  * shared by two constructions (two typedefs) is written once. */
+/* an K_AST_OPAQUE node that is a run of preprocessor directive lines (engine/ast.c):
+ * a file-level directive goes to the .h, not the .type.h (linguagem §4.1, rule 13;
+ * backend §4.1, row "diretiva de topo"); an unrecognized top-level C declaration
+ * (the same AST kind, a different source) stays here, "o conteúdo, intacto". */
+static bool is_directive_opaque(const KAst *ast, const KAstNode *n) {
+    return n->kind == K_AST_OPAQUE && keel_buffer_KLexeme_ptr(&ast->tokens, n->first)->directive;
+}
+
 static void type_h_body(Emit *e) {
     const KAst *ast = e->ast;
     for (size_t i = 0; i < ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
         size_t a, b;
         if (k_em_generic_out(ast, n)) continue;
+        if (is_directive_opaque(ast, n)) continue;   /* h_body's, not this file's */
         switch (n->kind) {
         case K_AST_IMPORT_C:
             a = k_em_line_start(e, k_em_first_off(e, n));
@@ -87,6 +96,13 @@ static void h_body(Emit *e) {
             if (k_em_extern_c_inline(e->ast, n)) { k_em_extern_c_text(e, n); continue; }
             size_t a, b;
             k_em_extern_c_lines(e, n, &a, &b);
+            if (a < b) k_em_emit_opaque_range(e, a, b);
+        }
+        else if (is_directive_opaque(e->ast, n)) {
+            /* a file-level directive: in its place among the prototypes, preserved
+               (linguagem §4.1, rule 13; linguagem §2.1: directives are preserved) */
+            size_t a = k_em_line_start(e, k_em_first_off(e, n));
+            size_t b = k_em_line_end(e, k_em_last_end(e, n) - 1);
             if (a < b) k_em_emit_opaque_range(e, a, b);
         }
     }

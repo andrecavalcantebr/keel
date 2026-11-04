@@ -54,7 +54,7 @@ def r6(content, is_h):
         if s or not top[k] or k in keep or k == 0 or k + 1 == len(content):
             out.append(s)
             continue
-        if content[k - 1].startswith('#include "') or content[k + 1].startswith('#include "'):
+        if is_h and (content[k - 1].startswith('#include "') or content[k + 1].startswith('#include "')):
             out.append(s)
             continue
         nxt = content[k + 1]
@@ -87,7 +87,7 @@ for p in files:
     c = []
     k = 0
     while k < len(content):
-        if content[k].startswith('#include "'):
+        if content[k].startswith('#include "') and not p.endswith('.type.h'):   # a .type.h has no section 3: a quoted include there is an `import_c`
             j = k
             while j < len(content) and content[j].startswith('#include "'):
                 j += 1

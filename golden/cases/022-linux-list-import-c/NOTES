@@ -38,7 +38,46 @@ em modo GNU. O dialeto do C preservado é escolha do build (spec §1; a
 ferramenta lê `gnu*` pelo perfil, cgen-tool-spec §4.9). O `VERIFY` que fixa
 essas flags ainda não foi escrito.
 
+A fronteira, nos dois sentidos
+==============================
+
+`import_c` é só um `#include` (backend §4.1, D31): keel não abre o `list.h`. O
+que cruza a fronteira, e o que o `expected/` afirma:
+
+- **keel → C.** Um nome keel dentro do argumento de uma macro C sai manglado:
+  `list_entry(c->at, task, link)` vira `list_entry(c->at, tasks_task, link)`. O
+  campo `link` e o campo C `next` (depois de `->` ou `.`) não são declarações do
+  módulo e ficam como estão, ao lado do verbo `tasks_next`. As macros de laço
+  (`list_for_each_entry*`) atravessam inteiras, com o corpo.
+- **C → keel.** keel não conhece `struct list_head`, `INIT_LIST_HEAD` nem
+  `list_add_tail` (spec §4.1): são nomes de C, escritos sem qualificação. O
+  `struct list_head` embutido por valor obriga o `import_c` a ficar no `.type.h`,
+  a camada mais baixa, antes da definição de `tasks_task`.
+- **O dialeto.** `container_of` pede `({ … })` e `typeof`: o `VERIFY` compila em
+  `gnu11`/`gnu2x`, sem `-pedantic-errors`. A saída do cgen é a mesma em C11 e C23.
+
+Decisões do oráculo (a spec não as diz com todas as letras)
+===========================================================
+
+1. `walk (… : q)` sobre `queue q` **por valor**, com verbos que recebem
+   `queue *`: o temporário é ponteiro, `tasks_queue *keel__c0 = &q;`. Uma cópia
+   da lista quebraria os elos (`head.next->prev` aponta para o `head` original).
+   O backend §5.x só descreve o temporário de `byref` (`&xs`) e o de tipo por
+   valor (cópia); `queue` é `typedef` de struct, nem um nem outro.
+2. O `main(void)` tem o wrapper `int main(void) { return tasks_main(); }`; o
+   backend §5.8 só mostra a forma `(argc, argv)`.
+3. (Retirada: os comentários dentro do corpo também deixam linha vazia, backend §6 regra 3; a primeira versão do oráculo os conservava, e o cgen estava certo.)
+
+Verificação do runner
+=====================
+
+Dois verificadores de `golden/` presumiam que `#include "…"` num `.type.h` é
+gerado: `run.sh` (I1) e `layout-check.py` (R3/R6). Um `import_c "x/y.h"` é
+include do programa, mapeado por `#line`; os dois passaram a distingui-lo.
+
 Estado
 ======
 
-Esqueleto: fonte escrito, `expected/` e `VERIFY` por fazer.
+`expected/` escrito à mão (c11 e c23, mais `main_tasks.c`) e `VERIFY`; o
+`golden/run.sh` compila e roda o programa nos dois perfis. O cgen ainda não o
+produz (`|wip` em `test/cgen/gen/golden-cases.txt`).

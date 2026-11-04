@@ -75,7 +75,9 @@ done
 
 # I1: a .type.h includes only .type.h — that is what makes the layout graph a DAG
 for t in $(find c23 c11 cases/*/expected -name '*.type.h' | sort); do
-  bad=$(grep '^#include "' "$t" | grep -v '\.type\.h"')
+  # an `import_c "x/y.h"` is the program's own include, outside the generated layer (backend
+  # §4.3.2, rule 2): the generator maps it with a `#line`, and that is what tells it apart
+  bad=$(awk '/^#line /{src=1; next} /^#include </{next} /^#include "/{ if ($0 !~ /\.type\.h"/ && !src) print; next } {src=0}' "$t")
   [ -z "$bad" ] || { printf 'STRUCT %s — .type.h including outside its layer:\n%s\n' "$t" "$bad"; structure=$((structure+1)); }
 done
 

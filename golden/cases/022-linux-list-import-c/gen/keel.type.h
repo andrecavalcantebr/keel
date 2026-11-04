@@ -1,0 +1,40 @@
+/* keel.type.h — generated from keel.k by cgen, C11 profile. */
+#ifndef KEEL_TYPE_H
+#define KEEL_TYPE_H
+
+#include <stdbool.h>
+#include <assert.h>
+
+#line 12 "keel.k"
+#include <stdint.h>
+#include <stddef.h>
+#include <float.h>
+#line 19 "keel.k"
+typedef int8_t  i8;   typedef uint8_t  u8;
+typedef int16_t i16;  typedef uint16_t u16;
+typedef int32_t i32;  typedef uint32_t u32;
+typedef int64_t i64;  typedef uint64_t u64;
+typedef float   f32;  typedef double   f64;
+#line 27 "keel.k"
+_Static_assert(FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128
+              && sizeof(f32) == 4, "keel: f32 requires IEEE 754 binary32 on this target");
+_Static_assert(FLT_RADIX == 2 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024
+              && sizeof(f64) == 8, "keel: f64 requires IEEE 754 binary64 on this target");
+#line 42 "keel.k"
+#ifndef KEEL_CHECKS
+#define KEEL_CHECKS 1
+#endif
+#if KEEL_CHECKS
+#include <stdio.h>
+#include <stdlib.h>
+#define KEEL_CHECK(cond, id) \
+    ((cond) ? (void)0 : (fprintf(stderr, "%s:%d: keel: %s\n", __FILE__, __LINE__, (id)), abort()))
+#else
+#define KEEL_CHECK(cond, id) ((void)sizeof((cond) ? 1 : 0))
+#endif
+static inline size_t keel_index(size_t i, size_t d) {
+    KEEL_CHECK(i < d, "array-index-out-of-bounds");
+    return i;
+}
+
+#endif /* KEEL_TYPE_H */

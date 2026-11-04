@@ -72,3 +72,4 @@ test/cgen/gen/share|use.k|-
 060-generic-priv-inline|app/peek_use.k|-|
 059-generic-param-only|app/pbox_use.k|-|
 022-linux-list-import-c|tasks.k|tasks
+023-linux-list-extern-c|tasks.k|tasks

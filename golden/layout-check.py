@@ -36,6 +36,25 @@ def r6(content, is_h):
             at = (at[0] + 1, at[1])
         code = STR.sub('""', s)
         depth += code.count('{') - code.count('}')
+    # A span of several physical lines since the last #line, with no further
+    # #line inside it, is copied/opaque content (extern_c, backend §4.3 rule 15;
+    # a defer or function body): its interior blank lines are the source's own
+    # and R6 does not touch them. A "declaration gathered to header" span is
+    # short — one #line per declaration whenever the line would otherwise not
+    # match, backend §6 — so a long run without a fresh #line only happens for
+    # text copied intact.
+    COPIED_SPAN = 4
+    protected = [False] * len(content)
+    span_start = 0
+    for k, s in enumerate(content):
+        if LINE.match(s):
+            if k - span_start > COPIED_SPAN:
+                for j in range(span_start, k):
+                    protected[j] = True
+            span_start = k
+    if len(content) - span_start > COPIED_SPAN:
+        for j in range(span_start, len(content)):
+            protected[j] = True
     first_body = None
     if is_h and not any(s.startswith('#include "') for s in content):
         for k, s in enumerate(content):
@@ -51,7 +70,7 @@ def r6(content, is_h):
             keep.add(j)
     out = []
     for k, s in enumerate(content):
-        if s or not top[k] or k in keep or k == 0 or k + 1 == len(content):
+        if s or not top[k] or k in keep or k == 0 or k + 1 == len(content) or protected[k]:
             out.append(s)
             continue
         if is_h and (content[k - 1].startswith('#include "') or content[k + 1].startswith('#include "')):

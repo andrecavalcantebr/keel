@@ -50,7 +50,7 @@ static void type_h_body(Emit *e) {
             }
             k_em_extern_c_lines(e, n, &a, &b);
             if (a < e->done) a = e->done;
-            if (a < b) { k_em_emit_range(e, a, b); e->done = b; }
+            if (a < b) { k_em_emit_opaque_range(e, a, b); e->done = b; }
             break;
         default:
             break;
@@ -87,7 +87,7 @@ static void h_body(Emit *e) {
             if (k_em_extern_c_inline(e->ast, n)) { k_em_extern_c_text(e, n); continue; }
             size_t a, b;
             k_em_extern_c_lines(e, n, &a, &b);
-            if (a < b) k_em_emit_range(e, a, b);
+            if (a < b) k_em_emit_opaque_range(e, a, b);
         }
     }
     /* then the bodies of the `pub inline` functions, each with its own .k lines */
@@ -239,7 +239,7 @@ static void emit_c(Emit *e) {
     for (size_t a = 0; a < len && e->ok; ) {
         size_t b = k_em_line_end(e, a);
         if (a < written) { a = b; continue; }
-        bool empty = false, fn = false;
+        bool empty = false, fn = false, opaque = false;
         const KAstNode *inl = NULL;   /* a one-line priv extern_c: its line is its text */
         for (size_t i = 0; i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
@@ -247,11 +247,13 @@ static void emit_c(Emit *e) {
             if (k_em_is_pub_inline(e->ast, n)) empty = true;   /* its body is in the .h */
             else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
             else if (n->kind == K_AST_EXTERN_C && k_em_extern_c_priv(e->ast, n)) {
-                /* a priv extern_c: its text is the .c's (backend §4.3.2, rule 10); its braces are not */
+                /* a priv extern_c: its text is the .c's (backend §4.3.2, rule 10); its braces are not.
+                   Its content is opaque: no comment stripped, no name renamed (linguagem §2.1). */
                 if (k_em_extern_c_inline(e->ast, n)) { inl = n; continue; }
                 size_t ba, bb;
                 k_em_extern_c_lines(e, n, &ba, &bb);
                 if (a < ba || b > bb) empty = true;
+                else opaque = true;
             }
             else empty = true;   /* every other kind in the slice has no C in the .c */
         }
@@ -266,6 +268,8 @@ static void emit_c(Emit *e) {
             }
         } else if (empty) {
             if (!k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ 1, nl })) e->ok = false;
+        } else if (opaque) {
+            k_em_emit_opaque_range(e, a, b);
         } else {
             k_em_emit_split(e, k_em_line_at(e, a), a, b);
             if (k_em_spanned_end() > b) written = k_em_spanned_end();

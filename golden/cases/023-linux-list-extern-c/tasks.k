@@ -3,7 +3,7 @@ module tasks;
 import_c <assert.h>;
 import_c <stdio.h>;
 /* list.h, pasted verbatim (see 022 linux/list.h for its origin and changes). */
-extern_c {
+extern_c [type_h] {
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Origin: Linux, tools/include/linux/list.h, as of commit

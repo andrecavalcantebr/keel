@@ -178,6 +178,18 @@ void k_em_emit_split(Emit *e, size_t ln, size_t a, size_t b) {
     }
 }
 
+/* the whole lines [a, b), each with its own .k number, byte for byte: no comment
+ * stripping and no node edit — the content of extern_c (backend §4.3.2, rules 9, 10),
+ * where keel does not look inside (linguagem §2.1) */
+void k_em_emit_opaque_range(Emit *e, size_t a, size_t b) {
+    const char *s = e->ast->source.ptr;
+    for (size_t ln = k_em_line_at(e, a); a < b && e->ok; ln++) {
+        size_t next = k_em_line_end(e, a);
+        if (!k_emit_at(&e->w, ln, (keel_slice_char){ next - a, (char *)s + a })) e->ok = false;
+        a = next;
+    }
+}
+
 /* the whole lines [a, b), each with its own .k number */
 void k_em_emit_range(Emit *e, size_t a, size_t b) {
     size_t ln = k_em_line_at(e, a);

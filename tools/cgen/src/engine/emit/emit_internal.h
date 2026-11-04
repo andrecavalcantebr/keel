@@ -159,13 +159,15 @@ void k_em_node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
  * (k_em_emit_line); a one-line parallel block in two parts (k_em_emit_split); the lines
  * [a, b) (k_em_emit_range); the comments left out (k_em_comment_edits); the edits a rewrite
  * swallowed (k_em_drop_nested). k_em_spanned_end is the offset the last k_em_copy_edited
- * consumed up to, past a line break an edit spans. */
+ * consumed up to, past a line break an edit spans. k_em_emit_opaque_range is [a, b) with no
+ * edits at all, comments included (extern_c content, linguagem §2.1: "atravessa intacto"). */
 void k_em_comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt);
 void k_em_drop_nested(Edit *ed, size_t *cnt);
 void k_em_copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, size_t cnt);
 void k_em_emit_line(Emit *e, size_t ln, size_t a, size_t b);
 void k_em_emit_split(Emit *e, size_t ln, size_t a, size_t b);
 void k_em_emit_range(Emit *e, size_t a, size_t b);
+void k_em_emit_opaque_range(Emit *e, size_t a, size_t b);
 size_t k_em_spanned_end(void);
 
 /* decls.c: the module-level declarations, each as its file form (k_em_emit_import,

@@ -104,7 +104,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `--stop-after=<fase>` | interrompe após `lex`, `parse` ou `gen`; ver §4.2 | não interrompe |
 | `--checks=on\|off` | liga as verificações `debug` do [catálogo da spec](keel-spec.md#62-catálogo) na chamada ao compilador C: `off` passa `-DKEEL_CHECKS=0`. O C gerado é o mesmo nos dois valores (backend §5.17) | `on` |
 | `--line=on\|off` | emissão de `#line` para o fonte keel; ver backend §6 | `on` |
-| `--main <módulo>` | gera a unidade com o ponto de entrada do C, chamando o do módulo indicado; ver §4.7 | não gera |
+| `--main <módulo>` | gera a unidade com o ponto de entrada do C, chamando o do módulo indicado; ver §4.7 | gera, quando a invocação liga e o `.k` tem função de entrada pública |
 | `--cc=<programa>` | compilador C a invocar | `cc` |
 | `--pedantic-names` | baixa o teto de comprimento de nome gerado de 255 para o mínimo do padrão: 31 para nome com ligação externa, 63 para os demais; ver backend §2.4 | desligado |
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de execução emitido para `parallel`; ver §4.8 | `auto` |
@@ -284,7 +284,7 @@ Diagnósticos próprios:
 - `--main` sobre módulo que não tem função de entrada.
 - `--main` sobre módulo cuja função de entrada não está pública.
 
-Sem a flag, nenhuma unidade de entrada é gerada — o caso normal de quem está só compilando módulos para objeto.
+**Sem a flag, a invocação que liga escolhe a entrada sozinha.** Quando a invocação vai ao ligador — nenhum de `-c`, `-S`, `-E`, `-shared` nem `--stop-after` — e o `.k` dado tem função de entrada pública, é como se `--main <esse módulo>` tivesse sido escrito: `cgen ola.k -o ola` basta. `--main` explícito continua válido. Nas demais invocações, ou com módulo sem função de entrada, nenhuma unidade de entrada é gerada — o caso de quem só compila módulos para objeto, e o de uma biblioteca. Ligar sem entrada nenhuma é erro do ligador, como com o `gcc`; o cgen não o antecipa.
 
 ### 4.8 Lowering de `parallel`
 
@@ -651,6 +651,8 @@ keel-1.0.0-linux-x86_64/
   README.md
   install.sh  uninstall.sh
   bin/cgen
+  doc/           os quatro documentos e as licenças
+  editors/       destaque de sintaxe para editores
   lib/base/
     keel.k
     keel/
@@ -659,6 +661,11 @@ keel-1.0.0-linux-x86_64/
   lib/src/
     …            o fonte do cgen: ferramenta, parser e backend, com a base de apoio dele
 ```
+
+`install.sh` cria um symlink de `bin/cgen` em um diretório do `PATH` (`~/.local/bin`
+por padrão) e não copia nada; `uninstall.sh` remove só o link que aponta para a sua
+própria árvore. Cada versão é uma árvore separada, e trocar de versão é reapontar o
+link. `doc/` e `editors/` não são lidos pelo `cgen`.
 
 **`lib/base` é a fonte dos módulos `keel.*`**, e o nome do módulo é o caminho:
 `keel.k` é o prelúdio, `keel/buffer.k` é `keel.buffer`. **`lib/src` é o fonte

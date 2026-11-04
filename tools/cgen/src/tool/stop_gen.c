@@ -348,6 +348,8 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
         keel_slice_char mod = k_diag_text(name);
         char src_buf[8192];
         keel_slice_char src_path = source_path(mod, src_buf, sizeof src_buf);
+        /* the invocation links and gave no --main (cgen-tool-spec §4.7): the entry is this module's, when it has one */
+        if (main_module && !*main_module) main_module = has_public_main(module->ast) ? name : NULL;
         if (k_emit_module_is_generic(module->ast)) {
             /* a generic module is not translatable alone (cgen design §2.8, §8.8) */
             fprintf(stderr, "cgen: error: %s is a generic module; use --instance [generic-source-without-instance]\n", name);

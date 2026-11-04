@@ -304,8 +304,15 @@ int main(int argc, char *argv[]) {
         } else {
             /* the default phase: generate, then hand the unit to the C compiler (cgen-tool-spec §4) */
             static CgenUnits units;
+            /* a linking invocation without --main takes the module's own entry, if it has one (cgen-tool-spec §4.7);
+               "" asks for that. -c, -S, -E and -shared do not link */
+            bool links = true;
+            for (int i = 0; i < passthrough_count; ++i) {
+                const char *a = passthrough[i];
+                if (strcmp(a, "-c") == 0 || strcmp(a, "-S") == 0 || strcmp(a, "-E") == 0 || strcmp(a, "-shared") == 0) links = false;
+            }
             result=cgen_stop_after_gen(&arena,k_file,roots,root_count,base,dest_dir,profile,passthrough,passthrough_count,
-                                       !(line && strcmp(line,"off") == 0),main_module,parallel_lowering,&units);
+                                       !(line && strcmp(line,"off") == 0),main_module ? main_module : (links ? "" : NULL),parallel_lowering,&units);
             if (result == 0)
                 result=cgen_run_cc(cc,passthrough,passthrough_count,dest_dir ? dest_dir : "gen",checks && strcmp(checks,"off") == 0,&units);
         }

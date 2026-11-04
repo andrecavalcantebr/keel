@@ -33,9 +33,12 @@ while IFS='|' read -r case src main flag opts; do
         # the C it wrote must be a translation unit that compiles (every #include resolves in the
         # generated tree): a header the closure forgot to write is found here, not by the user
         std=$p; [ "$p" = c23 ] && std=c2x
+        # a case whose VERIFY names the GNU dialect (022: list.h's container_of) is checked in it, and
+        # the case's own directory is a search root for its `import_c "x/y.h"`, as it is for cgen
+        if [ -f "$dir/VERIFY" ] && grep -q 'gnu' "$dir/VERIFY"; then std=gnu${std#c}; [ "$p" = c23 ] && std=gnu2x; fi
         if [ $failed = 0 ] && [ -d "$out" ]; then
             for c in $(find "$out" -name '*.c' | sort); do
-                if ! cc -std=$std -fsyntax-only -w -I "$out" "$c" 2>"$tmp/cc.err"; then
+                if ! cc -std=$std -fsyntax-only -w -I "$out" -I "$dir" "$c" 2>"$tmp/cc.err"; then
                     [ "$flag" = wip ] || { printf 'FAIL   %s %s: the generated %s does not compile\n' "$case" "$p" "${c#$out/}"; sed -n '1,3s/^/       /p' "$tmp/cc.err"; }
                     state=fail
                 fi

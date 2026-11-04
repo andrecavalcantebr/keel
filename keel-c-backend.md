@@ -1242,7 +1242,7 @@ typedef enum keel_corot_Status {
 
 ### 5.7 `foreach`
 
-**Forma:** `foreach (valor, índice : contêiner)` e `foreach (contador : contável)` (linguagem §4.7).
+**Forma:** `foreach (valor, índice : contêiner)`, `foreach (contador : contável)` e `walk (elemento, cursor : contêiner)` (linguagem §4.7).
 
 **Emissão**
 
@@ -1285,13 +1285,34 @@ foreach (routine.slot i16 *sl, size_t i : steps) {
 
 **Regras**
 
-1. Na forma de dois binders, o contêiner vai para um temporário `keel__c<N>` e o comprimento para um `size_t` `keel__n<N>`, ambos antes do `for`: é a avaliação única da linguagem §4.7. O temporário é ponteiro para um contêiner `byref` (`keel_buffer_i32 *keel__c0 = &xs;`), e cópia para um tipo que passa por valor (`keel_range keel__c1 = r;`, §5.2, regra 2): a cópia já é a variável que recebe o valor, e não há o que apontar.
+1. Na forma de dois binders, o contêiner vai para um temporário `keel__c<N>` e o comprimento para um `size_t` `keel__n<N>`, ambos antes do `for`: é a avaliação única da linguagem §4.7. O temporário tem o tipo do primeiro parâmetro dos verbos que o laço chama: ponteiro (`keel_buffer_i32 *keel__c0 = &xs;`) quando eles recebem `T *`, e cópia (`keel_range keel__c1 = r;`, §5.2, regra 2) quando recebem `T` por valor: a cópia já é a variável que recebe o valor, e não há o que apontar.
 2. O binder de índice é a própria variável do laço, com o nome que o usuário escolheu.
 3. Binder por valor gera `get`; binder por ponteiro gera `ptr` de um índice.
 4. Um bloco em volta faz os temporários morrerem no fim, e permite `foreach` aninhado sem colisão de nome.
 5. Tudo até a abertura do corpo cabe numa linha, e o corpo mapeia 1:1, sem `#line` (§6, regra 2). Quando a `{` do corpo está em linha própria (estilo Allman), o cabeçalho sai na sua linha sem a chave do corpo (a do `for`), e a linha da `{` abre o corpo e leva a declaração do binder (`{ i32 x = keel_slice_i32_get(keel__c0, i);`); a `}` do corpo fecha também o bloco do `foreach` (`} }`). Cada linha do fonte continua com a sua no C.
 6. Na forma contável, de um binder, o binder é o contador: `first` e `limit` saem para temporários `keel__f<N>` e `keel__l<N>` antes do laço, e o `for` conta de um ao outro. Nenhum `get` é chamado, e por isso a forma serve tipos que só declaram `first` e `limit`. Um tipo com as quatro operações, como `range`, passa por aqui na forma de um binder, e pela regra 1 na de dois.
 7. Sobre um `array` o `for` conta de zero ao comprimento, e o binder é o elemento: `T v = arr[i];` por valor, `T *v = &arr[i];` por ponteiro. O comprimento é a dimensão como a declaração a escreve, ou `keel__<binder>` (§5.18). Não há temporário nem chamada de verbo. [R: acesso e travessia](keel-rationale.md#acesso-e-travessia)
+
+**`walk`**
+
+```keel
+walk (task *p, tasks.cursor c : q) { use(p); }
+```
+
+```c
+{   tasks_queue *keel__c0 = &q; tasks_cursor c = tasks_begin(keel__c0); while (tasks_has_next(keel__c0, &c)) { tasks_task *p = tasks_next(keel__c0, &c);
+    use(p);
+} }
+```
+
+8. O contêiner vai para um temporário `keel__c<N>`, avaliado uma vez (linguagem §4.7). O temporário tem o tipo do primeiro parâmetro dos verbos `begin`, `has_next` e `next`:
+   - se eles recebem `T *`, o temporário é `&x` para um operando que é objeto, e o próprio valor para um operando que já é ponteiro (`lst_List *keel__c0 = l;`);
+   - se recebem `T` por valor, é a cópia (`keel_range keel__c1 = r;`).
+
+   É a mesma regra da 1: o critério é a assinatura dos verbos, e não ser ou não `byref`. Um `typedef struct` do programa cujos verbos recebem `T *` é percorrido por endereço, porque a cópia de uma lista intrusiva aponta para o `head` original.
+9. O cursor é declarado com o tipo escrito e inicializado por `begin(keel__c<N>)`. Ele fica no escopo do corpo e pode ser lido e escrito (linguagem §4.7, regra 10).
+10. O laço é `while (has_next(keel__c<N>, &c))`, e o elemento é ligado por `next(keel__c<N>, &c)`, uma vez por iteração e depois do teste. O avanço do cursor é de `next`.
+11. Um bloco em volta faz os temporários morrerem no fim. O layout de linhas é o da regra 5: tudo até a abertura do corpo cabe numa linha, a `{` do corpo em linha própria (Allman) leva a declaração do elemento, e a `}` do corpo fecha também o bloco (`} }`).
 
 **Verificações:** as dos verbos chamados. **Perfis:** iguais.
 
@@ -1311,6 +1332,7 @@ int main(int argc, char **argv) { return net_http_main(argc, argv); }
 
 1. A função de entrada é função comum, e sai manglada como qualquer outra.
 2. O `main` do C sai numa unidade separada, `main_<símbolo>.c`, gerada só com `--main`. [D46](#10-decisões-de-emissão)
+3. O wrapper repete a assinatura da função de entrada. Com `main(void)`, sai `int main(void) { return M_main(); }`; com `main(int argc, char **argv)`, a forma acima. Qualquer outra assinatura é `invalid-main-signature` (linguagem §4.1).
 
 **Verificações:** nenhuma. **Perfis:** iguais.
 

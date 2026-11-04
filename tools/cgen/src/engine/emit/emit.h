@@ -19,7 +19,7 @@ typedef enum {
     K_EMIT_TYPE_H,   /* <symbol>.type.h */
     K_EMIT_H,        /* <symbol>.h */
     K_EMIT_C,        /* <symbol>.c, the compiled module */
-    K_EMIT_ENTRY     /* main_<symbol>.c, for --main (backend §5.8); `ast` unused */
+    K_EMIT_ENTRY     /* main_<symbol>.c, for --main (backend §5.8); `ast` is the module's, for the signature of its main */
 } KEmitFile;
 
 typedef struct {

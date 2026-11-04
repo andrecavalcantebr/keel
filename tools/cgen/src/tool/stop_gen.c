@@ -374,7 +374,7 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
             written.seen[written.n++] = prelude;
             written.seen[written.n++] = module;
             if (!rc) rc = emit_imports(arena, tool, dest, module, &written, opt, true);
-            if (!rc && main_module) rc = emit_one(arena, dest, NULL, mod, src_path, K_EMIT_ENTRY, NULL, opt);
+            if (!rc && main_module) rc = emit_one(arena, dest, module->ast, mod, src_path, K_EMIT_ENTRY, NULL, opt);
             if (!rc && units) {
                 /* the translation units the C compiler is given (cgen-tool-spec §4.3, §4.7) */
                 char rel[4096];

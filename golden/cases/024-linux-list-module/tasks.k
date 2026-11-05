@@ -2,7 +2,7 @@
 module tasks;
 import_c <assert.h>;
 import_c <stdio.h>;
-import linux.list as list;
+import linux.list as list types;
 
 /* list.h is intrusive: the node carries the link, and the list knows nothing
    of the type around it. `task` is a keel name — mangled — with a C field. */

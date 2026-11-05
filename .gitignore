@@ -22,3 +22,7 @@ compile_commands.json
 
 # a distribuição montada por `make dist`
 /dist/
+/release/
+/tools/*/cgen-release
+/tools/*/obj-release/
+/release/

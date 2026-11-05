@@ -13,9 +13,11 @@
  * `extern_c [type_h]`, each with its own .k line (cgen design §8.3). A line
  * shared by two constructions (two typedefs) is written once. */
 /* an K_AST_OPAQUE node that is a run of preprocessor directive lines (engine/ast.c):
- * a file-level directive goes to the .h, not the .type.h (linguagem §4.1, rule 13;
- * backend §4.1, row "diretiva de topo"); an unrecognized top-level C declaration
- * (the same AST kind, a different source) stays here, "o conteúdo, intacto". */
+ * a file-level directive goes to the .type.h, in its place among the types and
+ * preserved (linguagem §4.1, rule 13; backend §4.1, row "diretiva de topo"): it
+ * precedes the types that use it, and the .type.h is the one layer an instance of
+ * a generic reaches. An unrecognized top-level C declaration (the same AST kind, a
+ * different source) is written here too, "o conteúdo, intacto". */
 static bool is_directive_opaque(const KAst *ast, const KAstNode *n) {
     return n->kind == K_AST_OPAQUE && keel_buffer_KLexeme_ptr(&ast->tokens, n->first)->directive;
 }
@@ -26,7 +28,13 @@ static void type_h_body(Emit *e) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
         size_t a, b;
         if (k_em_generic_out(ast, n)) continue;
-        if (is_directive_opaque(ast, n)) continue;   /* h_body's, not this file's */
+        if (is_directive_opaque(ast, n)) {
+            a = k_em_line_start(e, k_em_first_off(e, n));
+            if (a < e->done) a = e->done;
+            b = k_em_line_end(e, k_em_last_end(e, n) - 1);   /* a directive token ends past its newline */
+            if (a < b) { k_em_emit_opaque_range(e, a, b); e->done = b; }
+            continue;
+        }
         switch (n->kind) {
         case K_AST_IMPORT_C:
             a = k_em_line_start(e, k_em_first_off(e, n));
@@ -96,13 +104,6 @@ static void h_body(Emit *e) {
             if (k_em_extern_c_inline(e->ast, n)) { k_em_extern_c_text(e, n); continue; }
             size_t a, b;
             k_em_extern_c_lines(e, n, &a, &b);
-            if (a < b) k_em_emit_opaque_range(e, a, b);
-        }
-        else if (is_directive_opaque(e->ast, n)) {
-            /* a file-level directive: in its place among the prototypes, preserved
-               (linguagem §4.1, rule 13; linguagem §2.1: directives are preserved) */
-            size_t a = k_em_line_start(e, k_em_first_off(e, n));
-            size_t b = k_em_line_end(e, k_em_last_end(e, n) - 1);
             if (a < b) k_em_emit_opaque_range(e, a, b);
         }
     }

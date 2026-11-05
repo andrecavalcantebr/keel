@@ -2,7 +2,6 @@
 module tasks;
 import_c <assert.h>;
 import_c <stdio.h>;
-import_c "linux/linux_list.h";
 import linux.list as list types;
 
 /* list.h is intrusive: the node carries the link, and the list knows nothing

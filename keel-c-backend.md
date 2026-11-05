@@ -358,10 +358,10 @@ app/cfg.k  →  app/app_cfg.type.h                tipos
 | `extern_c { … }` / `pub extern_c { … }` | — | o conteúdo, intacto | — |
 | `extern_c [type_h] { … }` / `pub extern_c [type_h] { … }` | o conteúdo, intacto | — | — |
 | `priv extern_c { … }` | — | — | o conteúdo, intacto |
-| diretiva de topo | — | preservada | — |
+| diretiva de topo | preservada | — | — |
 | C de topo que não é diretiva nem construção keel (`static_assert`) | o conteúdo, intacto | — | — |
 
-8. O `.type.h` recebe os `import_c`, as definições de tipo (`struct`, `union`, `enum`, `typedef`, `tags` e `extent`), públicas e `priv`, as declarações adiantadas dos campos por ponteiro e os `constexpr` de módulo. [D29](#10-decisões-de-emissão)
+8. O `.type.h` recebe os `import_c`, as diretivas de topo, as definições de tipo (`struct`, `union`, `enum`, `typedef`, `tags` e `extent`), públicas e `priv`, as declarações adiantadas dos campos por ponteiro e os `constexpr` de módulo. [D29](#10-decisões-de-emissão) *Limite conhecido:* um grupo `#if`/`#ifdef` de topo que abrange um tipo e uma função tem a abertura e o fechamento no `.type.h`, e a função, no `.h`, fica fora do grupo. O cgen conta as diretivas só para fechar delimitadores (linguagem §2.1), e não avalia condições; dividir o grupo entre as camadas está pendente.
 9. O `.h` recebe os protótipos e as declarações `extern`, depois os corpos `static inline`, e inclui o `.type.h`: é o arquivo que se inclui para usar o módulo. O conteúdo de `extern_c { … }` sem `[type_h]` entra no `.h` na ordem do fonte, entre os protótipos e as declarações `extern` das declarações vizinhas, intacto e precedido de `#line` com a linha do seu primeiro caractere (§6), para que um erro de C dentro dele caia no `.k`. Os corpos `static inline` de `pub inline` continuam depois de todos os protótipos.
 10. O `.c` recebe os corpos fora de linha, as definições de variável e o conteúdo de `priv extern_c`, este na posição do fonte. O `.c` não repete linha a linha o `.k`: o que a regra 9 e as outras levam aos headers deixa de estar nele, e o `#line` aparece onde o contador diverge (§6).
 11. Quem decide o arquivo é `pub`/`priv` (linguagem §4.1) e a camada (§4.3.1), pela tabela acima.
@@ -553,7 +553,7 @@ A fronteira de arquivo fica entre L1 e o resto:
 8. L3 se parte por ligação: o `.h` recebe os corpos que existem uma vez por unidade de tradução, `static inline`; o `.c`, os que existem uma vez no programa. O `.h` de instância é, assim, o `.c` replicável da instância; a função `pub` sem `inline` de um genérico precisa do §4.4.
 9. Instância sobre o tipo em definição sai como qualquer outra, e o `.h` da instância alcança o tipo pelo `.type.h` do módulo, e não pelo `.h` (linguagem §4.3).
 10. O backend emite L0 para todo agregado, sem depender de declaração adiantada no fonte. `slice Val` sem `Val` definido é erro de tipo incompleto do compilador C, no ponto de uso.
-11. Uma macro de um módulo importado é invisível ao cgen: ele deriva os `#include` das chamadas que resolveu (regra 7), e uma macro não é símbolo de módulo. Um corpo `inline` que a use não ganha o `#include` do `.h` do módulo. O programa traz o header com `import_c "caminho/modulo.h";`, ou deixa o corpo fora de linha (`pub`, sem `inline`), onde o `.c` já inclui o `.h`.
+11. Uma macro de um módulo importado é invisível ao cgen: ele deriva os `#include` das chamadas que resolveu (regra 7), e uma macro não é símbolo de módulo. Um corpo `inline` que a use só enxerga a macro se o header do módulo já chegar por outro caminho, como o `.type.h` de um tipo do módulo usado por valor (regra 2). Quando não chega, o programa traz o header com `import_c "caminho/modulo.type.h";`, ou deixa o corpo fora de linha (`pub`, sem `inline`), onde o `.c` já inclui o `.h`.
 
 O caso de `outcome buffer outcome i32` (§4.3.1) — abreviado: sem o diretório `keel/`, só os verbos `get` e `clone`, e sem a declaração adiantada de `keel_arena`:
 

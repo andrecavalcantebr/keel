@@ -635,10 +635,10 @@ Organizar declarações em módulos e integrar interfaces e implementações C.
 10. `import_c` emite a inclusão na interface.
 11. `extern_c` preserva o conteúdo, sem mangling dos símbolos ali declarados. keel não inspeciona esse conteúdo.
 12. Sem `priv`, o conteúdo de `extern_c` compõe a interface: com `[type_h]`, a camada de tipos (`.type.h`); sem `[type_h]`, o `.h`. Com `priv`, compõe a implementação (`.c`). `priv extern_c [type_h]` é recusado.
-13. Diretivas de pré-processamento no nível de arquivo vão para o `.h`; dentro de um construto, acompanham o destino dele.
+13. Diretivas de pré-processamento no nível de arquivo vão para a camada de tipos (`.type.h`), na ordem em que aparecem, junto com os tipos que elas precedem; dentro de um construto, acompanham o destino dele.
 14. `main` é uma função pública do módulo e recebe seu prefixo. A seleção do módulo de entrada pela ferramenta gera o wrapper C `main`, que chama essa função. Cada módulo pode declarar a sua `main`.
 15. O único import implícito é `import keel types;`, que traz também os protocolos da base (§5.1). Os módulos da base — `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7) — exigem import explícito. [R: prelúdio e base mínima](keel-rationale.md#prelúdio-e-base-mínima)
-16. Macros não pertencem ao namespace de módulos: não levam prefixo e são globais, como em C. Duas macros de mesmo nome em módulos diferentes colidem, e a escolha dos nomes é do autor. keel não vê diretivas, e por isso não vê macros: um corpo `inline` que use uma macro de um módulo importado precisa do `import_c` do header dele (backend §4.3.2, regra 11). [R: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos)
+16. Macros não pertencem ao namespace de módulos: não levam prefixo e são globais, como em C. Duas macros de mesmo nome em módulos diferentes colidem, e a escolha dos nomes é do autor. keel não vê diretivas, e por isso não vê macros: um corpo `inline` que use uma macro de um módulo importado precisa trazer o header dele (backend §4.3.2, regra 11). [R: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos)
 
 Referências: [Rationale: módulos e identidade](keel-rationale.md#módulos-e-identidade); [Rationale: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos); [Backend: artefatos](keel-c-backend.md#4-artefatos) e [ponto de entrada](keel-c-backend.md#58-ponto-de-entrada).
 

@@ -131,3 +131,12 @@ Corrigido o achado bloqueador: `isl_struct_fields` agora lê `struct/union/enum 
 Achado em aberto, de normativo: um `pub inline` que só usa macro do módulo importado não leva o
 `#include` do `.h` do import (o cgen não vê chamada); no caso, `next` ficou fora de linha. Falta
 `supported()` por construção e o corte de `uses.c`/`defer.c`.
+
+**Atualização (2026-11-05, tarde):** diretiva de topo volta ao `.type.h` (linguagem §4.1 r13, backend §4.1 e
+§4.3.2 r8/r11, rationale), por decisão do André: portar C exige só `module nome;`, a diretiva precede o tipo
+que a usa, e é a única camada que a instância de um genérico alcança (era o bug do `string.h` do `keel.buffer`,
+as 8 falhas de `base.sh` que vinham do `5fc7a6d`). Macros são globais e invisíveis ao keel (spec §4.1 r16).
+`test/run.sh` verde por inteiro pela primeira vez desde o `5fc7a6d` (gen_golden 69, base 124, golden 120, docs 45).
+024 sem `import_c` a mais; `layout-check.py` ganhou o corpo Allman. **Pendência registrada (backend §4.1 r8):**
+`#if/#ifdef` de topo que abrange tipo e função fica dividido entre as camadas; replicar o esqueleto nos dois
+headers é a saída, e foi adiada. Falta `supported()` por construção e o corte de `uses.c`/`defer.c`.

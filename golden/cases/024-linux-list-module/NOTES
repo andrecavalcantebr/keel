@@ -43,13 +43,14 @@ O que o caso encontrou:
 - Um campo de struct que cita `struct T` com `T` de outro módulo não era
   renomeado (`isl_struct_fields` só olhava um especificador de uma palavra);
   agora o campo `struct list_head link;` sai `struct linux_list_list_head`.
-- Um corpo `pub inline` que só usa uma macro do módulo importado (`list_entry`)
-  não leva o `#include` do `.h` do import: o cgen não vê chamada de símbolo de
-  módulo, e as macros do `list.k` são diretivas de topo, que vão para o `.h`.
-  O idioma é um `import_c "linux/linux_list.h";` no `tasks.k`, que põe o
-  include no `.type.h` e deixa `next` como `pub inline`. É mais uma edição do
-  caso. Um registro dos nomes das macros ficou fora de propósito (design em
-  discussão com o André, 2026-11-05).
+- As diretivas de topo do `list.k` (os `#define`, o `#ifndef` de guarda, o
+  `#include <stddef.h>`) vão para o `linux_list.type.h` (linguagem §4.1 r13), e
+  o `tasks.type.h` o inclui porque `struct list_head` entra por valor em `task`.
+  Assim `list_entry` chega ao corpo `pub inline` de `next` sem nenhum `import_c`
+  a mais. Se o `tasks` usasse só macros do módulo, ou o tipo só por ponteiro, o
+  header não viria: backend §4.3.2, regra 11. O guarda `#ifndef` do `list.h`
+  abre e fecha no `.type.h`, e as funções, no `.h`, ficam fora dele (limite
+  conhecido, backend §4.1 regra 8).
 - `LIST_HEAD(name)` continua escrevendo `struct list_head` por extenso dentro
   do `#define`: o texto de uma macro atravessa intacto, e o caso não a usa.
 

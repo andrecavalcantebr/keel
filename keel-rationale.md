@@ -321,6 +321,12 @@ macros não é reescrito), e `constexpr` e a função `inline` já cobrem os uso
 que merecem o nome do módulo. A macro fica como em C: global, e trazida por
 `import_c` quando um corpo `inline` precisa dela.
 
+A diretiva de topo vai para a camada de tipos porque precede, no fonte, o tipo
+que a usa (`#define N 16` antes de `int a[N]`), e porque é a única camada que
+a instância de um genérico alcança. Isso deixa portar um arquivo C com a única
+edição `module nome;`: os `#include` e os `#define` do topo continuam valendo
+sem trocá-los por `import_c`.
+
 Referência: spec §§1.1, 1.3 e 1.4.
 
 ## Por que `<opaque>` é o terminal central

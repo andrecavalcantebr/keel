@@ -23,7 +23,6 @@
 
 
 
-
 int tasks_main(void) {
     tasks_queue q;
     linux_list_INIT_LIST_HEAD(&q.head);

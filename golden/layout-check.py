@@ -64,6 +64,9 @@ def r6(content, is_h):
     keep = set()
     if first_body is not None:
         j = first_body - 1
+        # an Allman body: the `{` is on its own line, below the signature
+        while j > 0 and content[j] and not content[j].startswith('#') and not content[j].rstrip().endswith(';'):
+            j -= 1
         while j >= 0 and content[j].startswith('#line '):
             j -= 1
         if j > 0 and content[j] == '':

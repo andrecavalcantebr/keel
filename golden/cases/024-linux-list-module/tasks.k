@@ -17,7 +17,7 @@ pub typedef struct { struct list_head *at; } cursor;
 
 pub inline cursor begin(queue *q)               { cursor c = { q->head.next }; return c; }
 pub inline bool   has_next(queue *q, cursor *c) { return c->at != &q->head; }
-pub inline task  *next(queue *q, cursor *c)     { task *t = list_entry(c->at, task, link); c->at = c->at->next; return t; }
+pub        task  *next(queue *q, cursor *c)     { task *t = list_entry(c->at, task, link); c->at = c->at->next; return t; }
 
 int main(void) {
     queue q;

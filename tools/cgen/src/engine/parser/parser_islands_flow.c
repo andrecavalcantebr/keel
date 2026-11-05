@@ -1321,8 +1321,11 @@ void isl_struct_fields(Ctx *c, const KAstNode *n) {
     if (close >= n->end) return;
     for (size_t i = open + 1; i < close; i++) {
         if (!(isl_punct(a, i - 1, "{") || isl_punct(a, i - 1, ";"))) continue;
-        if (!isl_ident(a, i) || isl_word(a, i, "array")) continue;
-        specifier_island(c, i);
+        /* `struct T f;`: T is the type, as in a local (spec §4.2, tagged-type); a body is not ours */
+        size_t at = i;
+        if (isl_word(a, i, "struct") || isl_word(a, i, "union") || isl_word(a, i, "enum")) at = i + 1;
+        if (!isl_ident(a, at) || isl_word(a, at, "array")) continue;
+        specifier_island(c, at);
     }
 }
 

@@ -11,7 +11,7 @@ para cá.
 - **A memória do projeto está em [`.claude/memory/`](.claude/memory/MEMORY.md).**
   Leia o `MEMORY.md` primeiro: é o índice, e cada linha aponta para um fato.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code, e
-  atualizada em 2026-11-02 (54 dos 57 casos do golden saem do cgen). O
+  atualizada em 2026-11-05 (os 59 casos do golden saem do cgen). O
   que diverge do repositório vale menos que o repositório.
 - **Nenhuma pendência de normativo em aberto** desde 2026-11-02 (a última leva, `defer` na forma
   escrita, `-c` com `--main` e a linha do acessor de `extent`, foi escrita com o "sim" do André). P16 (visibilidade do C que

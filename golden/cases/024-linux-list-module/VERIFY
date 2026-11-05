@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# Case 024 compiles Linux's list.h as the module linux.list, so it needs the GNU
+# dialect: container_of is a statement expression over typeof, and
+# -pedantic-errors refuses `({ … })` even in GNU mode. keel preserves the C
+# dialect (spec §1): the build chooses it, here gnu11 / gnu2x in place of the
+# profile's c11 / c2x, and the proof is the program's own asserts.
+#
+#   $1 = compiler   $2 = -std=...   $3 = profile directory
+set -eu
+dir=$(dirname "$0")
+gen="$dir/expected/$3"
+case "$2" in -std=c2x) std=-std=gnu2x ;; *) std=-std=gnu11 ;; esac
+flags="-Wall -Wextra -Wno-unused-parameter -Wvla -Werror=vla -Wno-unknown-pragmas"
+exe=$(mktemp)
+trap 'rm -f "$exe"' EXIT
+"$1" "$std" $flags -I"$3" -I"$gen" -I"$dir" $(find "$gen" -name '*.c') -o "$exe"
+out=$("$exe")
+[ "$out" = "$(printf '1\n3\n5')" ] || { echo "  want [1 3 5] got [$out]"; exit 1; }

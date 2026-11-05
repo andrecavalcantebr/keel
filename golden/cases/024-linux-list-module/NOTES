@@ -29,9 +29,31 @@ O que o keel vai recusar ou quebrar, já visível sem ferramenta:
 - para onde vão os `#define` do módulo — sem isso `list_for_each_entry` não
   chega ao importador: P16, design/cgen-tool.md §13.
 
-A contagem final das edições é resultado do caso, e vai aqui quando fechar.
+Resultado
+=========
+
+Edições sobre o `list.h` do 022: a linha `module linux.list;`; 26 `static
+inline` viram `pub inline`; os ramos `CONFIG_DEBUG_LIST` saem (declarariam o
+nome canônico duas vezes); `tasks.k` importa o módulo com `types`, e as
+funções passam a ser chamadas qualificadas (`list.list_add_tail`). As macros
+continuam nuas.
+
+O que o caso encontrou:
+
+- Um campo de struct que cita `struct T` com `T` de outro módulo não era
+  renomeado (`isl_struct_fields` só olhava um especificador de uma palavra);
+  agora o campo `struct list_head link;` sai `struct linux_list_list_head`.
+- Um corpo `pub inline` que só usa uma macro do módulo importado (`list_entry`)
+  não leva o `#include` do `.h` do import, porque o cgen não vê chamada de
+  símbolo de módulo. Aqui `next` ficou fora de linha (`pub`, sem `inline`):
+  o corpo vai para o `.c`, que inclui `linux/linux_list.h`. Se isso deve
+  ser regra do backend (um `inline` incluir o `.h` de todo import), é decisão
+  de normativo, ainda em aberto.
+- `LIST_HEAD(name)` continua escrevendo `struct list_head` por extenso dentro
+  do `#define`: o texto de uma macro atravessa intacto, e o caso não a usa.
 
 Estado
 ======
 
-Esqueleto: fonte no primeiro corte; `expected/` depende da P16.
+Fechado: `expected/` nos dois perfis, escrito a partir do que o cgen emite e
+revisto contra o `.k`; o `VERIFY` compila em gnu11 / gnu2x e confere `1 3 5`.

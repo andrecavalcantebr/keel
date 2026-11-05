@@ -124,3 +124,10 @@ André pediu para guardar e retomar depois, sem consertar agora — é lacuna de
 têm o resto do caso já encaminhado (26 `static inline`→`pub inline`, os ramos `CONFIG_DEBUG_LIST`
 retirados — colidiam o nome canônico —, `import ... types` para a struct), commit `f15ebe2`; falta
 o `expected/` dos dois perfis, que depende do fix. Segue `|wip`, fora do oráculo.
+
+**Atualização (2026-11-05):** **024 fechado, os 59 casos saem do cgen** (golden 120 ok, 0 WIP).
+Corrigido o achado bloqueador: `isl_struct_fields` agora lê `struct/union/enum T f;` pelo `T`
+(antes só um especificador de uma palavra). `expected/` do 024 nos dois perfis, `VERIFY` gnu11/gnu2x.
+Achado em aberto, de normativo: um `pub inline` que só usa macro do módulo importado não leva o
+`#include` do `.h` do import (o cgen não vê chamada); no caso, `next` ficou fora de linha. Falta
+`supported()` por construção e o corte de `uses.c`/`defer.c`.

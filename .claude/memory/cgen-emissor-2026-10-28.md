@@ -97,3 +97,30 @@ Próximo: refatoração do `emit.c` por partes. Detalhe: última seção da pass
 **Próximos passos (2026-11-02):** ver a seção "Próximos passos" no fim de `tools/agents/passagem-2026-10-28.md` (decisões do
 André sobre genérico/`priv inline`, `linux-list`, `supported()` por construção e o corte de `uses.c`/`defer.c`, itens
 pequenos, piloto de oráculo por Haiku no `AGENTS.md`, rodar de novo o levantamento 3 antes dos testes de estresse).
+
+**Atualização (2026-11-04):** genérico que cita só parâmetro (`g01`→059) e `priv inline` em
+genérico (`g02`→060) fechados: backend §4.3 r1 (a unidade de header é a instância do **módulo**,
+não do modificador — resolve a colisão com o golden 010) e r6 (`priv inline` sai `static inline`
+no `.h` da instância). **022 e 023 do `linux-list` fechados** (`import_c` e `extern_c [type_h]`):
+achado e corrigido um bug real — o conteúdo de uma diretiva de topo fora de `extern_c` ia para o
+`.type.h`, e a spec (§4.1 r13) manda para o `.h`; e o conteúdo de `extern_c` estava sendo
+branqueado nos comentários, quando devia atravessar intacto. `k_em_emit_opaque_range` (lines.c)
+cobre as duas formas, e `COPIED_SPAN` no `layout-check.py` para de tentar normalizar linha em
+branco de texto copiado de verdade.
+
+**024 (linux-list por módulo), em andamento — achado bloqueador:** um campo de struct que
+referencia um tipo de **outro** módulo (`typedef struct { ... struct list_head link; ... } task;`,
+com `list_head` de `linux.list`) não é renomeado — fica `struct list_head`, e o C não compila.
+Confirmado que o mecanismo de renome cross-módulo **funciona** em geral (`struct Foo f;` como
+variável local vira `struct a_m_Foo f;` certinho) — só falha dentro do corpo de uma struct. Causa:
+`isl_declaration` (que resolve o tipo e emite a ilha `K_ISLAND_TYPE`) só é chamada em
+`parser_islands_flow.c`/`parser_islands_index.c`, para declaração de variável/parâmetro/retorno;
+nenhum lugar percorre `K_AST_TYPE.body_first..body_end` para aplicar o mesmo tratamento ao
+especificador de um **campo**. Contraria a spec (§4.2: "`tagged-type` faz da declaração uma
+declaração keel quando o nome foi declarado em keel — struct, union, enum ou extent do módulo
+**ou de um import**"). Nenhum caso do golden testava `struct` cruzando módulo antes do 024.
+André pediu para guardar e retomar depois, sem consertar agora — é lacuna de reconhecimento
+(mais código, mais superfície), diferente dos dois fixes de roteamento acima. `golden/cases/024-linux-list-module/{linux/list.k,tasks.k}`
+têm o resto do caso já encaminhado (26 `static inline`→`pub inline`, os ramos `CONFIG_DEBUG_LIST`
+retirados — colidiam o nome canônico —, `import ... types` para a struct), commit `f15ebe2`; falta
+o `expected/` dos dois perfis, que depende do fix. Segue `|wip`, fora do oráculo.

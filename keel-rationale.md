@@ -315,6 +315,12 @@ A promessa central é traduzir keel integralmente para C e preservar o texto
 das expressões fora das substituições necessárias. Ela não equivale a aceitar
 qualquer fonte C sem adaptação.
 
+keel não vê diretivas, e por isso não vê macros. Marcar cada macro para que o
+keel a conheça exigiria sintaxe nova e um mangling frágil (o corpo das outras
+macros não é reescrito), e `constexpr` e a função `inline` já cobrem os usos
+que merecem o nome do módulo. A macro fica como em C: global, e trazida por
+`import_c` quando um corpo `inline` precisa dela.
+
 Referência: spec §§1.1, 1.3 e 1.4.
 
 ## Por que `<opaque>` é o terminal central

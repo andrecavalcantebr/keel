@@ -553,6 +553,7 @@ A fronteira de arquivo fica entre L1 e o resto:
 8. L3 se parte por ligação: o `.h` recebe os corpos que existem uma vez por unidade de tradução, `static inline`; o `.c`, os que existem uma vez no programa. O `.h` de instância é, assim, o `.c` replicável da instância; a função `pub` sem `inline` de um genérico precisa do §4.4.
 9. Instância sobre o tipo em definição sai como qualquer outra, e o `.h` da instância alcança o tipo pelo `.type.h` do módulo, e não pelo `.h` (linguagem §4.3).
 10. O backend emite L0 para todo agregado, sem depender de declaração adiantada no fonte. `slice Val` sem `Val` definido é erro de tipo incompleto do compilador C, no ponto de uso.
+11. Uma macro de um módulo importado é invisível ao cgen: ele deriva os `#include` das chamadas que resolveu (regra 7), e uma macro não é símbolo de módulo. Um corpo `inline` que a use não ganha o `#include` do `.h` do módulo. O programa traz o header com `import_c "caminho/modulo.h";`, ou deixa o corpo fora de linha (`pub`, sem `inline`), onde o `.c` já inclui o `.h`.
 
 O caso de `outcome buffer outcome i32` (§4.3.1) — abreviado: sem o diretório `keel/`, só os verbos `get` e `clone`, e sem a declaração adiantada de `keel_arena`:
 

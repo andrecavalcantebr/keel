@@ -21,7 +21,8 @@
 
 
 
-tasks_task  *tasks_next(tasks_queue *q, tasks_cursor *c)     { tasks_task *t = list_entry(c->at, tasks_task, link); c->at = c->at->next; return t; }
+
+
 
 int tasks_main(void) {
     tasks_queue q;

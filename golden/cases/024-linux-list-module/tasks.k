@@ -2,6 +2,7 @@
 module tasks;
 import_c <assert.h>;
 import_c <stdio.h>;
+import_c "linux/linux_list.h";
 import linux.list as list types;
 
 /* list.h is intrusive: the node carries the link, and the list knows nothing
@@ -17,7 +18,7 @@ pub typedef struct { struct list_head *at; } cursor;
 
 pub inline cursor begin(queue *q)               { cursor c = { q->head.next }; return c; }
 pub inline bool   has_next(queue *q, cursor *c) { return c->at != &q->head; }
-pub        task  *next(queue *q, cursor *c)     { task *t = list_entry(c->at, task, link); c->at = c->at->next; return t; }
+pub inline task  *next(queue *q, cursor *c)     { task *t = list_entry(c->at, task, link); c->at = c->at->next; return t; }
 
 int main(void) {
     queue q;

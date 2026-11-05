@@ -1,0 +1,40 @@
+SPDX-License-Identifier: GPL-2.0-only
+
+O que este caso afirma
+======================
+
+Um grupo condicional (`#if`/`#ifdef`/`#elif`/`#else`/`#endif`) cujas alternativas
+abrem `{` conta, para o corpo da função, **uma** abertura, e não uma por
+alternativa (linguagem §2.4): a alternativa é contada a partir da profundidade
+em que o grupo começou, e o grupo deixa a profundidade que a primeira deixou
+(o `k_check_delimiters` já recusou as que discordam). Cinco funções, em
+`app/cond.k`:
+
+- `nested`: grupos aninhados, resolvidos de dentro para fora;
+- `chain`: `#elif` e um `#  else` com espaços, que continua sendo `#else`;
+- `across`: o grupo abre o bloco, que termina depois dele;
+- `balanced`: a mesma abertura `(` deixada pelas duas alternativas;
+- `deep`: oito grupos aninhados, cada um com o seu `#else` e o seu `#endif`
+  (o teste de diagnóstico `diag/delims2` vai a 63, o mínimo que o C exige).
+
+O `proof.c` não define nenhuma das macros: o compilador C toma a última
+alternativa de cada grupo, e o resultado só é o esperado se as chaves que o
+cgen contou forem as que o compilador emparelha.
+
+O que o caso encontrou
+======================
+
+Os scanners de extensão (`k_scan_braced_opaque`, `k_scan_opaque_until` e o
+`balanced` de `ast.c`) somavam as chaves de todas as alternativas em linha
+reta: `#if X {  #else {  #endif` dava profundidade 2, e a função não fechava
+(`malformed or truncated declaration`). Agora usam `KGroupDepth`
+(`engine/lexer/group_depth.c`), que conta por alternativa. O
+`k_check_delimiters` também deixava de reconhecer `#  else` com espaços, e
+tinha 32 grupos de limite (agora 64).
+
+Fica de fora: um `}` que fecha o corpo dentro de um grupo, e os pareadores
+de chaves da análise de ilhas (`isl_close_paren`, `block_end`), que ainda
+somam em linha reta.
+
+`#elifdef` e `#elifndef` são C23: o caso usa `#elif defined(...)`, e a forma
+curta está só no teste de diagnóstico, que não compila o C.

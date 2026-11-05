@@ -140,3 +140,11 @@ as 8 falhas de `base.sh` que vinham do `5fc7a6d`). Macros são globais e invisí
 024 sem `import_c` a mais; `layout-check.py` ganhou o corpo Allman. **Pendência registrada (backend §4.1 r8):**
 `#if/#ifdef` de topo que abrange tipo e função fica dividido entre as camadas; replicar o esqueleto nos dois
 headers é a saída, e foi adiada. Falta `supported()` por construção e o corte de `uses.c`/`defer.c`.
+
+**Atualização (2026-11-05, noite):** grupos condicionais (spec §2.4) garantidos na implementação. Achados: os
+scanners de extensão (`k_scan_braced_opaque`, `k_scan_opaque_until`, `balanced` de `ast.c`) somavam as chaves de
+todas as alternativas em linha reta, e `#  else` com espaços não era `#else` no `k_check_delimiters`; limite de
+grupos 32→64. Agora `KGroupDepth` (`engine/lexer/group_depth.c`) conta por alternativa. Testes: `diag/delims2`
+(aninhado, cadeia, adjacente, 63 níveis) e o golden 061 (60 casos). **Ainda em linha reta** (pendente): os
+pareadores da análise de ilhas (`isl_close_paren`, `block_end`, `isl_enclosing_brace`) e um `}` que fecha o corpo
+dentro de um grupo. `test/run.sh` verde (gen_golden 71, base 124, golden 122, docs 45).

@@ -73,3 +73,5 @@ test/cgen/gen/share|use.k|-
 059-generic-param-only|app/pbox_use.k|-|
 022-linux-list-import-c|tasks.k|tasks
 023-linux-list-extern-c|tasks.k|tasks
+024-linux-list-module|tasks.k linux/list.k|tasks
+061-conditional-delimiters|app/cond.k|-|

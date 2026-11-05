@@ -56,6 +56,26 @@ bool k_token_is_number(KToken t);
 bool k_token_is_string(KToken t);
 bool k_token_is_char(KToken t);
 bool k_token_is_punct(KToken t, const char *spelling);
+/* a directive token that is `#else`, however it is spaced (`#  else`), and not `#elif...` */
+bool k_token_is_plain_else(KToken t);
+
+/* The depth of `(` `[` `{` as a scanner counts it, with the conditional groups of
+ * keel-spec §2.4: an alternative is counted from the depth the group began at, and
+ * the group leaves the depth its first alternative left (all of them agree, which
+ * k_check_delimiters has already told). A scanner that adds up the tokens of every
+ * alternative reads `#if X { #else { #endif` as two openings. With `braces_only`
+ * only `{` and `}` count. Groups nested past K_GROUP_DEPTH_MAX are not tracked. */
+#define K_GROUP_DEPTH_MAX 64
+typedef struct {
+    int depth;
+    size_t groups;                                  /* conditional groups open now */
+    struct { int entry, result; bool has_result, has_else; } g[K_GROUP_DEPTH_MAX];
+    size_t over;
+    bool braces_only;
+} KGroupDepth;
+void k_group_depth_init(KGroupDepth *d, bool braces_only);
+void k_group_depth_feed(KGroupDepth *d, KToken t, TKPpKind pp);
+
 /* the logical spelling is exactly `s`, or begins with `prefix` */
 bool k_token_spelled(KToken t, const char *s);
 bool k_token_starts_with(KToken t, const char *prefix);

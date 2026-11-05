@@ -6,10 +6,13 @@ void k_scan_opaque_until(KLexer *lexer, KToken first, const char *const *termina
                           size_t terminator_count, size_t *terminator_index_out,
                           KToken *next_out, TKPpKind *next_pp_kind_out) {
     KToken tok = first;
-    int depth = 0;
+    KGroupDepth gd;
+    k_group_depth_init(&gd, false);
+    TKPpKind pp = TK_PP_OTHER;      /* of `tok`: `first` is a token already read */
+    (void)pp;
 
     for (;;) {
-        if (depth == 0) {
+        if (gd.depth == 0) {
             for (size_t i = 0; i < terminator_count; ++i) {
                 if (k_token_is_punct(tok, terminators[i])) {
                     *terminator_index_out = i;
@@ -25,13 +28,9 @@ void k_scan_opaque_until(KLexer *lexer, KToken first, const char *const *termina
             return;
         }
 
-        if (k_token_is_punct(tok, "(") || k_token_is_punct(tok, "[") || k_token_is_punct(tok, "{")) {
-            depth++;
-        } else if (k_token_is_punct(tok, ")") || k_token_is_punct(tok, "]") || k_token_is_punct(tok, "}")) {
-            depth--;
-        }
-
+        k_group_depth_feed(&gd, tok, pp);
         tok = k_lexer_next(lexer, next_pp_kind_out);
+        pp = *next_pp_kind_out;
     }
 }
 
@@ -42,35 +41,26 @@ keel_slice_char k_scan_braced_opaque(KLexer *lexer, KToken open,
     KToken first;
     KToken last;
     bool seen_content = false;
-    int depth = 1;
+    KGroupDepth gd;
+    k_group_depth_init(&gd, true);
+    gd.depth = 1;
 
     while (true) {
-        KToken tok = k_lexer_next(lexer, next_pp_kind_out);
-        if (k_token_is_punct(tok, "{")) {
-            depth++;
-            if (!seen_content) {
-                first = tok;
-                seen_content = true;
-            }
-            last = tok;
-        } else if (k_token_is_punct(tok, "}")) {
-            depth--;
-            if (depth == 0) {
-                *next_out = k_lexer_next(lexer, next_pp_kind_out);
-                break;
-            }
-            if (!seen_content) {
-                first = tok;
-                seen_content = true;
-            }
-            last = tok;
-        } else {
-            if (!seen_content) {
-                first = tok;
-                seen_content = true;
-            }
-            last = tok;
+        TKPpKind pp;
+        KToken tok = k_lexer_next(lexer, &pp);
+        *next_pp_kind_out = pp;
+        if (tok.len == 0) { *next_out = tok; break; }       /* end of file: the delimiter pass has told */
+        k_group_depth_feed(&gd, tok, pp);
+        /* the body ends at the `}` that leaves no depth and no group open */
+        if (k_token_is_punct(tok, "}") && gd.depth == 0 && gd.groups == 0) {
+            *next_out = k_lexer_next(lexer, next_pp_kind_out);
+            break;
         }
+        if (!seen_content) {
+            first = tok;
+            seen_content = true;
+        }
+        last = tok;
     }
 
     if (!seen_content) {

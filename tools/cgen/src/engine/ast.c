@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdint.h>
 #include "engine/ast.h"
 #include "engine/parser/parser.h"
@@ -26,6 +27,18 @@ size_t k_lexemes(keel_slice_char source, KLexeme *out, size_t cap,
 }
 
 static size_t balanced(const KAst *a, size_t i, const char *open, const char *close) {
+    /* the braces of a body, counted per alternative of a conditional group (spec §2.4);
+       the other pairs keep the plain count */
+    if (strcmp(open, "{") == 0) {
+        KGroupDepth gd;
+        k_group_depth_init(&gd, true);
+        for (size_t j = i; j < a->tokens.len; j++) {
+            const KLexeme *l = keel_buffer_KLexeme_ptr(&a->tokens, j);
+            k_group_depth_feed(&gd, l->token, l->pp_kind);
+            if (gd.depth == 0 && gd.groups == 0 && (punct(a, j, close) || l->pp_kind == TK_PP_ENDIF)) return j + 1;
+        }
+        return SIZE_MAX;
+    }
     size_t depth = 0;
     for (size_t j = i; j < a->tokens.len; j++) {
         if (punct(a, j, open)) depth++;

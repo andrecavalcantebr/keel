@@ -71,6 +71,7 @@ static inline void linux_list_list_splice_tail_init(struct linux_list_list_head 
 #line 634 "linux/list.k"
 static inline void linux_list_list_del_range(struct linux_list_list_head *begin,
 				  struct linux_list_list_head *end);
+
 #line 54 "linux/list.k"
 static inline void linux_list_INIT_LIST_HEAD(struct linux_list_list_head *list)
 {

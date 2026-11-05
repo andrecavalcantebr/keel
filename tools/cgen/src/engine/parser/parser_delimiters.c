@@ -7,7 +7,7 @@
 #include "engine/parser/parser.h"
 
 #define K_OPEN_MAX 256
-#define K_GROUP_MAX 32
+#define K_GROUP_MAX 64      /* C requires 63 levels of conditional nesting (C11 5.2.4.1) */
 
 typedef struct {
     size_t entry[K_OPEN_MAX], entry_n;      /* the openings when the group began */
@@ -47,12 +47,12 @@ static void finish(const KAst *a, Group *g, const size_t *open, size_t n, KDiagn
 bool k_check_delimiters(const KAst *a, KDiagnosticSink *diag) {
     static size_t open[K_OPEN_MAX];
     static Group groups[K_GROUP_MAX];
-    size_t n = 0, ng = 0;
+    size_t n = 0, ng = 0, over = 0;     /* over: groups nested past K_GROUP_MAX, whose #else/#endif must not reach the others */
     bool ok = true;
     for (size_t i = 0; i < a->tokens.len; i++) {
         const KLexeme *l = keel_buffer_KLexeme_ptr(&a->tokens, i);
         if (l->pp_kind == TK_PP_IF) {
-            if (ng == K_GROUP_MAX) continue;
+            if (ng == K_GROUP_MAX) { over++; continue; }
             Group *g = &groups[ng++];
             memcpy(g->entry, open, n * sizeof *open);
             g->entry_n = n;
@@ -60,14 +60,16 @@ bool k_check_delimiters(const KAst *a, KDiagnosticSink *diag) {
             g->at = i;
             continue;
         }
+        if (l->pp_kind == TK_PP_ELSE && over) continue;
         if (l->pp_kind == TK_PP_ELSE && ng) {
             Group *g = &groups[ng - 1];
             finish(a, g, open, n, diag);
-            if (k_token_spelled(l->token, "#else") || strstr(l->token.ptr, "else") == l->token.ptr + 1) g->has_else = true;
+            if (k_token_is_plain_else(l->token)) g->has_else = true;
             memcpy(open, g->entry, g->entry_n * sizeof *open);
             n = g->entry_n;
             continue;
         }
+        if (l->pp_kind == TK_PP_ENDIF && over) { over--; continue; }
         if (l->pp_kind == TK_PP_ENDIF && ng) {
             Group *g = &groups[--ng];
             finish(a, g, open, n, diag);

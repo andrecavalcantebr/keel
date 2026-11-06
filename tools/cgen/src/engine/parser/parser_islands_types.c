@@ -951,6 +951,33 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         if (fsig.overloaded && argc > 1) isl_put_uint(&t, argc - 1);
         isl_put_str(&t, "_");
         isl_put_str(&t, k0->symbol);
+        /* the instance of the function over this concrete type, for the closure (spec §4.14):
+           `k0` is not itself a generic instance (the common case: an ordinary `typedef`), so
+           `isl_record_seed` cannot carry its module forward through the one `module` field it
+           keeps for the protocol function's own */
+        {
+            const KModule *concrete_module = module ? module : ast_module(c, home);
+            /* `proto_home` is the file itself when the function over the protocol is
+               this file's own: `ast_module` cannot find it (it is not its own import),
+               but the function's own symbol already carries the right module (the
+               same way a locally declared type's does, isl_kt_from_text above) */
+            const KSymbol *fs = k_symbol_resolve(a->symbols, name);
+            const KModule *proto_module = fs && fs->origin ? fs->origin : ast_module(c, proto_home);
+            if (concrete_module && proto_module) {
+                Text fn = { .ok = true };
+                isl_put_module_prefix(&fn, proto_home);
+                isl_put_str(&fn, "_");
+                isl_put(&fn, name.ptr, name.len);
+                if (fsig.overloaded && argc > 1) isl_put_uint(&fn, argc - 1);
+                isl_put_str(&fn, "_");
+                isl_put_str(&fn, k0->symbol);
+                if (fn.ok && fn.n < K_SYMBOL_MAX) {
+                    fn.s[fn.n] = 0;
+                    isl_record_protocol_seed_plain(c, fn.s, proto_module, concrete_module,
+                                                    k0->symbol, strlen(k0->symbol), name);
+                }
+            }
+        }
     } else {
         isl_put_module_prefix(&t, home);
     }
@@ -1006,10 +1033,19 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             check_array_argument(c, home, &sig.p[k], args[k], ak);
             continue;
         }
-        if (sig.p[k].pointer && ak && ak->pointers == 0 && ak->lvalue) { isl_put_str(&t, " &"); isl_put_uint(&t, k + 1); }
+        /* a function over a protocol (spec §4.14, rule 7): the instance takes the concrete type
+           by value or by pointer according to its own `byref`, not the redirected verb's (`sig`
+           is `first`/`limit` or whichever verb matches the return type, found above to resolve
+           the instance — its own pointer-ness is unrelated to the instance's signature) */
+        bool wants_pointer = sig.p[k].pointer;
+        if (proto_of && k == 0 && k0 && *k0->symbol && k0->kind != KT_ARRAY) {
+            KSpecifier cs = { .kind = K_SPEC_NAMED_TYPE, .type_name = k0->name };
+            wants_pointer = isl_spec_byref(a, &cs);
+        }
+        if (wants_pointer && ak && ak->pointers == 0 && ak->lvalue) { isl_put_str(&t, " &"); isl_put_uint(&t, k + 1); }
         /* a value parameter takes a pointer symbol `x` as `*x` (rule 5); only a bare name, not an
            expression, and not an array, whose record counts its dimension as a pointer */
-        else if (!sig.p[k].pointer && ak && ak->pointers > 0 && ak->kind != KT_ARRAY &&
+        else if (!wants_pointer && ak && ak->pointers > 0 && ak->kind != KT_ARRAY &&
                  args[k].end == args[k].first + 1 && isl_ident(a, args[k].first)) { isl_put_str(&t, " *"); isl_put_uint(&t, k + 1); }
     }
     isl_emit(c, K_ISLAND_CALL, callee, &t);

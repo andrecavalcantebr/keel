@@ -21,7 +21,7 @@ static int instance_of(const KAst *ast, const char *sym, size_t len) {
     size_t best_len = 0;
     for (size_t c = 0; c < ast->closure.len; c++) {
         const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, c);
-        if (k->kind != K_CLOSURE_INSTANCE) continue;
+        if (k->kind != K_CLOSURE_INSTANCE && k->kind != K_CLOSURE_PROTOCOL_FUNCTION) continue;
         if (prefix_of(sym, len, k->symbol, k->symbol_len) && k->symbol_len > best_len) { best = (int)c; best_len = k->symbol_len; }
         /* the unit of a module instance (`keel_routine_ag2_Ag_seq`) */
         char unit[NAME_CAP];

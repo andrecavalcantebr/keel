@@ -750,7 +750,10 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
     e.scratch_n = 0;
     k_writer_init(&e.w, out, src_path, opt.line_on);
     if (which != K_EMIT_TYPE_H && which != K_EMIT_H && which != K_EMIT_C) return K_EMIT_UNSUPPORTED;
-    if (!k_em_module_is_generic(generic) || (!inst->proto_fn.len && !instance_supported(&e))) return K_EMIT_UNSUPPORTED;
+    /* a function over a protocol (spec §4.14) is an instance of its own declaring module even
+       when that module is not generic (no binders at all, the common case): only an ordinary
+       instance (no `proto_fn`) requires one */
+    if (!inst->proto_fn.len && (!k_em_module_is_generic(generic) || !instance_supported(&e))) return K_EMIT_UNSUPPORTED;
     if (which == K_EMIT_H) k_em_instance_h(&e);
     else if (which == K_EMIT_C) k_em_instance_c(&e);
     else emit_file(&e, which);

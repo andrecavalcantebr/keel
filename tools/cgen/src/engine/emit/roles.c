@@ -111,9 +111,11 @@ static void proto_edits(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *e
         put(txt, &w, "_", 1); put(txt, &w, in->proto_concrete.ptr, in->proto_concrete.len);
         k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = after, .skip = 0, .text = txt, .text_len = w });
     }
-    size_t p0 = fn->name_first + 2;                                   /* `Proto C x` */
+    size_t p0 = fn->name_first + 2;                                   /* `Proto C x`, or `Proto x` (spec §4.14: the alias is optional) */
     if (k_em_text_is(k_em_tok(ast, p0), "parent") || k_em_text_is(k_em_tok(ast, p0), "child")) p0++;
-    size_t x = p0 + 2;
+    /* no alias: the parameter's name is the next token, and ends it (`,` or `)` follows) */
+    bool no_alias = k_em_text_is(k_em_tok(ast, p0 + 2), ",") || k_em_text_is(k_em_tok(ast, p0 + 2), ")");
+    size_t x = no_alias ? p0 + 1 : p0 + 2;
     size_t at = k_em_tok_off(ast, p0);
     if (at < a || at >= b || !k_token_is_ident(k_em_tok(ast, x))) return;
     keel_slice_char head = in->proto_array ? in->proto_elem : in->proto_concrete;

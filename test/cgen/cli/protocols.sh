@@ -35,7 +35,7 @@ decl	pub protocol	Seq	-	app/lst.k:6:1
 decl	pub protocol	Sized	-	app/lst.k:7:1
 decl	pub type	Shared	app_lst_Shared	app/lst.k:8:1
 ilha	call	slice.of/3 → keel_slice_of2_keel_buffer_i32	app/lst.k:20:25
-ilha	call	count/1 → app_lst_count_app_lst_List	app/lst.k:21:12
+ilha	call	count/1 → app_lst_count_app_lst_List *1	app/lst.k:21:12
 W
 )
 got=$(cd "$d" && "$OLDPWD/tools/cgen/cgen" --base-dir "$OLDPWD/base" --stop-after=parse app/lst.k 2>&1 |

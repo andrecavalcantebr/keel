@@ -79,9 +79,14 @@ typedef struct KClosure {
     char symbol[K_INSTANCE_NAME_CAP];
     size_t symbol_len;
     const struct KModule *module;       /* the generic module; the protocol's module for a function */
-    keel_slice_char modifier;           /* the modifier's name, empty for a module of verbs */
+    const struct KModule *proto_concrete_module;   /* K_CLOSURE_PROTOCOL_FUNCTION over a type that is not
+                                           itself a generic instance (spec §4.14): that type's own module */
+    keel_slice_char modifier;           /* the modifier's name, empty for a module of verbs;
+                                            K_CLOSURE_PROTOCOL_FUNCTION over such a type: the function's plain name */
     size_t argc;
-    size_t arg_text[K_CLOSURE_ARGS], arg_len[K_CLOSURE_ARGS];   /* each argument's C symbol */
+    size_t arg_text[K_CLOSURE_ARGS], arg_len[K_CLOSURE_ARGS];   /* each argument's C symbol; K_CLOSURE_PROTOCOL_FUNCTION
+                                           over a type that is not a generic instance: arg_text[0]/arg_len[0] is that
+                                           type's own C symbol (argc 1), pooled the same way */
     size_t arg_spell[K_CLOSURE_ARGS], arg_spell_len[K_CLOSURE_ARGS];   /* and its C spelling: `const char` for `const_char` */
     int arg_instance[K_CLOSURE_ARGS];   /* the closure entry of an argument that is an instance, or -1 */
     KClosureOrigin origin;

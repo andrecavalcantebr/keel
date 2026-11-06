@@ -262,6 +262,9 @@ static void emit_c(Emit *e) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (!k_em_overlaps(e, n, a, b)) continue;
             if (k_em_is_pub_inline(e->ast, n)) empty = true;   /* its body is in the .h */
+            /* a function over a protocol (spec §4.14): one instance per concrete type, none of
+               them this module's own common translation (backend §5.19) */
+            else if (n->kind == K_AST_FUNCTION && k_em_generic_out(e->ast, n)) empty = true;
             else if (n->kind == K_AST_FUNCTION || n->kind == K_AST_VARIABLE) fn = true;
             else if (n->kind == K_AST_EXTERN_C && k_em_extern_c_priv(e->ast, n)) {
                 /* a priv extern_c: its text is the .c's (backend §4.3.2, rule 10); its braces are not.

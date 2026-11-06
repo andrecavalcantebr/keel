@@ -78,6 +78,21 @@ static bool declared_here(const KAst *ast, const Detail *d) {
     return false;
 }
 
+/* a call of the module's own function over a protocol (spec §4.14): one instance per
+   concrete type, so its island symbol is never the simple mangle `own_call_rewritten`
+   looks for (an arity suffix of digits alone) — it is rewritten whole all the same */
+static bool own_protocol_call(const KAst *ast, const Detail *d) {
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (n->kind != K_AST_FUNCTION || n->name_first >= n->name_end) continue;
+        KToken t = k_em_tok(ast, n->name_first);
+        size_t nm = 0;
+        while (nm < d->left_len && d->left[nm] != ' ') nm++;
+        if (t.len == nm && memcmp(t.ptr, d->left, nm) == 0) return k_em_over_protocol(ast, n);
+    }
+    return false;
+}
+
 /* The marks are `&<k>` (argument k by address), `*<k>` (argument k, a value
  * parameter given a pointer, by dereference: spec §4.4, rule 5) and `type:<k>`
  * (argument k is a type, erased into its size and alignment: backend §5.16); out:
@@ -153,7 +168,7 @@ bool k_em_foreign_island(const KAst *ast, const KIsland *is) {
        and the call carry the instance's symbol (k_collect_instance_islands) */
     if (k_em_module_is_generic(ast) && (is->kind == K_ISLAND_TYPE || is->kind == K_ISLAND_CALL)) return true;
     if (!declared_here(ast, &d)) return true;
-    return is->kind == K_ISLAND_CALL && own_call_rewritten(&d);
+    return is->kind == K_ISLAND_CALL && (own_call_rewritten(&d) || own_protocol_call(ast, &d));
 }
 
 /* The module a callee names: `M.f` by the alias M, `f` by the symbol table. */
@@ -642,11 +657,15 @@ void k_em_h_type_includes(Emit *e) {
     if (ol && !k_em_add_include(&s, own, ol)) { e->ok = false; return; }
     size_t first = s.n;   /* the own .type.h is written by emit.c */
     if (e->inst && e->inst->proto_fn.len && !e->inst->proto_array) {
-        /* the concrete type of a function over a protocol, ahead (backend §5.19, rule 4) */
+        /* the concrete type of a function over a protocol, ahead (backend §5.19, rule 4):
+           its own header when it is a generic instance, or (the common case: an ordinary
+           `typedef`) the header of its own module, which k_em_header_of already tells apart */
         char cp[NAME_CAP];
-        size_t cl = k_mangle_instance_path(e->inst->proto_module, e->inst->proto_concrete, ".type.h", (keel_slice_char){ sizeof cp, cp });
-        if (cl > sizeof cp || !k_em_add_include(&s, cp, cl)) { e->ok = false; return; }
-        rank[s.n - 1] = 0;
+        size_t cl = k_em_header_of(ast, e->inst->proto_concrete.ptr, e->inst->proto_concrete.len, ".type.h", cp, sizeof cp);
+        if (cl) {
+            if (!k_em_add_include(&s, cp, cl)) { e->ok = false; return; }
+            rank[s.n - 1] = 0;
+        }
     }
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
@@ -772,14 +791,27 @@ bool k_em_h_body_includes(Emit *e) {
     for (size_t i = 0; i < ast->islands.len && e->ok; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         Detail d;
-        if (is->kind != K_ISLAND_CALL || !k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
+        /* a function over a protocol (spec §4.14) lives in its own header, apart from its
+           declaring module's: a call to that module's own other verbs — not `foreign` by
+           k_em_foreign_island, since they share the .k — still needs that module's .h here */
+        bool proto_instance = e->inst && e->inst->proto_fn.len;
+        if (is->kind != K_ISLAND_CALL || !(proto_instance || k_em_handles_use(ast, is)) || !detail_of(ast, is, &d)) continue;
         bool body = false;
         for (size_t k = 0; k < ast->nodes.len && !body; k++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
             body = n->kind == K_AST_FUNCTION && n->is_public && n->is_inline && n->body_first != NO_TOKEN &&
                    is->anchor >= n->body_first && is->anchor < n->end && !k_em_skip(e, n);
         }
-        if (!body || k_em_own_instance(e, d.sym, d.sym_len)) continue;
+        /* k_em_own_instance treats "this module already declares it" as "already in this
+           very file" — true of an ordinary module's one .h, false of a protocol function's
+           own, separate one: there, only the instance's own symbol is truly here */
+        bool own;
+        if (proto_instance) {
+            keel_slice_char u = e->inst->symbol;
+            own = d.sym_len == u.len ? memcmp(d.sym, u.ptr, u.len) == 0
+                : d.sym_len > u.len && memcmp(d.sym, u.ptr, u.len) == 0 && d.sym[u.len] == '_';
+        } else own = k_em_own_instance(e, d.sym, d.sym_len);
+        if (!body || own) continue;
         char path[NAME_CAP];
         size_t pl = k_em_header_of(ast, d.sym, d.sym_len, ".h", path, sizeof path);
         if (!pl || (pl == sl && memcmp(path, self, pl) == 0)) continue;

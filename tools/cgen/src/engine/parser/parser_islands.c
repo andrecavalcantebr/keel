@@ -621,6 +621,7 @@ const Local *isl_arg_local(const Ctx *c, Range r) {
 }
 
 void isl_record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module);
+static bool pool(Ctx *c, const char *p, size_t n, size_t *at);
 keel_slice_char isl_alias_of(const KSymbolTable *symbols, const KModule *m);
 /* ---- seeds from calls ---------------------------------------------------- */
 
@@ -631,7 +632,12 @@ keel_slice_char isl_alias_of(const KSymbolTable *symbols, const KModule *m);
 #define K_SEED_MAX 48
 static KType seed_nodes[K_SEED_MAX * 6];
 static size_t seed_node_count;
-static struct { int root; KClosureKind kind; char symbol[K_SYMBOL_MAX]; const KModule *module; } seeds[K_SEED_MAX];
+static struct {
+    int root; KClosureKind kind; char symbol[K_SYMBOL_MAX]; const KModule *module;
+    /* K_CLOSURE_PROTOCOL_FUNCTION over a type that is not itself a generic instance (spec §4.14):
+       that type's own module and C symbol (pooled), and the function's plain name */
+    const KModule *concrete_module; size_t concrete_at, concrete_len; keel_slice_char fn_name;
+} seeds[K_SEED_MAX];
 static size_t seed_count;
 
 static int seed_copy(Ctx *c, int t) {
@@ -653,6 +659,34 @@ void isl_record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const
     seeds[seed_count].root = root;
     seeds[seed_count].kind = kind;
     seeds[seed_count].module = module;
+    seeds[seed_count].concrete_module = NULL;
+    seeds[seed_count].concrete_at = seeds[seed_count].concrete_len = 0;
+    seeds[seed_count].fn_name = (keel_slice_char){0};
+    strncpy(seeds[seed_count].symbol, symbol, K_SYMBOL_MAX - 1);
+    seeds[seed_count].symbol[K_SYMBOL_MAX - 1] = 0;
+    seed_count++;
+}
+
+/* A function over a protocol (spec §4.14) whose concrete type is not itself a generic
+   instance (the common case: an ordinary `typedef`): `isl_record_seed` cannot carry the
+   type's module and C symbol forward (its one `module` is the protocol function's own),
+   so this keeps them in the seed directly, pooled the same way `isl_record_seed` pools a
+   generic instance's arguments. */
+void isl_record_protocol_seed_plain(Ctx *c, const char *symbol, const KModule *proto_module,
+                                     const KModule *concrete_module, const char *concrete_symbol,
+                                     size_t concrete_symbol_len, keel_slice_char fn_name) {
+    if (c->quiet || !*symbol) return;
+    for (size_t k = 0; k < seed_count; k++) if (!strcmp(seeds[k].symbol, symbol)) return;
+    if (seed_count == K_SEED_MAX) return;
+    size_t at;
+    if (!pool(c, concrete_symbol, concrete_symbol_len, &at)) return;
+    seeds[seed_count].root = -1;
+    seeds[seed_count].kind = K_CLOSURE_PROTOCOL_FUNCTION;
+    seeds[seed_count].module = proto_module;
+    seeds[seed_count].concrete_module = concrete_module;
+    seeds[seed_count].concrete_at = at;
+    seeds[seed_count].concrete_len = concrete_symbol_len;
+    seeds[seed_count].fn_name = fn_name;
     strncpy(seeds[seed_count].symbol, symbol, K_SYMBOL_MAX - 1);
     seeds[seed_count].symbol[K_SYMBOL_MAX - 1] = 0;
     seed_count++;
@@ -841,7 +875,9 @@ static void close_instances(Ctx *c) {
     for (size_t f = 0; f < nfn && !c->failed; f++) {
         size_t k = fns[f];
         if (a->closure.len == a->closure.cap) continue;
-        KClosure e = { .kind = K_CLOSURE_PROTOCOL_FUNCTION, .module = seeds[k].module, .origin = K_CLOSURE_CALL, .from = -1 };
+        KClosure e = { .kind = K_CLOSURE_PROTOCOL_FUNCTION, .module = seeds[k].module, .origin = K_CLOSURE_CALL, .from = -1,
+                       .proto_concrete_module = seeds[k].concrete_module, .modifier = seeds[k].fn_name };
+        if (seeds[k].concrete_module) { e.argc = 1; e.arg_text[0] = seeds[k].concrete_at; e.arg_len[0] = seeds[k].concrete_len; }
         e.symbol_len = strlen(seeds[k].symbol);
         memcpy(e.symbol, seeds[k].symbol, e.symbol_len);
         *keel_buffer_KClosure_ptr(&a->closure, a->closure.len++) = e;

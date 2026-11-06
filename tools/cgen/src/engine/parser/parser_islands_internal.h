@@ -252,6 +252,9 @@ void isl_produce(Ctx *c, int p, const int *parents, int np);
 void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
                    keel_slice_char verb);
 void isl_record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module);
+void isl_record_protocol_seed_plain(Ctx *c, const char *symbol, const KModule *proto_module,
+                                     const KModule *concrete_module, const char *concrete_symbol,
+                                     size_t concrete_symbol_len, keel_slice_char fn_name);
 void isl_instance_decl(Ctx *c, const KAstNode *n);
 void isl_check_generic(Ctx *c);
 void isl_check_modifiers(Ctx *c);

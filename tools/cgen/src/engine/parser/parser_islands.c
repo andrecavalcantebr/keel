@@ -40,23 +40,33 @@ KToken isl_enter(const KAst *a, size_t i, KLexer *lexer, TKPpKind *pp) {
     return k_lexer_next(lexer, pp);
 }
 
+/* the token index of `a`'s lexeme `j` — isl_punct/isl_word look at the live
+   spelling and skip a whole directive line; k_group_depth_feed wants both the
+   token and its pp_kind, directive line included, so it can reset depth at
+   the group's `#else`/`#endif` (keel-spec §2.4) instead of adding every
+   alternative's delimiters on top of each other. */
+static KLexeme lexeme(const KAst *a, size_t i) { return *keel_buffer_KLexeme_ptr(&a->tokens, i); }
+
 /* the index of the ')' that closes the '(' at `open`; SIZE_MAX if none in [open, end) */
 size_t isl_close_paren(const KAst *a, size_t open, size_t end) {
-    size_t depth = 0;
+    KGroupDepth gd;
+    k_group_depth_init(&gd, K_GROUP_KIND_PAREN);
     for (size_t j = open; j < end; j++) {
-        if (isl_punct(a, j, "(")) depth++;
-        else if (isl_punct(a, j, ")") && --depth == 0) return j;
+        KLexeme l = lexeme(a, j);
+        k_group_depth_feed(&gd, l.token, l.pp_kind);
+        if (gd.depth == 0 && isl_punct(a, j, ")")) return j;
     }
     return SIZE_MAX;
 }
 
 size_t isl_close_bracket(const KAst *a, size_t open, size_t end) {
-    size_t depth = 0;
+    KGroupDepth gd;
+    k_group_depth_init(&gd, K_GROUP_KIND_ANY);
     for (size_t j = open; j < end; j++) {
-        if (isl_punct(a, j, "(") || isl_punct(a, j, "[") || isl_punct(a, j, "{")) depth++;
-        else if (isl_punct(a, j, ")") || isl_punct(a, j, "]") || isl_punct(a, j, "}")) {
-            if (--depth == 0) return isl_punct(a, j, "]") ? j : SIZE_MAX;
-        }
+        KLexeme l = lexeme(a, j);
+        k_group_depth_feed(&gd, l.token, l.pp_kind);
+        if (gd.depth == 0 && (isl_punct(a, j, ")") || isl_punct(a, j, "]") || isl_punct(a, j, "}")))
+            return isl_punct(a, j, "]") ? j : SIZE_MAX;
     }
     return SIZE_MAX;
 }

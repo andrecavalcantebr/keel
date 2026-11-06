@@ -7,7 +7,7 @@ void k_scan_opaque_until(KLexer *lexer, KToken first, const char *const *termina
                           KToken *next_out, TKPpKind *next_pp_kind_out) {
     KToken tok = first;
     KGroupDepth gd;
-    k_group_depth_init(&gd, false);
+    k_group_depth_init(&gd, K_GROUP_KIND_ANY);
     TKPpKind pp = TK_PP_OTHER;      /* of `tok`: `first` is a token already read */
     (void)pp;
 
@@ -42,7 +42,7 @@ keel_slice_char k_scan_braced_opaque(KLexer *lexer, KToken open,
     KToken last;
     bool seen_content = false;
     KGroupDepth gd;
-    k_group_depth_init(&gd, true);
+    k_group_depth_init(&gd, K_GROUP_KIND_BRACE);
     gd.depth = 1;
 
     while (true) {

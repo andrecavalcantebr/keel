@@ -59,21 +59,25 @@ bool k_token_is_punct(KToken t, const char *spelling);
 /* a directive token that is `#else`, however it is spaced (`#  else`), and not `#elif...` */
 bool k_token_is_plain_else(KToken t);
 
-/* The depth of `(` `[` `{` as a scanner counts it, with the conditional groups of
- * keel-spec §2.4: an alternative is counted from the depth the group began at, and
- * the group leaves the depth its first alternative left (all of them agree, which
- * k_check_delimiters has already told). A scanner that adds up the tokens of every
- * alternative reads `#if X { #else { #endif` as two openings. With `braces_only`
- * only `{` and `}` count. Groups nested past K_GROUP_DEPTH_MAX are not tracked. */
+/* The depth of a delimiter kind as a scanner counts it, with the conditional
+ * groups of keel-spec §2.4: an alternative is counted from the depth the group
+ * began at, and the group leaves the depth its first alternative left (all of
+ * them agree, which k_check_delimiters has already told). A scanner that adds
+ * up the tokens of every alternative reads `#if X { #else { #endif` as two
+ * openings. `kind` selects which delimiter the depth answers for — the other
+ * two kinds are tracked too (every `open`/`close` pair nests correctly inside
+ * any kind, lexer-design §7), but don't move this one's depth. Groups nested
+ * past K_GROUP_DEPTH_MAX are not tracked. */
 #define K_GROUP_DEPTH_MAX 64
+typedef enum { K_GROUP_KIND_ANY, K_GROUP_KIND_BRACE, K_GROUP_KIND_PAREN, K_GROUP_KIND_BRACKET } KGroupKind;
 typedef struct {
     int depth;
+    KGroupKind kind;
     size_t groups;                                  /* conditional groups open now */
     struct { int entry, result; bool has_result, has_else; } g[K_GROUP_DEPTH_MAX];
     size_t over;
-    bool braces_only;
 } KGroupDepth;
-void k_group_depth_init(KGroupDepth *d, bool braces_only);
+void k_group_depth_init(KGroupDepth *d, KGroupKind kind);
 void k_group_depth_feed(KGroupDepth *d, KToken t, TKPpKind pp);
 
 /* the logical spelling is exactly `s`, or begins with `prefix` */

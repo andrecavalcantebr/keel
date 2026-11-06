@@ -1,0 +1,42 @@
+SPDX-License-Identifier: GPL-2.0-only
+
+O que este caso afirma
+======================
+
+As construções que pareiam chaves e parênteses depois do `k_check_delimiters`
+(spec §2.4) — `isl_enclosing_brace`, o `block_end` do checador, `isl_close_paren`
+e `isl_close_bracket` (`parser_islands*.c`), e o `block_open`/`block_close`
+próprios do `defer` (`emit/defer.c`) — contam um grupo condicional como **um**
+bloco, não um por alternativa, da mesma forma que os scanners de extensão do
+061 já garantem para o fim de um tipo ou função.
+
+- `crosses`: um `defer` no escopo da função, com um grupo mais adiante — que
+  abre um `if` aninhado, com outro dentro — antes do `goto` que precisa
+  alcançá-lo. Isso exigia o `isl_enclosing_brace` (voltando, a partir do
+  `defer`) e o `block_end`/`block_close` (avançando, até o `}` real da
+  função) para resolver os dois lados do grupo ao mesmo bloco.
+- `wrapped`: uma chamada cuja lista de argumentos é embrulhada por um grupo:
+  o `isl_close_paren` só conta os dois parênteses da chamada, não as chaves
+  do grupo (ausentes de qualquer alternativa aqui).
+
+Nenhuma macro (`A`, `B`, `D`) é definida: o compilador toma a última
+alternativa de cada grupo, e o `proof.c` lê o resultado dela.
+
+O que o caso encontrou
+======================
+
+Antes do conserto, `crosses` recusava com `implementation-limit`: os
+scanners contavam as três chaves textuais do grupo aninhado (duas
+alternativas, uma delas com outra dentro) como três blocos, e nunca achavam
+o `}` real da função. `KGroupDepth` (`engine/lexer/group_depth.c`), já usado
+pelos scanners de extensão do 061, ganhou um `kind` (`ANY`/`BRACE`/`PAREN`/
+`BRACKET`) em vez do `braces_only` booleano, e passou a servir também aqui:
+`isl_close_paren`, `isl_close_bracket`, `isl_enclosing_brace` (reescrito como
+pilha construída para frente, não mais busca ingênua para trás) e o
+`block_end` do checador, em `parser_islands*.c`; e `block_open`/`block_close`
+em `emit/defer.c`.
+
+Fica de fora: o teste de diagnóstico `diag/groupscope` cobre
+`jump-over-defer` com um grupo entre o `goto` e o rótulo, mas é só no nível
+`--stop-after=parse` — a lacuna que este caso fecha só aparecia no `gen`, e
+por isso precisava do golden.

@@ -148,3 +148,15 @@ grupos 32→64. Agora `KGroupDepth` (`engine/lexer/group_depth.c`) conta por alt
 (aninhado, cadeia, adjacente, 63 níveis) e o golden 061 (60 casos). **Ainda em linha reta** (pendente): os
 pareadores da análise de ilhas (`isl_close_paren`, `block_end`, `isl_enclosing_brace`) e um `}` que fecha o corpo
 dentro de um grupo. `test/run.sh` verde (gen_golden 71, base 124, golden 122, docs 45).
+
+**Atualização (2026-11-05, madrugada):** o agrupamento condicional (spec §2.4) garantido também nos pareadores
+de chave/parêntese da análise de ilhas e do `defer`, que ainda contavam em linha reta (pendência da leva
+anterior). Achado real: um `defer` no escopo da função com um grupo mais adiante, antes do `goto` que precisa
+alcançá-lo, recusava com `implementation-limit` (`isl_enclosing_brace`/`block_end` do checador contavam as
+chaves de cada alternativa como blocos distintos). `KGroupDepth` ganhou um `kind` (`ANY`/`BRACE`/`PAREN`/
+`BRACKET`) em vez do `braces_only` booleano; `isl_close_paren`, `isl_close_bracket`, `isl_enclosing_brace`
+(agora pilha para frente, não busca ingênua para trás) e o `block_end` do checador (`parser_islands*.c`), e
+`block_open`/`block_close` do `defer` (`emit/defer.c`), todos reescritos com ele. Testes: `diag/groupscope`
+(jump-over-defer com grupo entre o goto e o rótulo) e o golden 062 (62 casos; `gen_golden` pega a regressão —
+`golden/run.sh` não, porque não chama o cgen). `test/run.sh` verde (gen_golden 72, base 124, golden 124, docs
+45). Falta `supported()` por construção e o corte de `uses.c`/`defer.c`.

@@ -2,6 +2,9 @@
 
 #include "engine/parser/parser_islands_internal.h"
 
+#define K_BRACE_STACK_MAX 256
+static KLexeme isl_lexeme_at(const KAst *a, size_t i) { return *keel_buffer_KLexeme_ptr(&a->tokens, i); }
+
 bool isl_tags_decl(const KAst *where, keel_slice_char name, KTagsDecl *out);
 size_t isl_column_access(Ctx *c, size_t i, size_t open, bool *any);
 /* ---- defer, foreach, walk, match (stages 4c, 4d, 4f) ----------------- */
@@ -20,14 +23,33 @@ void isl_put_range(Text *t, const KAst *a, size_t first, size_t end) {
     }
 }
 
-/* the '{' that opens the block holding token `i`, or SIZE_MAX */
+/* the '{' that opens the block holding token `i`, or SIZE_MAX. `from` is a
+   position already known to be outside any conditional group open at `i`
+   (every caller passes a function's own body_first, itself the token right
+   after the function's own '{' — a scanner with no group to resolve). A
+   stack of the '{' seen, built going FORWARD with KGroupDepth so the groups
+   of keel-spec §2.4 between `from` and `i` collapse to one opening apiece
+   instead of adding every alternative's on top of each other, answers the
+   question a backward scan cannot: which of those openings is still open
+   right before `i`, and not already closed by its own '}' earlier in the
+   same forward walk. */
 size_t isl_enclosing_brace(const KAst *a, size_t from, size_t i) {
-    size_t depth = 0;
-    for (size_t j = i; j-- > from; ) {
-        if (isl_punct(a, j, "}")) depth++;
-        else if (isl_punct(a, j, "{")) { if (!depth) return j; depth--; }
+    KGroupDepth gd;
+    k_group_depth_init(&gd, K_GROUP_KIND_BRACE);
+    size_t stack[K_BRACE_STACK_MAX];
+    int top = 0;      /* stack[0..top) are the '{' indices still open */
+    for (size_t j = from; j < i; j++) {
+        KLexeme l = isl_lexeme_at(a, j);
+        int before = gd.depth;
+        k_group_depth_feed(&gd, l.token, l.pp_kind);
+        /* ordinary push/pop moves one at a time; crossing a group's `#else`
+           or `#endif` can jump by more, unwinding (or, going into the next
+           alternative, never re-growing past) what the alternative just left
+           pushed — all of it still below `i`, by construction (above) */
+        while (gd.depth > before && top < K_BRACE_STACK_MAX) { stack[top++] = j; before++; }
+        while (gd.depth < before && top > 0) { top--; before--; }
     }
-    return SIZE_MAX;
+    return top > 0 ? stack[top - 1] : SIZE_MAX;
 }
 
 /* the control word whose statement token `j` is the body of — `if`, `while`,

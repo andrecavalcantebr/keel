@@ -75,3 +75,4 @@ test/cgen/gen/share|use.k|-
 023-linux-list-extern-c|tasks.k|tasks
 024-linux-list-module|tasks.k linux/list.k|tasks
 061-conditional-delimiters|app/cond.k|-|
+062-defer-across-group|app/dag.k|-|

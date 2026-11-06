@@ -1,6 +1,6 @@
-/* engine/lexer/group_depth.c — the depth of the delimiters a scanner keeps, per
- * alternative of a conditional group (keel-spec §2.4; lexer-design §7). No I/O,
- * no allocation. */
+/* engine/lexer/group_depth.c — the depth of one delimiter kind as a scanner
+ * keeps it, per alternative of a conditional group (keel-spec §2.4;
+ * lexer-design §7). No I/O, no allocation. */
 #include <string.h>
 #include "engine/lexer/lexer.h"
 
@@ -13,16 +13,27 @@ bool k_token_is_plain_else(KToken t) {
     return p == end || !((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '_');
 }
 
-void k_group_depth_init(KGroupDepth *d, bool braces_only) {
+void k_group_depth_init(KGroupDepth *d, KGroupKind kind) {
     d->depth = 0;
+    d->kind = kind;
     d->groups = 0;
     d->over = 0;
-    d->braces_only = braces_only;
 }
 
 static void finish(KGroupDepth *d, int depth) {
     typeof(d->g[0]) *g = &d->g[d->groups - 1];
     if (!g->has_result) { g->result = depth; g->has_result = true; }
+}
+
+/* +1 opens, -1 closes, 0 is not a delimiter of `kind` (or of any, for K_GROUP_KIND_ANY) */
+static int delta(KGroupKind kind, KToken t) {
+    bool brace = k_token_is_punct(t, "{") || k_token_is_punct(t, "}");
+    bool paren = k_token_is_punct(t, "(") || k_token_is_punct(t, ")");
+    bool bracket = k_token_is_punct(t, "[") || k_token_is_punct(t, "]");
+    bool mine = kind == K_GROUP_KIND_ANY ? (brace || paren || bracket)
+              : kind == K_GROUP_KIND_BRACE ? brace : kind == K_GROUP_KIND_PAREN ? paren : bracket;
+    if (!mine) return 0;
+    return (k_token_is_punct(t, "{") || k_token_is_punct(t, "(") || k_token_is_punct(t, "[")) ? 1 : -1;
 }
 
 void k_group_depth_feed(KGroupDepth *d, KToken t, TKPpKind pp) {
@@ -50,10 +61,5 @@ void k_group_depth_feed(KGroupDepth *d, KToken t, TKPpKind pp) {
         return;
     }
     if (d->over) return;
-    if (k_token_is_punct(t, "{")) d->depth++;
-    else if (k_token_is_punct(t, "}")) d->depth--;
-    else if (!d->braces_only) {
-        if (k_token_is_punct(t, "(") || k_token_is_punct(t, "[")) d->depth++;
-        else if (k_token_is_punct(t, ")") || k_token_is_punct(t, "]")) d->depth--;
-    }
+    d->depth += delta(d->kind, t);
 }

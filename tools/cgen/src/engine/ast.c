@@ -31,7 +31,7 @@ static size_t balanced(const KAst *a, size_t i, const char *open, const char *cl
        the other pairs keep the plain count */
     if (strcmp(open, "{") == 0) {
         KGroupDepth gd;
-        k_group_depth_init(&gd, true);
+        k_group_depth_init(&gd, K_GROUP_KIND_BRACE);
         for (size_t j = i; j < a->tokens.len; j++) {
             const KLexeme *l = keel_buffer_KLexeme_ptr(&a->tokens, j);
             k_group_depth_feed(&gd, l->token, l->pp_kind);

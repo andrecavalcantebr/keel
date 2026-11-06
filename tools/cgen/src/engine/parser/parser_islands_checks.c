@@ -535,11 +535,15 @@ static void check_protocol_body(Ctx *c, const KAstNode *fn) {
     }
 }
 
-/* the '}' that closes the block opened at `open` */
+/* the '}' that closes the block opened at `open` (keel-spec §2.4: a group
+   between `open` and its close is counted once, not once per alternative) */
 static size_t block_end(const KAst *a, size_t open, size_t end) {
-    for (size_t j = open, depth = 0; j < end; j++) {
-        if (isl_punct(a, j, "{")) depth++;
-        else if (isl_punct(a, j, "}") && --depth == 0) return j;
+    KGroupDepth gd;
+    k_group_depth_init(&gd, K_GROUP_KIND_BRACE);
+    for (size_t j = open; j < end; j++) {
+        KLexeme l = *keel_buffer_KLexeme_ptr(&a->tokens, j);
+        k_group_depth_feed(&gd, l.token, l.pp_kind);
+        if (gd.depth == 0 && isl_punct(a, j, "}")) return j;
     }
     return end;
 }

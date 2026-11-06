@@ -39,6 +39,7 @@
  * tokens of a defer body are opaque to the scans of exits and blocks (in_body). */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
+#include "engine/lexer/lexer.h"
 
 #define NO_TOKEN ((size_t)-1)
 #define MAX_CAP 8           /* the entries of one `[now ...]` list */
@@ -107,28 +108,38 @@ static bool ident(const KAst *ast, size_t i) {
 }
 
 /* The `{` that opens the block holding token `from`, searched back from from-1
- * down to `lo` (the function's own `{` is body_first - 1); NO_TOKEN if none. */
+ * down to `lo` (the function's own `{` is body_first - 1); NO_TOKEN if none.
+ * `lo` is always outside any conditional group open at `from` — the function's
+ * own `{` is a scanner with no group left to resolve — so a stack of the `{`
+ * seen, built going FORWARD from `lo` with KGroupDepth, collapses a group of
+ * keel-spec §2.4 between `lo` and `from` to one opening apiece instead of
+ * adding every alternative's on top of each other (the naive backward count
+ * this replaced did exactly that, and refused valid sources with
+ * implementation-limit when a `defer` crossed one). */
+#define K_DEFER_BRACE_STACK_MAX 256
 static size_t block_open(const KAst *ast, size_t from, size_t lo) {
-    size_t depth = 0;
-    for (size_t j = from; j-- > lo; ) {
-        if (word(ast, j, "}")) depth++;
-        else if (word(ast, j, "{")) {
-            if (depth == 0) return j;
-            depth--;
-        }
+    KGroupDepth gd;
+    k_group_depth_init(&gd, K_GROUP_KIND_BRACE);
+    size_t stack[K_DEFER_BRACE_STACK_MAX];
+    int top = 0;
+    for (size_t j = lo; j < from; j++) {
+        const KLexeme *l = keel_buffer_KLexeme_ptr(&ast->tokens, j);
+        int before = gd.depth;
+        k_group_depth_feed(&gd, l->token, l->pp_kind);
+        while (gd.depth > before && top < K_DEFER_BRACE_STACK_MAX) { stack[top++] = j; before++; }
+        while (gd.depth < before && top > 0) { top--; before--; }
     }
-    return NO_TOKEN;
+    return top > 0 ? stack[top - 1] : NO_TOKEN;
 }
 
 /* The `}` that closes the block opened at `open`, or NO_TOKEN. */
 static size_t block_close(const KAst *ast, size_t open) {
-    size_t depth = 0;
-    for (size_t j = open + 1; j < ast->tokens.len; j++) {
-        if (word(ast, j, "{")) depth++;
-        else if (word(ast, j, "}")) {
-            if (depth == 0) return j;
-            depth--;
-        }
+    KGroupDepth gd;
+    k_group_depth_init(&gd, K_GROUP_KIND_BRACE);
+    for (size_t j = open; j < ast->tokens.len; j++) {
+        const KLexeme *l = keel_buffer_KLexeme_ptr(&ast->tokens, j);
+        k_group_depth_feed(&gd, l->token, l->pp_kind);
+        if (gd.depth == 0 && word(ast, j, "}")) return j;
     }
     return NO_TOKEN;
 }

@@ -1,0 +1,72 @@
+O que este caso afirma
+=======================
+
+Uma função sobre protocolo (spec §4.14) declarada no próprio módulo, sobre um
+tipo comum — nem genérico, nem `byref` — chamada de fora, sem `--instance`.
+`box` é um `typedef struct` simples que atende `Countable` (spec §5.1) por
+`first`/`limit`; `span` é `pub inline`, com `Countable items` direto (sem o
+identificador opcional do tipo concreto); `span_of` não é `inline`, chama
+`span(b)` passando `box` por valor (não `byref`, regra 7 da §4.14).
+
+Por que faltava
+================
+
+Todo exemplo do backend (§5.19) e todo uso real da base (`keel.slice.of`)
+passa por `--instance`: nenhum golden exercitava uma função sobre protocolo
+chamada da tradução comum do seu próprio módulo. Achado via a análise do
+`keel_libs` (`.claude/memory/cgen-pendencias.md`, 2026-11-06), junto com os
+dois gaps de `foreach` (golden 063 e 064). Investigar revelou nove lacunas
+encadeadas, não duas:
+
+1. **Parser, seed do closure**: `K_CLOSURE_PROTOCOL_FUNCTION` só era gravado
+   quando o tipo concreto era instância de genérico (`KT_MODIFIER`);
+   `parser_islands_types.c`, ramo `else if (proto_of)`, não chamava
+   `isl_record_seed` — o caso comum (`KT_NAMED`) ficava sem entrada no
+   closure, e `emit_protocol_functions` não tinha nada para emitir.
+2. **Parser, marca de adaptação**: a marca `&`/`*` da chamada usava o
+   ponteiro do verbo redirecionado (`first`/`limit`, achado por
+   `isl_verb_for_return`) em vez do `byref` do tipo concreto (regra 7). Corrigido
+   com `isl_spec_byref` no próprio tipo.
+3. **Emissor, supressão da tradução comum**: `files.c:emit_c` não via
+   `k_em_generic_out`/`over_protocol`, e por isso o `.c` comum tentava emitir
+   `span` literal (`Countable` sem reescrita) em vez de deixar a função para
+   a instância.
+4. **Emissor, portão do `k_emit_instance`**: exigia `k_em_module_is_generic`
+   mesmo quando `inst->proto_fn.len` já dizia que não precisava — recusava
+   toda função sobre protocolo de um módulo sem binder.
+5. **`stop_gen.c`, módulo do campo errado**: o `!base` de
+   `emit_protocol_functions` olhava o módulo que *declara* o protocolo
+   (quase sempre o próprio, não `keel`), não o do tipo concreto — inofensivo
+   hoje porque nenhuma chamada passa `base=false`, mas corrigido.
+6. **`stop_gen.c`, reset de closure/ilhas**: ao terminar, zerava
+   `generic->islands`/`closure` para `0` — correto quando `generic` é um
+   módulo genérico à parte, destrutivo quando `generic == ast` (o próprio
+   módulo, o caso comum): apagava as ilhas que `emit_one`, mais adiante,
+   ainda precisava. Troquei para salvar e restaurar o tamanho anterior.
+7. **Parser, reescrita de chamada**: `uses.c:own_call_rewritten` só
+   reconhecia sufixo de aridade puro (`length2`); uma chamada a uma função
+   sobre protocolo comum (`span` → `app_span_app_range2`) não era "foreign"
+   e ficava com o nome simples, sem o sufixo do tipo concreto. Acrescentei
+   `own_protocol_call`.
+8. **`proto_edits` (roles.c) sem o alias opcional**: assumia sempre `Proto C
+   x` (3 tokens); a forma sem alias, `Proto x` (regra 1 da §4.14, a mais
+   comum), fazia o parâmetro ficar sem reescrever.
+9. **Inclusão do header**: `use_paths.c:instance_of` só via
+   `K_CLOSURE_INSTANCE`; `uses.c:k_em_h_type_includes`/`k_em_h_body_includes`
+   assumiam que o tipo concreto é sempre uma instância (`k_mangle_instance_path`)
+   e que uma chamada "própria" (mesmo `.k`) já está no mesmo `.h` — falso
+   quando a função sobre protocolo tem o seu próprio header, separado do
+   módulo que a declara.
+
+`golden/run.sh` não roda o `cgen` — só compila e executa este `expected/`.
+`test/cgen/gen/golden-cases.txt` lista o caso sem `|wip`: os nove pontos
+foram corrigidos e o `cgen` já produz este C (verificado byte a byte antes de
+copiar para `expected/`). `test/run.sh` inteiro (unit/cli/lex/parse/diag/gen,
+golden, docs, e o CLI `--instance` da base) ficou verde depois da correção,
+incluindo o caso real de `keel.slice.of` sobre `keel.buffer.buffer i32`
+(que a correção do item 9 quase quebrou — faltava distinguir "mesmo módulo"
+de "mesmo arquivo gerado").
+
+`test/cgen/cli/protocols.sh` ganhou a marca `*1` que faltava na chamada
+`count(l)`: `List` não é `byref`, e a regra 7 pede valor, não ponteiro — a
+marca antiga (sem `*1`) nunca foi verificada além do `--stop-after=parse`.

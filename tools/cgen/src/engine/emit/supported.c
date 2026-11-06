@@ -15,15 +15,6 @@ static bool island_out(const KAst *ast, const KIsland *is) {
     return false;
 }
 
-static bool alone_on_line(const Emit *e, const KAstNode *n) {
-    size_t a = k_em_line_start(e, k_em_first_off(e, n)), b = k_em_line_end(e, k_em_last_end(e, n));
-    for (size_t i = 0; i < e->ast->nodes.len; i++) {
-        const KAstNode *m = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (m != n && k_em_overlaps(e, m, a, b)) return false;
-    }
-    return true;
-}
-
 /* Whether the islands of the module are the ones a rename covers: a type,
  * a name or a call whose detail is `<name>[/arity] → <symbol>` and whose name
  * is declared by this module. Any other island is a construction that needs
@@ -80,105 +71,28 @@ bool k_em_supported(const Emit *e) {
         case K_AST_MODULE:
         case K_AST_PROTOCOL:
         case K_AST_IMPORT:   /* emits nothing: the #include comes from the uses (backend §4.3.2, rule 4) */
-            break;
         case K_AST_OPAQUE:
             break;
         case K_AST_IMPORT_C:
-            /* import_c <x>; (the <...> form, several tokens) or import_c "x"; (one token) */
-            if (n->end - n->first < 3) return false;
-            if (k_em_tok(ast, n->first + 1).ptr[0] == '"') {
-                if (n->end - n->first != 3) return false;
-            } else {
-                if (n->end - n->first < 5) return false;
-                if (k_em_tok(ast, n->first + 1).ptr[0] != '<') return false;
-                if (!k_em_text_is(k_em_tok(ast, n->end - 2), ">")) return false;
-            }
-            if (!k_em_text_is(k_em_tok(ast, n->end - 1), ";")) return false;
+            if (!k_em_handles_import_c(ast, n)) return false;
             break;
-        case K_AST_TYPE: {
-            size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
-            /* `extent struct`: a shape of its own (backend §5.15); `pub` or `priv`, the struct goes to the
-             * .type.h and the accessors to the .h (backend §5.15, rule 3) */
-            if (k_em_text_is(k_em_tok(ast, k), "extent")) { if (!k_em_is_extent(ast, n)) return false; break; }
-            /* `[pub|priv] struct|union NAME { … };` (decl-struct, without typedef) and `typedef`:
-             * both are one node per declared name */
-            if (k >= n->end) return false;
-            if (!k_em_text_is(k_em_tok(ast, k), "typedef") && !k_em_text_is(k_em_tok(ast, k), "struct") &&
-                !k_em_text_is(k_em_tok(ast, k), "union")) return false;
-            /* a list of typedef declarators shares the span of its nodes (`typedef struct {…} P, *PP;`);
-             * a struct node after another node of the same span is refused: its variables come first */
-            if (i > 0) {
-                const KAstNode *p = keel_buffer_KAstNode_ptr(&ast->nodes, i - 1);
-                if (p->first == n->first && p->kind != K_AST_TYPE) return false;
-            }
-            if (!k_em_supported_struct_arrays(ast, n)) return false;
+        case K_AST_TYPE:
+            if (!k_em_handles_type(ast, n, i > 0 ? keel_buffer_KAstNode_ptr(&ast->nodes, i - 1) : NULL)) return false;
             break;
-        }
-        case K_AST_TAGS: {
-            /* [pub|priv] tags N [A, B = 3]; both go to the .type.h (backend §5.6, rule 1); a value is a number, optionally negative */
-            size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
-            if (n->name_first >= n->name_end || n->name_first != k + 1) return false;
-            if (n->end - n->name_first < 4 || !k_em_text_is(k_em_tok(ast, n->name_first + 1), "[")) return false;
-            for (size_t i = n->name_first + 2; i + 2 < n->end; i++) {
-                if (!k_em_text_is(k_em_tok(ast, i), "=")) continue;
-                size_t v = i + 1;
-                if (k_em_text_is(k_em_tok(ast, v), "-")) v++;
-                char c = k_em_tok(ast, v).ptr[0];
-                if (c < '0' || c > '9') return false;
-            }
+        case K_AST_TAGS:
+            if (!k_em_handles_tags(ast, n)) return false;
             break;
-        }
-        case K_AST_CONSTEXPR: {
-            /* [pub|priv] constexpr T NAME = INIT; INIT not naming the module */
-            size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
-            if (n->name_first >= n->name_end || n->name_first + 2 >= n->end - 1 || n->name_first <= k + 1) return false;
-            if (!k_em_text_is(k_em_tok(ast, k), "constexpr") || !k_em_text_is(k_em_tok(ast, n->name_first + 1), "=")) return false;
-            if (!ast->source.len) return false;
+        case K_AST_CONSTEXPR:
+            if (!k_em_handles_constexpr(ast, n)) return false;
             break;
-        }
-        case K_AST_VARIABLE: {
-            /* several declarators (`pub int x = 1, y = 2;`): one node each, sharing the span; an
-             * `array` list takes its declarators after the first as `name[` (array.c reads them) */
-            size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
-            bool arr = k < n->end && k_em_text_is(k_em_tok(ast, k), "array");
-            size_t depth = 0;
-            for (size_t p = n->first; p < n->end && arr; p++) {
-                KToken t = k_em_tok(ast, p);
-                if (k_em_text_is(t, "(") || k_em_text_is(t, "[") || k_em_text_is(t, "{")) depth++;
-                else if (k_em_text_is(t, ")") || k_em_text_is(t, "]") || k_em_text_is(t, "}")) depth--;
-                else if (depth == 0 && k_em_text_is(t, ",") &&
-                         !(p + 2 < n->end && k_em_text_is(k_em_tok(ast, p + 2), "["))) return false;
-            }
+        case K_AST_VARIABLE:
+            if (!k_em_handles_variable(ast, n)) return false;
             break;
-        }
-        case K_AST_EXTERN_C: {
-            size_t k = n->first + (k_em_is_visibility(k_em_tok(ast, n->first)) ? 1 : 0);
-            if (k + 1 >= n->end || !k_em_text_is(k_em_tok(ast, k), "extern_c")) return false;
-            if (k_em_text_is(k_em_tok(ast, k + 1), "[")) {
-                if (k + 4 >= n->end || !k_em_text_is(k_em_tok(ast, k + 2), "type_h") ||
-                    !k_em_text_is(k_em_tok(ast, k + 3), "]") || !k_em_text_is(k_em_tok(ast, k + 4), "{")) return false;
-            } else {
-                /* the plain form (.h, with or without `pub`) and `priv` (.c) */
-                if (!k_em_text_is(k_em_tok(ast, k + 1), "{")) return false;
-            }
-            if (n->body_first == (size_t)-1 || n->body_end == (size_t)-1) return false;
-            /* one line: its text is a line of its own, and no other construction may share it */
-            if (k_em_extern_c_inline(ast, n) && !alone_on_line(e, n)) return false;
+        case K_AST_EXTERN_C:
+            if (!k_em_handles_extern_c(e, n)) return false;
             break;
-        }
         case K_AST_FUNCTION:
-            /* a forward declaration has no body: `priv void release(R *r);` is a
-             * line of the .c like any other (backend §4.1). A `pub` one would
-             * have to be weighed against the prototype the .h already writes,
-             * and has no golden. */
-            if (n->body_first == (size_t)-1) {
-                if (n->is_public || !k_em_text_is(k_em_tok(ast, n->end - 1), ";")) return false;
-                break;
-            }
-            if (n->body_first < 2) return false;
-            if (!k_em_text_is(k_em_tok(ast, n->body_first - 1), "{") || !k_em_text_is(k_em_tok(ast, n->body_first - 2), ")"))
-                return false;
-            if (!k_em_supported_constblock(e, n)) return false;
+            if (!k_em_handles_function(e, n)) return false;
             break;
         default:
             return false;

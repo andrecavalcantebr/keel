@@ -192,6 +192,33 @@ bool k_em_uses_share(const Emit *e);
 /* supported.c: whether the slice of emit.h covers every node of the module */
 bool k_em_supported(const Emit *e);
 
+/* decls.c: whether k_em_supported's own switch, one function per K_AST_* kind,
+ * named like the k_em_handles_* of an island (below) */
+bool k_em_handles_import_c(const KAst *ast, const KAstNode *n);
+bool k_em_handles_type(const KAst *ast, const KAstNode *n, const KAstNode *prev);
+bool k_em_handles_tags(const KAst *ast, const KAstNode *n);
+bool k_em_handles_constexpr(const KAst *ast, const KAstNode *n);
+bool k_em_handles_variable(const KAst *ast, const KAstNode *n);
+bool k_em_handles_extern_c(const Emit *e, const KAstNode *n);
+bool k_em_handles_function(const Emit *e, const KAstNode *n);
+
+/* use_paths.c: the header a symbol another module owns lives in (backend §4.3.2,
+ * rules 2, 3 and 4), and the small library around it; shared with uses.c */
+#define MAX_INCLUDES 32
+typedef struct { char path[MAX_INCLUDES][NAME_CAP]; size_t len[MAX_INCLUDES]; size_t n; } Includes;
+bool k_em_plain_arg(const Emit *e, const char *sym, size_t len);
+size_t k_em_arg_header(const Emit *e, const char *sym, size_t len, const char *ext, char *path, size_t cap);
+bool k_em_own_instance(const Emit *e, const char *sym, size_t len);
+bool k_em_sym_is_tags_named(const KAst *ast, const char *sym, size_t len, const char *written, size_t wlen);
+size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap);
+void k_em_raw_include(Emit *e, const char *path, size_t len);
+bool k_em_add_include(Includes *s, const char *path, size_t len);
+size_t k_em_own_type_path(const Emit *e, char *path, size_t cap);
+size_t k_em_import_rank(const KAst *ast, const char *sym, size_t len);
+/* uses.c: a type or constant of the generic the instance declares (backend §4.3,
+ * rule 1), shared with use_paths.c's k_em_own_instance */
+bool k_em_own_declaration(const Emit *e, const char *sym, size_t len);
+
 /* ---- the construction files: one file each (codegen design E5) ----
  * edits_X: the edits this construction makes inside the function `fn`, in the
  * source [a, b), appended to `ed` (cnt counts them).

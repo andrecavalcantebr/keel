@@ -271,6 +271,8 @@ bool k_em_constexpr_value(const KAst *ast, const KAstNode *fn, size_t at, size_t
  * k_em_arity_suffix writes the digits (or nothing) into out[8] and returns their count. */
 void k_em_edits_roles(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt);
 size_t k_em_arity_suffix(const KAst *ast, const KAstNode *fn, char *out);
+/* whether the tree declares the function `name` in more than one arity (backend §2.1.1, rule 1) */
+bool k_em_name_overloaded(const KAst *ast, const char *name, size_t len);
 /* the parameters written in keel: `type T` is one (backend §2.1.1, rule 5) */
 size_t k_em_param_count(const KAst *ast, const KAstNode *fn);
 bool k_em_nodiscard(const KAst *ast, const KAstNode *fn);

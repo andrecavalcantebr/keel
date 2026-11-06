@@ -57,20 +57,28 @@ static bool has_params(const KAst *ast, const KAstNode *fn) {
            k_em_text_is(k_em_tok(ast, params_close(fn)), ")");
 }
 
+bool k_em_name_overloaded(const KAst *ast, const char *name, size_t len) {
+    bool seen = false;
+    size_t first = 0;
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *o = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (!has_params(ast, o)) continue;
+        KToken t = k_em_tok(ast, o->name_first);
+        if (t.len != len || memcmp(t.ptr, name, len) != 0) continue;
+        size_t c = param_count(ast, o);
+        if (!seen) { first = c; seen = true; }
+        else if (c != first) return true;
+    }
+    return false;
+}
+
 size_t k_em_arity_suffix(const KAst *ast, const KAstNode *fn, char *out) {
     out[0] = '\0';
     if (!has_params(ast, fn)) return 0;
     size_t mine = param_count(ast, fn);
     if (mine < 2) return 0;   /* only the container: no suffix (rule 2) */
-    bool overloaded = false;
     KToken name = k_em_tok(ast, fn->name_first);
-    for (size_t k = 0; k < ast->nodes.len && !overloaded; k++) {
-        const KAstNode *o = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-        if (o == fn || !has_params(ast, o)) continue;
-        KToken t = k_em_tok(ast, o->name_first);
-        if (t.len == name.len && memcmp(t.ptr, name.ptr, t.len) == 0 && param_count(ast, o) != mine) overloaded = true;
-    }
-    if (!overloaded) return 0;
+    if (!k_em_name_overloaded(ast, name.ptr, name.len)) return 0;
     size_t v = mine - 1, digits = 0;
     char rev[8];
     do { rev[digits++] = (char)('0' + v % 10); v /= 10; } while (v && digits < 7);

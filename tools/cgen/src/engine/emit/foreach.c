@@ -11,6 +11,7 @@
  * countable form of another type, a call returning a value) stays refused. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
+#include "engine/names.h"
 
 #define NO_TOKEN ((size_t)-1)
 
@@ -119,6 +120,7 @@ typedef struct {
     bool value_copy;            /* a `range` or a by-value modifier: the temporary is a copy, not a pointer */
     bool walk;                  /* `walk (T *p, C c : x)`: the cursor protocol, not the index one */
     bool ptr_binder;            /* `T *v`: the element's address (`ptr`), not a copy (`get`) */
+    bool ptr_overloaded;        /* `ptr` is declared in more than one arity by the container's module: suffix `1` */
     bool array;                 /* the container is an `array` variable: C syntax, no verbs (spec §4.2) */
     size_t cont_end;            /* the container's last token, exclusive: cont + 1 for a variable */
     const char *dim; size_t dim_len; bool dim_binder;   /* its dimension 0 */
@@ -161,6 +163,35 @@ static bool read_body(const KAst *ast, size_t close, size_t *body, size_t *last,
     return false;
 }
 
+/* whether the verb `ptr` of the modifier `name` as written (`vec`, `fv.vec`) is declared in
+ * more than one arity by the module that declares the modifier (backend §2.1.1, rule 1).
+ * *known is false when the name does not resolve to a declaring modifier. */
+static bool ptr_overloaded_of(const KAst *ast, const char *name, size_t len, bool *known) {
+    *known = false;
+    if (!ast->symbols || len == 0) return false;
+    const KSymbol *s = k_symbol_resolve(ast->symbols, (keel_slice_char){ len, (char *)name });
+    if (!s || s->kind != K_SYM_MODIFIER || !s->origin || !s->origin->ast) return false;
+    *known = true;
+    return k_em_name_overloaded(s->origin->ast, "ptr", 3);
+}
+
+/* the name written at token `at`, with its `.` and second word when it is qualified
+ * (`fv.vec`), into out: its length, or 0 when it does not fit */
+static size_t written_name(const KAst *ast, size_t at, char *out, size_t cap) {
+    KToken t = k_em_tok(ast, at);
+    if (t.len > cap) return 0;
+    memcpy(out, t.ptr, t.len);
+    size_t n = t.len;
+    if (word(ast, at + 1, ".") && word_like(ast, at + 2)) {
+        KToken u = k_em_tok(ast, at + 2);
+        if (n + 1 + u.len > cap) return 0;
+        out[n++] = '.';
+        memcpy(out + n, u.ptr, u.len);
+        n += u.len;
+    }
+    return n;
+}
+
 /* the symbol and the pointer-ness of the call `f(args)` in [a, close), a call of a function
  * of this module that returns `X *` (the return type's own island gives `X`'s symbol): the
  * temporary takes the result (§5.7, rule 1). A value return, an unknown callee, and an
@@ -183,6 +214,15 @@ static bool analyze_call_over(const KAst *ast, size_t a, size_t close, Over *o) 
     while (s < n && (word(ast, s, "pub") || word(ast, s, "priv") || word(ast, s, "inline") ||
                      word(ast, s, "static") || word(ast, s, "extern"))) s++;
     if (!k_em_type_island_at(ast, s, &o->sym, &o->sym_len)) return false;
+    /* the return's modifier written at s: the `ptr` suffix is its module's (§2.1.1, rule 1) */
+    o->ptr_overloaded = false;
+    if (o->ptr_binder) {
+        char nm[128];
+        bool known = false;
+        size_t nl = written_name(ast, s, nm, sizeof nm);
+        o->ptr_overloaded = nl && ptr_overloaded_of(ast, nm, nl, &known);
+        if (!known) return false;
+    }
     o->cont = a;
     o->cont_end = close;
     o->array = false;
@@ -214,6 +254,7 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
     o->close = close;
     if (!word_like(ast, o->value) || !word_like(ast, o->index) || !word_like(ast, o->cont)) return false;
     o->ptr_binder = false;
+    o->ptr_overloaded = false;
     for (size_t i = o->vtype_a; i < o->vtype_b && !o->walk; i++) if (word(ast, i, "*")) o->ptr_binder = true;
     if (!read_body(ast, close, &o->body, &o->last, &o->braced)) return false;
     if (call) return !o->walk && analyze_call_over(ast, colon + 1, close, o);
@@ -233,6 +274,14 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
     while (open > 0 && d[open - 1] != '(') open--;
     if (open == 0 || len < open + 2 || d[len - 1] != ')') return false;
     if (!k_em_type_symbol(ast, d + open, len - 1 - open, &o->sym, &o->sym_len)) return false;
+    /* the written modifier: the text up to its first space (`fv.vec i32` gives `fv.vec`) */
+    if (o->ptr_binder) {
+        size_t nl = 0;
+        while (nl < len - 1 - open && d[open + nl] != ' ') nl++;
+        bool known = false;
+        o->ptr_overloaded = ptr_overloaded_of(ast, d + open, nl, &known);
+        if (!known) return false;
+    }
     /* a range has no storage to point to: its temporary is a copy (the golden 015) */
     o->value_copy = (len - 1 - open == 5 && memcmp(d + open, "range", 5) == 0) || k_em_type_by_value(ast, o->sym, o->sym_len);
     /* by value or by pointer: the declaration `<type> c` or `<type> *c` in the function */
@@ -338,8 +387,11 @@ static const char *container_value(Emit *e, size_t n, const Over *o, size_t *vl)
     put_tok(e, o->value);
     k_em_put_bytes(e, " = ", 3);
     k_em_put_bytes(e, o->sym, o->sym_len);
-    if (o->ptr_binder) k_em_put_bytes(e, "_ptr1(keel__c", 13);   /* the element's address (rule 3) */
-    else k_em_put_bytes(e, "_get(keel__c", 12);
+    if (o->ptr_binder) {   /* the element's address (rule 3): `ptr(c, i)`, suffixed `1` when overloaded */
+        k_em_put_bytes(e, "_ptr", 4);
+        if (o->ptr_overloaded) k_em_put_bytes(e, "1", 1);
+        k_em_put_bytes(e, "(keel__c", 8);
+    } else k_em_put_bytes(e, "_get(keel__c", 12);
     put_uint(e, n);
     k_em_put_bytes(e, ", ", 2); put_tok(e, o->index);
     k_em_put_bytes(e, ");", 2);

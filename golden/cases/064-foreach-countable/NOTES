@@ -1,0 +1,45 @@
+O que este caso afirma
+=======================
+
+`foreach` de um binder sobre um tipo arbitrário que implementa só `Countable`
+(`first`/`limit`, spec §5.1) — não `range`, e sem `get`/`ptr`. `window` é um
+`typedef struct` comum (nem genérico, nem `byref`), com `first`/`limit`
+tomando `window *` por ponteiro, a forma canônica do protocolo
+(`index first(C *x)`, spec §5.1). Pela backend §5.7, regra 6, o binder é o
+próprio contador: `first` e `limit` saem para `keel__f<N>`/`keel__l<N>` antes
+do laço, sem nenhum `get` chamado.
+
+`sum_param` e `sum_local` exercitam as duas formas de declarar o contêiner
+(linguagem §4.7, mesma regra do `foreach` de dois binders): `sum_param`
+recebe `window *w` já por ponteiro, e passa `w` direto; `sum_local` declara
+`window w` por valor, e passa `&w`. É a mesma decisão de `&`/direto que o
+`foreach` de dois binders já faz (`container_value`/`analyze_over`,
+`foreach.c`) — aqui aplicada a `first`/`limit` em vez de `get`/`ptr`.
+
+Estado conhecido (2026-11-06): `tools/cgen/src/engine/emit/foreach.c` não tem
+nenhum caminho de análise para esta forma — o comentário de topo do arquivo
+já documenta "the countable form of another type... stays refused." O cgen
+recusa com `implementation-limit` (confirmado rodando o binário manualmente
+sobre um módulo equivalente a este, fora do golden). O parser já reconhece e
+cobra o protocolo `Countable` (`parser_islands_flow.c`, `meets(c, box,
+"Countable", &missing)`) — a lacuna é só de emissão.
+
+A forma de `range` nomeado (`foreach (auto v : r)`, backend §5.7 regra 6,
+exemplo da própria regra) já funciona, por um caminho hoje específico de
+`range` (`analyze_range_var`/`edits_range_var`, que buscam o literal
+`"(range)"` no detalhe da ilha e chamam `keel_range_first`/`_limit` fixos,
+porque `range.first`/`range.limit` tomam `range` por valor, não por
+ponteiro). Este caso não toca esse caminho — exercita o caso geral que falta,
+de um tipo cujo `first`/`limit` tomam ponteiro, como a maioria dos tipos do
+programa declararia.
+
+`golden/run.sh` não roda o `cgen` — só compila e executa este `expected/`
+(que é o C correto, derivado à mão da regra 6 do backend §5.7 e do padrão de
+`&`/direto já verificado no `foreach` de dois binders) — e por isso já fica
+verde, provando que o C aqui escrito é o que a spec pede. Até a correção,
+`test/cgen/gen/golden-cases.txt` marca este caso `|wip`.
+
+Achado e registrado junto com o levantamento do `keel_libs`
+(`.claude/memory/cgen-pendencias.md`), junto com o gap do `foreach` de
+binder por ponteiro (golden 063, já corrigido) e função sobre protocolo
+(sem cartão ainda).

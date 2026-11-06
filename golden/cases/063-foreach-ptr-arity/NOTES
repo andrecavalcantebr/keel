@@ -1,0 +1,37 @@
+O que este caso afirma
+=======================
+
+`foreach` com binder por ponteiro e binder de índice (`foreach (T *p, size_t
+i : container)`) chama o verbo `ptr` do protocolo `IndexPtr`. `fv.k` declara
+`ptr` numa aridade só (`ptr(parent vec *v, size_t i)`), sem a forma
+`ptr(x)`. Pela regra 1 do backend §2.1.1 — "o sufixo existe só quando o verbo
+é declarado em mais de uma aridade" — o nome mangled correto é
+`fv_vec_i32_ptr`, sem sufixo.
+
+Isso é fiel ao que uma chamada explícita e a indexação já produzem hoje: `v.ptr`
+ou `v[i]` escritos à mão mangleiam para `fv_vec_i32_ptr`, sem sufixo, com este
+mesmo módulo. Só o `foreach` de binder por ponteiro diverge.
+
+Estado conhecido (2026-11-06): o lowering de `foreach` em
+`tools/cgen/src/engine/emit/foreach.c` grava o literal fixo `"_ptr1(keel__c"`
+para o binder por ponteiro, independente de quantas aridades o módulo
+declara para `ptr`. Na base (`keel.buffer`, `keel.slice`), isso por acaso dá
+o nome certo, porque os dois módulos declaram `ptr` em duas aridades
+(`ptr(x)` e `ptr(x,i)`), e a segunda leva mesmo o sufixo `1`. Em qualquer
+módulo — genérico ou não — cujo `ptr` tenha uma aridade só, o nome gerado
+(`fv_vec_i32_ptr1`) não existe, e o C gerado falha: `implicit declaration of
+function 'fv_vec_i32_ptr1'`, link futuro ou `-Werror`.
+
+Não há nenhum outro golden que exercite `foreach` com binder por ponteiro —
+todos os existentes usam binder por valor (`IndexGet`/`get`). Por isso o bug
+não tinha regressão.
+
+Até a correção, `test/cgen/gen/golden-cases.txt` marca este caso `|wip`: o
+`cgen` roda sem `implementation-limit`, mas o C que produz ainda diverge
+deste `expected/` (que é o C correto, derivado à mão da regra 1 do backend
+§2.1.1 e do padrão de dois binders já verificado no golden 001). `golden/run.sh`
+não roda o `cgen` — só compila e executa este `expected/` — e por isso já
+fica verde, provando que o C aqui escrito é o que a spec pede.
+
+Achado e documentado em sessão com análise do projeto `keel_libs`
+(`coll.list`), que reproduziu o mesmo sintoma sobre uma lista genérica.

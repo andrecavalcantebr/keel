@@ -151,6 +151,8 @@ golden/cases/048-parallel-more/expected/c23/app/app_pm.c	{ keel_slice_i32 keel__
 golden/cases/048-parallel-more/expected/c23/app/app_pm.c	keel_slice_i32 part = keel_buffer_i32_partition(keel__c0, 4, w);
 golden/cases/051-generic-forms/expected/c11/gx_stack_i32.type.h	typedef struct gx_stack_i32 {
 golden/cases/051-generic-forms/expected/c23/gx_stack_i32.type.h	typedef struct gx_stack_i32 {
+golden/cases/063-foreach-ptr-arity/expected/c11/fv_vec_i32.type.h	typedef struct fv_vec_i32 {
+golden/cases/063-foreach-ptr-arity/expected/c23/fv_vec_i32.type.h	typedef struct fv_vec_i32 {
 golden/cases/052-match-foreign/expected/c11/app/app_fm.c	case app_lib_other_Phase_OFF: goto keel__m0_OFF;
 golden/cases/052-match-foreign/expected/c23/app/app_fm.c	case app_lib_other_Phase_OFF: goto keel__m0_OFF;
 golden/cases/056-length-fields/expected/c11/app/app_lf.type.h	static const size_t app_lf_K__chk = 3; _Static_assert(sizeof(app_lf_K__chk) > 0, "constexpr");

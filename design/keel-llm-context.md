@@ -2,15 +2,16 @@
 
 Este arquivo é autocontido: não depende de nenhum outro documento do
 repositório para ser lido ou usado. Ele existe para caber no contexto de uma
-IA que vai **gerar código `.k`** (a fonte keel) — não C: o C é trabalho do
-`cgen`, o transpilador, e quem escreve `.k` não precisa prever o C que sai.
+IA que vai **gerar código `.k`** (a fonte `keel`) — não C: o C é trabalho do
+`cgen`, o transpilador, e de quem escreve `.k`. Os pares .k/.c aqui mostrados 
+o são não para mostrar a semântica correta de `keel`.
 
 keel é um parser de ilhas sobre C: um arquivo `.k` é C comum mais um pequeno
 conjunto de construções próprias, reconhecidas por forma léxica. O resto do
 arquivo — toda expressão, toda chamada de função, todo `if`/`for`/`switch` —
 é C, copiado para o C gerado sem reescrita.
 
-O arquivo tem quatro partes:
+O arquivo tem cinco partes:
 
 1. **Gramática** — a forma de cada construção própria.
 2. **Regras que a gramática não mostra** — o que decide se um programa é
@@ -18,6 +19,8 @@ O arquivo tem quatro partes:
 3. **A API da base** — os módulos que vêm com keel, no próprio código-fonte
    deles (comentado, e pensado para ser lido).
 4. **Pares keel/C** — exemplos pequenos, com o C que cada um gera.
+5. **Usando o `cgen`** — como invocar a ferramenta, o que ela escreve e como
+   ler o resultado.
 
 Os comentários do código da parte 3 citam seções de documentos externos
 (`spec §5.3`, `backend §5.2`) por proveniência — quem escreveu aquele módulo
@@ -177,15 +180,17 @@ param-proto   ::= qualified-name [ IDENT ] IDENT
 
 `system-header` é a forma `<…>` de header, usada por `import_c`. O corpo de
 `extern-c` é preservado, sem mangling de nomes, sem inspeção por keel.
-`decl-typedef` registra como tipo o nome de cada declarador: em `typedef int
-a[4], *b;`, `a` é vetor de `int` e `b` é ponteiro para `int`. `struct-spec`
+`decl-typedef` registra como tipo o nome de cada declarador: em 
+`typedef int a[4], *b;`, `a` é vetor de `int` e `b` é ponteiro para `int`. `struct-spec`
 registra os campos que casam `decl-keel`/`decl-array`; os demais são opacos.
 `size-binder` liga um nome à dimensão 0 do vetor recebido — só a dimensão 0
 admite isso. `param-type` declara um parâmetro que recebe um **tipo** escrito
 na chamada (`arena.alloc(a, u16, 100)`, onde `u16` ocupa esse parâmetro).
-`role` (`parent`/`child`/`invalidates`/`consumes`) documenta relação de posse
-entre parâmetro e retorno ou entre dois parâmetros — é anotação, o compilador
-C não a verifica.
+`role` (`parent`/`child`/`invalidates`/`consumes`) marca uma função (ou a
+chamada a ela) para o rastreio de procedência da seção 2: o compilador C não
+vê papel nenhum, mas o próprio keel segue, e erra em cima deles
+(`region-escape`, `child-region-after-invalidation`) — não é documentação
+inerte.
 
 ### Tipos e declarações
 
@@ -333,6 +338,34 @@ A forma por si só não decide se um programa é aceito. O essencial:
   `Traversable` (`begin`,`has_next`,`next` — usado por `walk`),
   `Partitionable` (`partition` — usado por `parallel`), `Taggable` (`tag` —
   usado por `match`), `Failable`/`Winnable` (usados pela cauda `else`).
+- **Um módulo declara protocolo próprio com `protocol Nome type C { … }`**:
+  dentro das chaves, `type nome;` declara um tipo associado e cada
+  `retorno verbo(parâmetros);` é um verbo exigido, sem corpo — a declaração
+  não emite C. `protocol Nome [A, B];` compõe protocolos existentes (a união
+  dos verbos). Conformidade continua estrutural e não se declara: um tipo
+  atende quando o módulo dele tem os verbos pedidos, com o mesmo nome,
+  aridade e posição do receptor. Um parâmetro cujo tipo é um protocolo torna
+  a função genérica sobre ele (`size_t count(IndexPtr items)`); cada tipo
+  concreto usado numa chamada gera uma instância, o corpo só pode chamar
+  sobre esse parâmetro os verbos do protocolo (não outros que o tipo
+  concreto tenha), e `C.nome` (com `IDENT C` entre o protocolo e o
+  parâmetro) designa um tipo associado ligado pelo retorno do implementador.
+  Papel escrito no protótipo do verbo do protocolo tem de ser repetido igual
+  pelo implementador, ou a ausência de papel no implementador herda o do
+  protótipo; discordar é `protocol-role-mismatch`.
+- **Papel (`parent`/`child`/`invalidates`/`consumes`) alimenta um rastreio de
+  procedência que o próprio keel confere — não é documentação solta.** Numa
+  chamada reconhecida, o produto `child` (o parâmetro `child`, ou quem recebe
+  o retorno `child` por declaração/atribuição simples) passa a depender de
+  todo argumento `parent` daquela chamada. `invalidates` invalida os
+  produtos anteriores do argumento, mas não o argumento; `consumes` invalida
+  o próprio argumento junto com os produtos. Usar depois um símbolo inválido
+  é `child-region-after-invalidation`; devolver da função algo cuja
+  procedência inclui armazenamento local dela (um `array` automático) é
+  `region-escape`. O rastreio é lexical — segue só chamada reconhecida,
+  nunca `goto`, alias, cópia crua ou chamada opaca — e **não confere o corpo
+  da função contra os papéis que ela declara**: é o programa que garante que
+  a implementação cumpre o que o papel promete.
 - **`byref` proíbe passagem por valor e cópia entre instâncias.** `buffer`
   é `byref`: sempre por ponteiro. `slice`, `outcome`, `tagged`, `routine.slot`
   não são `byref`: passam por valor/cópia, o que permite compor sem
@@ -1525,3 +1558,114 @@ i32 app_nd_weight(struct app_nd_nodes *t, size_t i) {
 ponteiro cru: a struct e os acessores saem nos headers mesmo com `priv
 extent` — `priv` aqui é sobre a declaração do tipo, não sobre a visibilidade
 do acesso verificado.
+
+---
+
+## 5. Usando o `cgen`
+
+`cgen` é um driver no molde do `gcc`: transpila o `.k` e, por padrão, chama o
+compilador C sobre o que gerou. Trocar `gcc` por `cgen` numa linha de
+compilação é a forma pretendida de uso.
+
+```sh
+cgen -I src -c src/main.k -o main.o -O2 -Wall    # compila um módulo
+cgen main.o geom.o -o prog                       # sem .k na linha: só liga
+cgen ola.k -o ola                                # módulo com entrada pública: compila e liga
+```
+
+### Regras da invocação
+
+- **Um fonte por invocação:** um `.k`, ou um `--instance`. Fontes `.c`, `.o` e
+  `.a` na mesma linha passam direto ao compilador C.
+- **`-c` compila uma unidade:** a invocação escreve o `.c` do módulo pedido e
+  os headers (`.type.h` e `.h`) dele e de tudo o que ele importa — nunca o
+  `.c` de um módulo importado. Cada módulo tem a sua própria invocação.
+  *Importar não é compilar.*
+- **Raízes de módulo:** `-I <dir>` (repetível, a ordem importa) diz onde
+  achar os `import`. Sem `-I`, a raiz é `.`. O `.k` dado tem de estar sob
+  exatamente uma raiz, e o caminho dele relativo à raiz tem de concordar com
+  o `module` declarado (`src/net/http.k` declara `module net.http;`).
+- **O nome do gerado é o símbolo do módulo, não o caminho:** `src/net/http.k`
+  produz `gen/net/net_http.c`, `gen/net/net_http.h` e
+  `gen/net/net_http.type.h`.
+- **Entrada do programa:** se a invocação liga (nenhum de `-c`, `-S`, `-E`,
+  `-shared`, `--stop-after`) e o `.k` tem função de entrada pública, o cgen
+  gera sozinho a unidade com o `main` do C (como no par 4.1). `--main <módulo>`
+  escolhe a entrada explicitamente; o argumento é nome de módulo, não caminho.
+- **Genérico não compila sozinho:** `cgen coll.k` sobre módulo com parâmetro é
+  erro. O genérico entra no build por uso (um `.k` com `instance`) ou por
+  `--instance`, tudo qualificado por inteiro:
+
+  ```sh
+  cgen -c --instance "coll.stack i32" -o coll_stack_i32.o
+  cgen -c --instance "keel.buffer.buffer app.geom.Point" -o keel_buffer_app_geom_Point.o
+  ```
+
+### Opções do cgen
+
+Estas opções são do cgen e nunca chegam ao compilador C. Todo o resto da
+linha vai ao compilador C, na ordem, sem alteração.
+
+| Opção | Efeito | Padrão |
+| --- | --- | --- |
+| `-I <dir>` | raiz de busca de módulos (também repassada ao `cc`) | `.` |
+| `--dest-dir <dir>` | raiz da saída gerada | `./gen` |
+| `--stop-after=<lex\|parse\|gen>` | para após a fase; `lex`/`parse` escrevem no stdout (ou em `-o`); `gen` escreve os `.c`/`.h` e não chama o `cc` (`-o` com `gen` é recusado) | não para |
+| `--main <módulo>` | gera o `main` do C chamando a entrada do módulo | automático ao ligar |
+| `--instance "<M.mod> <args>"` | compila uma instância de genérico, no lugar de um `.k` | — |
+| `--checks=<on\|off>` | `off` passa `-DKEEL_CHECKS=0`; o C gerado é o mesmo | `on` |
+| `--line=<on\|off>` | emite `#line` apontando para o `.k` | `on` |
+| `--cc=<programa>` | compilador C a invocar | `cc` |
+| `--profile=<auto\|c11\|c23>` | padrão C do gerado; `auto` lê o `-std=` da linha: `c23`/`gnu23`/`c2x`/`gnu2x` dão C23, qualquer outro valor ou a ausência dão C11 | `auto` |
+| `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de `parallel`; `auto` escolhe `openmp` se há `-fopenmp` na linha, senão `serie`; `openmp` sem `-fopenmp` é erro | `auto` |
+| `--base-dir <dir>` | raiz da base | `<exe>/../lib/base` |
+| `--pedantic-names` | teto de nome gerado de 31/63 caracteres, em vez de 255 | desligado |
+| `-f` | reescreve o gerado mesmo idêntico (muda o timestamp) | desligado |
+| `--cgen-version`, `--cgen-help` | versão e ajuda do cgen (`--version` e `--help=…` são do compilador C) | — |
+
+Quatro opções do compilador C o cgen também lê, sem retirá-las: `-I`, `-std=`
+(perfil), `-fopenmp` (lowering) e `-MMD`/`-MD`/`-MF`/`-MT`/`-MQ` (depfile).
+Não há arquivo de configuração nem variável de ambiente: a saída depende só
+da linha de comando.
+
+### Em um build
+
+- Regra de make: `%.o : %.k` com `$(CC) $(KFLAGS) $(CFLAGS) -MMD -c $< -o $@`
+  (`CC = cgen`) e `-include $(OBJS:.o=.d)`. O depfile lista, numa regra só, o
+  que o compilador C reporta mais todo `.k` alcançável por `import`, então
+  editar um módulo importado refaz quem depende dele. Sem `-MMD`/`-MD`, nenhum
+  depfile é escrito.
+- O build não precisa declarar os headers dos importados como saídas: o `.c`
+  tem um escritor só, e os headers são determinísticos e escritos de forma
+  atômica, sem tocar arquivo idêntico.
+- O cgen acrescenta `-I <dest-dir>` à chamada do `cc`; as inclusões do gerado
+  dependem dele.
+- Para só ver o C: `cgen --stop-after=gen -I src --dest-dir gen src/mod.k`.
+
+### Diagnósticos e código de saída
+
+O formato é o do gcc, com a posição no `.k` (nunca no gerado) e o nome
+estável do diagnóstico entre colchetes:
+
+```plain
+src/app/nd.k:16:5: error: <mensagem> [<nome>]
+```
+
+`-Wno-<nome>` silencia um `warning` ou `info` da linguagem (`error` não se
+desliga); `-Werror` torna `warning` em parada. `-W…` com nome que não é do
+keel passa ao compilador C.
+
+| Código | Situação |
+| --- | --- |
+| 0 | sucesso, com ou sem `warning` |
+| 1 | pelo menos um `error` da linguagem; nada foi escrito |
+| 2 | erro da ferramenta (invocação) |
+| *n* | o compilador C saiu com *n* ≠ 0 (por sinal *s*, 128+*s*) |
+
+Erros de invocação mais comuns, todos com código 2 e sem posição:
+`multiple-sources` (mais de um fonte), `generic-source-without-instance`,
+`invalid-instance`, `source-not-found`, `source-outside-roots`,
+`source-in-multiple-roots`, `module-not-found` (um `import` que nenhuma raiz
+resolve), `missing-entry-point` (`--main` sobre módulo sem entrada pública),
+`lowering-unavailable`, `invalid-option`, `output-with-gen`, `write-failure`
+e `implementation-limit`.

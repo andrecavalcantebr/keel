@@ -795,6 +795,10 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
 
     int inst = -1;                                  /* the instance of the module the verb belongs to */
     bool direct = false;                            /* the object is the modifier itself */
+    bool named = false;                             /* inst came from isl_kt_from_text: its own symbol (k_spec_symbol,
+                                                         dims included, spec §4.9) names it, not module_instance_prefix's
+                                                         module+type-args reconstruction — kt_find's (the `nested` case)
+                                                         does not: its `symbol` is not the whole instance's */
     if (gen) {
         if (recv != SIZE_MAX || nested != SIZE_MAX || arr != SIZE_MAX) {
             size_t k = recv != SIZE_MAX ? recv : nested != SIZE_MAX ? nested : arr;
@@ -856,9 +860,11 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             }
             if (!spelled.ok) return -1;
             inst = isl_kt_from_text(c, a->symbols, (keel_slice_char){ spelled.n, spelled.s });
+            named = true;
         } else if (sig.found && c->has_target && c->target.kind == K_SPEC_MODIFIER) {
             inst = isl_kt_from_text(c, a->symbols, c->target.text);
             if (inst < 0 || isl_kt(c, inst)->module != module) return -1;
+            named = true;
         } else {
             /* a verb that takes its instance from the target (spec §4.4, item 4):
                an assignment to a known symbol, or a return, gives one */
@@ -890,6 +896,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             }
             inst = isl_kt_from_text(c, a->symbols, spec.text);
             if (inst < 0 || isl_kt(c, inst)->module != module) return -1;
+            named = true;
         }
         if (inst < 0 || isl_kt(c, inst)->kind != KT_MODIFIER) return -1;
         {
@@ -928,6 +935,12 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             isl_put(&t, own.s, own.n);
         } else if (direct) {
             if (!*isl_kt(c, inst)->symbol) return -1;
+            isl_put_str(&t, isl_kt(c, inst)->symbol);
+        } else if (named && *isl_kt(c, inst)->symbol) {
+            /* already named (k_spec_symbol, isl_kt_from_text): a dim binder's value is not
+               one of KType.arg (module_instance_prefix only knows those), so an instance
+               found by selection or by the call's target — not `direct`, a container of the
+               instance itself — would lose it (spec §4.9) */
             isl_put_str(&t, isl_kt(c, inst)->symbol);
         } else if (!module_instance_prefix(c, home, inst, &t)) {
             return -1;

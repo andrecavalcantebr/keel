@@ -6,9 +6,10 @@
  * over a call of a function of this module that returns `X *` (§5.7, rule 1: the
  * call is evaluated once, into the temporary); and `foreach (T b : r)` and
  * `foreach (T v, I i : r)` over a `range` variable `r`, by value or by pointer
- * (§5.7, rule 6 and the two-binder form). Each with a body that is a braced block
- * or one simple statement. Every other `foreach` (a value binder by pointer, the
- * countable form of another type, a call returning a value) stays refused. */
+ * (§5.7, rule 6 and the two-binder form), and `foreach (T b : c)` over a variable `c` of
+ * another type that declares `first`/`limit` (Countable, §5.1; rule 6). Each with a body
+ * that is a braced block or one simple statement. Every other `foreach` (a value binder by
+ * pointer, a call returning a value) stays refused. */
 #include <string.h>
 #include "engine/emit/emit_internal.h"
 #include "engine/names.h"
@@ -329,6 +330,47 @@ static bool analyze_range_var(const KAst *ast, const KIsland *is, size_t kw, con
     }
     if (!found) return false;
     return read_body(ast, r->close, &r->body, &r->last, &r->braced);
+}
+
+/* `foreach (T b : c)` over a variable `c` of a type other than `range` that declares `first` and
+ * `limit` (spec §5.1, Countable): the one-binder form (§5.7, rule 6), the bounds read by the type's
+ * own verbs. The detail is `b : c (<type>)`; the type's symbol comes from its type island. False for
+ * every other header, and for `range`, which analyze_range_var takes. */
+typedef struct {
+    size_t type, binder, colon, cont;
+    size_t close, body, last;
+    bool braced;
+    bool by_pointer;            /* `T *c`: the verbs take `c`; by value they take `&c` */
+    const char *sym; size_t sym_len;   /* the container's type symbol */
+} Countable;
+
+static bool analyze_countable_var(const KAst *ast, const KIsland *is, size_t kw, const KAstNode *fn, Countable *c) {
+    if (!word(ast, kw, "foreach") || !word(ast, kw + 1, "(")) return false;
+    c->close = kw + 6;
+    if (!word(ast, c->close, ")") || !word(ast, kw + 4, ":")) return false;
+    if (!word_like(ast, kw + 2) || !word_like(ast, kw + 3) || !word_like(ast, kw + 5)) return false;
+    c->type = kw + 2; c->binder = kw + 3; c->colon = kw + 4; c->cont = kw + 5;
+    const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
+    size_t len = is->text_len, open = len;
+    while (open > 0 && d[open - 1] != '(') open--;
+    if (open == 0 || len < open + 2 || d[len - 1] != ')') return false;
+    size_t tl = len - 1 - open;
+    if (tl == 5 && memcmp(d + open, "range", 5) == 0) return false;   /* analyze_range_var's */
+    if (!k_em_type_symbol(ast, d + open, tl, &c->sym, &c->sym_len)) return false;
+    /* by pointer (`T *c` in the function) or by value (`T c`): the same declaration scan as analyze_over */
+    KToken t = k_em_tok(ast, c->cont);
+    bool found = false;
+    for (size_t i = fn->first + 1; i < kw && !found; i++) {
+        KToken x = k_em_tok(ast, i);
+        if (x.len != t.len || memcmp(x.ptr, t.ptr, t.len) != 0) continue;
+        if (word(ast, i - 1, "*")) { c->by_pointer = true; found = true; }
+        else if (word_like(ast, i - 1) && (word(ast, i + 1, "=") || word(ast, i + 1, ";") || word(ast, i + 1, ",") || word(ast, i + 1, ")") ||
+                                          word(ast, i + 1, ":"))) {
+            c->by_pointer = false; found = true;
+        }
+    }
+    if (!found) return false;
+    return read_body(ast, c->close, &c->body, &c->last, &c->braced);
 }
 
 /* the island of the `foreach` at token `kw`, or NULL */
@@ -740,6 +782,75 @@ static void edits_range_var(Emit *e, const KAstNode *fn, size_t kw, const RangeV
     }
 }
 
+/* `foreach (T b : c) body` over a Countable variable (§5.7, rule 6):
+ *   { size_t keel__f<N> = S_first(c); size_t keel__l<N> = S_limit(c); for (T b = keel__f<N>; b < keel__l<N>; b++) body }
+ * `c` is passed as `&c` by value, as `c` when it is a pointer. The header is on the line of the
+ * `foreach` (rule 5). */
+static void edits_countable_var(Emit *e, const KAstNode *fn, size_t kw, const Countable *c, size_t a, size_t b, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t n = k_em_capture_ordinal(ast, fn, kw);
+    size_t at = k_em_tok_off(ast, kw), end = k_em_tok_end(ast, c->close);
+    if (at < a || at >= b) {            /* not the header's line: the block's `}` may close the `for` here */
+        if (c->braced) push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, c->last), .skip = 0, .text = " }", .text_len = 2 });
+        return;
+    }
+    if (k_em_declared_at(e, c->binder)) { e->ok = false; return; }
+    char vf[NAME_CAP], vl_[NAME_CAP];
+    size_t lf, ll;
+    if (!verb_symbol(e, c->sym, c->sym_len, "first", vf, NAME_CAP, &lf) ||
+        !verb_symbol(e, c->sym, c->sym_len, "limit", vl_, NAME_CAP, &ll)) { e->ok = false; return; }
+    /* the bounds: `first` and `limit` of the container, by pointer or of its address */
+    e->n = 0;
+    put_s(e, "{ size_t keel__f"); put_uint(e, n);
+    put_s(e, " = "); k_em_put_bytes(e, vf, lf);
+    put_s(e, "("); if (!c->by_pointer) put_s(e, "&"); k_em_put_range(e, c->cont, c->cont + 1);
+    put_s(e, "); size_t keel__l"); put_uint(e, n);
+    put_s(e, " = "); k_em_put_bytes(e, vl_, ll);
+    put_s(e, "("); if (!c->by_pointer) put_s(e, "&"); k_em_put_range(e, c->cont, c->cont + 1);
+    put_s(e, "); for");
+    size_t hl;
+    const char *head = take(e, &hl);
+    if (!head) return;
+    /* `: c` -> `= keel__f<N>; b < keel__l<N>` */
+    put_s(e, "= keel__f"); put_uint(e, n);
+    put_s(e, "; "); put_tok(e, c->binder);
+    put_s(e, " < keel__l"); put_uint(e, n);
+    size_t ql;
+    const char *range_text = take(e, &ql);
+    if (!range_text) return;
+    /* `)` -> `; b++)` */
+    put_s(e, "; "); put_tok(e, c->binder); put_s(e, "++");
+    size_t cl;
+    const char *close_text = take(e, &cl);
+    if (!close_text) return;
+
+    /* the header's tokens are all replaced, as in edits_range_var */
+    size_t j = 0;
+    for (size_t k = 0; k < *cnt; k++)
+        if (ed[k].at < at || ed[k].at >= end) ed[j++] = ed[k];
+    *cnt = j;
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, kw).len, .text = head, .text_len = hl });
+    /* auto -> size_t; a written type stays */
+    if (word(ast, c->type, "auto"))
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, c->type),
+            .skip = k_em_tok(ast, c->type).len, .text = "size_t", .text_len = 6 });
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, c->colon),
+        .skip = k_em_tok_end(ast, c->cont) - k_em_tok_off(ast, c->colon), .text = range_text, .text_len = ql });
+    push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, c->close),
+        .skip = 0, .text = close_text, .text_len = cl });
+    if (c->braced) {
+        /* the block's `}` closes the `for` as well */
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, c->last),
+            .skip = 0, .text = " }", .text_len = 2 });
+    } else {
+        /* one statement: a block around it, closed after its `;` */
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, c->body),
+            .skip = 0, .text = "{ ", .text_len = 2 });
+        push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, c->last),
+            .skip = 0, .text = " } }", .text_len = 4 });
+    }
+}
+
 static const KAstNode *fn_of(const KAst *ast, size_t tok) {
     for (size_t k = 0; k < ast->nodes.len; k++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
@@ -762,6 +873,8 @@ void k_em_edits_foreach(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *e
         }
         RangeVar rv;
         if (is && analyze_range_var(ast, is, kw, fn, &rv)) { edits_range_var(e, fn, kw, &rv, a, b, ed, cnt); continue; }
+        Countable cv;
+        if (is && analyze_countable_var(ast, is, kw, fn, &cv)) { edits_countable_var(e, fn, kw, &cv, a, b, ed, cnt); continue; }
         Foreach f;
         if (!is || !k_em_handles_foreach(ast, is) || !analyze(ast, kw, &f)) continue;
         /* the binder's name is written again in the C text; a binder that is also
@@ -823,8 +936,10 @@ bool k_em_handles_foreach(const KAst *ast, const KIsland *is) {
         const KAstNode *fn = fn_of(ast, is->anchor);
         Over o;
         RangeVar rv;
+        Countable cv;
         return fn && (analyze_over(ast, is, is->anchor, fn, &o) ||
-                      analyze_range_var(ast, is, is->anchor, fn, &rv));
+                      analyze_range_var(ast, is, is->anchor, fn, &rv) ||
+                      analyze_countable_var(ast, is, is->anchor, fn, &cv));
     }
     Foreach f;
     return analyze(ast, is->anchor, &f);

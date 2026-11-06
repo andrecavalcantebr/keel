@@ -77,4 +77,4 @@ test/cgen/gen/share|use.k|-
 061-conditional-delimiters|app/cond.k|-|
 062-defer-across-group|app/dag.k|-|
 063-foreach-ptr-arity|fv_use.k|-
-064-foreach-countable|win.k|-|wip
+064-foreach-countable|win.k|-|

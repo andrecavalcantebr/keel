@@ -160,3 +160,14 @@ chaves de cada alternativa como blocos distintos). `KGroupDepth` ganhou um `kind
 (jump-over-defer com grupo entre o goto e o rótulo) e o golden 062 (62 casos; `gen_golden` pega a regressão —
 `golden/run.sh` não, porque não chama o cgen). `test/run.sh` verde (gen_golden 72, base 124, golden 124, docs
 45). Falta `supported()` por construção e o corte de `uses.c`/`defer.c`.
+
+**Atualização (2026-11-06):** as duas pendências de refatoração da leva de 2026-11-02 fechadas.
+`supported()` por construção: `k_em_handles_import_c/type/tags/constexpr/variable/extern_c/function`
+em `decls.c`, despacho de ~25 linhas em `supported.c`. `uses.c` (1106) dividido: `use_paths.c` (241)
+isola a biblioteca "em que header mora este símbolo de outro módulo" (`k_em_header_of` e companhia),
+sem o `Detail`/`detail_of` da reescrita de verbos, que `uses.c` (869) continua tendo. `defer.c` (950) não
+tinha o corte "plano/emissão" que a nota de 2026-11-02 sugeria — a análise e a emissão se chamam demais
+para isso ser limpo —, mas tinha um corte real: `defer_scope.c` (158) isola a busca de escopo e alvo de
+salto (`k_em_block_open/close`, `k_em_exit_target`, `k_em_goto_target`, `k_em_at_fn_scope`), que `defer.c`
+(807) usa por toda parte. Sem mudança de comportamento: `test/run.sh` idêntico antes e depois de cada
+corte (gen_golden 72, base 124, golden 124, docs 45), `make boundary` ok.

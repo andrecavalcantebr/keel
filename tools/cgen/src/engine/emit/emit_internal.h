@@ -219,6 +219,18 @@ size_t k_em_import_rank(const KAst *ast, const char *sym, size_t len);
  * rule 1), shared with use_paths.c's k_em_own_instance */
 bool k_em_own_declaration(const Emit *e, const char *sym, size_t len);
 
+/* defer_scope.c: the scope and jump target of a token inside a function's
+ * body (backend §5.5, §4.6 rule 9); shared with defer.c */
+bool k_em_word_like(const KAst *ast, size_t i);
+bool k_em_same_text(KToken a, KToken b);
+size_t k_em_close_square(const KAst *ast, size_t open);
+const KAstNode *k_em_fn_of(const KAst *ast, size_t tok);
+size_t k_em_block_open(const KAst *ast, size_t from, size_t lo);
+size_t k_em_block_close(const KAst *ast, size_t open);
+size_t k_em_exit_target(const KAst *ast, const KAstNode *fn, size_t p, bool want_switch);
+bool k_em_at_fn_scope(const KAst *ast, const KAstNode *fn, size_t j);
+size_t k_em_goto_target(const KAst *ast, const KAstNode *fn, size_t g);
+
 /* ---- the construction files: one file each (codegen design E5) ----
  * edits_X: the edits this construction makes inside the function `fn`, in the
  * source [a, b), appended to `ed` (cnt counts them).

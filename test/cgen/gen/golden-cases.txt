@@ -79,3 +79,4 @@ test/cgen/gen/share|use.k|-
 063-foreach-ptr-arity|fv_use.k|-
 064-foreach-countable|win.k|-|
 065-protocol-function|pf.k|-
+066-dim-target|app/mx_use.k|app.mx_use

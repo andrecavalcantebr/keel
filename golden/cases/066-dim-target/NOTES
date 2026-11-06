@@ -1,0 +1,46 @@
+O que este caso afirma
+=======================
+
+Um módulo `dim`-genérico (sem `type`, só `dim ROWS, COLS`) com um construtor
+de aridade zero (`zeros(void)`), cuja instância é resolvida só pelo alvo da
+atribuição (spec §4.4, item 4) — não há receptor, nem argumento de tipo, nem
+seleção pelos binders escritos no próprio argumento. `mx.box(2, 3) v =
+mx.zeros();` tem que gerar `mx_box_2_3_zeros()`, não `mx_zeros()`.
+
+Por que faltava
+================
+
+Achado investigando os probes do projeto `keel_maths` (biblioteca de
+matrizes, fora deste repositório): os construtores propostos ali
+(`zeros(matrix(3,4))`) combinavam essa forma com `type M`, `outcome`, dois
+modificadores e `child`/`parent` ao mesmo tempo, e todas as tentativas
+batiam em `implementation-limit` ou C inválido — não dava para isolar qual
+peça falhava. Reduzindo ao mínimo (sem `type`, sem `outcome`, sem roles, um
+só modificador), o `cgen` **compilava sem erro** e ainda saía errado: a
+instância em si (`mx_box_2_3.h`) tinha o nome certo, mas a CHAMADA em
+`app_mx_use.c` saía `mx_zeros()` — símbolo inexistente, nem compila.
+
+A causa: `module_instance_prefix` (`parser_islands_types.c`), usada para
+montar o nome da chamada quando a instância vem da seleção ou do alvo (não
+de um receptor), só sabe os ARGUMENTOS DE TIPO do `KType` (`arg[]`/`argc`);
+o valor de um binder de dimensão nunca foi guardado ali — só no `symbol` que
+`k_spec_symbol`/`isl_kt_from_text` já tinham calculado certo. O caminho do
+alvo (e o de seleção) ignorava esse `symbol` já certo e reconstruía peça por
+peça, perdendo a dimensão. O caminho `direct` (o objeto É a instância, ex.:
+`length(g)` do caso 006) já usava `symbol` direto, e por isso nunca mostrou
+o problema.
+
+O conserto (`parser_islands_types.c`): quando `inst` vem de `isl_kt_from_text`
+(seleção, ou qualquer um dos dois ramos de alvo) — marcado por uma variável
+nova, `named` —, usa `isl_kt(c, inst)->symbol` direto, como o `direct` já
+fazia; só cai em `module_instance_prefix` quando `inst` vem de outro lugar
+(`kt_find`, o caso `nested` — ex.: `routine.seq` do caso 010, cujo `symbol`
+não é o da instância inteira). Tentei primeiro preferir `symbol` sempre que
+não vazio, sem o `named`: quebrou o caso 010 (`routine.seq` saiu com o nome
+do `slot` aninhado, não do `Ag` de fora) — por isso o `named` existe, restrito
+às três chamadas de `isl_kt_from_text`.
+
+`golden/run.sh` compila e RODA este `expected/` (não roda o `cgen`); a prova
+é a aritmética: se a instância fosse a errada (por exemplo, dimensão 1×1 ou
+outra combinação), `mx.set`/`mx.get` acessariam fora dos limites do `box`
+real. `test/cgen/gen_golden.sh` roda o `cgen` e compara byte a byte.

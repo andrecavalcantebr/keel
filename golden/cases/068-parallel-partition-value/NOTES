@@ -1,0 +1,46 @@
+Notas do caso.
+
+Por que este caso existe
+=========================
+
+`parallel`'s lowering always holds the container in a pointer temp
+(`keel__c<N>`, backend §5.9) so it survives the `#pragma omp` region,
+whatever form the container itself was written in. Every existing case
+(004, 012, 041, 048) partitions a `byref` module (`keel.buffer`), whose
+own `partition` wants that same pointer — so the lowering could pass
+`keel__c<N>` straight through and happen to be right.
+
+`keel.slice` is not `byref`: its own `partition(slice s, size_t k, size_t
+w)` takes the slice by value (keel-spec §4.8 regra 5 — "o binder de
+partição recebe a instância por valor quando o módulo assim a declara").
+Partitioning a `slice.slice i32` directly — itself `Partitionable`, so no
+case needs a second module just to reach this — passed `keel__c<N>`
+(the pointer) where `keel_slice_i32_partition` wants a value, and gcc
+refused the generated C outright (`incompatible type for argument 1`)
+until 2026-11-07.
+
+The fix: the parser (`parser_islands_flow.c`) now always marks, on the
+island text, whether `partition`'s own first parameter wants a pointer
+or a value — independent of `adapt`, which answers a different question
+(whether the box's own written form needs `&`, not what `keel__c<N>`,
+always a pointer, must become for this call). `emit/parallel.c` reads
+that mark and dereferences `keel__c<N>` when the parameter wants a
+value — `keel_slice_i32_partition(*keel__c0, 2, w)` below, not
+`keel_slice_i32_partition(keel__c0, 2, w)`.
+
+Comentários dos esperados
+==========================
+
+**`app/app_ppv.type.h`** e **`app/app_ppv.h`** (c23, c11)
+
+o par comum: um protótipo, `all_non_negative`, não `inline` (vai ao `.c`).
+
+**`app/app_ppv.c`** (c23, c11)
+
+o ponto do caso. `keel_slice_i32 *keel__c0 = &input;` continua um
+ponteiro, como em todo caso de `parallel` — mas a chamada desreferencia:
+`keel_slice_i32_partition(*keel__c0, 2, w)`. Os demais arquivos de
+suporte (`keel/keel_parallel.h`, `keel/keel_slice_i32.h`,
+`keel/keel_outcome_i32.h`, `keel/keel_outcome_keel_slice_i32.h`) já
+existem byte a byte na raiz compartilhada (outros casos os alcançam por
+outro caminho) e não entram aqui.

@@ -50,6 +50,7 @@ typedef struct {
     size_t brace, close;            /* the body's `{` and `}` */
     const char *sym; size_t sym_len;        /* the container's instance */
     const char *part; size_t part_len;      /* the partition verb's symbol */
+    bool part_wants_pointer;                /* its own first parameter: byref or not (§4.8 regra 5) */
     bool by_pointer;
     bool one_line;                  /* the header, the body and the `}` stand on one line */
     size_t target;
@@ -189,6 +190,16 @@ static bool analyze(const KAst *ast, const KIsland *is, const KAstNode *fn, Par 
     size_t s = arrow + 3;
     while (s < len && t[s] == ' ') s++;
     p->part = t + s; p->part_len = len - s;
+    if (!p->part_len) return false;
+    /* parser_islands_flow.c always ends this island's text with " &1" or
+       " &0": whether `partition`'s own first parameter is a pointer
+       (byref) or a value — independent of how the container ended up in
+       `keel__c<N>`, which k_em_edits_parallel always holds as a pointer. */
+    if (p->part_len < 3 || p->part[p->part_len - 3] != ' ' || p->part[p->part_len - 2] != '&' ||
+        (p->part[p->part_len - 1] != '0' && p->part[p->part_len - 1] != '1'))
+        return false;
+    p->part_wants_pointer = p->part[p->part_len - 1] == '1';
+    p->part_len -= 3;
     if (!p->part_len) return false;
     KToken cont = k_em_tok(ast, p->cont);
     size_t q = 0;
@@ -376,7 +387,9 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
             q = put(w, q, pn.ptr, pn.len);
             q = LIT(w, q, " = ");
             q = put(w, q, p.part, p.part_len);
-            q = LIT(w, q, "(keel__c");
+            q = LIT(w, q, "(");
+            if (!p.part_wants_pointer) q = LIT(w, q, "*");
+            q = LIT(w, q, "keel__c");
             q = put_uint(w, q, N);
             q = LIT(w, q, ", ");
             q = put_uint(w, q, W);

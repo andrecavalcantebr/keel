@@ -509,10 +509,17 @@ static void parallel_island(Ctx *c, const KAstNode *n, size_t at) {
         if (isl_container_verb(k, home, k_diag_text("partition"), 3, &sym, &adapt)) {
             isl_put_str(&d, " \xe2\x86\x92 ");
             isl_put(&d, sym.s, sym.n);
-            if (adapt) isl_put_str(&d, " &1");
             /* the binder's written type against the product of `partition` (§4.8,
                item 5): a `byref` product comes by pointer, so the stars go */
             Sig sig = isl_find_verb(home, k_diag_text("partition"), 3);
+            /* emit.c's parallel lowering always holds the container in a pointer
+               temp (it must survive the `#pragma omp` block), regardless of how
+               the container itself was declared: `adapt` above answers a
+               different question (the box's own written form). Marking whether
+               `partition`'s own first parameter wants that pointer, or the value
+               it points to, is unconditional — not folded into `adapt` — so the
+               lowering always finds it, byref module or not. */
+            isl_put_str(&d, sig.found && sig.n && sig.p[0].pointer ? " &1" : " &0");
             int r = sig.found ? isl_ret_type(c, home, sig.fn, t) : -1;
             size_t last = binder.end - 1;
             while (last > binder.first && isl_punct(a, last - 1, "*")) last--;

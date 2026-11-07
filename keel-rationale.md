@@ -698,6 +698,17 @@ Receber um vetor `T valores[static N]` mantém a assinatura com aridade fixa e
 transfere o conjunto de valores por um único argumento. Depois da substituição,
 o compilador C recebe uma extensão constante no parâmetro.
 
+**Por que não há `dim-generates-declaration`.** O catálogo teve esse
+identificador desde o primeiro commit do projeto, sem nunca ganhar uma regra:
+o caso que o motivou era um tensor ou buffer de N dimensões, perguntando como
+gerar um `ptr` por dimensão — algo como um gabarito (`template`) de função
+sobre `N`. A resposta de keel para esse caso é a mesma de acima: um laço em
+tempo de execução sobre `N` dentro de um único verbo, como `grid.ptr` do
+golden 006 faz, somando `off`/`step` por `d` de `N` a `0`. Como a gramática
+não oferece nenhuma forma de escrever o que o diagnóstico temia — não há
+repetição de declaração ligada a `dim` para tentar —, ele nunca tinha como
+disparar; saiu do catálogo em 2026-11-07.
+
 O argumento de um parâmetro `tags` é o **nome** do conjunto, não sua lista. A
 identidade canônica cita esse nome, e o nome gerado não cresce com a quantidade
 de tags; a lista continua disponível para as declarações da instância, que é o

@@ -15,7 +15,11 @@ para cá.
   novos, 067-068, vêm de dois bugs achados avaliando um uso real em
   `../keel_libs`). O que diverge do repositório vale menos que o repositório.
 - **Nenhuma pendência de normativo em aberto** desde 2026-11-07 (a última
-  leva, `instance-depth` (§4.14) estendido para cobrir também o aninhamento
+  leva, `dim-generates-declaration` saiu do catálogo — o caso que o motivou
+  (tensor de N dimensões) já se resolve com laço em runtime, e a gramática
+  nunca ofereceu como escrever o que ele temia — escrita com o "sim" do
+  André depois de ele lembrar o caso original. Antes, na mesma data,
+  `instance-depth` (§4.14) estendido para cobrir também o aninhamento
   comum de modificador (§4.4, regra 16) — mesmo diagnóstico, duas seções de
   origem, achado investigando as lacunas de cobertura dos diagnósticos —
   foi escrita com o "sim" do André). Antes, em 2026-11-06, a regra 20 da

@@ -101,7 +101,6 @@
     X(RESTRICT_ON_CONTAINER, "restrict-on-container", K_ERROR) \
     X(SPECIFIC_FORMAT_UNAVAILABLE, "specific-format-unavailable", K_ERROR) \
     X(NONCONSTANT_DIM, "nonconstant-dim", K_ERROR) \
-    X(DIM_GENERATES_DECLARATION, "dim-generates-declaration", K_ERROR) \
     X(CANONICAL_NAME_COLLISION, "canonical-name-collision", K_ERROR) \
     X(MODIFIER_NAMED_INSTANCE, "modifier-named-instance", K_ERROR) \
     X(ADDRESS_IN_OBJECT_POSITION, "address-in-object-position", K_ERROR) \

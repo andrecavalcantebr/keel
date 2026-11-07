@@ -373,7 +373,7 @@ importam os dois com `types`); `injected-names` e `indirect-import` são `info`,
 e a R1 (se `info` sai por padrão) está aberta; `instance-field-access` é aviso,
 e o golden 007 escreve `s.cap = 4` de propósito; a análise de papéis
 (`region-escape`, `child-region-after-invalidation`); `circular-generic`,
-`layout-cycle`, `protocol-on-parameter`, `dim-generates-declaration`,
+`layout-cycle`, `protocol-on-parameter`,
 `enum-constant-without-type`, `hidden-declarator`, `from-without-target`,
 `associated-type-conflict`; os sete de molde são v1
 (`not-in-v0` já recusa).
@@ -416,12 +416,16 @@ módulo), `hidden-declarator` (entrada de `[now]` sem o nome no fim, retorno sob
 do genérico) e `layout-cycle` (struct que se contém por valor através de
 instância).
 
-Fora: `dim-generates-declaration` espera definição; os sete de molde, v1.
+Fora: os sete de molde, v1.
 `instance-depth` fechou em 2026-11-07; `specific-format-unavailable` engavetado na mesma data
 (o `#error` já resolve, acima); `indirect-import` fechou em 2026-11-07 também —
 `isl_module_alias` (parser_islands.c) e `k_em_header_of` (emit/use_paths.c)
 agora alcançam o fecho transitivo dos imports diretos do arquivo, cada um com
 sua própria varredura (o segundo não tem acesso ao `Ctx` do primeiro).
+`dim-generates-declaration` saiu do catálogo na mesma data: o caso que o
+motivou (tensor de N dimensões) já se resolve com um laço em runtime sobre
+`N`, e a gramática não oferece como escrever o que ele temia (rationale,
+"Por que não há `dim-generates-declaration`").
 
 ## O emissor (2026-11-01)
 

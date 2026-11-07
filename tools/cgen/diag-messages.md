@@ -149,7 +149,6 @@ O conteúdo das tabelas é em inglês, como o código.
 | `restrict-on-container` | `restrict` does not apply to the type `%s`: qualify a pointer to it (`T *restrict p`) | `restrict` written before a modifier: the `note` gives the form with a pointer |
 | `specific-format-unavailable` |  | The module uses `f16` or `bf16`, and the target does not offer the format |
 | `nonconstant-dim` | the dimension `%s` of `%s` is not known at translation time: write a decimal literal or a `constexpr` | An argument of `dim` that is not a decimal literal or a `constexpr` with a known decimal initializer |
-| `dim-generates-declaration` |  | `dim` used to generate declarations instead of replacing a number |
 | `alloc-overflow` |  | `arena.alloc` whose `n * sz` does not fit in `size_t` |
 | `canonical-name-collision` | `%s` is the C name of both `%s` and `%s` in this module: rename one | Two declarations of the same module that produce the same canonical name |
 | `modifier-named-instance` | a modifier cannot be named `instance`: the word opens the declaration that places an instance's bodies | A modifier declared with the name `instance` |

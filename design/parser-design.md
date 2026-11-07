@@ -282,9 +282,11 @@ da 4e, da 4g e da 4h são `parallel`, `worker-exit`, `else`, `extent` e
 `column`; a 4i acrescenta as linhas `closure` e `unavailable`
 ([`cgen-tool.md`](cgen-tool.md) §5.2), e o fecho fica como dado em
 `KAst.closure`. Os diagnósticos do §7 estão todos emitidos, inclusive a análise
-de papéis (spec §4.12), salvo `dim-generates-declaration`, que espera
-definição; os delimitadores são pareados por alternativa de `#if` numa
-passagem própria (`parser_delimiters.c`), na carga, antes do parse.
+de papéis (spec §4.12), salvo `dim-generates-declaration`, que esperava
+definição e saiu do catálogo em 2026-11-07 (rationale, "Por que não há
+`dim-generates-declaration`"); os delimitadores são pareados por
+alternativa de `#if` numa passagem própria (`parser_delimiters.c`), na
+carga, antes do parse.
 
 4a–4i seguem a ordem dos casos golden, no espírito do M6 do
 [`cgen-tool.md`](cgen-tool.md) §9 ("uma construção por vez, na ordem dos casos

@@ -891,7 +891,7 @@ mantendo um único parâmetro.
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `byref-assignment`, `modifier-outside-generic`, `parameter-name-reuse`, `circular-generic`, `layout-cycle`, `protocol-on-parameter`, `verb-not-in-instance`, `instance-outside-file-scope`, `instance-not-modifier`, `redundant-instance`, `nonparametric-out-of-line`, `byref-param`, `nonconstant-dim`, `undeclared-tags`, `dim-generates-declaration`, `modifier-named-instance`, `dim-below-one`, `tag-from-other-set`, `instance-depth`.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `byref-assignment`, `modifier-outside-generic`, `parameter-name-reuse`, `circular-generic`, `layout-cycle`, `protocol-on-parameter`, `verb-not-in-instance`, `instance-outside-file-scope`, `instance-not-modifier`, `redundant-instance`, `nonparametric-out-of-line`, `byref-param`, `nonconstant-dim`, `undeclared-tags`, `modifier-named-instance`, `dim-below-one`, `tag-from-other-set`, `instance-depth`.
 
 #### 5. Casos especiais
 
@@ -2778,7 +2778,6 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `restrict-on-container` | `restrict` escrito antes de um modificador — a `note` dá a forma com ponteiro | `error` | keel | §4.2 |
 | `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` | Backend / compilador C | §4.2 |
 | `nonconstant-dim` | Argumento de `dim` sem literal decimal ou `constexpr` de inicializador decimal conhecido | `error` | keel | §4.3 |
-| `dim-generates-declaration` | Uso de `dim` para gerar declarações em vez de substituir um número | `error` | keel | §4.3 |
 | `alloc-overflow` | `arena.alloc` cujo `n * sz` não cabe em `size_t` | `debug` | Backend, em execução | §5.2 |
 | `canonical-name-collision` | Duas declarações do mesmo módulo produzindo o mesmo nome canônico | `error` | keel | §4.2 |
 | `modifier-named-instance` | Modificador declarado com o nome `instance` | `error` | keel | §4.3 |

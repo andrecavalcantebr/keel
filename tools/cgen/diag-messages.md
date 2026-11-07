@@ -97,7 +97,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `byref-assignment` | `%s = %s` copies a `byref` instance: both now share the storage, and a change through one is seen through the other | Assignment between instances of a `byref` modifier, naming the aliasing |
 | `defer-in-control-block` | `defer` in the body of `%s` runs when that block ends, not when the function does | `defer` registered in the body of `if`, `else` or `switch` |
 | `instance-field-access` | `%s` is a field of `%s`, an instance of `%s`: the fields belong to its module; use its verbs | Direct access to a field of a modifier instance |
-| `indirect-import` |  | Use of a symbol of a module that is not imported directly |
+| `indirect-import` | `%s` is not imported directly here: resolved through a module this file does import | Use of a symbol of a module that is not imported directly |
 | `modifier-outside-generic` | modifier `%s` in a module with no parameters: a modifier belongs to a generic module (`module M type T;`) | `modifier` outside a generic module |
 | `parameter-name-reuse` | `%s` is a parameter of the module: a declaration cannot reuse its name | A declaration of a symbol, or a dimension binder, with the name of a parameter of the module |
 | `circular-generic` | the module instantiates itself without end: %s | A generic module that instantiates itself, with the chain in the message |

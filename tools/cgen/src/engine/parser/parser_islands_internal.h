@@ -191,6 +191,10 @@ Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity);
    not known. */
 bool isl_put_verb_suffix(const Ctx *c, const KType *k, const Sig *sig, size_t arity, Text *t);
 const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char name);
+/* Same as isl_module_alias; when the result comes only from the transitive
+   closure of this file's own direct imports (spec §4.1 regra 8), *indirect
+   is set true (the use is still resolved, not refused). */
+const KModule *isl_module_alias_ex(const KSymbolTable *symbols, keel_slice_char name, bool *indirect);
 const KModule *isl_module_by_name(const KSymbolTable *symbols, const char *name);
 bool isl_protocol_decl(const Ctx *c, const KAst *home, keel_slice_char name, KProtocolDecl *out, int depth);
 bool isl_satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtocolDecl *pd, Text *missing, KToken at);

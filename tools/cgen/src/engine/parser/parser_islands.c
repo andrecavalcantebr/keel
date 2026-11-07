@@ -414,12 +414,50 @@ bool isl_put_verb_suffix(const Ctx *c, const KType *k, const Sig *sig, size_t ar
     return true;
 }
 
-const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char name) {
+#define K_IMPORT_CLOSURE_MAX 64
+
+const KModule *isl_module_alias_ex(const KSymbolTable *symbols, keel_slice_char name, bool *indirect) {
+    if (indirect) *indirect = false;
     for (size_t i = 0; i < symbols->len; i++) {
         const KSymbol *s = keel_buffer_KSymbol_ptr(symbols, i);
         if (s->kind == K_SYM_MODULE && s->origin && k_symtab_same_name(s->name, name)) return s->origin;
     }
+    /* spec §4.1 regra 8: resolution also reaches the transitive closure of
+       this file's own direct imports — flattened the same way
+       isl_check_collisions does for rule 9's name-collision check
+       (parser_islands_checks.c), but matching the name as the intermediate
+       import's own alias wrote it, as soon as a level turns it up, instead
+       of first building the whole closure and matching after. `indirect`
+       marks the result for the one call site that diagnoses the use
+       (`indirect-import`, info — resolution still succeeds). */
+    const KModule *seen[K_IMPORT_CLOSURE_MAX];
+    size_t ns = 0;
+    for (size_t i = 0; i < symbols->len && ns < K_IMPORT_CLOSURE_MAX; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(symbols, i);
+        if (s->kind != K_SYM_MODULE || !s->origin) continue;
+        bool dup = false;
+        for (size_t k = 0; k < ns; k++) if (seen[k] == s->origin) dup = true;
+        if (!dup) seen[ns++] = s->origin;
+    }
+    for (size_t q = 0; q < ns; q++) {
+        const KAst *ma = seen[q]->ast;
+        if (!ma || !ma->symbols) continue;
+        for (size_t i = 0; i < ma->symbols->len; i++) {
+            const KSymbol *s = keel_buffer_KSymbol_ptr(ma->symbols, i);
+            if (s->kind != K_SYM_MODULE || !s->origin) continue;
+            if (k_symtab_same_name(s->name, name)) { if (indirect) *indirect = true; return s->origin; }
+            if (ns < K_IMPORT_CLOSURE_MAX) {
+                bool dup = false;
+                for (size_t k = 0; k < ns; k++) if (seen[k] == s->origin) dup = true;
+                if (!dup) seen[ns++] = s->origin;
+            }
+        }
+    }
     return NULL;
+}
+
+const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char name) {
+    return isl_module_alias_ex(symbols, name, NULL);
 }
 
 /* the module a file imports under its own declared name, whatever the alias */

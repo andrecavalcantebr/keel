@@ -106,6 +106,45 @@ size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *
             best_len = own.len;
         }
     }
+    if (!best) {
+        /* spec §4.1 regra 8: the symbol's module may be only transitively
+           imported — walk the closure of this file's own direct imports
+           (same flattening isl_module_alias_ex uses for the parser's own
+           resolution, parser_islands.c: grow the worklist as each level
+           turns up new modules) and match the mangled prefix the same way
+           the direct-imports loop above does. */
+        const KModule *seen[64];
+        size_t ns = 0;
+        for (size_t i = 0; ast->symbols && i < ast->symbols->len && ns < 64; i++) {
+            const KSymbol *q = keel_buffer_KSymbol_ptr(ast->symbols, i);
+            if (q->kind != K_SYM_MODULE || !q->origin) continue;
+            bool dup = false;
+            for (size_t k = 0; k < ns; k++) if (seen[k] == q->origin) dup = true;
+            if (!dup) seen[ns++] = q->origin;
+        }
+        for (size_t qi = 0; qi < ns; qi++) {
+            const KAst *ma = seen[qi]->ast;
+            if (!ma || !ma->symbols) continue;
+            for (size_t i = 0; i < ma->symbols->len; i++) {
+                const KSymbol *q = keel_buffer_KSymbol_ptr(ma->symbols, i);
+                if (q->kind != K_SYM_MODULE || !q->origin) continue;
+                if (!k_em_is_keel(q->origin->name)) {
+                    char ms[NAME_CAP];
+                    size_t ml = k_mangle_module(q->origin->name, (keel_slice_char){ sizeof ms, ms });
+                    if (ml <= sizeof ms && prefix_of(sym, len, ms, ml) && ml > best) {
+                        best = ml;
+                        memcpy(best_name, q->origin->name.ptr, q->origin->name.len);
+                        best_len = q->origin->name.len;
+                    }
+                }
+                if (ns < 64) {
+                    bool dup = false;
+                    for (size_t k = 0; k < ns; k++) if (seen[k] == q->origin) dup = true;
+                    if (!dup) seen[ns++] = q->origin;
+                }
+            }
+        }
+    }
     if (!best) return 0;
     /* a generic module's symbol that none of its declarations has: one of its instances */
     const KModule *gm = NULL;

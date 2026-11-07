@@ -416,10 +416,12 @@ módulo), `hidden-declarator` (entrada de `[now]` sem o nome no fim, retorno sob
 do genérico) e `layout-cycle` (struct que se contém por valor através de
 instância).
 
-Fora: `dim-generates-declaration` espera definição; os sete de molde, v1;
-`indirect-import`, que pede resolução por import transitivo. `instance-depth`
-fechou em 2026-11-07; `specific-format-unavailable` engavetado na mesma data
-(o `#error` já resolve, acima).
+Fora: `dim-generates-declaration` espera definição; os sete de molde, v1.
+`instance-depth` fechou em 2026-11-07; `specific-format-unavailable` engavetado na mesma data
+(o `#error` já resolve, acima); `indirect-import` fechou em 2026-11-07 também —
+`isl_module_alias` (parser_islands.c) e `k_em_header_of` (emit/use_paths.c)
+agora alcançam o fecho transitivo dos imports diretos do arquivo, cada um com
+sua própria varredura (o segundo não tem acesso ao `Ctx` do primeiro).
 
 ## O emissor (2026-11-01)
 

@@ -54,6 +54,7 @@
     X(BYREF_ASSIGNMENT, "`%s = %s` copies a `byref` instance: both now share the storage, and a change through one is seen through the other") \
     X(DEFER_IN_CONTROL_BLOCK, "`defer` in the body of `%s` runs when that block ends, not when the function does") \
     X(INSTANCE_FIELD_ACCESS, "`%s` is a field of `%s`, an instance of `%s`: the fields belong to its module; use its verbs") \
+    X(INDIRECT_IMPORT, "`%s` is not imported directly here: resolved through a module this file does import") \
     X(MODIFIER_OUTSIDE_GENERIC, "modifier `%s` in a module with no parameters: a modifier belongs to a generic module (`module M type T;`)") \
     X(PARAMETER_NAME_REUSE, "`%s` is a parameter of the module: a declaration cannot reuse its name") \
     X(CIRCULAR_GENERIC, "the module instantiates itself without end: %s") \

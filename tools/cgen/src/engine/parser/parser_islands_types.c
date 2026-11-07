@@ -526,8 +526,10 @@ static bool callee_at(Ctx *c, size_t i, Callee *out) {
     /* `alias.verb(`: a local of the same name does not hide the qualifier,
        which is read where it stands as one (spec §2.3) */
     if (isl_punct(a, i + 1, ".") && isl_ident(a, i + 2) && isl_punct(a, i + 3, "(")) {
-        const KModule *m = isl_module_alias(a->symbols, name);
+        bool indirect = false;
+        const KModule *m = isl_module_alias_ex(a->symbols, name, &indirect);
         if (!m) return false;
+        if (indirect) isl_diag3(c, K_DIAG_INDIRECT_IMPORT, name, name, (keel_slice_char){0}, (keel_slice_char){0});
         *out = (Callee){ i + 2, i + 3, m };
         return true;
     }

@@ -280,6 +280,31 @@ int isl_kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst) {
         else break;
         first = k_lexer_next(&lexer, &pp);
     }
+    /* A qualifier belongs to this wrapper's restoration only when what
+       follows is a BARE type-parameter name of `home` — spec §4.4 regra
+       12, the same case the direct/literal path (instances.c) already
+       covers for a module instantiated from outside. `const slot`,
+       `home`'s own modifier named by itself (keel.routine, home ==
+       the module that declares `slot`), is a const POINTER to the
+       instance already in hand (an ordinary C `const struct *`), not a
+       second, separately-mangled instance — restoring the qualifier
+       there would invent a type the emitter never built (and the
+       mangled name would come from a `kt_copy` of `inst`, whose slot the
+       closure/availability checks of parser_islands_closure.c resolve
+       and roll back around a scratch instance, so a stale copy could
+       also be read back already prefixed; the point is moot once this
+       stays off the self-reference entirely). */
+    if (quals) {
+        KToken after = k_lexer_next(&lexer, &pp);
+        if (after.len) quals = 0;
+        else {
+            keel_slice_char binders[8];
+            size_t nb = isl_binders_of(home, binders);
+            bool is_binder = false;
+            for (size_t p = 0; p < nb; p++) if (k_symtab_same_name(binders[p], first)) { is_binder = true; break; }
+            if (!is_binder) quals = 0;
+        }
+    }
     int t = isl_kt_from_home_inner(c, home, text, inst);
     if (t < 0 || !quals) return t;
     KType *k = isl_kt(c, t);
@@ -289,21 +314,32 @@ int isl_kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst) {
     if (quals & 2) { memcpy(buf + n, "volatile_", 9); n += 9; }
     if (quals & 4) { memcpy(buf + n, "atomic_", 7); n += 7; }
     size_t slen = strlen(k->symbol);
-    if (slen && n + slen < sizeof buf) {
-        memcpy(buf + n, k->symbol, slen);
-        isl_kt_set_symbol(k, buf, n + slen);
+    /* Idempotent on purpose: `kt_copy(c, inst)` (the bare-modifier-name
+       branch above) can return a slot that a prior, since-discarded
+       resolution already qualified — the closure checks of
+       parser_islands_closure.c resolve-and-roll-back `c->type_count`
+       around a scratch instance, which un-counts a slot without clearing
+       it, so the next fresh resolve of the same `const slot`-shaped text
+       can inherit an already-prefixed symbol instead of the plain one.
+       Without this guard the prefix piles up once per stale reuse. */
+    if (slen < n || memcmp(k->symbol, buf, n) != 0) {
+        if (slen && n + slen < sizeof buf) {
+            memcpy(buf + n, k->symbol, slen);
+            isl_kt_set_symbol(k, buf, n + slen);
+        }
     }
     /* KT_PRIM alone is spelled from `spell`, not `symbol` (line ~842 of
        parser_islands.c): `const_i32` is a mangled identifier, not the C text
        `const i32`. Rebuild it into `qspell`, which — unlike a slice into
        source text — this KType owns for as long as it lives. */
     if (k->kind == KT_PRIM) {
-        keel_slice_char base = k->spell.len ? k->spell : (keel_slice_char){ slen, k->symbol };
+        keel_slice_char base = k->spell.len ? k->spell : (keel_slice_char){ strlen(k->symbol), k->symbol };
         char qb[K_SYMBOL_MAX];
         size_t qn = 0;
         if (quals & 1) { memcpy(qb + qn, "const ", 6); qn += 6; }
         if (quals & 2) { memcpy(qb + qn, "volatile ", 9); qn += 9; }
         if (quals & 4) { memcpy(qb + qn, "_Atomic ", 8); qn += 8; }
+        if (base.len >= qn && memcmp(base.ptr, qb, qn) == 0) return t;
         if (base.len && qn + base.len < sizeof qb) {
             memcpy(qb + qn, base.ptr, base.len);
             qn += base.len;

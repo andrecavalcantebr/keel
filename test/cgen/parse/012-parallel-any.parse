@@ -15,7 +15,7 @@ closure	keel_outcome_size_t	keel_buffer_size_t.at/2
 closure	keel_slice_size_t	keel_buffer_size_t.as_slice/1
 ilha	type	buffer i32 → keel_buffer_i32	app/bs.k:9:20
 ilha	type	buffer size_t → keel_buffer_size_t	app/bs.k:9:48
-ilha	parallel	search ANY (w : 0..4; part : xs (buffer i32); (target, where)) → keel_buffer_i32_partition	app/bs.k:10:5
+ilha	parallel	search ANY (w : 0..4; part : xs (buffer i32); (target, where)) → keel_buffer_i32_partition &1	app/bs.k:10:5
 ilha	type	slice.slice i32 → keel_slice_i32	app/bs.k:10:43
 ilha	foreach	x, i : part (slice.slice i32)	app/bs.k:11:9
 ilha	call	parallel.interrupted/1 → keel_parallel_interrupted &1	app/bs.k:12:17

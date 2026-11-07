@@ -9,7 +9,7 @@ closure	keel_outcome_i32	keel_buffer_i32.at/2
 closure	keel_outcome_keel_buffer_i32	keel_buffer_i32.clone/2
 closure	keel_outcome_keel_slice_i32	keel_slice_i32.clone/2
 ilha	type	buffer i32 → keel_buffer_i32	app/val.k:10:23
-ilha	parallel	validate ALL (w : 0..4; part : xs (buffer i32)) → keel_buffer_i32_partition	app/val.k:11:5
+ilha	parallel	validate ALL (w : 0..4; part : xs (buffer i32)) → keel_buffer_i32_partition &1	app/val.k:11:5
 ilha	type	slice.slice i32 → keel_slice_i32	app/val.k:11:45
 ilha	foreach	x, i : part (slice.slice i32)	app/val.k:12:9
 ilha	worker-exit	fail → validate	app/val.k:13:24

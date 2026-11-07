@@ -25,6 +25,7 @@ generic gen.k
 plainmod p.k
 stem my-file.k
 stem-case foo.k
+instance-depth d.k
 nomodule n.k
 imports-order o.k
 mains m.k

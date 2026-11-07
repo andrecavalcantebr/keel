@@ -375,8 +375,11 @@ e o golden 007 escreve `s.cap = 4` de propósito; a análise de papéis
 (`region-escape`, `child-region-after-invalidation`); `circular-generic`,
 `layout-cycle`, `protocol-on-parameter`, `dim-generates-declaration`,
 `enum-constant-without-type`, `hidden-declarator`, `from-without-target`,
-`associated-type-conflict`, `instance-depth`; os sete de molde são v1
+`associated-type-conflict`; os sete de molde são v1
 (`not-in-v0` já recusa); `specific-format-unavailable` é do backend.
+`instance-depth` fechou em 2026-11-07, com o conserto da contagem dobrada em
+`scan_known_type`/`scan_argument` (`parser_declarator.c`) que limitava o
+aninhamento real a metade do declarado.
 
 ## Papéis e o resto da passagem 3 (2026-10-03)
 
@@ -402,8 +405,8 @@ do genérico) e `layout-cycle` (struct que se contém por valor através de
 instância).
 
 Fora: `dim-generates-declaration` espera definição; os sete de molde, v1;
-`instance-depth`, de especialização; `specific-format-unavailable`, do backend;
-`indirect-import`, que pede resolução por import transitivo.
+`specific-format-unavailable`, do backend; `indirect-import`, que pede
+resolução por import transitivo. `instance-depth` fechou em 2026-11-07.
 
 ## O emissor (2026-11-01)
 

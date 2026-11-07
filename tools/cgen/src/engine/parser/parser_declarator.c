@@ -166,7 +166,7 @@ static bool is_qual_arg(KToken t) {
 }
 
 static bool scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
-                             KSpecifier *out, int depth,
+                             KSpecifier *out, int depth, bool *too_deep,
                              KToken *next_out, TKPpKind *pp);
 
 /* One `argument`:
@@ -180,10 +180,20 @@ static bool scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *sym
    token after the argument. The span returned runs from the first
    qualifier to the last, both sides included: keel-spec §2.2 accepts them
    "dos dois lados do tipo", and the canonical identity is a later
-   contract's job, so what is recorded here is what was written. */
+   contract's job, so what is recorded here is what was written.
+
+   `depth` is the nesting depth of the *modifier that owns this argument*,
+   not a fresh level by itself: scanning an argument costs nothing extra
+   unless the argument is itself a nested modifier (keel-spec §4.4 regra
+   16), in which case the recursive `scan_known_type` below is the one
+   that charges the next level. `*too_deep`, when given, is set once if
+   this call fails specifically because `depth` ran past
+   K_SPEC_MAX_DEPTH — distinct from failing because the text simply isn't
+   a known type. */
 static bool scan_argument(KLexer *lexer, const KSymbolTable *symtab, int depth,
+                           bool *too_deep,
                            KToken *tok, keel_slice_char *out, TKPpKind *pp) {
-    if (depth > K_SPEC_MAX_DEPTH) return false;
+    if (depth > K_SPEC_MAX_DEPTH) { if (too_deep) *too_deep = true; return false; }
     if (tok->len == 0) return false;
 
     const char *from = tok->ptr;
@@ -216,7 +226,7 @@ static bool scan_argument(KLexer *lexer, const KSymbolTable *symtab, int depth,
         if (sym == NULL) return false;   /* not a keel argument */
         if (sym->kind == K_SYM_MODIFIER) {
             KSpecifier inner;
-            if (!scan_known_type(lexer, *tok, symtab, &inner, depth + 1, tok, pp))
+            if (!scan_known_type(lexer, *tok, symtab, &inner, depth + 1, too_deep, tok, pp))
                 return false;
             if (inner.kind != K_SPEC_MODIFIER) return false;
             to = inner.text.ptr + inner.text.len;
@@ -241,9 +251,9 @@ trailing:
 }
 
 static bool scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
-                             KSpecifier *out, int depth,
+                             KSpecifier *out, int depth, bool *too_deep,
                              KToken *next_out, TKPpKind *pp) {
-    if (depth > K_SPEC_MAX_DEPTH) return false;
+    if (depth > K_SPEC_MAX_DEPTH) { if (too_deep) *too_deep = true; return false; }
 
     out->kind = K_SPEC_NONE;
     out->arg_count = 0;
@@ -301,7 +311,12 @@ static bool scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *sym
     for (int i = 0; i < sym->arity - sym->dim_arity; i++) {
         if (out->arg_count >= K_SPEC_MAX_ARGS) return false;
         keel_slice_char arg;
-        if (!scan_argument(lexer, symtab, depth + 1, &tok, &arg, pp)) return false;
+        /* `depth`, not `depth + 1`: an argument is the same nesting level
+           as the modifier that takes it, and only a nested modifier found
+           inside it (above, where scan_argument re-enters scan_known_type)
+           charges a level. Charging here too counted every level twice,
+           capping real usable nesting at K_SPEC_MAX_DEPTH/2. */
+        if (!scan_argument(lexer, symtab, depth, too_deep, &tok, &arg, pp)) return false;
         out->args[out->arg_count++] = arg;
         to = arg.ptr + arg.len;
     }
@@ -313,14 +328,20 @@ static bool scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *sym
 
 bool k_scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
                         KSpecifier *out, KToken *next_out, TKPpKind *next_pp_kind_out) {
-    return scan_known_type(lexer, first, symtab, out, 0, next_out, next_pp_kind_out);
+    return scan_known_type(lexer, first, symtab, out, 0, NULL, next_out, next_pp_kind_out);
+}
+
+bool k_scan_known_type_checked(KLexer *lexer, KToken first, const KSymbolTable *symtab,
+                                KSpecifier *out, bool *too_deep,
+                                KToken *next_out, TKPpKind *next_pp_kind_out) {
+    return scan_known_type(lexer, first, symtab, out, 0, too_deep, next_out, next_pp_kind_out);
 }
 
 bool k_scan_argument(KLexer *lexer, KToken first, const KSymbolTable *symtab,
                       keel_slice_char *out, KToken *next_out,
                       TKPpKind *next_pp_kind_out) {
     KToken tok = first;
-    if (!scan_argument(lexer, symtab, 0, &tok, out, next_pp_kind_out)) return false;
+    if (!scan_argument(lexer, symtab, 0, NULL, &tok, out, next_pp_kind_out)) return false;
     *next_out = tok;
     return true;
 }

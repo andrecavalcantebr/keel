@@ -87,8 +87,11 @@ bool k_collect_instances(KAst *a,KDiagnosticSink *diag) {
         KToken first=keel_buffer_KLexeme_ptr(&a->tokens, i)->token;
         keel_slice_char rest={(size_t)(a->source.ptr+a->source.len-first.ptr),first.ptr};
         KLexer lexer;k_lexer_init(&lexer,rest,NULL);TKPpKind pp;first=k_lexer_next(&lexer,&pp);
-        KSpecifier spec;KToken next={0};
-        if(!k_scan_known_type(&lexer,first,a->symbols,&spec,&next,&pp)||spec.kind!=K_SPEC_MODIFIER)continue;
+        KSpecifier spec;KToken next={0};bool too_deep=false;
+        if(!k_scan_known_type_checked(&lexer,first,a->symbols,&spec,&too_deep,&next,&pp)||spec.kind!=K_SPEC_MODIFIER) {
+            if(too_deep){k_diag_emit(diag,K_DIAG_INSTANCE_DEPTH,first,(KDiagArgs){{first}});return false;}
+            continue;
+        }
         KInstanceUse use={.first=i};
         Name name={use.symbol,0,sizeof use.symbol-1,true};
         if(!type_name(spec.text,a->symbols,&name,0)) {

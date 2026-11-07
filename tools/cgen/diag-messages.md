@@ -199,7 +199,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `code-param-outside-mold` |  | (v1) A `keel_code` parameter in a function that is not a mold |
 | `protocol-not-satisfied` | `%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported) | A type that does not meet the protocol required by the construction or by the function parameter: the module does not declare the verbs, or the instance lost them. The message names the construction, the protocol and the missing verbs; over `array`, it points to the import of `keel.array` |
 | `verb-not-in-protocol` | `%s` is not a verb of `%s`: a function over a protocol calls on its parameter only the verbs the protocol requires | A verb outside the contract of the protocol parameter |
-| `instance-depth` |  | Specialization depth above the limit |
+| `instance-depth` | nested instance past the depth limit: `%s` has more levels of modifier nesting than this implementation specializes | Specialization depth above the limit |
 
 ## cgen-tool-spec §7.1
 

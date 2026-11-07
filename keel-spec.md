@@ -818,7 +818,7 @@ Definir modificadores de tipos e expandir suas declarações para os argumentos 
 13. A indisponibilidade é calculada por instância e propagada pelas chamadas keel conhecidas: se um verbo chama outro indisponível, também fica indisponível. A propagação termina quando nenhuma nova função é marcada. O parser guarda a causa direta e a cadeia de chamadas, suprime a emissão dos corpos indisponíveis e emite `verb-not-in-instance` na posição de uma chamada reconhecida que permaneceria no programa emitido. Importar o módulo ou instanciar o tipo, sem esse uso, não produz erro apenas pela existência de verbos indisponíveis. O resultado depende do genérico e dos argumentos escritos, não das chamadas presentes em cada importador.
 14. Um verbo que devolve ou recebe `T` por valor é emitido sobre o tipo sem o qualificador de topo.
 15. Um `typedef` que menciona um parâmetro pertence à instância e é emitido por instância. Ele não tem forma escrita com argumento: só modificador aceita argumento em posição de tipo.
-16. O uso de um modificador instancia suas declarações e, recursivamente, os modificadores usados por elas. A identidade inclui todos os argumentos canônicos. Um uso finito aninhado, como `stack stack i32`, é permitido.
+16. O uso de um modificador instancia suas declarações e, recursivamente, os modificadores usados por elas. A identidade inclui todos os argumentos canônicos. Um uso finito aninhado, como `stack stack i32`, é permitido, até o limite de profundidade de aninhamento da implementação; acima dele, `instance-depth`.
 17. `byref` recusa parâmetros por valor e diagnostica a cópia entre instâncias. Retorno por valor é permitido, sujeito à procedência da memória.
 18. Em módulo genérico, o default é `pub inline`. Declarações fora de linha exigem que um módulo do programa coloque seus corpos por `instance`.
 19. `instance` não declara nome nem substitui o import: determina onde ficam os corpos da instância já solicitada pelos usos.
@@ -890,7 +890,7 @@ mantendo um único parâmetro.
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `byref-assignment`, `modifier-outside-generic`, `parameter-name-reuse`, `circular-generic`, `layout-cycle`, `protocol-on-parameter`, `verb-not-in-instance`, `instance-outside-file-scope`, `instance-not-modifier`, `redundant-instance`, `nonparametric-out-of-line`, `byref-param`, `nonconstant-dim`, `undeclared-tags`, `dim-generates-declaration`, `modifier-named-instance`, `dim-below-one`, `tag-from-other-set`.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `byref-assignment`, `modifier-outside-generic`, `parameter-name-reuse`, `circular-generic`, `layout-cycle`, `protocol-on-parameter`, `verb-not-in-instance`, `instance-outside-file-scope`, `instance-not-modifier`, `redundant-instance`, `nonparametric-out-of-line`, `byref-param`, `nonconstant-dim`, `undeclared-tags`, `dim-generates-declaration`, `modifier-named-instance`, `dim-below-one`, `tag-from-other-set`, `instance-depth`.
 
 #### 5. Casos especiais
 
@@ -2827,7 +2827,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `code-param-outside-mold` | (v1) Parâmetro keel_code em função que não é molde | `error` | keel, na tradução | §4.13 |
 | `protocol-not-satisfied` | Tipo que não atende o protocolo exigido pela construção ou pelo parâmetro de função: o módulo não declara os verbos, ou a instância os perdeu. A mensagem nomeia a construção, o protocolo e os verbos ausentes; sobre `array`, indica o import de `keel.array` | `error` | keel, na tradução | §5.1 |
 | `verb-not-in-protocol` | Verbo fora do contrato do parâmetro de protocolo | `error` | keel, na tradução | §4.14 |
-| `instance-depth` | Profundidade de especialização acima do limite | `error` | keel, na tradução | §4.14 |
+| `instance-depth` | Profundidade de especialização acima do limite | `error` | keel, na tradução | §4.4, §4.14 |
 
 ### 6.3 Implementação conforme
 

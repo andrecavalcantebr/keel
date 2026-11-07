@@ -305,6 +305,16 @@ typedef struct {
 bool k_scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *symtab,
                         KSpecifier *out, KToken *next_out, TKPpKind *next_pp_kind_out);
 
+/* Same as k_scan_known_type, but on a failure caused specifically by
+ * nesting past K_SPEC_MAX_DEPTH, sets `*too_deep` to true (it is never
+ * set to false: initialize it before the call). Callers that must tell
+ * "too deep" apart from "not a known type at all" — to emit
+ * `instance-depth` (keel-spec §4.4 regra 16, §4.14) instead of silently
+ * treating the text as not an instance — use this instead. */
+bool k_scan_known_type_checked(KLexer *lexer, KToken first, const KSymbolTable *symtab,
+                                KSpecifier *out, bool *too_deep,
+                                KToken *next_out, TKPpKind *next_pp_kind_out);
+
 /* One `argument` of keel-spec §2.2, on its own — the same production
  * k_scan_known_type reads after a modifier, exported because
  * `decl-array` needs exactly one of them after the `array` marker:

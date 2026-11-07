@@ -131,6 +131,7 @@
     X(PARTIAL_INSTANCE_SELECTION, "partial-instance-selection", K_ERROR) \
     X(TYPE_PARAM_OUTSIDE_SIZE, "type-param-outside-size", K_ERROR) \
     X(TYPE_PARAM_SHADOWS_TYPE, "type-param-shadows-type", K_ERROR) \
+    X(TYPE_ARG_FOREIGN, "type-arg-foreign", K_ERROR) \
     X(ROLE_POSITION, "role-position", K_ERROR) \
     X(UNKNOWN_PROTOCOL, "unknown-protocol", K_ERROR) \
     X(ASSOCIATED_TYPE_UNBOUND, "associated-type-unbound", K_ERROR) \

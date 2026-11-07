@@ -181,6 +181,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `partial-instance-selection` | `%s` selects the instance, and so names a `type` parameter for every `type` of the module line (and the module has no `dim` or `tags`) | A selection verb without a `type` parameter for some parameter of the `module` line |
 | `type-param-outside-size` | the erased type parameter `%s` stands only in `sizeof(%s)` and `alignof(%s)` in the body, and as a pointee in the signature | An erased `type` parameter used outside `sizeof`, `alignof` and `X *` in the signature, or in a vector dimension |
 | `type-param-shadows-type` | the erased type parameter `%s` has the name of a known type: choose another name | An erased `type` parameter with the name of a type known in scope |
+| `type-arg-foreign` | `%s` erases to `sizeof`/`alignof` here, and is from another module: write it in a local type, or pass the instance some other way | A type argument of an erased `type` parameter that is from another module |
 | `role-position` | `%s` is a role: a role stands before the type of a parameter, and only `child` before the return type | A role outside an admitted position |
 | `unknown-protocol` | `%s` names no protocol here: declare it, or import the module that does | An unknown protocol name |
 | `associated-type-unbound` | the associated type `%s` of `%s` appears in no verb, so nothing binds it | An associated type that appears in no required verb of the protocol |

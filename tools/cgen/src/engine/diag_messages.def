@@ -128,6 +128,7 @@
     X(PARTIAL_INSTANCE_SELECTION, "`%s` selects the instance, and so names a `type` parameter for every `type` of the module line (and the module has no `dim` or `tags`)") \
     X(TYPE_PARAM_OUTSIDE_SIZE, "the erased type parameter `%s` stands only in `sizeof(%s)` and `alignof(%s)` in the body, and as a pointee in the signature") \
     X(TYPE_PARAM_SHADOWS_TYPE, "the erased type parameter `%s` has the name of a known type: choose another name") \
+    X(TYPE_ARG_FOREIGN, "`%s` erases to `sizeof`/`alignof` here, and is from another module: write it in a local type, or pass the instance some other way") \
     X(ROLE_POSITION, "`%s` is a role: a role stands before the type of a parameter, and only `child` before the return type") \
     X(UNKNOWN_PROTOCOL, "`%s` names no protocol here: declare it, or import the module that does") \
     X(ASSOCIATED_TYPE_UNBOUND, "the associated type `%s` of `%s` appears in no verb, so nothing binds it") \

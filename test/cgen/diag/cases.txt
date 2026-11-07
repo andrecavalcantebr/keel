@@ -46,3 +46,4 @@ base-names keel/probe.k
 base-names-keelx keelx/q.k
 delims2 d.k
 groupscope g.k
+type-arg-foreign tf.k

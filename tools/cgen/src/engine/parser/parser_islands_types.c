@@ -564,6 +564,24 @@ static bool mentions_own(const KAst *home, const Param *p) {
     return false;
 }
 
+/* whether an erased `type` argument (spec §4.4, rule 13) is from another module: a
+   qualified name (`pt.point`), or an unqualified one that is neither a primitive nor
+   declared in this very file — it can only have arrived through an import. `type-arg-foreign`
+   (rule 20): the instance's own module (`home`) is irrelevant here, only the caller's (`a`) is. */
+static bool erased_type_arg_foreign(const Ctx *c, Range r) {
+    const KAst *a = c->ast;
+    for (size_t j = r.first; j < r.end; j++) if (isl_punct(a, j, ".")) return true;
+    if (r.end != r.first + 1 || !isl_ident(a, r.first)) return false;
+    KToken t = isl_tok(a, r.first);
+    if (k_primitive_name((keel_slice_char){ t.len, (char *)t.ptr })) return false;
+    if (isl_binder(a, (keel_slice_char){ t.len, (char *)t.ptr })) return false;   /* this file's own `module` line */
+    for (size_t k = 0; k < a->nodes.len; k++) {
+        const KAstNode *n = isl_node_at(a, k);
+        if (n->name_first < n->name_end && k_symtab_same_name(isl_tok(a, n->name_first), t)) return false;
+    }
+    return true;
+}
+
 static int prim_type(Ctx *c, const char *name) {
     int t = isl_kt_new(c);
     if (t < 0) return -1;
@@ -1036,7 +1054,13 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     /* adaptation marks, from the declared parameter (spec §4.4, item 5) */
     for (size_t k = 0; sig.found && k < argc && k < sig.n; k++) {
         if (sig.p[k].is_type) {
-            if (!isl_binder(home, sig.p[k].base)) { isl_put_str(&t, " type:"); isl_put_uint(&t, k + 1); }
+            if (!isl_binder(home, sig.p[k].base)) {
+                if (erased_type_arg_foreign(c, args[k])) {
+                    isl_diag3(c, K_DIAG_TYPE_ARG_FOREIGN, isl_tok(a, args[k].first), isl_range_text(a, args[k]), none, none);
+                    return -1;
+                }
+                isl_put_str(&t, " type:"); isl_put_uint(&t, k + 1);
+            }
             continue;
         }
         int tk = k == 0 ? t0 : isl_type_of(c, args[k]);

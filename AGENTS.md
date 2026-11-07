@@ -11,8 +11,9 @@ para cá.
 - **A memória do projeto está em [`.claude/memory/`](.claude/memory/MEMORY.md).**
   Leia o `MEMORY.md` primeiro: é o índice, e cada linha aponta para um fato.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code, e
-  atualizada em 2026-11-05 (os 59 casos do golden saem do cgen). O
-  que diverge do repositório vale menos que o repositório.
+  atualizada em 2026-11-07 (os 67 casos do golden saem do cgen: os dois
+  novos, 067-068, vêm de dois bugs achados avaliando um uso real em
+  `../keel_libs`). O que diverge do repositório vale menos que o repositório.
 - **Nenhuma pendência de normativo em aberto** desde 2026-11-07 (a última
   leva, `instance-depth` (§4.14) estendido para cobrir também o aninhamento
   comum de modificador (§4.4, regra 16) — mesmo diagnóstico, duas seções de

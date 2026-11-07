@@ -977,6 +977,7 @@ Resolver chamadas keel a partir de módulos, assinaturas e identidades declarada
 17. Um parâmetro apagado só aparece no corpo em `sizeof(X)` e `alignof(X)`, fora de dimensão de vetor.
 18. O nome de um parâmetro apagado não nomeia tipo conhecido no escopo.
 19. Uma função pode ter parâmetros das duas espécies; cada um segue a sua regra.
+20. O tipo escrito num argumento de parâmetro apagado (regra 13) não é de outro módulo. A violação é `type-arg-foreign`.
 
 Referências: [Rationale: resolução por declaração](keel-rationale.md#resolução-por-declaração); [Rationale: parâmetro de tipo em função](keel-rationale.md#parâmetro-de-tipo-em-função); [Backend: contêineres e funções](keel-c-backend.md#52-containers-struct-e-funções-static-inline) e [parâmetro `type`](keel-c-backend.md#516-parâmetro-type).
 
@@ -998,7 +999,7 @@ keel_buffer_i32_length(p);
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `not-a-container-expression`, `instance-field-access`, `address-in-object-position`, `wrong-qualifier`, `verb-not-in-instance`, `from-without-target`, `partial-instance-selection`, `type-param-outside-size`, `type-param-shadows-type`. Tipos ou argumentos C incompatíveis depois da resolução são diagnosticados pelo compilador C.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `not-a-container-expression`, `instance-field-access`, `address-in-object-position`, `wrong-qualifier`, `verb-not-in-instance`, `from-without-target`, `partial-instance-selection`, `type-param-outside-size`, `type-param-shadows-type`, `type-arg-foreign`. Tipos ou argumentos C incompatíveis depois da resolução são diagnosticados pelo compilador C.
 
 #### 5. Casos especiais
 
@@ -2808,6 +2809,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `partial-instance-selection` | Verbo de seleção sem parâmetro `type` para algum parâmetro da linha `module` | `error` | keel | §4.4 |
 | `type-param-outside-size` | Parâmetro `type` apagado usado fora de `sizeof`, `alignof` e `X *` na assinatura, ou em dimensão de vetor | `error` | keel | §4.4 |
 | `type-param-shadows-type` | Parâmetro `type` apagado com nome de tipo conhecido no escopo | `error` | keel | §4.4 |
+| `type-arg-foreign` | Argumento de tipo escrito num parâmetro `type` apagado (§4.4, regra 13) que é de outro módulo | `error` | keel | §4.4 |
 | `role-position` | Papel fora de posição admitida | `error` | keel, na tradução | §4.12 |
 | `unknown-protocol` | Nome de protocolo desconhecido | `error` | keel, na tradução | §5.1 |
 | `associated-type-unbound` | Tipo associado que não aparece em nenhum verbo exigido do protocolo | `error` | keel, na tradução | §5.1 |

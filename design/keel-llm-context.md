@@ -375,6 +375,28 @@ A forma por si só não decide se um programa é aceito. O essencial:
   `walk`, `match`, indexação não resolvem sobre `T` puro. Uma declaração que
   não cita nenhum parâmetro nem modificador é emitida **uma vez** para o
   módulo (ex.: `outcome.OK`, `buffer.cursor`), não uma vez por instância.
+- **Parâmetro `type X` de função: duas espécies, nunca as confunda (§4.4,
+  regras 10-20).** Decidida só pela declaração, nunca pela chamada.
+  **Seleção**: `X` é o `type` da própria linha `module` (`keel.slice type T;`
+  e `from(type T, T *p, size_t n)` usam o mesmo `T`) — o tipo escrito na
+  chamada escolhe a instância, e some do C (`slice.from(f32, p, n)` →
+  `keel_slice_f32_from(p, n)`, nenhum `sizeof` nem `alignof`). **Apagado**: `X`
+  não é parâmetro do módulo (ou o módulo não tem `type`, só `dim`/`tags`) —
+  vira dois `size_t` (tamanho, alinhamento) na assinatura, e a chamada escreve
+  `sizeof`/`alignof` do tipo escrito; a função é **uma só** no C, sem
+  instância nem nome derivado de `X` (`arena.alloc(a, i32, n)` →
+  `keel_arena_alloc2(a, sizeof(i32), alignof(i32), n)`, sempre a mesma
+  função). **Um módulo `dim`/`tags` sem `type` nunca tem seleção (regra 12)**:
+  `type M` ali é sempre apagado, e não escolhe dimensão nenhuma — a instância
+  (por `dim`) só vem do alvo da declaração/atribuição/`return` (regra 4 da
+  tabela acima desta lista), nunca de um argumento de tipo. Tentar as duas
+  coisas no mesmo argumento (seleção de dimensão **e** apagamento) é o erro
+  mais comum nessa área. O tipo escrito num argumento apagado também não
+  pode ser de outro módulo (regra 20, `type-arg-foreign`) — hoje a ferramenta
+  ainda recusa isso. Passar `dim`/`type` como argumento para **gerar código
+  especializado por substituição de fichas** (sem erasure, sem struct opaca)
+  é o **molde** (`keel_code`), proposto e não implementado — ver
+  `design/possibilidades.md` e `design/mold-impacto.md`.
 - **`instance M.mod ARGS;` só decide onde o corpo mora**, não gera a
   instância: geração segue o **uso**. Uma função `pub` sem `inline` de
   genérico precisa de uma declaração `instance` em algum módulo do programa

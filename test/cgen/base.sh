@@ -13,7 +13,7 @@ cd "$(dirname "$0")/../.." || exit 2
 BIN=$PWD/tools/cgen/cgen
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 MODULES="arena corot parallel range"
-USES="keel.array i32|keel.buffer.buffer i32|keel.buffer.buffer size_t|keel.buffer.buffer u32|keel.slice.slice f32|keel.slice.slice i32|keel.slice.slice size_t|keel.slice.slice u32|keel.outcome.outcome f32|keel.outcome.outcome i32|keel.outcome.outcome size_t|keel.outcome.outcome u32|keel.outcome.outcome void|keel.slice.of keel.array i32|keel.slice.of keel.buffer.buffer i32|keel.slice.of keel.slice.slice i32"
+USES="keel.array i16|keel.array i32|keel.buffer.buffer i32|keel.buffer.buffer size_t|keel.buffer.buffer u32|keel.slice.slice f32|keel.slice.slice i16|keel.slice.slice i32|keel.slice.slice size_t|keel.slice.slice u32|keel.outcome.outcome f32|keel.outcome.outcome i16|keel.outcome.outcome i32|keel.outcome.outcome size_t|keel.outcome.outcome u32|keel.outcome.outcome void|keel.outcome.outcome keel.slice.slice i16|keel.slice.of keel.array i16|keel.slice.of keel.array i32|keel.slice.of keel.buffer.buffer i32|keel.slice.of keel.slice.slice i32"
 bad=0 ok=0 wip=0
 for p in c23 c11; do
     out=$tmp/$p

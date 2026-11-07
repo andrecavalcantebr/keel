@@ -376,10 +376,22 @@ e o golden 007 escreve `s.cap = 4` de propósito; a análise de papéis
 `layout-cycle`, `protocol-on-parameter`, `dim-generates-declaration`,
 `enum-constant-without-type`, `hidden-declarator`, `from-without-target`,
 `associated-type-conflict`; os sete de molde são v1
-(`not-in-v0` já recusa); `specific-format-unavailable` é do backend.
+(`not-in-v0` já recusa).
 `instance-depth` fechou em 2026-11-07, com o conserto da contagem dobrada em
 `scan_known_type`/`scan_argument` (`parser_declarator.c`) que limitava o
 aninhamento real a metade do declarado.
+
+`specific-format-unavailable` engavetado em 2026-11-07: a própria regra 3 do
+backend §3.2 já aceita o `#error` de `keel/f16.h`/`keel/bf16.h` como rede —
+"quando o alvo é conhecido na invocação" é a condição do diagnóstico
+próprio, e hoje cgen não lê nem pode ler isso de uma flag (`cgen-tool-spec.md
+§4.9` já rejeita perguntar ao `cc` por uma decisão assim, pelo mesmo motivo
+do `-std=`: duas fontes de verdade que podem discordar). Sondar o próprio
+`cc` antes da tradução resolveria sem essa duplicação, mas é mecanismo novo
+sem caso real que peça — e `f16`/`bf16` não têm implementação nenhuma ainda
+(nem o `.h` com o guard existe). Sem pendência de normativo: a spec já
+descreve os dois caminhos, e o `#error` continua sendo o que roda até o
+dia em que alguém pedir `f16`/`bf16` de verdade.
 
 ## Papéis e o resto da passagem 3 (2026-10-03)
 
@@ -405,8 +417,9 @@ do genérico) e `layout-cycle` (struct que se contém por valor através de
 instância).
 
 Fora: `dim-generates-declaration` espera definição; os sete de molde, v1;
-`specific-format-unavailable`, do backend; `indirect-import`, que pede
-resolução por import transitivo. `instance-depth` fechou em 2026-11-07.
+`indirect-import`, que pede resolução por import transitivo. `instance-depth`
+fechou em 2026-11-07; `specific-format-unavailable` engavetado na mesma data
+(o `#error` já resolve, acima).
 
 ## O emissor (2026-11-01)
 

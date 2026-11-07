@@ -750,6 +750,7 @@ i32 *p = origin;
 #### 4. Erros
 
 De keel, na tradução; condições no [catálogo](#62-catálogo): `c-type-as-argument`, `array-1d-as-parameter`, `array-parameter-without-dimension`, `array-argument-wrong-dimension`, `binder-argument-not-array`, `binder-as-dimension`, `partial-array-index`, `flat-view-of-n-dim-array`, `nonconstant-dim-index`, `ref-without-initializer`, `ref-arithmetic`, `enum-constant-without-type`, `restrict-on-container`, `hidden-declarator`, `nonscalar-constexpr`, `constexpr-as-lvalue`, `constexpr-name-missing`, `canonical-name-collision`, `reserved-name`, `name-too-long`. `specific-format-unavailable` é do backend ou do compilador C.
+Referências: [Rationale: por que f16 e bf16 delegam o erro de disponibilidade ao C](keel-rationale.md#por-que-f16-e-bf16-delegam-o-erro-de-disponibilidade-ao-c).
 
 Conflitos de nomes seguem a §2.5.
 

@@ -2014,3 +2014,18 @@ Vistas podem observar dados antigos ou sobrescritos; a validade da memória
 depende de seu dono. Por isso os verbos desses contêineres não recebem
 `invalidates`; a restrição de mutação durante travessia continua separada.
 
+### Por que f16 e bf16 delegam o erro de disponibilidade ao C
+
+`keel-c-backend.md §3.2` já aceita o `#error` de `keel/f16.h`/`keel/bf16.h`
+como a saída quando o alvo não oferece o formato: o diagnóstico próprio do
+cgen só se aplica quando o alvo é conhecido na invocação. Hoje não há como
+saber isso sem perguntar ao próprio `cc` — não existe flag de alvo lida pelo
+cgen, e `cgen-tool-spec.md §4.9` já recusa perguntar ao compilador por uma
+decisão assim (o caso do `-std=`): seria uma segunda fonte de verdade que
+pode discordar da primeira.
+
+Sondar o próprio `cc`, com as mesmas flags que vai usar depois, evitaria essa
+duplicação — mas é mecanismo novo, e f16/bf16 ainda não têm implementação
+alguma na base. Até que um uso real peça os dois tipos, o `#error` continua
+sendo a verificação que roda.
+

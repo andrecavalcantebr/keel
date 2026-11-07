@@ -13,8 +13,11 @@ para cá.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code, e
   atualizada em 2026-11-05 (os 59 casos do golden saem do cgen). O
   que diverge do repositório vale menos que o repositório.
-- **Nenhuma pendência de normativo em aberto** desde 2026-11-02 (a última leva, `defer` na forma
-  escrita, `-c` com `--main` e a linha do acessor de `extent`, foi escrita com o "sim" do André). P16 (visibilidade do C que
+- **Nenhuma pendência de normativo em aberto** desde 2026-11-06 (a última
+  leva, a regra 20 da §4.4 e o diagnóstico `type-arg-foreign` — argumento
+  de tipo apagado que precisa de renome, achado investigando `../keel_maths`
+  — foi escrita com o "sim" do André; T40-T44 em
+  `.claude/memory/cgen-pendencias.md`). P16 (visibilidade do C que
   atravessa um módulo) foi resolvida em 2026-09-21; o registro está em
   `design/cgen-tool.md` §13, e o briefing que a levantou, em
   [`.claude/p16-visibilidade-do-c.md`](.claude/p16-visibilidade-do-c.md), fica

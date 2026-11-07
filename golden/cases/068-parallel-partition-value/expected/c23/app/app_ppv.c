@@ -12,6 +12,8 @@ bool app_ppv_all_non_negative(i32 *xs, size_t n) {
     keel_parallel_control v = { .workers = 2, .target = 0 };
     {   keel_slice_i32 *keel__c0 = &input;
 
+        #pragma omp parallel for num_threads(2) default(none) \
+                shared(keel__c0, v)
         for (size_t w = 0; w < 2; w++) {
             keel_slice_i32 part = keel_slice_i32_partition(*keel__c0, 2, w);
 #line 8 "app/ppv.k"

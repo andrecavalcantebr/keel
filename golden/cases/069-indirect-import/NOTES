@@ -1,0 +1,47 @@
+Notas do caso.
+
+Por que este caso existe, e por que ele é vermelho de propósito
+=================================================================
+
+`ia` importa só `ib`; `ib` importa `ic`; `ia` usa `ic.value()` sem importar
+`ic` direto. keel-spec §4.1 regra 8: "A resolução alcança símbolos públicos
+de imports transitivos. O uso sem import direto é `indirect-import`" —
+`info`, não erro: o programa deve compilar.
+
+`expected/` está escrito como a spec diz que deve ser (`ic_value()`
+resolvido, `ic.h` incluído) — não foi copiado do `cgen` atual, que ainda
+não implementa a resolução transitiva (`k_symbol_resolve`, `names.c`, só
+olha os imports diretos do próprio arquivo). Por isso:
+
+- `golden/run.sh` passa: ele só compila o que está em `expected/`, nunca
+  chama o `cgen` (ver `golden/README.md`).
+- `test/cgen/gen_golden.sh` **falha de propósito**, hoje: ele chama o
+  `cgen` de verdade e compara com `expected/`. A saída real ainda é
+  `return c.value();` sem `#include "ic.h"`, texto cru não traduzido — e
+  nem compila (`'ic' undeclared`). Essa é a base vermelha pedida por
+  André em 2026-11-07: implementar `indirect-import` até este caso virar
+  `ok` em `gen_golden.sh`, com commits pequenos pelo caminho, revertíveis
+  a qualquer ponto que quebrar os outros 69.
+
+**Why:** André pediu, explicitamente, para escrever o golden primeiro e
+ver estourar, antes de tocar o `cgen` — TDD, não investigação às ciegas.
+**How to apply:** ao implementar a resolução transitiva, rodar
+`sh test/cgen/gen_golden.sh` (não só `golden/run.sh`) para ver este caso
+de verdade; ele é o critério de "funcionou".
+
+Comentários dos esperados
+==========================
+
+**`ia.type.h`/`ia.h`/`ia.c`** — o módulo do caso (o que a invocação
+compila primeiro, embora os três arquivos aqui venham de uma invocação
+por `.k`, como `gen_golden.sh` espera). `ia.c` inclui `ic.h` — não `ib.h`,
+que fica vazio e nada declara — e chama `ic_value()`, mangled pela regra
+comum (backend §2.1), não o texto `ic.value()` do fonte.
+
+**`ib.type.h`/`ib.h`/`ib.c`** — módulo vazio, só a importação. `ib.c` é
+quase nada: inclui o próprio `.h` e nada mais, porque `ib` não declara
+nada próprio.
+
+**`ic.type.h`/`ic.h`** — `value` é `pub inline`: o corpo mora no `.h`, sem
+`.c` próprio relevante (o `ic.c` gerado por sua própria invocação só
+inclui o `.h`, sem corpo fora de linha).

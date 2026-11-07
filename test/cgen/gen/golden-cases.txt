@@ -80,3 +80,6 @@ test/cgen/gen/share|use.k|-
 064-foreach-countable|win.k|-|
 065-protocol-function|pf.k|-
 066-dim-target|app/mx_use.k|app.mx_use
+067-generic-const-view|app/cbox_use.k|-
+068-parallel-partition-value|app/ppv.k|-
+069-indirect-import|ia.k ib.k ic.k|-

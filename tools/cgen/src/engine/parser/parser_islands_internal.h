@@ -61,6 +61,8 @@ typedef struct {
     int elem;                   /* KT_ARRAY: the element */
     char symbol[K_SYMBOL_MAX];  /* the C symbol of the type; empty when it cannot be named */
     keel_slice_char spell;      /* KT_PRIM: the type as C writes it (`const char`); the symbol is `const_char` */
+    char qspell[K_SYMBOL_MAX];  /* backs `spell` when isl_kt_from_home prefixes a qualifier
+                                    it can't point at source text for (keel-spec §4.4 regra 3) */
 } KType;
 
 typedef struct {

@@ -134,7 +134,7 @@ size_t isl_binders_of(const KAst *home, keel_slice_char out[8]) {
 /* A type written in a generic module `home`, seen from an instance of it: the
    type parameters are the instance's arguments, and the module's own modifier,
    or an imported one written without arguments, takes them as they stand. */
-int isl_kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst) {
+static int isl_kt_from_home_inner(Ctx *c, const KAst *home, keel_slice_char text, int inst) {
     KLexer lexer;
     TKPpKind pp;
     KToken first = isl_enter_text(text, &lexer, &pp);
@@ -255,6 +255,62 @@ int isl_kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst) {
         isl_kt(c, t)->arg[isl_kt(c, t)->argc++] = arg;
     }
     kt_compose(c, t, m);
+    return t;
+}
+
+/* isl_kt_from_home_inner strips a leading `const`/`volatile`/`_Atomic` to find
+   the binder or modifier underneath (same as scan_known_type always does),
+   but — unlike instances.c's type_name, on the direct/literal path — has
+   nowhere to put the qualifier back: a generic module's own type parameter
+   only becomes a name once the module is instantiated, so a copy of the
+   instance's argument is all there is to return. This wrapper puts it back
+   on the way out, on every return path at once, including the recursive
+   ones (spec.args[i] above, and `rest` for a bare one-argument modifier):
+   both call `isl_kt_from_home`, which is this wrapper, not the inner
+   function, so qualifiers at any nesting depth are covered alike. */
+int isl_kt_from_home(Ctx *c, const KAst *home, keel_slice_char text, int inst) {
+    int quals = 0;
+    KLexer lexer;
+    TKPpKind pp;
+    KToken first = isl_enter_text(text, &lexer, &pp);
+    for (;;) {
+        if (k_token_spelled(first, "const")) quals |= 1;
+        else if (k_token_spelled(first, "volatile")) quals |= 2;
+        else if (k_token_spelled(first, "_Atomic")) quals |= 4;
+        else break;
+        first = k_lexer_next(&lexer, &pp);
+    }
+    int t = isl_kt_from_home_inner(c, home, text, inst);
+    if (t < 0 || !quals) return t;
+    KType *k = isl_kt(c, t);
+    char buf[K_SYMBOL_MAX];
+    size_t n = 0;
+    if (quals & 1) { memcpy(buf + n, "const_", 6); n += 6; }
+    if (quals & 2) { memcpy(buf + n, "volatile_", 9); n += 9; }
+    if (quals & 4) { memcpy(buf + n, "atomic_", 7); n += 7; }
+    size_t slen = strlen(k->symbol);
+    if (slen && n + slen < sizeof buf) {
+        memcpy(buf + n, k->symbol, slen);
+        isl_kt_set_symbol(k, buf, n + slen);
+    }
+    /* KT_PRIM alone is spelled from `spell`, not `symbol` (line ~842 of
+       parser_islands.c): `const_i32` is a mangled identifier, not the C text
+       `const i32`. Rebuild it into `qspell`, which — unlike a slice into
+       source text — this KType owns for as long as it lives. */
+    if (k->kind == KT_PRIM) {
+        keel_slice_char base = k->spell.len ? k->spell : (keel_slice_char){ slen, k->symbol };
+        char qb[K_SYMBOL_MAX];
+        size_t qn = 0;
+        if (quals & 1) { memcpy(qb + qn, "const ", 6); qn += 6; }
+        if (quals & 2) { memcpy(qb + qn, "volatile ", 9); qn += 9; }
+        if (quals & 4) { memcpy(qb + qn, "_Atomic ", 8); qn += 8; }
+        if (base.len && qn + base.len < sizeof qb) {
+            memcpy(qb + qn, base.ptr, base.len);
+            qn += base.len;
+            memcpy(k->qspell, qb, qn);
+            k->spell = (keel_slice_char){ qn, k->qspell };
+        }
+    }
     return t;
 }
 

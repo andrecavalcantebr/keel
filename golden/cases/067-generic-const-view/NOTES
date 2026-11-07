@@ -1,0 +1,57 @@
+Notas do caso.
+
+Por que este caso existe
+=========================
+
+`app.cbox`'s own `view` returns `slice.slice const T`: `T` is `app.cbox`'s
+own type parameter, opaque until `box i32` is instantiated, and `const`
+qualifies that parameter directly, not the module written out — no case
+in the suite had that combination before. The nearest case, 021 (`slice
+const char`), writes the qualifier on a concrete type directly in a
+non-generic module; it exercises `instances.c`'s `type_name`, a different
+path from the one a generic module's own substitution takes
+(`isl_kt_from_home` in `parser_islands_types.c`), and that path dropped
+`const` until 2026-11-07 — `app_cbox_box_i32_view` came back
+`keel_slice_i32`, not `keel_slice_const_i32`, with nothing to catch it
+before the symbol left the generic module (keel-spec §4.4 regra 3; the
+mangled name and the C type coincide for a modifier's instance, backend
+§4.3 regra 1).
+
+`cbox.k`'s own body constructs the slice from a struct literal, not
+`slice.from(const T, ...)`: a call written on `T` inside its own generic
+module crosses through as C text, unresolved (§4.4 regra 7, `T` is opaque
+there) — `slice.from` is a keel verb, not a C name, so that call would
+reach the C compiler broken regardless of the qualifier bug. The struct
+literal is plain C aggregate initialization, which needs no resolution.
+
+Comentários dos esperados
+==========================
+
+**`app/app_cbox.type.h`** e **`app/app_cbox.h`** (c23, c11)
+
+o par do módulo genérico, vazio: `view` menciona o parâmetro `T` e o
+modificador `box`, então pertence à instância (backend §4.3, regra 1).
+
+**`app/app_cbox_box_i32.type.h`** e **`app/app_cbox_box_i32.h`** (c23, c11)
+
+a instância `box i32`. `view` retorna `keel_slice_const_i32` — o ponto do
+caso — construído por um literal de struct na ordem do modificador
+`keel.slice` (`len`, `ptr`).
+
+**`keel/keel_slice_const_i32.type.h`** e **`keel/keel_slice_const_i32.h`**,
+**`keel/keel_outcome_keel_slice_const_i32.type.h`** e
+**`keel/keel_outcome_keel_slice_const_i32.h`** (c23, c11)
+
+a instância de `keel.slice` e `keel.outcome` sobre `const i32`, que a
+instanciação de `app.cbox i32` alcança através do retorno de `view`
+(backend §4.3, regra 1 — a mesma combinação de argumentos é a mesma
+instância, de onde quer que seja alcançada).
+
+**`app/app_cbox_use.type.h`**, **`app/app_cbox_use.h`** e
+**`app/app_cbox_use.c`** (c23, c11)
+
+o módulo cliente: declara a vista com o tipo escrito por extenso
+(`slice.slice const i32 v`), fora do módulo genérico — essa resolução já
+estava certa antes do conserto (`isl_kt_from_text`, que já carregava o
+qualificador) — e lê `length`/`get` por ela, confirmando que a vista
+funciona como uma `keel.slice` comum.

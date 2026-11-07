@@ -1,6 +1,7 @@
 # moldes (`keel_code`) — estudo de impacto na documentação e no código
 
-**Status: estudo para discussão, não normativo.** Acompanha a proposta
+**Status: engavetado em 2026-11-07 (§0), estudo histórico daí pra baixo.**
+Acompanha a proposta
 ["Moldes: a marca `keel_code`"](possibilidades.md#moldes-a-marca-keel_code-2026-09-30)
 em `possibilidades.md` e parte dela. Nada aqui altera um normativo: cada mudança
 nos documentos abaixo só é escrita depois do "sim" do André, como pede o
@@ -11,6 +12,55 @@ indicadas, e rodei `golden/run.sh` e `make check` antes (verdes). **Não** medi
 o custo de implementação: os tamanhos abaixo são relativos ("pequeno", "médio",
 "grande"), por leitura da estrutura, e não por protótipo. Onde afirmo o que o
 código faz, cito o ponto; onde é hipótese, digo.
+
+## 0. Revisão 2026-11-07 — engavetado
+
+**A premissa deste estudo está desatualizada.** A §1 abaixo diz que o molde
+substitui um tratamento especial de `arena.from_stack` "que hoje nomeia o
+módulo no parser (`parser_islands.c:1036`)" — isso nunca foi verdade; a
+string `from_stack` não aparece em nenhum commit da história do parser. O
+caso que motivou a ideia já foi resolvido de outro jeito, sem molde: o
+commit `0639ee2` (2026-10-02) tirou o `from_stack` e o programa passou a
+declarar `array u8` explícito, à mão, e chamar `from_array` — keel comum.
+
+**Duas leituras do molde ficaram incompatíveis**, sem decisão:
+
+1. Expansão inline no ponto de chamada, sem símbolo C — o que o §4.13 do
+   normativo diz hoje (regra 1: "não tem função nem endereço C próprios"),
+   e o que este estudo descreve. Hygiene plena (regra 6): nome do corpo
+   nunca captura nome do fragmento, nem o contrário.
+2. Instância de função gerada por combinação de `type`/`dim`/`keel_code`,
+   análoga ao que `keel-c-backend.md:1912` já faz para função sobre
+   protocolo (§4.14): `twice(double, pi)` → `twice_double(pi)`, uma função
+   C real, gerada uma vez por combinação e reaproveitada. Sob esse modelo,
+   um `keel_code C` sem parâmetros formais próprios é ambíguo: testamos um
+   exemplo com `strcat(tmp1, tmp1)` e não há como saber se `tmp1` resolve no
+   escopo de quem chama (regra 5 do §4.13 atual) ou no do próprio molde
+   (captura intencional, que a regra 6 proíbe).
+
+**O caso real que apareceu, ainda sem desenho completo:** funções de
+comparação para um ordered set — indireção por ponteiro de função (como
+`qsort`) penaliza vetorização; seria preciso "injetar a comparação direto
+na estrutura". O ordered set em si ainda não existe. Duas rotas, sem
+decisão:
+
+- **Rota A** (a explorar primeiro): a comparação como mais um eixo de
+  instanciação, ao lado de `type`/`dim` — uma função concreta resolvida em
+  tradução, chamada normalmente numa instância `static inline`, confiando
+  no compilador C para fundir/vetorizar (como C++ faz com comparador de
+  template). Não precisa de `keel_code` nem de hygiene nova.
+- **Rota B**: `keel_code` com parâmetros formais próprios (tipo "lambda
+  inline", `keel_code CMP(T *a, T *b)`), colado literalmente no corpo da
+  instância — garante a fusão independente do otimizador, mas é a forma
+  mais "macro" e reabre a hygiene do item 2 acima.
+
+**Conclusão da sessão:** "pode ser que consiga resolver [o ordered set] de
+outras formas sem precisar de código arbitrário" (André) — ou seja, Rota A
+antes de cogitar B. **O molde continua engavetado.** Nada muda no
+normativo (`keel-spec.md` §4.13 continua `(v1)`, recusado de propósito)
+até o ordered set (ou outro caso) existir de verdade e a Rota A se mostrar
+insuficiente. O resto deste documento (§§1–6) é o estudo original de
+2026-09-30/10-27, mantido como histórico — não é mais o plano corrente.
 
 ## 1. Resumo
 

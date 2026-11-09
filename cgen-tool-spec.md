@@ -738,6 +738,7 @@ keel-1.0.0-linux-x86_64/
   bin/cgen
   doc/           os quatro documentos e as licenças
   editors/       destaque de sintaxe para editores
+  gdb/           script de depuração pelo nome keel (lê .keelsyms, §4.11)
   lib/base/
     keel.k
     keel/
@@ -750,7 +751,7 @@ keel-1.0.0-linux-x86_64/
 `install.sh` cria um symlink de `bin/cgen` em um diretório do `PATH` (`~/.local/bin`
 por padrão) e não copia nada; `uninstall.sh` remove só o link que aponta para a sua
 própria árvore. Cada versão é uma árvore separada, e trocar de versão é reapontar o
-link. `doc/` e `editors/` não são lidos pelo `cgen`.
+link. `doc/`, `editors/` e `gdb/` não são lidos pelo `cgen`.
 
 **`lib/base` é a fonte dos módulos `keel.*`**, e o nome do módulo é o caminho:
 `keel.k` é o prelúdio, `keel/buffer.k` é `keel.buffer`. **`lib/src` é o fonte

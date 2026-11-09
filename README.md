@@ -104,6 +104,25 @@ faz sentido num sentido, e a linguagem impõe essa direção.
 `defer` registra trabalho para a saída do escopo, em ordem inversa. Não há
 runtime: o backend varre os pontos de saída e injeta o corpo em cada um.
 
+### Papéis
+
+Um papel antes do tipo de um parâmetro — ou do retorno — registra procedência
+e invalidação, sem campo novo e sem custo em runtime:
+
+```keel
+arena a;
+array u8 storage[1024];
+arena.from_array(a, storage);        // a depende do storage local
+i32 *p = arena.alloc(a, i32, 10);    // p depende de a
+arena.reset(a);                      // p inválido; a continua válida
+use(p);                              // child-region-after-invalidation
+```
+
+`parent`, `child`, `invalidates` e `consumes` são os quatro papéis (spec
+§4.12). A análise é lexical — segue as chamadas reconhecidas, não o fluxo C
+nem corpos opacos — e vale para qualquer módulo que os declare: é o mesmo
+mecanismo que `keel.arena`, um pool ou uma biblioteca sua compartilham.
+
 ### Travessia
 
 ```keel
@@ -190,6 +209,9 @@ de tipo primitivos e os protocolos.
 | `keel.tagged` | valor com etiqueta |
 | `keel.routine` | composição cooperativa, `seq` e `par` |
 | `keel.parallel` | o símbolo de controle de um bloco `parallel` |
+
+`keel.arena` é a implementação de referência dos papéis descritos acima: todo
+verbo que cria, aloca, reseta ou restaura a região os declara (spec §5.2).
 
 Os tipos primitivos são `i8`…`i64`, `u8`…`u64`, `f16`, `f32`, `f64` e `bf16`,
 com largura e representação fixadas — não aliases de `int`.

@@ -478,6 +478,55 @@ idêntico, temporário e rename) — é gerado, não é metadado à parte.
 **Determinismo:** a mesma lista da §6.1; a ordem das linhas é a ordem das
 declarações no fonte, não a de um mapa de símbolos.
 
+#### Exemplo
+
+`app/cfg.k` — o mesmo módulo do diagrama da §4.1 do backend:
+
+```keel
+module app.cfg;
+
+pub typedef struct { i32 width, height; } Size;
+
+pub Size make(i32 w, i32 h) {
+    Size s = {w, h};
+    return s;
+}
+
+pub i32 area(Size s) {
+    return s.width * s.height;
+}
+```
+
+`app/app_cfg.c`:
+
+```c
+/* app_cfg.c — generated from app/cfg.k by cgen, C23 profile. */
+#include "app_cfg.h"
+
+app_cfg_Size app_cfg_make(i32 w, i32 h) {
+    app_cfg_Size s = {w, h};
+    return s;
+}
+
+i32 app_cfg_area(app_cfg_Size s) {
+    return s.width * s.height;
+}
+```
+
+`app/app_cfg.keelsyms`:
+
+```
+# app_cfg.keelsyms — gerado por cgen a partir de app/cfg.k
+app_cfg_Size	app.cfg.Size	type
+app_cfg_make	app.cfg.make	fn
+app_cfg_area	app.cfg.area	fn
+```
+
+`Size` não aparece no `.c` — vive só no `.type.h` (backend §4.1, regra 8) —, e
+ainda assim ganha linha no `.keelsyms`: quem depura lê `app_cfg_Size` num
+`ptype` ou numa mensagem do compilador C, e precisa do nome keel de volta
+tanto quanto precisaria do de uma função.
+
 ---
 
 ## 5. Critério de atualização

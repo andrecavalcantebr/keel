@@ -209,6 +209,13 @@ compilador C. `-o` tem o significado do gcc: nomeia o arquivo da última fase. �
 do compilador C quando ele roda, e do cgen quando a invocação para antes, como
 em `cgen -o app.parse --stop-after=parse app.k`.
 
+Ao lado do `.c`, o cgen sempre escreve um `.keelsyms`: a tabela que liga cada
+símbolo C manglado ao nome keel que o originou (`cgen-tool-spec.md` §4.11). É
+o que permite depurar o gerado pelo nome keel sem perder o nome C — útil
+sobretudo para quem importa um projeto keel de fora e só reconhece o que
+aparece no C. Uma ferramenta de depuração lida com essa tabela mostra os dois
+nomes, o keel e o manglado, lado a lado — não um no lugar do outro.
+
 ## keel por exemplos
 
 Os pares mostram a operação essencial da tradução. Um bloco precedido de `<!-- golden: caminho:linhas -->` é um trecho literal de um arquivo de [`golden/`](golden/), conferido por `test/docs.sh`: o que está ali é o que o cgen gera, sem o cabeçalho e os `#include` do arquivo. Os `#line` que aparecem dentro de um trecho são os do arquivo gerado: eles ligam o C à linha do `.k`, e a regra é do backend (§6). Nos exemplos cooperativos, o código `1` representa uma falha sem estabelecer a codificação detalhada de diagnóstico por participante.

@@ -185,7 +185,7 @@ cgen -c --instance "coll.stack i32" -o coll_stack_i32.o
 cgen -c --instance "keel.buffer.buffer app.geom.Point" -o keel_buffer_app_geom_Point.o
 ```
 
-O argumento é o uso como a declaração `instance` o escreve, com uma exigência a mais: **tudo é qualificado por inteiro** — o modificador, `keel.buffer.buffer` e não `buffer`, e os argumentos, `app.geom.Point` e não `Point` —, porque na linha de comando não há `import`, e é o nome inteiro que fixa sem ambiguidade o módulo, o modificador e o arquivo de saída. O último componente do nome é o modificador; o resto é o módulo, achado pelas raízes como num `import`. A exceção é o genérico sem modificador, como `keel.array` (linguagem §5.3): sem modificador para nomear, o nome inteiro é o módulo, e a instância é a família de verbos dos argumentos — `--instance "keel.array i32"` produz `keel_array_i32`. A função sobre protocolo também se pede assim, pelo nome inteiro dela seguido do tipo concreto: `--instance "keel.slice.of keel.buffer.buffer i32"` produz `keel_slice_of_keel_buffer_i32`, em todas as aridades (backend §5.19). A invocação produz os dois headers da instância e o `.c` dela — `gen/coll/coll_stack_i32.c` —, e o `.c` recebe os corpos fora de linha, como receberia o do módulo que declarasse `instance`. O nome do arquivo é o símbolo (backend §4.1), então a regra `%.o: %.c` sobre o destino vale sem exceção.
+O argumento é o uso como a declaração `instance` o escreve, com uma exigência a mais: **tudo é qualificado por inteiro** — o modificador, `keel.buffer.buffer` e não `buffer`, e os argumentos, `app.geom.Point` e não `Point` —, porque na linha de comando não há `import`, e é o nome inteiro que fixa sem ambiguidade o módulo, o modificador e o arquivo de saída. O último componente do nome é o modificador; o resto é o módulo, achado pelas raízes como num `import`. A exceção é o genérico sem modificador, como `keel.array` (linguagem §5.3): sem modificador para nomear, o nome inteiro é o módulo, e a instância é a família de verbos dos argumentos — `--instance "keel.array i32"` produz `keel_array_i32`. A função sobre protocolo também se pede assim, pelo nome inteiro dela seguido do tipo concreto: `--instance "keel.slice.of keel.buffer.buffer i32"` produz `keel_slice_of_keel_buffer_i32`, em todas as aridades (backend §5.19). A invocação produz os dois headers da instância, o `.c` dela — `gen/coll/coll_stack_i32.c` — e o `.keelsyms` (§4.11), e o `.c` recebe os corpos fora de linha, como receberia o do módulo que declarasse `instance`. O nome do arquivo é o símbolo (backend §4.1), então a regra `%.o: %.c` sobre o destino vale sem exceção.
 
 `--instance` ocupa o lugar do `.k`: uma invocação tem um ou outro, e ter os dois é `multiple-sources`. Sobre genérico inteiramente `pub inline` — toda a base —, o `.c` sai só com o include, e o aviso é o `redundant-instance` da linguagem.
 
@@ -249,8 +249,10 @@ Sem genéricos a diferença era invisível, porque o conteúdo da instância nã
 **O depfile e o critério da §5 são o mesmo fecho, vistos dos dois lados.** Este diz ao build **quando reinvocar** o cgen; aquele diz ao cgen **quando não pular**. Os dois têm de concordar, e concordam por serem o mesmo conjunto — o `.k` alcançável por `import`. Se só um deles fosse transitivo, o build reinvocaria o cgen para nada, ou o cgen regeneraria sem ninguém pedir.
 
 **A metade do compilador C é o que ele reporta.** Cada módulo e cada instância
-saem em `.type.h` e `.h` (backend §4.3.2), e é o compilador C que
-reporta quais deles a unidade de fato incluiu. Nada muda aqui — o depfile
+saem em `.type.h`, `.h` (backend §4.3.2) e `.keelsyms` (§4.11), e é o compilador
+C que reporta quais dos dois primeiros a unidade de fato incluiu — o
+`.keelsyms` não entra no fecho porque nenhum `.c` o inclui; é saída para quem
+depura, não para o compilador. Nada muda aqui — o depfile
 continua sendo o que ele reporta, fundido com o fecho de `.k`. Não há lista a
 montar: a granularidade vem da separação dos arquivos, não de análise da
 ferramenta.
@@ -441,6 +443,40 @@ O `.c`, esse, tem um escritor só: a regra do próprio módulo.
 A consequência prática é que o build **não precisa** declarar os headers dos
 módulos importados como saídas da regra. Ele declara um alvo por módulo, e a
 redundância se paga sozinha.
+
+### 4.11 Tabela de símbolos (`.keelsyms`)
+
+Ao lado de cada `.c`/`.h`/`.type.h` que gera (backend §4.3.2), o cgen escreve
+um `.keelsyms`: uma linha por declaração de nível de módulo que o arquivo
+expõe — função, tipo, variável, `tags` —, com o nome C e o nome keel que o
+originou. **Não há opção para desligar**: é tão parte da geração quanto o
+`.type.h`, pelo mesmo motivo — depurar o C gerado sem ele é possível, mas pior.
+
+**Formato**, uma linha por símbolo, campos separados por tabulação:
+
+```
+# <símbolo do módulo>.keelsyms — gerado por cgen a partir de <path>.k
+<nome C>	<nome keel>	<espécie>
+```
+
+`<espécie>` é `fn`, `type`, `var` ou `tag`. `<nome keel>` é `<módulo>.<nome>`
+para uma declaração comum do módulo, e `<módulo>.<modificador>(<binders de
+dim, se houver>) <argumentos de tipo>::<nome>` para o verbo de uma instância —
+a mesma grafia de `instance`/`--instance` (§4.3) para a parte da instância, com
+`::` separando o verbo porque essa parte **não é sintaxe keel**: existe só
+para leitura, e não é reaceita por nenhuma fase do cgen.
+
+O argumento de tipo é escrito como o C o escreve: `coll.stack(i32)`, não a
+reconstrução recursiva do nome keel de um argumento que é ele mesmo tipo de
+outro módulo, como `--instance` exige por inteiro (§4.3). É uma limitação
+conhecida, não um objetivo não alcançado — reconstruir a grafia keel de um
+argumento aninhado pede atravessar a cadeia de instâncias, e nenhum caso
+concreto pediu essa fidelidade ainda.
+
+**Escrita:** as mesmas três regras da §6 (gerar em memória, não tocar se
+idêntico, temporário e rename) — é gerado, não é metadado à parte.
+**Determinismo:** a mesma lista da §6.1; a ordem das linhas é a ordem das
+declarações no fonte, não a de um mapa de símbolos.
 
 ---
 

@@ -34,7 +34,7 @@ A divisão vale nos três documentos, e é um critério só:
   - [3.1 Ponto flutuante — a regra](#31-ponto-flutuante--a-regra)
   - [3.2 Formatos estreitos — a guarda de disponibilidade](#32-formatos-estreitos--a-guarda-de-disponibilidade)
 - [4. Artefatos](#4-artefatos)
-  - [4.1 Um `.c` por invocação, e nenhum alvo além dele](#41-um-c-por-invocação-e-nenhum-alvo-além-dele)
+  - [4.1 Arquivos de um módulo](#41-arquivos-de-um-módulo)
   - [4.2 O prelúdio: `keel.k`](#42-o-prelúdio-keelk)
   - [4.3 Headers de instância](#43-headers-de-instância)
   - [4.4 Definição fora de linha de instância](#44-definição-fora-de-linha-de-instância)
@@ -311,18 +311,19 @@ static_assert(sizeof(bf16) == 2, "keel: bf16 requires 16 bits on this target");
 
 ## 4. Artefatos
 
-### 4.1 Um `.c` por invocação, e nenhum alvo além dele
+### 4.1 Arquivos de um módulo
 
 ```text
 app/cfg.k  →  app/app_cfg.type.h                tipos
               app/app_cfg.h                     protótipos e corpos inline → o que se inclui para usar
               app/app_cfg.c                     corpos fora de linha       → app_cfg.o
+              app/app_cfg.keelsyms              tabela de símbolos        → depuração (ferramenta §4.11)
               keel/keel_buffer_f32.type.h  .h   instância                  → (nenhum objeto)
 ```
 
 **Regras**
 
-1. O que a invocação compila — o `.k` da linha de comando, ou a instância de `--instance` (ferramenta §4.3) — produz sempre três arquivos: `.type.h`, `.h` e `.c`, ainda que o `.c` só inclua o próprio `.h` e um header só tenha as guardas. [D28](#10-decisões-de-emissão)
+1. O que a invocação compila — o `.k` da linha de comando, ou a instância de `--instance` (ferramenta §4.3) — produz sempre quatro arquivos: `.type.h`, `.h`, `.c` e `.keelsyms` (ferramenta §4.11), ainda que o `.c` só inclua o próprio `.h`, um header só tenha as guardas, e o `.keelsyms` fique vazio. [D28](#10-decisões-de-emissão)
 2. O que a invocação só alcança — os módulos importados, inclusive o `keel` implícito, e as instâncias que os usos pedem — produz os dois headers e nenhum `.c`. O `.c` de um módulo importado é escrito pela invocação dele. Um módulo genérico importado produz os dois headers da sua parte fixa (§4.4.1, regra 5), e nunca um `.c`.
 3. Todo corpo fora de linha termina no `.c` da invocação: o do próprio módulo e o das instâncias que ele declara com `instance` (§4.4).
 4. O corte entre os dois headers é o do §4.3.2.
@@ -2136,7 +2137,7 @@ alternativa em aberto.
 | 25 | O `typedef` de primitivo é incondicional | §3.1. Com `typedef` condicional, `f32` teria identidade diferente conforme a plataforma, e o mesmo fonte compilaria num alvo e falharia noutro por incompatibilidade de ponteiro — pior que qualquer das duas escolhas fixas |
 | 26 | Um header por formato estreito, incluído só por quem o nomeia | §3.2. No prelúdio, todo projeto num alvo sem binary16 deixaria de compilar por um tipo que não usa; no mesmo arquivo, quem só nomeia `f16` pararia pela guarda de `bf16`, e os dois não chegam juntos aos alvos. O custo recai sobre quem pediu, pela mesma mecânica de `keel/keel_arena.h` |
 | 27 | `f16` não é `u16` com reinterpretação | §3.2. Compilaria em todo lugar, mas troca uma falha visível por duas silenciosas: `+` passaria a somar padrões de bits, e `buffer f16` deixaria de ser distinguível de `buffer u16`, que a identidade nominal existe para separar |
-| 28 | A invocação compila sempre três arquivos, ainda que vazios | §4.1. O build usa uma regra de padrão `%.o: %.c` sem exceção, e não existe alvo sem fonte para ele descobrir por glob, manifesto ou arquivo agregador. Headers não compilam nem geram objeto, e por isso não são alvos |
+| 28 | A invocação compila sempre quatro arquivos, ainda que vazios | §4.1. O build usa uma regra de padrão `%.o: %.c` sem exceção, e não existe alvo sem fonte para ele descobrir por glob, manifesto ou arquivo agregador. Headers e o `.keelsyms` não compilam nem geram objeto, e por isso não são alvos |
 | 29 | Tipo `priv` vai para o `.type.h`, como o público | §4.1. O `.type.h` é L1: um tipo privado que aparecesse só no `.c` não poderia ser campo de nada que o módulo declare. A privacidade é de keel, que recusa o nome fora do módulo; o arquivo não é o mecanismo |
 | 30 | Variável pública nunca sai `static` no `.h` | §4.1. Compilaria e linkaria, mas com uma cópia independente por unidade de tradução: um módulo escreve, outro lê e não enxerga nada, sem erro nem aviso |
 | 31 | `import_c` vai para o `.type.h`, a camada mais baixa | §4.1. É o único lugar de onde todas as camadas o enxergam, e um tipo do módulo pode precisar dele: `pub struct Log { FILE *f; };` não compila se `<stdio.h>` chega depois, e `FILE` não admite declaração adiantada. O preço é um contrato que keel não verifica, o mesmo que o C já tem entre dois headers que se incluem |

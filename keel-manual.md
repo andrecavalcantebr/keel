@@ -1119,9 +1119,12 @@ outcome u32 r = routine.par(slice.of(steps), 2);
 
 Uma **participante** é uma função `corot (*)(C *ctx)`; o que ela produz
 viaja pelo `ctx`, não pelo retorno. `par` chama, em cada ciclo, todo slot
-ainda `ONGOING`; a política (`alvo`, zero = todos) é julgada **ao fim** do
-ciclo, então mais slots podem terminar do que o mínimo pedido naquele ciclo.
-Não há threads: `par` é cooperativa, não paralela. Contrato completo:
+ainda `ONGOING`; a política (`alvo`, um `u32`: zero = todos, `1` = basta um sucesso, `N` =
+`N` sucessos, com `N` literal ou constante e `N` ≤ número de slots) é julgada
+**ao fim** do ciclo, então mais slots podem terminar do que o mínimo pedido naquele ciclo.
+`ALL` e `ANY` são palavras de política do bloco `parallel` (§3.9), não
+constantes: em `routine.par` escreve-se o número (`0` e `1`). Não há threads:
+`par` é cooperativa, não paralela. Contrato completo:
 [spec §5.6](keel-spec.md#56-keelroutine).
 
 ### 8.7 `keel.parallel` — o símbolo de controle de um bloco `parallel`

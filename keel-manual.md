@@ -276,18 +276,37 @@ valor padrão (exige `Winnable`), e `else return -1;` age sobre a falha (exige
 `Failable`). Nunca há conversão automática de `outcome i16`
 para `i16`.
 
-### 3.7 Tags e `match`
+### 3.7 Tags e `match` *(verificado)*
 
 ```keel
-pub tags Cycle [WAIT, END];       // conjunto fechado; constantes em caixa alta
+module cycle;
+import keel.tagged as tagged types;
 
-match (state) {                   // exaustividade verificada
-    WAIT:
-        /* … */
-    END:
-        finished = true;
+pub tags Cycle [WAIT, END];          // conjunto fechado; constantes em caixa alta
+
+pub int run(void) {
+    tagged Cycle void state = {0};   // valor etiquetado por Cycle, sem valor associado
+    tagged.mark(state, WAIT);        // estado inicial
+    int steps = 0;
+    bool finished = false;
+
+    while (!finished) {              // o laço é do programa; match não laça
+        match (state) {              // exaustividade verificada
+            WAIT:
+                steps++;
+                if (steps == 3) tagged.mark(state, END);
+            END:
+                finished = true;
+        }
+    }
+    return steps;                    // 3
 }
 ```
+
+`tagged Cycle void` é um valor etiquetado por `Cycle`; com `void` no lugar do
+tipo do valor, só a etiqueta existe. `tagged.mark` escreve a etiqueta, e
+`match` despacha sobre ela (`tagged` atende `Taggable`, §4). Uma mudança de
+etiqueta só é vista no próximo despacho do laço.
 
 O `match` gera um `switch` que só escolhe um rótulo; os corpos dos braços ficam
 fora dele, para preservar `break` e `continue` do usuário. Não há passagem

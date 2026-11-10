@@ -131,6 +131,69 @@ size_t isl_binders_of(const KAst *home, keel_slice_char out[8]) {
     return n;
 }
 
+/* The dimensions of a modifier written in a generic module (`mat(C,R)`), seen from
+   an instance of it: a `dim` binder of `home` is the instance's value, a number is
+   itself. The values are the `_<N>` groups of the instance's symbol that come before
+   its type arguments. The symbol of `t` gains them between the modifier and the
+   arguments (backend §2.1.1). False when a dimension is neither (an expression, a
+   constant): the type then has no symbol, and is no concrete instance. */
+static bool kt_apply_dims(Ctx *c, const KAst *home, int inst, int t, const KSymbol *modifier, const KSpecifier *spec) {
+    keel_slice_char val[K_SPEC_MAX_DIMS];
+    size_t nd = 0;
+    const KAstNode *mod = isl_module_node(home);
+    for (size_t j = mod->dim_first; j < mod->dim_end; j++) if (isl_ident(home, j)) nd++;
+    if (nd > K_SPEC_MAX_DIMS) return false;
+    if (inst >= 0 && nd) {
+        const KType *it = isl_kt(c, inst);
+        size_t end = strlen(it->symbol);
+        for (int g = it->argc; g-- > 0; ) {
+            size_t al = strlen(isl_kt_symbol(c, it->arg[g]));
+            if (end < al + 1) return false;
+            end -= al + 1;
+        }
+        for (size_t d = nd; d-- > 0; ) {
+            size_t q = end;
+            while (q > 0 && it->symbol[q - 1] >= '0' && it->symbol[q - 1] <= '9') q--;
+            if (q == end || q == 0 || it->symbol[q - 1] != '_') return false;
+            val[d] = (keel_slice_char){ end - q, (char *)it->symbol + q };
+            end = q - 1;
+        }
+    }
+    char buf[K_SYMBOL_MAX];
+    size_t n = k_mangle_symbol(modifier, (keel_slice_char){ sizeof buf, buf });
+    if (n >= sizeof buf) return false;
+    for (size_t i = 0; i < spec->dim_count; i++) {
+        keel_slice_char d = spec->dims[i];
+        while (d.len && d.ptr[0] == ' ') { d.ptr++; d.len--; }
+        while (d.len && d.ptr[d.len - 1] == ' ') d.len--;
+        if (!d.len) return false;
+        size_t p = 0;
+        for (size_t j = mod->dim_first; j < mod->dim_end; j++) {
+            if (!isl_ident(home, j)) continue;
+            KToken b = isl_tok(home, j);
+            if (b.len == d.len && !memcmp(b.ptr, d.ptr, d.len)) { d = val[p]; break; }
+            p++;
+        }
+        for (size_t k = 0; k < d.len; k++) if (d.ptr[k] < '0' || d.ptr[k] > '9') return false;
+        while (d.len > 1 && d.ptr[0] == '0') { d.ptr++; d.len--; }
+        if (n + 1 + d.len >= sizeof buf) return false;
+        buf[n++] = '_';
+        memcpy(buf + n, d.ptr, d.len);
+        n += d.len;
+    }
+    KType *k = isl_kt(c, t);
+    for (int i = 0; i < k->argc; i++) {
+        const char *s = isl_kt_symbol(c, k->arg[i]);
+        size_t len = strlen(s);
+        if (!len || n + 1 + len >= sizeof buf) return false;
+        buf[n++] = '_';
+        memcpy(buf + n, s, len);
+        n += len;
+    }
+    isl_kt_set_symbol(k, buf, n);
+    return true;
+}
+
 /* A type written in a generic module `home`, seen from an instance of it: the
    type parameters are the instance's arguments, and the module's own modifier,
    or an imported one written without arguments, takes them as they stand. */
@@ -255,6 +318,7 @@ static int isl_kt_from_home_inner(Ctx *c, const KAst *home, keel_slice_char text
         isl_kt(c, t)->arg[isl_kt(c, t)->argc++] = arg;
     }
     kt_compose(c, t, m);
+    if (spec.dim_count && !kt_apply_dims(c, home, inst, t, m, &spec)) isl_kt(c, t)->symbol[0] = 0;
     return t;
 }
 

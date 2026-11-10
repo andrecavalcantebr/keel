@@ -83,3 +83,4 @@ test/cgen/gen/share|use.k|-
 067-generic-const-view|app/cbox_use.k|-
 068-parallel-partition-value|app/ppv.k|-
 069-indirect-import|ia.k ib.k ic.k|-
+070-dim-permuted-return|app/mx_use.k|app.mx_use

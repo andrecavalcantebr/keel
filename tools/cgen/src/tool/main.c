@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
         const char *w = argv[i];
 
         if (strcmp(w, "--cgen-version") == 0) {
-            printf("cgen 0.1.0\n");
+            printf("cgen 0.1.1\n");
             exit(0);
         }
 

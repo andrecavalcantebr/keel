@@ -1,0 +1,30 @@
+O que este caso afirma
+=======================
+
+Uma função de um módulo `dim`-genérico que devolve o PRÓPRIO modificador com
+as dimensões permutadas (`box(COLS, ROWS)`) tem de emitir a outra instância
+(`mx_box_3_2`) e usá-la no retorno e no corpo de `mx_box_2_3_transpose`. O
+uso `mx.box(3, 2) t = mx.transpose(a);` fecha o caso.
+
+Por que faltava
+================
+
+Achado em `../keel_libs/keel_maths` (`BUG-CGEN-DIMENSOES.md`): `outcome
+matrix(COLS,ROWS)` falhava com `implementation-limit`. O `outcome` não
+participa: `mat(C,R)` sozinho já falha, e até `mat(R,C)` (identidade), desde
+que escrito com argumentos dentro do módulo genérico.
+
+A causa: no fecho de instâncias, os tipos que os verbos de uma instância
+mencionam são lidos por `isl_kt_from_home`, que para um modificador escrito
+com lista de `dim` compunha o símbolo só com os argumentos de tipo
+(`kt_compose`) e descartava as dimensões. Saía uma entrada espúria `mx_box`
+(sem `_2_3`) no fecho, que o emissor recusava.
+
+O conserto (`parser_islands_types.c`, `kt_apply_dims`): cada dimensão escrita
+vira o valor da instância quando é um binder do módulo (lido do sufixo `_<N>`
+do símbolo da instância), ou o próprio número; o símbolo ganha as dimensões
+entre o modificador e os argumentos. Dimensão que não é nem uma coisa nem a
+outra (expressão, constante) deixa o tipo sem símbolo: não é instância concreta.
+
+O esperado foi conferido à mão contra o §4.3 do backend: cada instância
+inclui o `.type.h` da outra, porque os protótipos citam o tipo por valor.

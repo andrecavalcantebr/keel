@@ -24,7 +24,7 @@ reformatada.
 | 3 | [A linguagem em um passeio](#3-a-linguagem-em-um-passeio) |
 | 4 | [Protocolos](#4-protocolos) |
 | 5 | [Papéis: de onde vem o armazenamento](#5-papéis-de-onde-vem-o-armazenamento) |
-| 6 | [Módulos genéricos e instâncias](#6-módulos-genéricos-e-instâncias) |
+| 6 | [Módulos genéricos, instâncias e `extent`](#6-módulos-genéricos-instâncias-e-extent) |
 | 7 | [O `cgen` por dentro: opções, build e diagnósticos](#7-o-cgen-por-dentro-opções-build-e-diagnósticos) |
 | 8 | [Referência da API da base](#8-referência-da-api-da-base) |
 
@@ -648,7 +648,9 @@ Escrever papéis diferentes dos do contrato é `protocol-role-mismatch`.
 
 ---
 
-## 6. Módulos genéricos e instâncias
+## 6. Módulos genéricos, instâncias e `extent`
+
+### 6.1 Módulos genéricos e instâncias
 
 Um módulo pode ter parâmetros na linha `module`: `type T`, `dim N`, `tags E`.
 Cada combinação de argumentos usada vira uma **instância**, com os próprios
@@ -701,12 +703,76 @@ Três regras que mordem:
 Dentro de um módulo genérico, `T` é opaco: um valor de tipo `T` não participa
 de `foreach`, `walk`, `match` nem indexação.
 
-`extent struct nome [dim, cap] { … }` declara uma struct de colunas
-(`array T *campo`) com dois inteiros de controle e acesso verificado, para
-tabelas com mais de um campo por posição que `buffer` e `slice` não cobrem.
+> Referências: [spec §4.3, §4.4](keel-spec.md) ·
+> [backend §5.19](keel-c-backend.md).
 
-> Referências: [spec §4.3, §4.4, §4.11](keel-spec.md) ·
-> [backend §5.15, §5.19](keel-c-backend.md).
+### 6.2 `extent`: colunas com extensão verificada *(verificado)*
+
+Uma tabela com **mais de um campo por posição** (posição, velocidade, cor…)
+costuma ser guardada em colunas paralelas: um vetor por campo, todos com a
+mesma contagem. `buffer` e `slice` têm um elemento por posição e não cobrem
+isso. `extent struct` declara o conjunto e liga cada coluna ao seu controle de
+extensão, para que o acesso seja verificado.
+
+```keel
+module game;
+
+constexpr size_t MAX = 4;
+
+extent struct position [len, MAX] {   // [contagem, capacidade]
+    array f32 x[MAX];                 // coluna embutida: vetor C de dimensão MAX
+    array f32 y[MAX];
+    size_t len;                       // a contagem é um campo comum
+};
+
+extent struct particles [len, cap] {
+    array f32 *vx;                    // coluna por ponteiro: o programa fornece o espaço
+    size_t len, cap;
+};
+
+pub f32 sum_x(struct position *p) {
+    f32 t = 0;
+    for (size_t i = 0; i < p->len; i++) t += p->x[i];
+    return t;
+}
+```
+
+- O grupo `[len, MAX]` diz que `len` é a **contagem** (um campo do struct) e
+  `MAX` a **capacidade** (outro campo, um `constexpr` ou um literal decimal).
+  Um `extent` pode ter várias dimensões, da externa para a interna:
+  `[h, H] [w, W]`, com acesso `img.r[i, j]`.
+- Uma coluna é marcada com `array`; os demais campos são comuns. O tipo é
+  usado como `struct position`.
+- Colunas embutidas (`array T x[MAX]`) e por ponteiro (`array T *x`) não se
+  misturam na mesma declaração. A embutida exige capacidade constante.
+- keel **não gera verbos nem inicializa, aloca ou mantém** contagem e
+  capacidade: isso é do programa. O `extent` só emite o struct como escrito e
+  verifica o acesso.
+
+O acesso `p->x[i]` é traduzido para uma função de acesso gerada, que também
+carrega a verificação:
+
+```c
+static inline f32 *game_position_x_ptr(struct game_position *p, size_t i0) {
+    KEEL_CHECK(i0 < p->len && p->len <= game_MAX, "extent-index-out-of-bounds");
+    return &p->x[i0];
+}
+/* … */
+t += *game_position_x_ptr(p, i);
+```
+
+A verificação é `índice < contagem` e `contagem <= capacidade`: um índice
+dentro da capacidade, mas fora da contagem, também aborta
+(`game.k:6: keel: extent-index-out-of-bounds`). Com `--checks=off` a condição
+some e o acesso vira o do C. Quando índice e capacidade são decimais
+conhecidos, um índice fora da capacidade já é recusado **na tradução**.
+
+Uma coluna cujo elemento é um conjunto de `tags` pode ser operando de `match`
+(`match (t->kind[i])`), como no caso 035 do golden.
+
+> Referências: [spec §4.11](keel-spec.md) ·
+> [Rationale: `extent`, da recusa à admissão](keel-rationale.md#extent-da-recusa-à-admissão) ·
+> [backend §5.15](keel-c-backend.md#515-extent).
 
 ---
 

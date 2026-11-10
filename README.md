@@ -210,6 +210,8 @@ de tipo primitivos e os protocolos.
 | `keel.routine` | composição cooperativa, `seq` e `par` |
 | `keel.parallel` | o símbolo de controle de um bloco `parallel` |
 
+A referência de cada módulo está no [manual, capítulo 8](keel-manual.md#8-referência-da-api-da-base).
+
 `keel.arena` é a implementação de referência dos papéis descritos acima: todo
 verbo que cria, aloca, reseta ou restaura a região os declara (spec §5.2).
 
@@ -713,6 +715,7 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`keel-rationale.md`](keel-rationale.md) | as razões; nada ali é regra |
 | [`keel-c-backend.md`](keel-c-backend.md) | o que depende do alvo: nomes, artefatos, perfis |
 | [`cgen-tool-spec.md`](cgen-tool-spec.md) | o que depende da invocação |
+| [`keel-manual.md`](keel-manual.md) | o manual: da ideia aos papéis e ao `cgen`, com a API da base (não normativo; indica a versão que descreve) |
 | [`base/`](base/) | os onze módulos da base, em keel: o prelúdio `keel` e os dez de `keel/` |
 | [`golden/`](golden/) | 62 casos com a saída C esperada, nos dois perfis |
 | [`tools/cgen/`](tools/cgen/) | o transpilador: lê, verifica e emite C (`--stop-after=gen`) |
@@ -721,9 +724,12 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 A divisão entre os quatro documentos é normativa e usada como critério: quando
 uma decisão trava, a primeira pergunta é em qual deles a regra mora.
 
-Começando a ler: [keel por exemplos](#keel-por-exemplos), acima,
-mostra a linguagem em pares keel/C, e é o caminho mais curto para ver se ela faz
-sentido para você.
+O manual é a porta de entrada, mas não é normativo: pode estar defasado, e
+quando diverge de um dos quatro, o normativo vale.
+
+Começando a ler: o [manual](keel-manual.md) leva da ideia à compilação, com
+protocolos, papéis e a API da base. Para ver a linguagem em pares keel/C, o
+caminho mais curto é [keel por exemplos](#keel-por-exemplos), acima.
 
 ## Licenças
 

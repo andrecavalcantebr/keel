@@ -67,4 +67,17 @@ for d in sys.argv[1:]:
     ok += o
     bad += b
 print(f"docs: {ok} ok, {bad} fail")
+
+# The manual states the version it describes; a mismatch with the cgen source is
+# only a warning, since the manual is not normative and may lag behind.
+ROOT = GOLDEN.parent
+manual = re.search(r"Versão descrita: keel (\d+\.\d+\.\d+)",
+                   (ROOT / "keel-manual.md").read_text())
+tool = re.search(r'printf\("cgen (\d+\.\d+\.\d+)\\n"\)',
+                 (ROOT / "tools/cgen/src/tool/main.c").read_text())
+if not manual or not tool:
+    print("docs: warning: could not read the version of keel-manual.md or of the cgen")
+elif manual.group(1) != tool.group(1):
+    print(f"docs: warning: keel-manual.md describes keel {manual.group(1)}, "
+          f"the cgen is {tool.group(1)}")
 sys.exit(1 if bad else 0)

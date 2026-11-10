@@ -345,9 +345,14 @@ if (parallel.ok(sum)) { /* … */ }
 
 O bloco chama `partition` do contêiner uma vez por worker (quem divide é o
 **verbo**, não uma fórmula embutida) e declara um símbolo de controle (`sum`)
-que se consulta depois. Percorrer a parte é escolha do corpo. A política `ALL`
-exige que ninguém falhe; `ANY N` aceita `N` vitórias e permite interromper os
-demais com `win;`/`fail;` e `parallel.interrupted(nome)`. Captura escalar é
+que se consulta depois. Percorrer a parte é escolha do corpo. A **política**
+diz o que conta como sucesso: `ALL` exige que nenhum worker falhe; `ANY` pede
+uma vitória; um número `N` (constante conhecida, `N >= 1`) pede `N` vitórias.
+Só `win;` conta a favor e só `fail;` conta contra; o fim natural do corpo não
+é nenhum dos dois. Sob `ANY` ou `N`, atingir o alvo de vitórias **sinaliza
+interrupção** aos demais workers, que a consultam com
+`parallel.interrupted(nome)` e decidem se param (`fail;` não sinaliza). O
+bloco sempre aguarda todos os workers. Captura escalar é
 **cópia por worker**: escrever nela é `captured-write`; a saída vai num
 contêiner indexado por posição disjunta (`totals[w]`).
 

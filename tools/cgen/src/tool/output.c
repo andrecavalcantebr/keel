@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -41,8 +42,11 @@ int cgen_write_output(const char *path, const char *data, size_t n) {
     char *tmp = malloc(len + 32);
     if (!tmp) goto failed;
     snprintf(tmp, len + 32, "%s.tmp.%ld", path, (long)getpid());
-    FILE *f = fopen(tmp, "wb");
-    if (!f) { free(tmp); goto failed; }
+    /* O_EXCL: never follow a symlink or reuse a file planted under the
+       predictable temporary name. */
+    int fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    FILE *f = fd < 0 ? NULL : fdopen(fd, "wb");
+    if (!f) { if (fd >= 0) { close(fd); remove(tmp); } free(tmp); goto failed; }
     bool ok = (n == 0 || fwrite(data, 1, n, f) == n);
     ok = (fclose(f) == 0) && ok;
     if (!ok || rename(tmp, path) != 0) { remove(tmp); free(tmp); goto failed; }

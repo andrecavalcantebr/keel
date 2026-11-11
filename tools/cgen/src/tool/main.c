@@ -49,9 +49,8 @@ static void print_help(void) {
         "  --stop-after=<lex|parse|gen>  stop after the given phase\n"
         "  --checks=<on|off>             -DKEEL_CHECKS=0 when off (default: on)\n"
         "  --line=<on|off>               emit #line for the keel source (default: on)\n"
-        "  --main <module>               generate the C entry point, calling the module's\n"
+        "  --main <module>               generate the C entry point, calling the module's entry function\n"
         "  --cc=<program>                C compiler to invoke (default: cc)\n"
-        "  --pedantic-names              name ceiling 31 (external) / 63 (other), not 255\n"
         "  --parallel-lowering=<auto|serie|openmp>\n"
         "                                execution mechanism for parallel (default: auto)\n"
         "  --profile=<auto|c11|c23>      C standard of the generated code (default: auto)\n"
@@ -83,7 +82,6 @@ int main(int argc, char *argv[]) {
     const char *profile = NULL;
     const char *parallel_lowering = NULL;
     const char *output = NULL;   /* `-o`: the C compiler's, or the file of a stopping phase (§4.1, §4.2) */
-    bool pedantic_names = false;
     bool f_flag = false;
 
     int root_count = 0;
@@ -222,7 +220,11 @@ int main(int argc, char *argv[]) {
                     parallel_lowering = value;
                 }
             } else if (strcmp(w, "--pedantic-names") == 0) {
-                pedantic_names = true;
+                /* withdrawn (backend D22): recognized only so that a real need is seen, not lost to the cc's "unknown option" */
+                fprintf(stderr, "cgen: hint: if your C toolchain needs a name limit below 255, please report it to the keel developers "
+                                "(https://github.com/andrecavalcantebr/keel/issues), with the toolchain and its limit\n");
+                fatal("implementation-limit",
+                      "--pedantic-names is not implemented: generated names are limited to 255 characters (keel-c-backend §2.4, D22)");
             } else if (strcmp(w, "-f") == 0) {
                 f_flag = true;
             } else if (w[0] == '-' && w[1] != '\0') {
@@ -283,7 +285,6 @@ int main(int argc, char *argv[]) {
     }
 
     /* parsed and validated, consumed by the cc and depfile milestones (M4) */
-    (void)pedantic_names;
     cgen_output_force(f_flag);
 
     keel_arena arena;

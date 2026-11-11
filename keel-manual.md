@@ -816,7 +816,6 @@ Nunca chegam ao compilador C; todo o resto da linha vai a ele, na ordem.
 | `--profile=<auto\|c11\|c23>` | padrão C do gerado; `auto` lê o `-std=` | `auto` |
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de `parallel` | `auto` |
 | `--base-dir <dir>` | raiz da base | `<exe>/../lib/base` |
-| `--pedantic-names` | teto de nome gerado de 31/63 caracteres | desligado |
 | `-f` | reescreve o gerado mesmo idêntico | desligado |
 | `--cgen-version`, `--cgen-help` | versão e ajuda do cgen | — |
 

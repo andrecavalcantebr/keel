@@ -52,7 +52,7 @@ A premissa deste documento é que **a linguagem evolui e a ferramenta não**. O 
 
 Os módulos genéricos da linguagem §4.3 são a primeira construção que cobra algo além disso, e vale registrar exatamente o quanto: **uma opção**, `--instance` (§4.3), e nenhum diretório novo nem código de saída novo. A opção existe porque um genérico não é traduzível sozinho — só com argumento —, e quem quiser a instância como unidade própria, com `.c` e `.o`, tem de dizer qual; `--instance` é a declaração `instance` da linguagem escrita na linha de comando, e não acrescenta regra de conteúdo. O resto são duas regras internas, a §4.5 e a §5, e pelo mesmo motivo nos dois casos: um arquivo gerado deixa de ser função apenas do fonte que o pediu.
 
-O `parallel` é a segunda, e **cobrou uma opção** — `--parallel-lowering` (§4.8). Fica registrado, com a razão: a linguagem não escolhe o mecanismo de execução, e diz isso por escrito (spec §4.8); quem escolhe é o backend, e quem informa a escolha é a invocação, porque o cgen não compila e só a linha de comando sabe o que o alvo oferece. Ela é da categoria de `--profile` (§4.9), não da de `--pedantic-names`: seleciona entre lowerings especificados e muda o C gerado, sem mudar o que o programa significa.
+O `parallel` é a segunda, e **cobrou uma opção** — `--parallel-lowering` (§4.8). Fica registrado, com a razão: a linguagem não escolhe o mecanismo de execução, e diz isso por escrito (spec §4.8); quem escolhe é o backend, e quem informa a escolha é a invocação, porque o cgen não compila e só a linha de comando sabe o que o alvo oferece. Ela é da categoria de `--profile` (§4.9): seleciona entre lowerings especificados e muda o C gerado, sem mudar o que o programa significa.
 
 > **Teste de que a separação funcionou.** Este documento nomeia construções da linguagem — `import`, `module`, `instance` — apenas para dizer de quem é a responsabilidade em cada ponto. Em nenhum lugar ele depende do que elas **significam**: nenhuma regra daqui mudaria se `defer` fosse redefinido amanhã. Quando uma construção nova aparecer, o que se pergunta é uma coisa só — ela faz um arquivo gerado deixar de ser função apenas do fonte que o pediu?
 
@@ -106,7 +106,6 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `--line=on\|off` | emissão de `#line` para o fonte keel; ver backend §6 | `on` |
 | `--main <módulo>` | gera a unidade com o ponto de entrada do C, chamando o do módulo indicado; ver §4.7 | gera, quando a invocação liga e o `.k` tem função de entrada pública |
 | `--cc=<programa>` | compilador C a invocar | `cc` |
-| `--pedantic-names` | baixa o teto de comprimento de nome gerado de 255 para o mínimo do padrão: 31 para nome com ligação externa, 63 para os demais; ver backend §2.4 | desligado |
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de execução emitido para `parallel`; ver §4.8 | `auto` |
 | `--profile=<c11\|c23\|auto>` | padrão C a que o gerado se conforma; ver §4.9 | `auto` |
 | `-f` | força a escrita de todo gerado, mesmo com conteúdo idêntico ao que está em disco: o timestamp muda, e é ele que faz o build refazer o que depende do gerado (§5, §6) | desligado |
@@ -132,14 +131,6 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 > **lê** `-fopenmp` em vez de ter uma opção que o ligue (§4.8). E ela não entra por omissão: o custo recai sobre todo
 > programa, e o risco que ela paga não foi reproduzido em nenhum compilador
 > testado.
-
-> **Nota — por que `--pedantic-names` é opção e não padrão.** O teto de nome é do
-> backend, não da ferramenta, e o backend já escolheu 255 pelo pior caso do
-> levantamento (backend, Anexo). A flag existe para o alvo **fora** do
-> levantamento — um linker antigo, um ambiente que só prometa o mínimo do padrão
-> —, e ela só **aperta**: não há forma de subir o teto, porque acima de 255 não há
-> o que prometer sem saber qual é o linker. É a mesma disciplina de `--checks`:
-> a ferramenta liga e desliga verificação, nunca inventa garantia.
 
 ---
 

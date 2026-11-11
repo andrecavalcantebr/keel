@@ -281,8 +281,7 @@ dá `_Atomic_u32` como argumento canônico, e `keel_buffer__Atomic_u32` teria `_
 no meio — então sai `keel_buffer_atomic_u32`.
 
 Duas verificações são do emissor, porque só ele conhece o nome final:
-`name-too-long` (teto de 255; sob `--pedantic-names`, 31 para nome com ligação
-externa e 63 para os demais) e
+`name-too-long` (teto de 255, sem opção para baixá-lo) e
 `canonical-name-collision`.
 
 ---

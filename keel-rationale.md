@@ -2040,3 +2040,31 @@ duplicação — mas é mecanismo novo, e f16/bf16 ainda não têm implementaç�
 alguma na base. Até que um uso real peça os dois tipos, o `#error` continua
 sendo a verificação que roda.
 
+### Por que não há `--pedantic-names`
+
+O backend §2.4 chegou a prever uma opção que baixava o teto de nome gerado de
+255 para o mínimo do padrão C: 31 caracteres para nome com ligação externa e 63
+para os demais. Ela foi retirada em 2026-11-11, sem nunca ter sido
+implementada.
+
+A opção seria uma adequação à norma, e não a um alvo. O levantamento do Anexo
+do backend não achou, entre os compiladores capazes de C23, nenhum cujo limite
+significativo fosse menor que 255; o pior caso é o IAR, e o MPLAB também dá 255.
+O 31 só aparece no XC8 em modo C90, que este backend nunca produz. Muitas
+decisões da keel nasceram de um caso real que as dirigia, e esta não tinha
+nenhum: pagar por ela era manter uma tabela de ligação (externa × interna) no
+emissor e um segundo teto para testar, em troca de uma garantia que nenhum cc
+do mercado pede. Ela só apertava o teto, e nunca o subia, então a escolha de 255
+já era o topo do que se pode prometer sem saber qual é o linker.
+
+O que ficou: o teto de 255 e o diagnóstico `name-too-long`, sem opção. O cgen
+**reconhece** `--pedantic-names` e a recusa com `[implementation-limit]`,
+nomeando o limite e remetendo a esta seção. Isso é de propósito: sem o
+reconhecimento, a opção iria ao `cc`, que diria só "unknown option", e um caso
+real passaria sem que ninguém o visse. Com a recusa nomeada, quem tiver um
+linker de 31 caracteres recebe uma mensagem que pode reportar, e uma linha `hint:` que pede o reporte aos desenvolvedores, com o toolchain e o seu limite.
+
+**Gatilho de reabertura:** um alvo real, com toolchain e limite documentados
+abaixo de 255. Aí a decisão volta com o caso na mesa, e a tabela de ligação
+(31 para função `pub` fora de linha e variável `pub`; 63 para `static inline`,
+tipos, tags, constantes de enum e nomes `keel__`) é o ponto de partida.

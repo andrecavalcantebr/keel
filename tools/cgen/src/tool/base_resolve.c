@@ -17,14 +17,14 @@ char *cgen_resolve_base_dir(keel_arena *arena, const char *explicit_base_dir) {
         char exe_path[PATH_MAX];
         ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
         if (len == -1) {
-            fprintf(stderr, "cgen: error: base directory not found (no keel.k under '<candidate>') [base-not-found]\n");
+            fprintf(stderr, "cgen: error: base directory not found (cannot locate the cgen executable to derive it; pass --base-dir) [base-not-found]\n");
             return NULL;
         }
         exe_path[len] = '\0';
 
         char *last_slash = strrchr(exe_path, '/');
         if (last_slash == NULL) {
-            fprintf(stderr, "cgen: error: base directory not found (no keel.k under '<candidate>') [base-not-found]\n");
+            fprintf(stderr, "cgen: error: base directory not found (cannot locate the cgen executable to derive it; pass --base-dir) [base-not-found]\n");
             return NULL;
         }
         *last_slash = '\0';

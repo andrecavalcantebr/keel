@@ -1641,7 +1641,6 @@ linha vai ao compilador C, na ordem, sem alteração.
 | `--profile=<auto\|c11\|c23>` | padrão C do gerado; `auto` lê o `-std=` da linha: `c23`/`gnu23`/`c2x`/`gnu2x` dão C23, qualquer outro valor ou a ausência dão C11 | `auto` |
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de `parallel`; `auto` escolhe `openmp` se há `-fopenmp` na linha, senão `serie`; `openmp` sem `-fopenmp` é erro | `auto` |
 | `--base-dir <dir>` | raiz da base | `<exe>/../lib/base` |
-| `--pedantic-names` | teto de nome gerado de 31/63 caracteres, em vez de 255 | desligado |
 | `-f` | reescreve o gerado mesmo idêntico (muda o timestamp) | desligado |
 | `--cgen-version`, `--cgen-help` | versão e ajuda do cgen (`--version` e `--help=…` são do compilador C) | — |
 

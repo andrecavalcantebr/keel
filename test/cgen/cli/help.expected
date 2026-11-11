@@ -11,9 +11,8 @@ cgen options (consumed, never forwarded to the C compiler):
   --stop-after=<lex|parse|gen>  stop after the given phase
   --checks=<on|off>             -DKEEL_CHECKS=0 when off (default: on)
   --line=<on|off>               emit #line for the keel source (default: on)
-  --main <module>               generate the C entry point, calling the module's
+  --main <module>               generate the C entry point, calling the module's entry function
   --cc=<program>                C compiler to invoke (default: cc)
-  --pedantic-names              name ceiling 31 (external) / 63 (other), not 255
   --parallel-lowering=<auto|serie|openmp>
                                 execution mechanism for parallel (default: auto)
   --profile=<auto|c11|c23>      C standard of the generated code (default: auto)

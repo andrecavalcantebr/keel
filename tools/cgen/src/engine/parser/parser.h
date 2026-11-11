@@ -45,8 +45,12 @@ typedef struct {
     KToken types[8]; size_t type_count;
 } KModuleHeader;
 
+/* `*capacity_out` is true when a `dim`/`tags`/`type` list has more than the
+ * 8 binders `KModuleHeader` stores (an implementation-limit, not a syntax
+ * error) — the only reason this returns false past the module's name. */
 bool k_scan_module_decl(KLexer *lexer, KModuleHeader *out,
-                        KToken *next_out, TKPpKind *next_pp_kind_out);
+                        KToken *next_out, TKPpKind *next_pp_kind_out,
+                        bool *capacity_out);
 
 /* import (keel-spec §2.2): 'import' module-name ['as' IDENT] ['types'] ';'
  * The 'import' token is already consumed by the caller. `as` and `types` are

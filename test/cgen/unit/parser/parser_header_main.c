@@ -32,22 +32,32 @@ int main(void) {
     KLexer lexer;
     TKPpKind pp;
     KToken next;
+    bool capacity;
 
     /* module app.cfg; ok */
     first_token("module app.cfg; ok\n", &lexer); /* the 'module' token itself */
     KModuleHeader mh;
-    k_scan_module_decl(&lexer, &mh, &next, &pp);
+    k_scan_module_decl(&lexer, &mh, &next, &pp, &capacity);
     if (!EQ(mh.module_name, "app.cfg")) { fprintf(stderr, "FAIL: module_name = \"%.*s\"\n", (int)mh.module_name.len, mh.module_name.ptr); failures++; }
+    if (capacity) { fprintf(stderr, "FAIL: module — capacity_out true on a happy path\n"); failures++; }
     check_next("module", next);
 
     /* module coll dim N tags Cycle type T; ok -- all three binders */
     first_token("module coll dim N tags Cycle type T; ok\n", &lexer);
     KModuleHeader mh2;
-    k_scan_module_decl(&lexer, &mh2, &next, &pp);
+    k_scan_module_decl(&lexer, &mh2, &next, &pp, &capacity);
     if (mh2.dim_count != 1 || !EQ(mh2.dims[0], "N")) { fprintf(stderr, "FAIL: dims\n"); failures++; }
     if (mh2.tag_count != 1 || !EQ(mh2.tags[0], "Cycle")) { fprintf(stderr, "FAIL: tags\n"); failures++; }
     if (mh2.type_count != 1 || !EQ(mh2.types[0], "T")) { fprintf(stderr, "FAIL: types\n"); failures++; }
+    if (capacity) { fprintf(stderr, "FAIL: module with binders — capacity_out true on a happy path\n"); failures++; }
     check_next("module with binders", next);
+
+    /* module g9 type A,B,C,D,E,F,G,H,I; ok -- a 9th type binder past KModuleHeader's 8 */
+    first_token("module g9 type A,B,C,D,E,F,G,H,I; ok\n", &lexer);
+    KModuleHeader mh3;
+    bool ok3 = k_scan_module_decl(&lexer, &mh3, &next, &pp, &capacity);
+    if (ok3) { fprintf(stderr, "FAIL: a 9th type binder must return false\n"); failures++; }
+    if (!capacity) { fprintf(stderr, "FAIL: a 9th type binder must set capacity_out\n"); failures++; }
 
     /* import keel.buffer as buffer types; ok */
     first_token("import keel.buffer as buffer types; ok\n", &lexer);

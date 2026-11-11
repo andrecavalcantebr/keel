@@ -118,6 +118,7 @@ static bool parse(KAst *a,
     a->nodes.len = 0;
     a->module = 0;
     a->error_token = 0;
+    a->error_is_capacity = false;
     size_t i = 0, n = a->tokens.len;
     while (i < n && keel_buffer_KLexeme_ptr(&a->tokens, i)->directive) i++;
     if (i >= n || !named(a, i, "module")) return false;
@@ -128,7 +129,12 @@ static bool parse(KAst *a,
     KModuleHeader header;
     KToken next;
     TKPpKind next_pp;
-    if (!k_scan_module_decl(&lexer, &header, &next, &next_pp)) return false;
+    bool capacity_hit;
+    if (!k_scan_module_decl(&lexer, &header, &next, &next_pp, &capacity_hit)) {
+        a->error_token = i;
+        a->error_is_capacity = capacity_hit;
+        return false;
+    }
     int module_arity = (int)(header.dim_count + header.tag_count + header.type_count);
 
     KAstNode mod = { .kind = K_AST_MODULE, .first = i, .anchor = i,

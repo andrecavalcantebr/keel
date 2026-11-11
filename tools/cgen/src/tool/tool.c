@@ -193,6 +193,9 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
         }
     }
     if(!k_parse_headers(&e->ast)) {
+        /* a `dim`/`tags`/`type` list past 8 binders is a capacity, not a
+           syntax error (B4 of design/analise-qualidade-codigo-compilador-02.md) */
+        if(e->ast.error_is_capacity)return failure(t,e,K_DIAG_CAPACITY,before);
         /* the file ended inside a declaration: the last token neither ends
            one nor closes a block (unexpected-eof) */
         const KLexeme *last=count?keel_buffer_KLexeme_ptr(&e->ast.tokens,count-1):NULL;
@@ -202,6 +205,14 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     }
     KAstNode *mod=keel_buffer_KAstNode_ptr(&e->ast.nodes, e->ast.module);
     keel_slice_char declared=span(&e->ast,mod->name_first,mod->name_end);
+    /* name.len==0 is the sentinel the caller (cgen_load_path) uses when no -I
+       root covers this file: there is no expected name to compare against, and
+       `module-path-mismatch` against an empty name would mislead
+       (cf. design/analise-qualidade-codigo-compilador-02.md, B2). */
+    if(name.len==0) {
+        k_diag_emit(t->diag,K_DIAG_SOURCE_OUTSIDE_ROOTS,declared,(KDiagArgs){{k_diag_text(path)}});
+        return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    }
     char declared_name[4096];
     size_t declared_size=k_name_normalize(declared,(keel_slice_char){sizeof declared_name,declared_name});
     if(declared_size==SIZE_MAX||!k_symtab_same_name(name,(keel_slice_char){declared_size,declared_name})) {

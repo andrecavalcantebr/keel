@@ -209,7 +209,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `invalid-instance` |  | An `--instance` that does not name a modifier of a generic module in full, or whose arguments do not match its parameters |
 | `base-not-found` |  | None of the base roots holds `keel.k` |
 | `source-not-found` |  | The named `.k` does not exist or cannot be read |
-| `source-outside-roots` |  | The `.k` is under no `-I` root |
+| `source-outside-roots` | `%s` is not under any search root; pass `-I <dir>` for it | The `.k` is under no `-I` root |
 | `source-in-multiple-roots` |  | The `.k` is under more than one root |
 | `module-not-found` | module `%s` was not found in the source roots | An `import` that no root resolves |
 | `missing-entry-point` |  | `--main` over a module without a public entry function |

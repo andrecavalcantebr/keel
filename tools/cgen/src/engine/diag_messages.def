@@ -141,6 +141,7 @@
     X(PROTOCOL_NOT_SATISFIED, "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)") \
     X(VERB_NOT_IN_PROTOCOL, "`%s` is not a verb of `%s`: a function over a protocol calls on its parameter only the verbs the protocol requires") \
     X(INSTANCE_DEPTH, "nested instance past the depth limit: `%s` has more levels of modifier nesting than this implementation specializes") \
+    X(SOURCE_OUTSIDE_ROOTS, "`%s` is not under any search root; pass `-I <dir>` for it") \
     X(MODULE_NOT_FOUND, "module `%s` was not found in the source roots") \
     X(CAPACITY, "insufficient storage while collecting module `%s`") \
     X(PARSE_FAILED, "malformed or truncated declaration") \

@@ -6,23 +6,33 @@
 /* ---- k_scan_module_decl ---- */
 
 bool k_scan_module_decl(KLexer *lexer, KModuleHeader *out,
-                        KToken *next_out, TKPpKind *next_pp_kind_out) {
+                        KToken *next_out, TKPpKind *next_pp_kind_out,
+                        bool *capacity_out) {
+    *capacity_out = false;
     KToken name_first = k_lexer_next(lexer, next_pp_kind_out);
     if (!k_token_is_ident(name_first)) return false;
     out->module_name = k_scan_qualified_name(lexer, name_first, next_out, next_pp_kind_out);
     out->dim_count = out->tag_count = out->type_count = 0;
 
+    /* k_scan_ident_list returns false only when the list has more binders
+       than the 8 this header stores — never for a syntax reason (parser_scan.c).
+       Checked here (the caller used to ignore it: a list past 8 fell through
+       to `malformed or truncated declaration`, naming the wrong problem —
+       design/analise-qualidade-codigo-compilador-02.md, B4). */
     if (k_token_is_ident_named(*next_out, "dim")) {
         KToken first = k_lexer_next(lexer, next_pp_kind_out);
-        k_scan_ident_list(lexer, first, out->dims, 8, &out->dim_count, next_out, next_pp_kind_out);
+        if (!k_scan_ident_list(lexer, first, out->dims, 8, &out->dim_count, next_out, next_pp_kind_out))
+            { *capacity_out = true; return false; }
     }
     if (k_token_is_ident_named(*next_out, "tags")) {
         KToken first = k_lexer_next(lexer, next_pp_kind_out);
-        k_scan_ident_list(lexer, first, out->tags, 8, &out->tag_count, next_out, next_pp_kind_out);
+        if (!k_scan_ident_list(lexer, first, out->tags, 8, &out->tag_count, next_out, next_pp_kind_out))
+            { *capacity_out = true; return false; }
     }
     if (k_token_is_ident_named(*next_out, "type")) {
         KToken first = k_lexer_next(lexer, next_pp_kind_out);
-        k_scan_ident_list(lexer, first, out->types, 8, &out->type_count, next_out, next_pp_kind_out);
+        if (!k_scan_ident_list(lexer, first, out->types, 8, &out->type_count, next_out, next_pp_kind_out))
+            { *capacity_out = true; return false; }
     }
 
     if (!k_token_is_punct(*next_out, ";")) return false;

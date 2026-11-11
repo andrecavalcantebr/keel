@@ -654,7 +654,7 @@ void k_em_h_type_includes(Emit *e) {
     size_t rank[MAX_INCLUDES];
     char own[NAME_CAP];
     size_t ol = k_em_own_type_path(e, own, sizeof own);
-    if (ol && !k_em_add_include(&s, own, ol)) { e->ok = false; return; }
+    if (ol && !k_em_add_include(&s, own, ol)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
     size_t first = s.n;   /* the own .type.h is written by emit.c */
     if (e->inst && e->inst->proto_fn.len && !e->inst->proto_array) {
         /* the concrete type of a function over a protocol, ahead (backend §5.19, rule 4):
@@ -663,7 +663,7 @@ void k_em_h_type_includes(Emit *e) {
         char cp[NAME_CAP];
         size_t cl = k_em_header_of(ast, e->inst->proto_concrete.ptr, e->inst->proto_concrete.len, ".type.h", cp, sizeof cp);
         if (cl) {
-            if (!k_em_add_include(&s, cp, cl)) { e->ok = false; return; }
+            if (!k_em_add_include(&s, cp, cl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
             rank[s.n - 1] = 0;
         }
     }
@@ -689,7 +689,7 @@ void k_em_h_type_includes(Emit *e) {
         if (!pl && k_em_plain_arg(e, d.sym, d.sym_len)) continue;   /* a C type: no header of keel */
         if (!pl) { e->ok = false; return; }
         size_t before = s.n;
-        if (!k_em_add_include(&s, path, pl)) { e->ok = false; return; }
+        if (!k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
         if (s.n > before) rank[s.n - 1] = k_em_import_rank(ast, d.sym, d.sym_len);
     }
     /* a binder bound to a type of the program (`E` = `ag_Cycle`) that a public signature takes by
@@ -711,7 +711,7 @@ void k_em_h_type_includes(Emit *e) {
             size_t pl = k_em_header_of(e->inst->user, arg.ptr, arg.len, ".type.h", path, sizeof path);
             if (!pl || pl == SIZE_MAX) continue;
             size_t before = s.n;
-            if (!k_em_add_include(&s, path, pl)) { e->ok = false; return; }
+            if (!k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
             if (s.n > before) rank[s.n - 1] = (size_t)-1;
         }
     }
@@ -738,7 +738,7 @@ void k_em_use_includes(Emit *e) {
         char path[NAME_CAP];
         size_t pl = k_em_header_of(ast, d.sym, d.sym_len, ".h", path, sizeof path);
         if (pl == sl && memcmp(path, self, pl) == 0) continue;
-        if (pl && !k_em_add_include(&s, path, pl)) { e->ok = false; return; }
+        if (pl && !k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
     }
     /* a range over an `array` (subscript.c) calls the verbs of the array's instance, which no
      * closure names: its header is the symbol less `_as_slice` and its arity (`keel_array_i32_as_slice2`
@@ -758,15 +758,15 @@ void k_em_use_includes(Emit *e) {
         if (n < 9 || memcmp(d.sym + n - 9, "_as_slice", 9) != 0) continue;
         size_t stem = n - 9;
         char path[NAME_CAP];
-        if (5 + stem + 2 > sizeof path) { e->ok = false; return; }
+        if (5 + stem + 2 > sizeof path) { k_em_limit(e, K_EMIT_LIMIT_NAME); return; }
         memcpy(path, "keel/", 5);
         memcpy(path + 5, d.sym, stem);
         memcpy(path + 5 + stem, ".h", 2);
-        if (!k_em_add_include(&s, path, 5 + stem + 2)) { e->ok = false; return; }
+        if (!k_em_add_include(&s, path, 5 + stem + 2)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
     }
     /* the control symbol of a `parallel` block is a type of keel.parallel */
     for (size_t i = 0; i < ast->islands.len && e->ok; i++)
-        if (k_em_handles_parallel(ast, keel_buffer_KIsland_ptr(&ast->islands, i)) && !k_em_add_include(&s, "keel/keel_parallel.h", 20)) { e->ok = false; return; }
+        if (k_em_handles_parallel(ast, keel_buffer_KIsland_ptr(&ast->islands, i)) && !k_em_add_include(&s, "keel/keel_parallel.h", 20)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
     /* the order of the path: an insertion sort, few includes */
     for (size_t i = 1; i < s.n; i++)
         for (size_t j = i; j > 0; j--) {
@@ -815,7 +815,7 @@ bool k_em_h_body_includes(Emit *e) {
         char path[NAME_CAP];
         size_t pl = k_em_header_of(ast, d.sym, d.sym_len, ".h", path, sizeof path);
         if (!pl || (pl == sl && memcmp(path, self, pl) == 0)) continue;
-        if (!k_em_add_include(&s, path, pl)) { e->ok = false; return false; }
+        if (!k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return false; }
     }
     for (size_t i = 1; i < s.n; i++)
         for (size_t j = i; j > 0; j--) {
@@ -854,7 +854,7 @@ void k_em_type_h_includes(Emit *e) {
         size_t pl = k_em_header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
         if (!pl) { e->ok = false; return; }
         size_t before = s.n;
-        if (!k_em_add_include(&s, path, pl)) { e->ok = false; return; }
+        if (!k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
         if (s.n > before) rank[s.n - 1] = k_em_import_rank(ast, d.sym, d.sym_len);
     }
     for (size_t i = 1; i < s.n; i++)
@@ -894,7 +894,7 @@ void k_em_instance_type_includes(Emit *e) {
                     pl = k_em_header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
                 }
             }
-            if (pl && pl != SIZE_MAX && !k_em_add_include(&s, path, pl)) { e->ok = false; return; }
+            if (pl && pl != SIZE_MAX && !k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
         }
     }
     for (size_t k = 0; k < s.n; k++) k_em_raw_include(e, s.path[k], s.len[k]);

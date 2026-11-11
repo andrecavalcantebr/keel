@@ -153,7 +153,7 @@ static void raw_slice(Emit *e, keel_slice_char s) { k_emit_raw(&e->w, s); }
 
 /* A name a mangle function wrote into buf; ok drops when it did not fit. */
 static keel_slice_char fit(Emit *e, char *buf, size_t need) {
-    if (need > NAME_CAP) e->ok = false;
+    if (need > NAME_CAP) k_em_limit(e, K_EMIT_LIMIT_NAME);
     return (keel_slice_char){ need <= NAME_CAP ? need : 0, buf };
 }
 
@@ -333,6 +333,36 @@ static void emit_entry(Emit *e) {
     }
 }
 
+/* The text of a limit, named and valued from the defines (cgen-tool-spec §7.1). The
+ * stringizing gives the value the code is built with, so the text cannot drift. */
+#define EM_STR2(x) #x
+#define EM_STR(x) EM_STR2(x)
+
+const char *k_emit_limit_text(size_t code) {
+    switch (code) {
+    case K_EMIT_LIMIT_LINE:
+        return "a generated line needs more than LINE_CAP = " EM_STR(LINE_CAP)
+               " bytes (engine/emit/emit_internal.h); shorten the declaration";
+    case K_EMIT_LIMIT_EDITS:
+        return "a source line needs more than MAX_EDITS = " EM_STR(MAX_EDITS)
+               " edits (engine/emit/emit_internal.h); split the line";
+    case K_EMIT_LIMIT_SCRATCH:
+        return "the text of a line's edits needs more than SCRATCH_CAP = " EM_STR(SCRATCH_CAP)
+               " bytes (engine/emit/emit_internal.h); shorten the line";
+    case K_EMIT_LIMIT_NAME:
+        return "a generated name or path needs more than NAME_CAP = " EM_STR(NAME_CAP)
+               " bytes (engine/emit/emit_internal.h); shorten the name";
+    case K_EMIT_LIMIT_INCLUDES:
+        return "a file needs more than MAX_INCLUDES = " EM_STR(MAX_INCLUDES)
+               " includes (engine/emit/emit_internal.h); split the module's imports";
+    case K_EMIT_LIMIT_HEADER:
+        return "the header of a parallel block needs more than PAR_HEADER_CAP = " EM_STR(PAR_HEADER_CAP)
+               " bytes (engine/emit/emit_internal.h); shorten the block's names";
+    default:
+        return NULL;
+    }
+}
+
 size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_path,
                    KEmitFile which, KEmitOptions opt, keel_slice_char out) {
     Emit e;
@@ -345,6 +375,7 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     e.cache_off = 0;
     e.cache_line = 1;
     e.ok = true;
+    e.limit = 0;
     e.n = 0;
     e.block_ordinal = 0;
     e.scratch_n = 0;
@@ -357,6 +388,6 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
         if (which == K_EMIT_C) emit_c(&e);
         else emit_header(&e, which);
     }
-    if (!e.ok) return K_EMIT_UNSUPPORTED;
+    if (!e.ok) return e.limit ? e.limit : K_EMIT_UNSUPPORTED;
     return k_writer_len(&e.w);
 }

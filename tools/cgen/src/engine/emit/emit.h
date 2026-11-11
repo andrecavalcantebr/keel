@@ -30,6 +30,21 @@ typedef struct {
 
 #define K_EMIT_UNSUPPORTED ((size_t)-1)
 
+/* A capacity of the emitter ran out (cgen-tool-spec §7.1): the call is refused, and the
+ * code names the limit, so the message can give its name and its value. One code per
+ * limit; each is a #define of emit_internal.h, whose text k_emit_limit_text gives. */
+#define K_EMIT_LIMIT_LINE     ((size_t)-2)   /* LINE_CAP: one generated line, or one prototype */
+#define K_EMIT_LIMIT_EDITS    ((size_t)-3)   /* MAX_EDITS: the edits of one source line */
+#define K_EMIT_LIMIT_SCRATCH  ((size_t)-4)   /* SCRATCH_CAP: the text the edits point to */
+#define K_EMIT_LIMIT_NAME     ((size_t)-5)   /* NAME_CAP: a generated name or path */
+#define K_EMIT_LIMIT_INCLUDES ((size_t)-6)   /* MAX_INCLUDES: the includes of one file */
+#define K_EMIT_LIMIT_HEADER   ((size_t)-7)   /* PAR_HEADER_CAP: the header of a parallel block */
+/* any refusal of the emitter: K_EMIT_UNSUPPORTED or one of the limits above */
+#define K_EMIT_IS_FAILURE(n) ((n) >= (size_t)-7)
+/* The message of a limit code (its name and value, from the defines): NULL for a code
+ * that is not a limit. */
+const char *k_emit_limit_text(size_t code);
+
 #define K_EMIT_INSTANCE_ARGS 4
 
 /* One instance of a generic module (codegen design §7; backend §4.3, §4.4.1):

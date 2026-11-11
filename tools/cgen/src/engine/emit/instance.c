@@ -545,10 +545,10 @@ static void emit_file(Emit *e, KEmitFile which) {
     char path_buf[NAME_CAP], guard_buf[NAME_CAP], type_buf[NAME_CAP];
     size_t pn = k_mangle_instance_path(e->inst->module, k_emit_unit(e->inst), type_h ? ".type.h" : ".h", (keel_slice_char){ NAME_CAP, path_buf });
     size_t tn = k_mangle_instance_path(e->inst->module, k_emit_unit(e->inst), ".type.h", (keel_slice_char){ NAME_CAP, type_buf });
-    if (pn > NAME_CAP || tn > NAME_CAP) { e->ok = false; return; }
+    if (pn > NAME_CAP || tn > NAME_CAP) { k_em_limit(e, K_EMIT_LIMIT_NAME); return; }
     keel_slice_char path = { pn, path_buf }, type_path = { tn, type_buf };
     size_t gn = k_mangle_guard(path, (keel_slice_char){ NAME_CAP, guard_buf });
-    if (gn > NAME_CAP) { e->ok = false; return; }
+    if (gn > NAME_CAP) { k_em_limit(e, K_EMIT_LIMIT_NAME); return; }
     keel_slice_char guard = { gn, guard_buf };
 
     raw(e, "/* ");
@@ -572,7 +572,7 @@ static void emit_file(Emit *e, KEmitFile which) {
                 if (use == 2 && pass == 0) {
                     char path[NAME_CAP];
                     size_t pl = k_mangle_instance_path(e->inst->arg_module[k], k_emit_arg_file(e->inst, k), ".type.h", (keel_slice_char){ sizeof path, path });
-                    if (pl > sizeof path) { e->ok = false; return; }
+                    if (pl > sizeof path) { k_em_limit(e, K_EMIT_LIMIT_NAME); return; }
                     raw(e, "#include \""); raw_slice(e, (keel_slice_char){ pl, path }); raw(e, "\"\n");
                 } else if (use == 1 && pass == 1) {
                     /* after the includes and a blank (E6, R1); the declarations that follow take no blank (R6) */
@@ -700,7 +700,7 @@ void k_em_placement_c(Emit *e) {
         size_t ul = k_em_unit_symbol(ast, c, unit, sizeof unit);
         size_t pl = k_mangle_instance_path(c->module->name, ul ? (keel_slice_char){ ul, unit } : (keel_slice_char){ c->symbol_len, (char *)c->symbol }, ".h",
                                            (keel_slice_char){ sizeof path, path });
-        if (pl > sizeof path) { e->ok = false; return; }
+        if (pl > sizeof path) { k_em_limit(e, K_EMIT_LIMIT_NAME); return; }
         raw(e, "#include \"");
         raw_slice(e, (keel_slice_char){ pl, path });
         raw(e, "\"\n");
@@ -711,7 +711,7 @@ void k_em_placement_c(Emit *e) {
         KEmitInstance inst;
         if (!k_emit_instance_of(ast, c, &inst)) { e->ok = false; return; }
         char src_buf[NAME_CAP];
-        if (inst.module.len + 2 > sizeof src_buf) { e->ok = false; return; }
+        if (inst.module.len + 2 > sizeof src_buf) { k_em_limit(e, K_EMIT_LIMIT_NAME); return; }
         for (size_t k = 0; k < inst.module.len; k++) src_buf[k] = inst.module.ptr[k] == '.' ? '/' : inst.module.ptr[k];
         memcpy(src_buf + inst.module.len, ".k", 2);
         Emit g = { .ast = c->module->ast, .module = inst.module, .opt = e->opt, .inst = &inst, .ok = true, .cache_line = 1,
@@ -729,7 +729,7 @@ void k_em_placement_c(Emit *e) {
         g.w.src_path = e->w.src_path;
         g.w.mapped = 0;
         e->w = g.w;
-        if (!g.ok) e->ok = false;
+        if (!g.ok) { if (g.limit) k_em_limit(e, g.limit); else e->ok = false; }
     }
 }
 
@@ -745,6 +745,7 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
     e.cache_off = 0;
     e.cache_line = 1;
     e.ok = true;
+    e.limit = 0;
     e.n = 0;
     e.block_ordinal = 0;
     e.scratch_n = 0;
@@ -757,7 +758,7 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
     if (which == K_EMIT_H) k_em_instance_h(&e);
     else if (which == K_EMIT_C) k_em_instance_c(&e);
     else emit_file(&e, which);
-    if (!e.ok) return K_EMIT_UNSUPPORTED;
+    if (!e.ok) return e.limit ? e.limit : K_EMIT_UNSUPPORTED;
     return k_writer_len(&e.w);
 }
 

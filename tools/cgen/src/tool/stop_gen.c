@@ -70,13 +70,22 @@ static int write_failed(const char *path) {
     return 2;
 }
 
+/* The message of a refused generated file (`need` is K_EMIT_IS_FAILURE). A limit names
+ * itself and its value (cgen-tool-spec §7.1); a construction the emitter does not cover
+ * keeps its site's text, `cover`. */
+static void report_refused(size_t need, int len, const char *what, const char *cover) {
+    if (need == K_EMIT_UNSUPPORTED)
+        fprintf(stderr, "cgen: error: %.*s: the emitter does not cover %s yet [implementation-limit]\n", len, what, cover);
+    else
+        fprintf(stderr, "cgen: error: %.*s: %s [implementation-limit]\n", len, what, k_emit_limit_text(need));
+}
+
 /* One generated file: measure, fill, create the directories, write. */
 static int emit_one(keel_arena *arena, const char *dest, const KAst *ast, keel_slice_char module,
                     keel_slice_char src_path, KEmitFile which, const char *ext, KEmitOptions opt) {
     size_t need = k_emit_file(ast, module, src_path, which, opt, (keel_slice_char){0});
-    if (need == K_EMIT_UNSUPPORTED) {
-        fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this module's constructions yet [implementation-limit]\n",
-                (int)src_path.len, src_path.ptr);
+    if (K_EMIT_IS_FAILURE(need)) {
+        report_refused(need, (int)src_path.len, src_path.ptr, "this module's constructions");
         return 2;
     }
     char *data = cgen_alloc(arena, need ? need : 1, 1, 1, false, "generated file");
@@ -247,9 +256,8 @@ static int emit_protocol_functions(keel_arena *arena, const char *dest, const KA
             KEmitFile which = w == 0 ? K_EMIT_TYPE_H : K_EMIT_H;
             const char *ext = w == 0 ? ".type.h" : ".h";
             size_t need = k_emit_instance(generic, &inst, src_path, which, opt, (keel_slice_char){0});
-            if (need == K_EMIT_UNSUPPORTED) {
-                fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this function over a protocol yet [implementation-limit]\n",
-                        (int)c->symbol_len, c->symbol);
+            if (K_EMIT_IS_FAILURE(need)) {
+                report_refused(need, (int)c->symbol_len, c->symbol, "this function over a protocol");
                 rc = 2;
                 break;
             }
@@ -300,9 +308,8 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
             KEmitFile which = w == 0 ? K_EMIT_TYPE_H : K_EMIT_H;
             const char *ext = w == 0 ? ".type.h" : ".h";
             size_t need = k_emit_instance(c->module->ast, &inst, src_path, which, opt, (keel_slice_char){0});
-            if (need == K_EMIT_UNSUPPORTED) {
-                fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
-                        (int)inst.symbol.len, inst.symbol.ptr);
+            if (K_EMIT_IS_FAILURE(need)) {
+                report_refused(need, (int)inst.symbol.len, inst.symbol.ptr, "this instance");
                 return 2;
             }
             char *data = cgen_alloc(arena, need ? need : 1, 1, 1, false, "generated file");
@@ -651,9 +658,8 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
         char src_buf[8192];
         keel_slice_char src_path = source_path(target->module->name, src_buf, sizeof src_buf);
         size_t need = rc ? 0 : k_emit_instance(target->module->ast, &inst, src_path, K_EMIT_C, opt, (keel_slice_char){0});
-        if (!rc && need == K_EMIT_UNSUPPORTED) {
-            fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
-                    (int)inst.symbol.len, inst.symbol.ptr);
+        if (!rc && K_EMIT_IS_FAILURE(need)) {
+            report_refused(need, (int)inst.symbol.len, inst.symbol.ptr, "this instance");
             rc = 2;
         }
         if (!rc) {

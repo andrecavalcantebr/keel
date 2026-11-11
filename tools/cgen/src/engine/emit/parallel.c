@@ -313,7 +313,7 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
 
         if (kw_off >= a && kw_off < b) {
             e->n = 0;
-            char *w = k_em_scratch(e, 1000);
+            char *w = k_em_scratch(e, PAR_HEADER_CAP);
             if (!w) return;
             size_t q = 0;
             q = LIT(w, q, "keel_parallel_control ");
@@ -364,7 +364,8 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
             /* the worker's binder is written as the source has it */
             e->n = 0;
             k_em_put_range(e, p.wtype_a, p.wtype_b);
-            if (!e->ok || q + e->n + 200 > 1000) { e->ok = false; return; }
+            if (!e->ok) return;
+            if (q + e->n + 200 > PAR_HEADER_CAP) { k_em_limit(e, K_EMIT_LIMIT_HEADER); return; }
             q = put(w, q, e->buf, e->n);
             e->n = 0;
             KToken wn = k_em_tok(ast, p.wname);
@@ -379,7 +380,8 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
             q = LIT(w, q, "++) {\n");
             q = spaces(w, q, ind_n + 8);
             k_em_put_range(e, p.ptype_a, p.ptype_b);
-            if (!e->ok || q + e->n + 300 > 1000) { e->ok = false; return; }
+            if (!e->ok) return;
+            if (q + e->n + 300 > PAR_HEADER_CAP) { k_em_limit(e, K_EMIT_LIMIT_HEADER); return; }
             q = put(w, q, e->buf, e->n);
             e->n = 0;
             KToken pn = k_em_tok(ast, p.pname);
@@ -397,7 +399,7 @@ void k_em_edits_parallel(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
             q = put(w, q, wn.ptr, wn.len);
             q = LIT(w, q, ");");
             if (p.one_line) q = LIT(w, q, "\n");   /* the body starts on the next line (emit_range cuts it) */
-            if (q > 1000) { e->ok = false; return; }
+            if (q > PAR_HEADER_CAP) { k_em_limit(e, K_EMIT_LIMIT_HEADER); return; }
             /* the header's tokens were renamed by the module's rules: they are all replaced */
             size_t end = k_em_tok_end(ast, p.brace), j = 0;
             for (size_t c = 0; c < *cnt; c++)

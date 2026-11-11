@@ -683,7 +683,7 @@ static void edits_walk(Emit *e, const KAstNode *fn, size_t kw, const Over *o, si
     if (own) {
         char nm[NAME_CAP];
         size_t q = k_mangle_decl(e->module, (keel_slice_char){ nm_tok.len, (char *)nm_tok.ptr }, true, (keel_slice_char){ sizeof nm, nm });
-        if (q > sizeof nm) { e->ok = false; return; }
+        if (q > sizeof nm) { k_em_limit(e, K_EMIT_LIMIT_NAME); return; }
         k_em_put_bytes(e, nm, q);
     } else {
         k_em_put_range(e, o->itype_a, o->itype_b);

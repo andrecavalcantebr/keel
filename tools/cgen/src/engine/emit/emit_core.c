@@ -45,9 +45,14 @@ size_t k_em_line_at(Emit *e, size_t off) {
 
 /* ---- the line builder ---- */
 
+void k_em_limit(Emit *e, size_t code) {
+    e->ok = false;
+    if (!e->limit) e->limit = code;
+}
+
 void k_em_put_bytes(Emit *e, const char *p, size_t len) {
     for (size_t i = 0; i < len; i++) {
-        if (e->n >= LINE_CAP) { e->ok = false; return; }
+        if (e->n >= LINE_CAP) { k_em_limit(e, K_EMIT_LIMIT_LINE); return; }
         e->buf[e->n++] = p[i];
     }
 }
@@ -57,14 +62,14 @@ void k_em_put_mangled(Emit *e, size_t name_tok, bool is_type) {
     size_t room = LINE_CAP - e->n;
     size_t need = k_mangle_decl(e->module, k_em_tok(e->ast, name_tok), is_type,
                                 (keel_slice_char){ room, e->buf + e->n });
-    if (need > room) { e->ok = false; return; }
+    if (need > room) { k_em_limit(e, K_EMIT_LIMIT_LINE); return; }
     e->n += need;
 }
 
 /* Adds one edit to the list of a line; a list past MAX_EDITS makes the call
- * UNSUPPORTED. */
+ * refused, with the limit named. */
 void k_em_push_edit(Emit *e, Edit *ed, size_t *cnt, Edit x) {
-    if (*cnt >= MAX_EDITS) { e->ok = false; return; }
+    if (*cnt >= MAX_EDITS) { k_em_limit(e, K_EMIT_LIMIT_EDITS); return; }
     ed[(*cnt)++] = x;
 }
 
@@ -114,7 +119,7 @@ void k_em_sort_edits(Edit *ed, size_t from, size_t cnt) {
 }
 
 char *k_em_scratch(Emit *e, size_t n) {
-    if (e->scratch_n + n > sizeof e->scratch) { e->ok = false; return NULL; }
+    if (e->scratch_n + n > sizeof e->scratch) { k_em_limit(e, K_EMIT_LIMIT_SCRATCH); return NULL; }
     char *p = e->scratch + e->scratch_n;
     e->scratch_n += n;
     return p;

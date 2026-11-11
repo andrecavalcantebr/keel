@@ -13,6 +13,8 @@
 #define NAME_CAP 256            /* a generated file name, guard or symbol */
 #define LINE_CAP 1024           /* one changed source line, or one prototype */
 #define MAX_EDITS 32            /* the edits of one line */
+#define SCRATCH_CAP 2048        /* the text that the edits of a line point to */
+#define PAR_HEADER_CAP 1000     /* the header of a one-line or multi-line parallel block (parallel.c) */
 
 typedef enum {
     EDIT_DROP, EDIT_RENAME, EDIT_ASSERT, EDIT_STATIC, EDIT_TAG,
@@ -55,11 +57,12 @@ typedef struct {
     KWriter w;
     size_t done;               /* source offset: the lines before it are written */
     size_t cache_off, cache_line;   /* line_at's last answer */
-    bool ok;                   /* false: a limit was hit, the call is UNSUPPORTED */
+    bool ok;                   /* false: the call is refused (UNSUPPORTED, or the limit in `limit`) */
+    size_t limit;              /* 0, or the K_EMIT_LIMIT_* code of the first capacity that ran out */
     char buf[LINE_CAP];        /* the line being built */
     size_t n;                  /* bytes in buf */
     size_t block_ordinal;      /* unused: the ordinal is computed from the tokens (constexpr_block.c) */
-    char scratch[2048];        /* text that edits point to; reset when the edits are copied (a one-line parallel
+    char scratch[SCRATCH_CAP]; /* text that edits point to; reset when the edits are copied (a one-line parallel
                                 * block takes a header of up to 1000 bytes, and its body and `}` after it) */
     size_t scratch_n;
 } Emit;
@@ -115,6 +118,11 @@ size_t k_em_line_start(const Emit *e, size_t off);
 size_t k_em_line_end(const Emit *e, size_t off);
 /* the .k line of `off`; the scan starts from the last answer */
 size_t k_em_line_at(Emit *e, size_t off);
+
+/* A capacity of the emitter ran out: the call is refused, and `code` (a K_EMIT_LIMIT_*)
+ * names the limit. The first one recorded is kept: a site that fails later, by
+ * consequence, must not replace it. */
+void k_em_limit(Emit *e, size_t code);
 
 /* the line builder: bytes and mangled names are written at the end of buf */
 void k_em_put_bytes(Emit *e, const char *p, size_t len);

@@ -117,7 +117,7 @@ bool k_em_decl_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
                         char *w = k_em_scratch(e, NAME_CAP);
                         if (!w) return false;
                         size_t q = k_mangle_decl(e->module, (keel_slice_char){ t.len, (char *)t.ptr }, false, (keel_slice_char){ NAME_CAP, w });
-                        if (q > NAME_CAP) { e->ok = false; return false; }
+                        if (q > NAME_CAP) { k_em_limit(e, K_EMIT_LIMIT_NAME); return false; }
                         txt = w; tl = q;
                     } else if (d && (d->kind == K_AST_TYPE || d->kind == K_AST_CONSTEXPR) && k_em_generic_out(ast, d)) {
                         /* a type or a constant of the generic: the instance's (backend §4.3, rule 1), the
@@ -220,7 +220,7 @@ void k_em_emit_extern(Emit *e, size_t i) {
                 else if (k_em_text_is(u, ")") || k_em_text_is(u, "]") || k_em_text_is(u, "}")) d2--;
                 else if (d2 == 0 && (k_em_text_is(u, ",") || k_em_text_is(u, ";"))) break;
             }
-            if (ncut >= MAX_EDITS) { e->ok = false; return; }
+            if (ncut >= MAX_EDITS) { k_em_limit(e, K_EMIT_LIMIT_EDITS); return; }
             size_t cs = k_em_tok_end(ast, p - 1), ce = k_em_tok_off(ast, q);
             if (ce > b) ce = b;
             cut[ncut][0] = cs; cut[ncut][1] = ce; ncut++;

@@ -1,0 +1,45 @@
+name: Bug do cgen
+description: O cgen travou, gerou C errado ou deu um diagnóstico enganoso
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Versão
+      description: Saída de `cgen --cgen-version`, e o commit se vier do repositório.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: O `.k` mínimo
+      description: O menor módulo que reproduz o problema. Se importa outros, inclua-os.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Comando
+      description: A linha de comando completa (`cgen ...`).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: O que você esperava
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: O que aconteceu
+      description: A saída do cgen, ou o erro do compilador C sobre o código gerado.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Ambiente
+      description: Sistema, compilador C e versão (por exemplo `gcc 14`, `clang 18`).

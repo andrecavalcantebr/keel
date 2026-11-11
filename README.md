@@ -731,6 +731,15 @@ Começando a ler: o [manual](keel-manual.md) leva da ideia à compilação, com
 protocolos, papéis e a API da base. Para ver a linguagem em pares keel/C, o
 caminho mais curto é [keel por exemplos](#keel-por-exemplos), acima.
 
+## Reportar um problema
+
+Pelas [Issues](https://github.com/andrecavalcantebr/keel/issues) do repositório,
+com um de três formulários: **bug do cgen** (o `.k` mínimo que reproduz, o
+comando e a versão de `cgen --cgen-version`), **necessidade real** (um toolchain
+ou alvo concreto que bate numa decisão da keel, com o limite documentado) e
+**pedido de funcionalidade** (o que você quer escrever e não consegue). A keel
+decide pelo caso real, então o caso vale mais que a solução proposta.
+
 ## Licenças
 
 São duas, e a separação é deliberada.

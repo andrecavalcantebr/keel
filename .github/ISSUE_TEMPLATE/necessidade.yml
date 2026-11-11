@@ -1,0 +1,31 @@
+name: Necessidade real (um alvo ou uso que a keel não atende)
+description: Um toolchain, limite ou uso concreto que bate numa decisão da keel
+labels: ["necessidade"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A keel decide pelo caso real. Uma opção ou regra retirada ou engavetada
+        (por exemplo `--pedantic-names`) volta quando aparece um caso concreto,
+        com o limite documentado. Descreva o caso, não a solução.
+  - type: textarea
+    id: case
+    attributes:
+      label: O caso
+      description: O que você está tentando fazer, em que alvo, e onde a keel não atende.
+    validations:
+      required: true
+  - type: input
+    id: toolchain
+    attributes:
+      label: Toolchain e versão
+      description: Compilador C, linker e alvo.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidência
+      description: O limite ou comportamento documentado, com o link da documentação do fabricante, ou um exemplo que reproduza.
+    validations:
+      required: true

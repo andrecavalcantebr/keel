@@ -1,0 +1,33 @@
+name: Pedido de funcionalidade
+description: Uma construção, biblioteca ou opção nova para a keel ou o cgen
+labels: ["funcionalidade"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: O problema
+      description: O que você não consegue escrever, ou escreve com dificuldade, hoje. Mostre o código que quer escrever.
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: O que você faz hoje
+      description: O contorno atual, em keel ou em C. Se não há contorno, diga.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Uma ideia de solução
+      description: Opcional. Pode ser uma sintaxe, uma função de biblioteca ou uma opção do cgen.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Onde mora
+      options:
+        - Linguagem (construção ou sintaxe)
+        - Biblioteca (base ou stdlib)
+        - cgen (opção, diagnóstico, saída)
+        - Documentação
+        - Não sei

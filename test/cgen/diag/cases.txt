@@ -53,3 +53,4 @@ indirect-import ia.k
 role-missing v.k
 protocol-roles use.k
 protocol-roles-bad bad.k
+import-analysis-error use.k

@@ -239,22 +239,26 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
         KModule *m=NULL;KLoadResult x=cgen_load(t,k_diag_text("keel"),&m);
         if(x==K_LOAD_OK||x==K_LOAD_ALREADY)capacity+=m->symbol_count+1;
     }
+    /* From here on, the errors that count are this module's own. The imports are loaded: one that could not be
+       used makes k_resolve_imports fail, and the analysis diagnostics of one that loaded (role-missing, say)
+       say nothing about its interface, so they must not stop this module's analysis. */
+    size_t own=k_diag_count(t->diag,K_ERROR);
     if(capacity>SIZE_MAX/sizeof(KSymbol)) {t->active=parent;return failure(t,e,K_DIAG_CAPACITY,before);}
     KSymbol *storage=CGEN_NEW(t->arena,KSymbol,capacity);
     k_symtab_init(&e->symbols,storage,capacity);
     KLoader loader={cgen_load,t};
     bool ok=storage && k_resolve_imports(&e->ast,&loader,&e->symbols,t->diag);
     t->active=parent;
-    if(!ok||k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
+    if(!ok||k_diag_count(t->diag,K_ERROR)>own)return failure(t,e,K_DIAG_LOAD_FAILED,before);   /* an import that failed already said why */
     /* Bind generic parameters before collecting declarations. */
     for(size_t i=mod->type_first;i<mod->type_end;i++)
         if(k_token_is_ident(keel_buffer_KLexeme_ptr(&e->ast.tokens, i)->token))
-            if(!k_symtab_insert(&e->symbols,keel_buffer_KLexeme_ptr(&e->ast.tokens, i)->token,K_SYM_TYPE,0))return failure(t,e,K_DIAG_CAPACITY,before);
-    if(!k_collect_ast(&e->ast,&e->symbols))return failure(t,e,K_DIAG_PARSE_FAILED,before);
-    if(!exports(t,e))return failure(t,e,K_DIAG_CAPACITY,before);
+            if(!k_symtab_insert(&e->symbols,keel_buffer_KLexeme_ptr(&e->ast.tokens, i)->token,K_SYM_TYPE,0))return failure(t,e,K_DIAG_CAPACITY,own);
+    if(!k_collect_ast(&e->ast,&e->symbols))return failure(t,e,K_DIAG_PARSE_FAILED,own);
+    if(!exports(t,e))return failure(t,e,K_DIAG_CAPACITY,own);
     e->ast.instances=keel_buffer_KInstanceUse_from(CGEN_NEW(t->arena,KInstanceUse,count+1),count+1);
     if(!e->ast.instances.ptr||!k_collect_instances(&e->ast,t->diag))
-        return failure(t,e,K_DIAG_CAPACITY,before);
+        return failure(t,e,K_DIAG_CAPACITY,own);
     /* An island holds a few tokens' worth of text; the bound is generous, and
        running into it is a diagnostic, never a truncation. */
     size_t text=count*CGEN_ISLAND_TEXT_PER_TOKEN+CGEN_ISLAND_TEXT_BASE;
@@ -264,7 +268,7 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     e->ast.closure=keel_buffer_KClosure_from(CGEN_NEW(t->arena,KClosure,CGEN_CLOSURE_MAX),CGEN_CLOSURE_MAX);
     e->ast.unavailable=keel_buffer_KUnavailable_from(CGEN_NEW(t->arena,KUnavailable,CGEN_UNAVAILABLE_MAX),CGEN_UNAVAILABLE_MAX);
     if(!e->ast.islands.ptr||!e->ast.island_text.ptr||!e->ast.closure_text.ptr||!e->ast.closure.ptr||!e->ast.unavailable.ptr||!k_collect_islands(&e->ast,t->diag))
-        return failure(t,e,K_DIAG_CAPACITY,before);
+        return failure(t,e,K_DIAG_CAPACITY,own);
     e->module.ast=&e->ast;e->state=CGEN_DONE;*out=&e->module;
     return K_LOAD_OK;
 }

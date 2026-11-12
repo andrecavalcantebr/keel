@@ -1,6 +1,6 @@
 # keel — manual (not so quick start)
 
-> **Versão descrita: keel 0.1.1** (`cgen 0.1.1`, tag `v0.1.1`). Se a sua versão
+> **Versão descrita: keel 0.1.2** (`cgen 0.1.2`, tag `v0.1.2`). Se a sua versão
 > for outra, desconfie dos detalhes: a spec e o `cgen --cgen-version` valem
 > mais que este texto.
 
@@ -14,7 +14,8 @@ Cada capítulo aponta o trecho dela que o sustenta.
 
 **Como ler.** Os capítulos 1 a 7 formam um percurso, nessa ordem. O capítulo 8
 é consulta. Os exemplos marcados *(verificado)* foram compilados com o `cgen`
-0.1.1 ao escrever este texto; os trechos de C gerado são saída real, só
+0.1.1 ao escrever este texto (a 0.1.2 não mexe no código, só na documentação e no
+número da versão); os trechos de C gerado são saída real, só
 reformatada.
 
 | # | Capítulo |
@@ -508,7 +509,7 @@ void inspect(Traversable C items) {
   associado ligado ao tipo concreto.
 - Um tipo que não atende é `protocol-not-satisfied`.
 
-*Estado do cgen 0.1.1.* O caso coberto pelo golden é uma função
+*Estado do cgen 0.1.2.* O caso coberto pelo golden é uma função
 `pub inline` sobre um tipo comum do próprio módulo (caso 065). Nos meus testes,
 uma função `pub inline` do programa chamada com um `buffer` ou `slice` da base
 não gerou o corpo da instância, e a ligação falhou com símbolo indefinido.
@@ -878,6 +879,76 @@ prog: $(OBJS)
 O depfile (`-MMD`) lista, numa regra só, o que o compilador C reporta mais
 todo `.k` alcançável por `import`: editar um módulo importado refaz quem
 depende dele. O `cgen` acrescenta `-I <dest-dir>` à chamada do `cc`.
+
+#### Um Makefile completo, misturando keel e C
+
+O esqueleto acima serve a um programa só de `.k`. Num projeto com `.k` e `.c`
+(`src/main.k` com a entrada pública, outros módulos em `src/`, `.c` puros ao
+lado), o Makefile abaixo foi testado com o `cgen` e o `gcc`:
+
+```make
+PRJ    := $(notdir $(CURDIR))
+SRCDIR := src
+OBJDIR := obj
+GENDIR := gen
+MAIN   := main
+
+CC     := cgen          # o driver; o compilador C de verdade é o CCC
+CCC    := gcc
+CFLAGS := -std=c2x -I$(SRCDIR) -Wall -Wextra -g -O0
+LDLIBS := -lm
+
+ALL_K  := $(shell find $(SRCDIR) -name '*.k')
+# genérico = cabeçalho 'module nome dim|tags|type ...;' (não compila sozinho)
+GEN_K  := $(shell grep -lE '^module[[:space:]]+[A-Za-z0-9_.]+[[:space:]]+(dim|tags|type)[[:space:]]' $(ALL_K) /dev/null)
+K_SRCS := $(filter-out $(SRCDIR)/$(MAIN).k $(GEN_K),$(ALL_K))
+C_SRCS := $(shell find $(SRCDIR) -name '*.c')
+OBJS   := $(patsubst $(SRCDIR)/%.k,$(OBJDIR)/%.o,$(K_SRCS)) \
+          $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(C_SRCS))
+
+KGEN := $(CC) --cc=$(CCC) --dest-dir $(GENDIR) -I $(SRCDIR) $(CFLAGS)
+
+all: $(PRJ)
+
+# um .k por invocação; -c só compila (não gera o main do C)
+$(OBJDIR)/%.o: $(SRCDIR)/%.k
+	@mkdir -p $(dir $@)
+	$(KGEN) -MMD -c $< -o $@
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CCC) $(CFLAGS) -MMD -c $< -o $@
+
+# o módulo de entrada compila e liga de uma vez (é ele que gera o main do C)
+$(PRJ): $(SRCDIR)/$(MAIN).k $(OBJS)
+	@mkdir -p $(OBJDIR)
+	$(KGEN) -MMD -MF $(OBJDIR)/$(MAIN).d -MT $@ $< $(OBJS) $(LDLIBS) -o $@
+
+-include $(shell find $(OBJDIR) -name '*.d' 2>/dev/null)
+
+run: $(PRJ)
+	./$(PRJ)
+
+clean:
+	rm -rf $(OBJDIR) $(GENDIR) $(PRJ)
+
+.PHONY: all run clean
+```
+
+- **`CC := cgen` e `--cc=$(CCC)`:** o `cgen` substitui o `gcc` na linha; o
+  compilador C real vai em `--cc`. Os `.c` puros usam o `$(CCC)` direto.
+- **Só o módulo de entrada liga:** com `-c` o `cgen` não gera o `main` do C.
+  Por isso `main.k` fica fora de `K_SRCS` e entra na linha de ligação, junto
+  dos `.o` (um `.k` mais `.o`/`.c` na mesma linha é permitido).
+- **Genéricos ficam fora de `K_SRCS`:** um módulo genérico declara parâmetros
+  no cabeçalho (`module box type T;`, `module m dim N;`, `tags`), e
+  `cgen box.k` sobre ele é `generic-source-without-instance`. O `grep` os
+  separa (e só vê o cabeçalho escrito em uma linha). O genérico entra no build
+  por uso (o `instance` num `.k` comum) ou por `--instance`, com uma regra à
+  mão: `obj/coll_stack_i32.o: ; $(KGEN) -c --instance "coll.stack i32" -o $@`.
+- **`-MMD`** em todas as receitas; no módulo de entrada, `-MF`/`-MT`
+  explícitos, para o depfile não colidir com o do alvo final.
+- **Chamar módulo importado:** `import net.util as util;` e `util.twice(…)`.
 
 ### 7.6 Diagnósticos e código de saída
 

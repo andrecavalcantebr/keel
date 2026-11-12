@@ -252,12 +252,13 @@ static bool descends(const Ctx *c, int l, int x, int depth) {
 }
 
 /* `x` and, when `self`, `x` itself become invalid with everything that comes from it */
-static void invalidate(Ctx *c, int x, bool self, keel_slice_char by) {
+static void invalidate(Ctx *c, int x, bool self, keel_slice_char by, size_t from) {
     for (size_t l = 0; l < c->local_count; l++)
         if (((int)l == x && self) || descends(c, (int)l, x, 0)) {
             c->locals[l].invalid = true;
             c->locals[l].told = false;
             c->locals[l].invalid_by = by;
+            c->locals[l].invalid_from = from;
         }
 }
 
@@ -469,11 +470,15 @@ void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *ar
     int parents[K_PARAMS_MAX], np = 0;
     for (size_t k = 0; k < argc && k < sig->n; k++)
         if (roles.p[k] == K_ROLE_PARENT) parents[np++] = isl_local_of(c, args[k]);
+    /* the invalidation starts after the call's arguments: the token just past the last one */
+    size_t from = callee;
+    for (size_t k = 0; k < argc; k++)
+        if (args[k].end > from) from = args[k].end;
     for (size_t k = 0; k < argc && k < sig->n; k++) {
         int x = isl_local_of(c, args[k]);
         if (x < 0) continue;
-        if (roles.p[k] == K_ROLE_INVALIDATES) { own_invalidation(c, isl_tok(a, callee), x, false); invalidate(c, x, false, verb); }
-        if (roles.p[k] == K_ROLE_CONSUMES) { own_invalidation(c, isl_tok(a, callee), x, true); invalidate(c, x, true, verb); }
+        if (roles.p[k] == K_ROLE_INVALIDATES) { own_invalidation(c, isl_tok(a, callee), x, false); invalidate(c, x, false, verb, from); }
+        if (roles.p[k] == K_ROLE_CONSUMES) { own_invalidation(c, isl_tok(a, callee), x, true); invalidate(c, x, true, verb, from); }
     }
     for (size_t k = 0; k < argc && k < sig->n; k++)
         if (roles.p[k] == K_ROLE_CHILD) isl_produce(c, isl_local_of(c, args[k]), parents, np);

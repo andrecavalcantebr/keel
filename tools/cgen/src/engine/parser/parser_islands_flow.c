@@ -1085,13 +1085,14 @@ void isl_walk(Ctx *c, const KAstNode *n) {
         if (i == n->name_first || !isl_ident(a, i)) continue;
         if (!isl_signature_of(n, i) && !(i > n->first && (isl_punct(a, i - 1, ".") || isl_punct(a, i - 1, "->")))) {
             int x = isl_local_of(c, (Range){ i, i + 1 });
-            bool assigned = isl_punct(a, i + 1, "=");
+            /* `*p = v;` writes through `p`: it is not an assignment to `p` (`T *p = v;` is excluded by decl_at) */
+            bool assigned = isl_punct(a, i + 1, "=") && !(i > 0 && isl_punct(a, i - 1, "*"));
             if (x >= 0 && c->locals[x].decl_at != i) {
                 if (assigned) {
                     /* an assignment without a role leaves it with no guarantee (rule 10) */
                     c->locals[x].ndeps = 0;
                     c->locals[x].local_origin = c->locals[x].invalid = false;
-                } else if (c->locals[x].invalid && !c->locals[x].told) {
+                } else if (c->locals[x].invalid && !c->locals[x].told && i >= c->locals[x].invalid_from) {
                     isl_diag3(c, K_DIAG_CHILD_REGION_AFTER_INVALIDATION, isl_tok(a, i), isl_tok(a, i), c->locals[x].invalid_by,
                           (keel_slice_char){0});
                     c->locals[x].told = true;

@@ -37,6 +37,8 @@ typedef struct {
     bool invalid;
     bool told;                  /* its use after invalidation was reported */
     keel_slice_char invalid_by; /* the verb that invalidated it */
+    size_t invalid_from;        /* the invalidation counts as a use only from this token on (the call's own
+                                   arguments are evaluated before its effect) */
 } Local;
 
 #define K_TYPES_MAX 256

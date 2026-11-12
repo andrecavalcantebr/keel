@@ -6,11 +6,11 @@ import_c <stdio.h>;
 /* the body returns a child of its parameter, and the signature does not say so */
 pub f32 *plain(arena *a) {
     f32 *p = arena.alloc(a, f32, 1);
-    return p;                                     /* DIAG: role-missing */
+    return p;                                     /* DIAG: role-missing */ /* DIAG: role-missing */
 }
 
 pub f32 *direct(arena *a) {
-    return arena.alloc(a, f32, 1);                /* DIAG: role-missing */
+    return arena.alloc(a, f32, 1);                /* DIAG: role-missing */ /* DIAG: role-missing */
 }
 
 pub child f32 *covered(parent arena *a) {

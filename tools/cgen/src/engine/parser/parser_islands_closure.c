@@ -275,30 +275,76 @@ void isl_produce(Ctx *c, int p, const int *parents, int np) {
     }
 }
 
+/* ---- the roles of a function, written or inherited (spec §5.1, rule 10) ---- */
+
+typedef struct {
+    KRole p[K_PARAMS_MAX];      /* by position among the parameters, `type` ones included */
+    size_t n;
+    KRole result;               /* K_ROLE_CHILD or K_ROLE_NONE */
+} Roles;
+
+/* the verb of a protocol `where` sees that `name` with `arity` parameters meets */
+static const KProtocolVerb *protocol_verb(Ctx *c, const KAst *where, keel_slice_char name, size_t arity, KProtocolDecl *pd) {
+    if (!where || !where->symbols) return NULL;
+    for (size_t i = 0; i < where->symbols->len; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(where->symbols, i);
+        if (s->kind != K_SYM_PROTOCOL || !isl_protocol_decl(c, where, s->name, pd, 0)) continue;
+        for (size_t k = 0; k < pd->verb_count; k++)
+            if (k_symtab_same_name(pd->verbs[k].name, name) && pd->verbs[k].arity == arity) return &pd->verbs[k];
+    }
+    return NULL;
+}
+
+/* the roles of the function `fn` of `home`: those it writes, or else, when it writes none, those of the
+   protocol verb it meets by name and arity. A function over a protocol has its own. */
+static void roles_of(Ctx *c, const KAst *home, const KAstNode *fn, Roles *out) {
+    *out = (Roles){0};
+    Param p[K_PARAMS_MAX];
+    size_t np = isl_params_of(home, fn, p, K_PARAMS_MAX);
+    if (np == SIZE_MAX) return;
+    bool written = false, over_protocol = false;
+    size_t arity = 0;
+    for (size_t k = 0; k < np; k++) {
+        out->p[k] = p[k].role;
+        if (p[k].role != K_ROLE_NONE) written = true;
+        if (p[k].is_protocol) over_protocol = true;
+        if (!p[k].is_type) arity++;
+    }
+    out->n = np;
+    for (size_t j = fn->first; j < fn->name_first; j++)
+        if (k_token_role(isl_tok(home, j)) == K_ROLE_CHILD) { out->result = K_ROLE_CHILD; written = true; }
+    if (written || over_protocol) return;
+    KProtocolDecl pd;
+    const KProtocolVerb *v = protocol_verb(c, home, isl_tok(home, fn->name_first), arity, &pd);
+    if (!v && c->ast != home) v = protocol_verb(c, c->ast, isl_tok(home, fn->name_first), arity, &pd);
+    if (!v) return;
+    size_t at = 0;
+    for (size_t k = 0; k < np && at < v->arity; k++)
+        if (!p[k].is_type) out->p[k] = v->roles[at++];
+    out->result = v->result_role;
+}
+
 /* ---- the body against its own signature (spec §4.12, rules 16 and 17) ---- */
 
 typedef struct { int local; KRole role; keel_slice_char name; } Own;
 
-/* the parameters of the function being walked, each with its local and written role */
-static size_t own_params(const Ctx *c, Own *out) {
+/* the parameters of the function being walked, each with its local and its role, written or inherited */
+static size_t own_params(Ctx *c, Own *out, KRole *result) {
+    *result = K_ROLE_NONE;
     const KAstNode *fn = c->fn;
     if (!fn || fn->kind != K_AST_FUNCTION) return 0;
     Param p[K_PARAMS_MAX];
     size_t np = isl_params_of(c->ast, fn, p, K_PARAMS_MAX), n = 0;
     if (np == SIZE_MAX) return 0;
+    Roles r;
+    roles_of(c, c->ast, fn, &r);
+    *result = r.result;
     for (size_t k = 0; k < np; k++) {
         if (p[k].is_type || p[k].end < p[k].first + 2) continue;
         for (size_t l = c->local_count; l-- > c->global_count;)
-            if (c->locals[l].decl_at == p[k].end - 1) { out[n++] = (Own){ (int)l, p[k].role, c->locals[l].name }; break; }
+            if (c->locals[l].decl_at == p[k].end - 1) { out[n++] = (Own){ (int)l, r.p[k], c->locals[l].name }; break; }
     }
     return n;
-}
-
-static bool returns_child(const Ctx *c) {
-    if (!c->fn) return false;
-    for (size_t j = c->fn->first; j < c->fn->name_first; j++)
-        if (k_token_role(isl_tok(c->ast, j)) == K_ROLE_CHILD) return true;
-    return false;
 }
 
 /* the parameters `l` is, or depends on, and whether it depends on local storage */
@@ -324,7 +370,8 @@ static void role_missing(Ctx *c, KToken at, const char *what, keel_slice_char sy
 void isl_returned_from(Ctx *c, KToken at, const int *srcs, int ns, bool origin_too) {
     if (c->quiet) return;
     Own own[K_PARAMS_MAX];
-    size_t nown = own_params(c, own);
+    KRole result;
+    size_t nown = own_params(c, own, &result);
     bool hit[K_PARAMS_MAX] = {0}, origin = false;
     for (int k = 0; k < ns; k++) reach(c, srcs[k], own, nown, hit, &origin, 0);
     if (origin && origin_too) isl_diag3(c, K_DIAG_REGION_ESCAPE, at, at, (keel_slice_char){0}, (keel_slice_char){0});
@@ -334,7 +381,7 @@ void isl_returned_from(Ctx *c, KToken at, const int *srcs, int ns, bool origin_t
         any = true;
         if (own[k].role != K_ROLE_PARENT) role_missing(c, at, "returns something that comes from", own[k].name, "parent", own[k].name);
     }
-    if (any && !returns_child(c))
+    if (any && result != K_ROLE_CHILD)
         for (size_t k = 0; k < nown; k++)
             if (hit[k]) { role_missing(c, at, "returns something that comes from", own[k].name, "child", (keel_slice_char){0}); break; }
 }
@@ -342,7 +389,8 @@ void isl_returned_from(Ctx *c, KToken at, const int *srcs, int ns, bool origin_t
 /* the call applies `invalidates` or `consumes` to the local `x` (rule 16) */
 static void own_invalidation(Ctx *c, KToken at, int x, bool self) {
     Own own[K_PARAMS_MAX];
-    size_t nown = own_params(c, own);
+    KRole result;
+    size_t nown = own_params(c, own, &result);
     for (size_t k = 0; k < nown; k++) {
         if (own[k].local != x) continue;
         bool ok = own[k].role == K_ROLE_CONSUMES || (!self && own[k].role == K_ROLE_INVALIDATES);
@@ -351,14 +399,15 @@ static void own_invalidation(Ctx *c, KToken at, int x, bool self) {
 }
 
 /* whether the local `x` is local storage, or depends on a parameter the signature does not cover */
-static bool may_escape(const Ctx *c, int x, keel_slice_char *why_param, bool *why_local) {
+static bool may_escape(Ctx *c, int x, keel_slice_char *why_param, bool *why_local) {
     Own own[K_PARAMS_MAX];
-    size_t nown = own_params(c, own);
+    KRole result;
+    size_t nown = own_params(c, own, &result);
     bool hit[K_PARAMS_MAX] = {0}, origin = c->locals[x].local_origin;
     for (int k = 0; k < c->locals[x].ndeps; k++) reach(c, c->locals[x].deps[k], own, nown, hit, &origin, 0);
     *why_local = origin;
     for (size_t k = 0; k < nown; k++)
-        if (hit[k] && (own[k].role != K_ROLE_PARENT || !returns_child(c))) { *why_param = own[k].name; return true; }
+        if (hit[k] && (own[k].role != K_ROLE_PARENT || result != K_ROLE_CHILD)) { *why_param = own[k].name; return true; }
     return origin;
 }
 
@@ -415,20 +464,20 @@ void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *ar
                           keel_slice_char verb) {
     KAst *a = c->ast;
     if (c->quiet || !sig->found) return;
+    Roles roles;
+    roles_of(c, home, sig->fn, &roles);
     int parents[K_PARAMS_MAX], np = 0;
     for (size_t k = 0; k < argc && k < sig->n; k++)
-        if (sig->p[k].role == K_ROLE_PARENT) parents[np++] = isl_local_of(c, args[k]);
+        if (roles.p[k] == K_ROLE_PARENT) parents[np++] = isl_local_of(c, args[k]);
     for (size_t k = 0; k < argc && k < sig->n; k++) {
         int x = isl_local_of(c, args[k]);
         if (x < 0) continue;
-        if (sig->p[k].role == K_ROLE_INVALIDATES) { own_invalidation(c, isl_tok(a, callee), x, false); invalidate(c, x, false, verb); }
-        if (sig->p[k].role == K_ROLE_CONSUMES) { own_invalidation(c, isl_tok(a, callee), x, true); invalidate(c, x, true, verb); }
+        if (roles.p[k] == K_ROLE_INVALIDATES) { own_invalidation(c, isl_tok(a, callee), x, false); invalidate(c, x, false, verb); }
+        if (roles.p[k] == K_ROLE_CONSUMES) { own_invalidation(c, isl_tok(a, callee), x, true); invalidate(c, x, true, verb); }
     }
     for (size_t k = 0; k < argc && k < sig->n; k++)
-        if (sig->p[k].role == K_ROLE_CHILD) isl_produce(c, isl_local_of(c, args[k]), parents, np);
-    bool child_return = false;
-    for (size_t j = sig->fn->first; j < sig->fn->name_first; j++)
-        if (k_token_role(isl_tok(home, j)) == K_ROLE_CHILD) child_return = true;
+        if (roles.p[k] == K_ROLE_CHILD) isl_produce(c, isl_local_of(c, args[k]), parents, np);
+    bool child_return = roles.result == K_ROLE_CHILD;
     if (child_return && callee >= 2 && isl_punct(a, callee - 1, "=") && isl_ident(a, callee - 2))
         isl_produce(c, isl_local_of(c, (Range){ callee - 2, callee - 1 }), parents, np);
     else if (child_return && callee >= 1 && isl_word(a, callee - 1, "return")) {    /* `return call(...);`: `T t = call(...); return t;` */

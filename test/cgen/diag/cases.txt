@@ -50,3 +50,6 @@ delims2 d.k
 groupscope g.k
 type-arg-foreign tf.k
 indirect-import ia.k
+role-missing v.k
+protocol-roles use.k
+protocol-roles-bad bad.k

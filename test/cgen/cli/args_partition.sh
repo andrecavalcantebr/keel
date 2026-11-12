@@ -44,7 +44,7 @@ out=$("$CGEN" --cgen-version 2>&1)
 code=$?
 if [ "$code" != 0 ]; then
     fail_with_output "--cgen-version exit code: got $code" "$out"
-elif [ "$out" != "cgen 0.1.1" ]; then
+elif [ "$out" != "cgen 0.1.2" ]; then
     fail_with_output "--cgen-version output: got '$out'" ""
 fi
 

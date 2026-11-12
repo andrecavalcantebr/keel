@@ -1664,6 +1664,83 @@ da linha de comando.
   dependem dele.
 - Para só ver o C: `cgen --stop-after=gen -I src --dest-dir gen src/mod.k`.
 
+### Makefile completo: keel e C no mesmo projeto
+
+Layout: `src/main.k` (módulo `main`, com `pub int main`), outros `.k` em
+`src/` (subpastas seguem o nome do módulo) e `.c` puros em `src/`. Testado
+com o `cgen` e o `gcc`.
+
+```make
+PRJ    := $(notdir $(CURDIR))
+SRCDIR := src
+OBJDIR := obj
+GENDIR := gen
+MAIN   := main
+
+CC     := cgen          # o driver; o compilador C de verdade é o CCC
+CCC    := gcc
+CFLAGS := -std=c2x -I$(SRCDIR) -Wall -Wextra -g -O0
+LDLIBS := -lm
+
+ALL_K  := $(shell find $(SRCDIR) -name '*.k')
+# genérico = cabeçalho 'module nome dim|tags|type ...;' (não compila sozinho)
+GEN_K  := $(shell grep -lE '^module[[:space:]]+[A-Za-z0-9_.]+[[:space:]]+(dim|tags|type)[[:space:]]' $(ALL_K) /dev/null)
+K_SRCS := $(filter-out $(SRCDIR)/$(MAIN).k $(GEN_K),$(ALL_K))
+C_SRCS := $(shell find $(SRCDIR) -name '*.c')
+OBJS   := $(patsubst $(SRCDIR)/%.k,$(OBJDIR)/%.o,$(K_SRCS)) \
+          $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(C_SRCS))
+
+KGEN := $(CC) --cc=$(CCC) --dest-dir $(GENDIR) -I $(SRCDIR) $(CFLAGS)
+
+all: $(PRJ)
+
+# um .k por invocação; -c só compila (não gera o main do C)
+$(OBJDIR)/%.o: $(SRCDIR)/%.k
+	@mkdir -p $(dir $@)
+	$(KGEN) -MMD -c $< -o $@
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CCC) $(CFLAGS) -MMD -c $< -o $@
+
+# o módulo de entrada compila e liga de uma vez (é ele que gera o main do C)
+$(PRJ): $(SRCDIR)/$(MAIN).k $(OBJS)
+	@mkdir -p $(OBJDIR)
+	$(KGEN) -MMD -MF $(OBJDIR)/$(MAIN).d -MT $@ $< $(OBJS) $(LDLIBS) -o $@
+
+-include $(shell find $(OBJDIR) -name '*.d' 2>/dev/null)
+
+run: $(PRJ)
+	./$(PRJ)
+
+clean:
+	rm -rf $(OBJDIR) $(GENDIR) $(PRJ)
+
+.PHONY: all run clean
+```
+
+Pontos que o Makefile depende de:
+
+- **`CC := cgen` e `--cc=$(CCC)`:** o `cgen` substitui o `gcc` na linha; o
+  compilador C real vai em `--cc`. Os `.c` puros usam o `$(CCC)` direto.
+- **Só o módulo de entrada liga:** com `-c` o cgen não gera o `main` do C.
+  Por isso `main.k` fica fora de `K_SRCS` e entra na linha de ligação,
+  junto dos `.o` (um `.k` mais `.o`/`.c` na mesma linha é permitido).
+- **Genéricos ficam fora de `K_SRCS`:** um módulo genérico declara parâmetros
+  no cabeçalho (`module box type T;`, `module m dim N;`, `tags`), e `cgen box.k`
+  sobre ele é `generic-source-without-instance`. O `grep` acima os separa. Ele
+  entra no build por uso (o `instance` num `.k` comum, que já está em
+  `K_SRCS`) ou por `--instance`, com uma regra à mão, por exemplo
+  `obj/coll_stack_i32.o: ; $(KGEN) -c --instance "coll.stack i32" -o $@`
+  (o `grep` só vê o cabeçalho em uma linha).
+- **`-MMD`** em todas as receitas; no módulo de entrada, `-MF`/`-MT`
+  explícitos, para o depfile não colidir com o do alvo final. Editar um `.k`
+  importado refaz quem o importa.
+- **Chamar módulo importado:** `import net.util as util;` e `util.twice(…)`
+  (com `net.util.twice(…)` o teste falhou: `'net' undeclared`).
+- **Header C do projeto:** `import_c "hello.h";`, resolvido por
+  `-I$(SRCDIR)` (repassado ao compilador C).
+
 ### Diagnósticos e código de saída
 
 O formato é o do gcc, com a posição no `.k` (nunca no gerado) e o nome

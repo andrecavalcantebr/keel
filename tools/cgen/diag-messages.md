@@ -182,6 +182,8 @@ O conteúdo das tabelas é em inglês, como o código.
 | `type-param-shadows-type` | the erased type parameter `%s` has the name of a known type: choose another name | An erased `type` parameter with the name of a type known in scope |
 | `type-arg-foreign` | `%s` erases to `sizeof`/`alignof` here, and is from another module: write it in a local type, or pass the instance some other way | A type argument of an erased `type` parameter that is from another module |
 | `role-position` | `%s` is a role: a role stands before the type of a parameter, and only `child` before the return type | A role outside an admitted position |
+| `role-missing` | the body %s `%s`: the signature needs %s | A body whose returned symbol depends on a parameter, or that invalidates or consumes a parameter, with the role missing from the signature |
+| `return-may-escape` | the returned expression holds `%s`, which %s | A returned expression that holds, as an operand, a symbol that depends on local storage or on a parameter without the role |
 | `unknown-protocol` | `%s` names no protocol here: declare it, or import the module that does | An unknown protocol name |
 | `associated-type-unbound` | the associated type `%s` of `%s` appears in no verb, so nothing binds it | An associated type that appears in no required verb of the protocol |
 | `associated-type-conflict` | the associated type `%s` binds to `%s` through one verb and to `%s` through another: it binds once | Incompatible bindings for the same associated type |

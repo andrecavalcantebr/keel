@@ -31,7 +31,7 @@ pub u8 *escape_array(void) {
 }
 
 static array u8 kept[64];
-pub i32 *kept_ok(arena *a) {
+pub child i32 *kept_ok(parent arena *a) {
     arena.from_array(a, kept);
     i32 *p = arena.alloc(a, i32, 4);
     return p;

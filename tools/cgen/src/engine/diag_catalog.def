@@ -132,6 +132,8 @@
     X(TYPE_PARAM_SHADOWS_TYPE, "type-param-shadows-type", K_ERROR) \
     X(TYPE_ARG_FOREIGN, "type-arg-foreign", K_ERROR) \
     X(ROLE_POSITION, "role-position", K_ERROR) \
+    X(ROLE_MISSING, "role-missing", K_ERROR) \
+    X(RETURN_MAY_ESCAPE, "return-may-escape", K_WARNING) \
     X(UNKNOWN_PROTOCOL, "unknown-protocol", K_ERROR) \
     X(ASSOCIATED_TYPE_UNBOUND, "associated-type-unbound", K_ERROR) \
     X(ASSOCIATED_TYPE_CONFLICT, "associated-type-conflict", K_ERROR) \

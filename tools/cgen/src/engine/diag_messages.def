@@ -131,6 +131,8 @@
     X(TYPE_PARAM_SHADOWS_TYPE, "the erased type parameter `%s` has the name of a known type: choose another name") \
     X(TYPE_ARG_FOREIGN, "`%s` erases to `sizeof`/`alignof` here, and is from another module: write it in a local type, or pass the instance some other way") \
     X(ROLE_POSITION, "`%s` is a role: a role stands before the type of a parameter, and only `child` before the return type") \
+    X(ROLE_MISSING, "the body %s `%s`: the signature needs %s") \
+    X(RETURN_MAY_ESCAPE, "the returned expression holds `%s`, which %s") \
     X(UNKNOWN_PROTOCOL, "`%s` names no protocol here: declare it, or import the module that does") \
     X(ASSOCIATED_TYPE_UNBOUND, "the associated type `%s` of `%s` appears in no verb, so nothing binds it") \
     X(ASSOCIATED_TYPE_CONFLICT, "the associated type `%s` binds to `%s` through one verb and to `%s` through another: it binds once") \

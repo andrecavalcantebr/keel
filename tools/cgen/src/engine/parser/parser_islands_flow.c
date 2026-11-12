@@ -1060,6 +1060,7 @@ void isl_walk(Ctx *c, const KAstNode *n) {
             if (x >= 0 && c->locals[x].local_origin)
                 isl_diag3(c, K_DIAG_REGION_ESCAPE, isl_tok(a, i + 1), isl_tok(a, i + 1), (keel_slice_char){0}, (keel_slice_char){0});
         }
+        if (!isl_signature_of(n, i) && isl_word(a, i, "return")) isl_check_return(c, i, n->end);
         if (isl_word(a, i, "return") && inside_parallel(c, i)) {      /* a C word, not an identifier */
             isl_diag3(c, K_DIAG_RETURN_IN_PARALLEL, isl_tok(a, i), c->par_name, (keel_slice_char){0}, (keel_slice_char){0});
             continue;

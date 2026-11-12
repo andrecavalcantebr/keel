@@ -275,6 +275,140 @@ void isl_produce(Ctx *c, int p, const int *parents, int np) {
     }
 }
 
+/* ---- the body against its own signature (spec §4.12, rules 16 and 17) ---- */
+
+typedef struct { int local; KRole role; keel_slice_char name; } Own;
+
+/* the parameters of the function being walked, each with its local and written role */
+static size_t own_params(const Ctx *c, Own *out) {
+    const KAstNode *fn = c->fn;
+    if (!fn || fn->kind != K_AST_FUNCTION) return 0;
+    Param p[K_PARAMS_MAX];
+    size_t np = isl_params_of(c->ast, fn, p, K_PARAMS_MAX), n = 0;
+    if (np == SIZE_MAX) return 0;
+    for (size_t k = 0; k < np; k++) {
+        if (p[k].is_type || p[k].end < p[k].first + 2) continue;
+        for (size_t l = c->local_count; l-- > c->global_count;)
+            if (c->locals[l].decl_at == p[k].end - 1) { out[n++] = (Own){ (int)l, p[k].role, c->locals[l].name }; break; }
+    }
+    return n;
+}
+
+static bool returns_child(const Ctx *c) {
+    if (!c->fn) return false;
+    for (size_t j = c->fn->first; j < c->fn->name_first; j++)
+        if (k_token_role(isl_tok(c->ast, j)) == K_ROLE_CHILD) return true;
+    return false;
+}
+
+/* the parameters `l` is, or depends on, and whether it depends on local storage */
+static void reach(const Ctx *c, int l, const Own *own, size_t nown, bool *hit, bool *origin, int depth) {
+    if (depth > 16 || l < 0 || (size_t)l >= c->local_count) return;
+    for (size_t k = 0; k < nown; k++) if (own[k].local == l) hit[k] = true;
+    if (c->locals[l].local_origin) *origin = true;
+    for (int k = 0; k < c->locals[l].ndeps; k++) reach(c, c->locals[l].deps[k], own, nown, hit, origin, depth + 1);
+}
+
+static void role_missing(Ctx *c, KToken at, const char *what, keel_slice_char sym, const char *role, keel_slice_char on) {
+    Text t = { .ok = true };
+    isl_put_str(&t, "`");
+    isl_put_str(&t, role);
+    isl_put_str(&t, "` on ");
+    if (on.len) { isl_put_str(&t, "`"); isl_put(&t, on.ptr, on.len); isl_put_str(&t, "`"); }
+    else isl_put_str(&t, "the result");
+    isl_diag3(c, K_DIAG_ROLE_MISSING, at, k_diag_text(what), sym, isl_keep(c, &t));
+}
+
+/* `return`: what is returned depends on `srcs` (rule 16). With `origin_too`, local storage among
+   them is a region-escape as well (`return x;` has its own report). */
+void isl_returned_from(Ctx *c, KToken at, const int *srcs, int ns, bool origin_too) {
+    if (c->quiet) return;
+    Own own[K_PARAMS_MAX];
+    size_t nown = own_params(c, own);
+    bool hit[K_PARAMS_MAX] = {0}, origin = false;
+    for (int k = 0; k < ns; k++) reach(c, srcs[k], own, nown, hit, &origin, 0);
+    if (origin && origin_too) isl_diag3(c, K_DIAG_REGION_ESCAPE, at, at, (keel_slice_char){0}, (keel_slice_char){0});
+    bool any = false;
+    for (size_t k = 0; k < nown; k++) {
+        if (!hit[k]) continue;
+        any = true;
+        if (own[k].role != K_ROLE_PARENT) role_missing(c, at, "returns something that comes from", own[k].name, "parent", own[k].name);
+    }
+    if (any && !returns_child(c))
+        for (size_t k = 0; k < nown; k++)
+            if (hit[k]) { role_missing(c, at, "returns something that comes from", own[k].name, "child", (keel_slice_char){0}); break; }
+}
+
+/* the call applies `invalidates` or `consumes` to the local `x` (rule 16) */
+static void own_invalidation(Ctx *c, KToken at, int x, bool self) {
+    Own own[K_PARAMS_MAX];
+    size_t nown = own_params(c, own);
+    for (size_t k = 0; k < nown; k++) {
+        if (own[k].local != x) continue;
+        bool ok = own[k].role == K_ROLE_CONSUMES || (!self && own[k].role == K_ROLE_INVALIDATES);
+        if (!ok) role_missing(c, at, self ? "consumes" : "invalidates", own[k].name, self ? "consumes" : "invalidates", own[k].name);
+    }
+}
+
+/* whether the local `x` is local storage, or depends on a parameter the signature does not cover */
+static bool may_escape(const Ctx *c, int x, keel_slice_char *why_param, bool *why_local) {
+    Own own[K_PARAMS_MAX];
+    size_t nown = own_params(c, own);
+    bool hit[K_PARAMS_MAX] = {0}, origin = c->locals[x].local_origin;
+    for (int k = 0; k < c->locals[x].ndeps; k++) reach(c, c->locals[x].deps[k], own, nown, hit, &origin, 0);
+    *why_local = origin;
+    for (size_t k = 0; k < nown; k++)
+        if (hit[k] && (own[k].role != K_ROLE_PARENT || !returns_child(c))) { *why_param = own[k].name; return true; }
+    return origin;
+}
+
+/* `return` at token `i`: the forms rule 16 reads as a symbol (`return x;`, `return x[a..b];`), and the
+   other expressions, whose operands are suspect (rule 17). A call is read where it is recognized. */
+void isl_check_return(Ctx *c, size_t i, size_t end) {
+    KAst *a = c->ast;
+    if (c->quiet) return;
+    size_t semi = i + 1;
+    for (int depth = 0; semi < end && !(depth == 0 && isl_punct(a, semi, ";")); semi++) {
+        if (isl_punct(a, semi, "(") || isl_punct(a, semi, "[") || isl_punct(a, semi, "{")) depth++;
+        else if (isl_punct(a, semi, ")") || isl_punct(a, semi, "]") || isl_punct(a, semi, "}")) depth--;
+    }
+    if (semi >= end || semi == i + 1) return;
+    if (semi == i + 2 && isl_ident(a, i + 1)) {                    /* return x; */
+        int x = isl_local_of(c, (Range){ i + 1, i + 2 });
+        if (x >= 0 && (size_t)x >= c->global_count) isl_returned_from(c, isl_tok(a, i + 1), c->locals[x].deps, c->locals[x].ndeps, false);
+        return;
+    }
+    if (isl_ident(a, i + 1) && isl_punct(a, i + 2, "[") && isl_close_bracket(a, i + 2, end) == semi - 1) {
+        bool range = false;                                          /* return x[a..b]; */
+        for (size_t j = i + 3; j < semi - 1; j++) if (isl_punct(a, j, "..")) range = true;
+        int x = isl_local_of(c, (Range){ i + 1, i + 2 });
+        if (range && x >= 0) { isl_returned_from(c, isl_tok(a, i + 1), &x, 1, true); return; }
+    }
+    for (size_t j = i + 1; j < semi; j++) {
+        if (isl_punct(a, j, "(") && j > i + 1 && (isl_ident(a, j - 1) || isl_punct(a, j - 1, ")") || isl_punct(a, j - 1, "]"))) {
+            size_t close = isl_close_paren(a, j, semi);               /* a call: its result is read by its signature */
+            if (close != SIZE_MAX) j = close;
+            continue;
+        }
+        if (!isl_ident(a, j) || isl_punct(a, j - 1, ".") || isl_punct(a, j - 1, "->")) continue;
+        if (isl_punct(a, j + 1, ".") || isl_punct(a, j + 1, "->") || isl_punct(a, j + 1, "[")) continue;
+        if (isl_punct(a, j - 1, "*") && !(j - 2 > i && (isl_ident(a, j - 2) || isl_punct(a, j - 2, ")") || isl_punct(a, j - 2, "]")))) continue;
+        int x = isl_local_of(c, (Range){ j, j + 1 });
+        keel_slice_char param = {0};
+        bool local = false;
+        if (x < 0 || (size_t)x < c->global_count || !may_escape(c, x, &param, &local)) continue;
+        Text t = { .ok = true };
+        if (local) isl_put_str(&t, "comes from storage local to the function");
+        else {
+            isl_put_str(&t, "depends on `");
+            isl_put(&t, param.ptr, param.len);
+            isl_put_str(&t, "`, a parameter the signature leaves without `parent` and `child`");
+        }
+        isl_diag3(c, K_DIAG_RETURN_MAY_ESCAPE, isl_tok(a, j), isl_tok(a, j), isl_keep(c, &t), (keel_slice_char){0});
+        break;
+    }
+}
+
 /* the roles of a resolved call, at its arguments (rules 2, 6, 7): `callee` is
    the first token of the call, where an assignment's `=` stands before it */
 void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
@@ -287,8 +421,8 @@ void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *ar
     for (size_t k = 0; k < argc && k < sig->n; k++) {
         int x = isl_local_of(c, args[k]);
         if (x < 0) continue;
-        if (sig->p[k].role == K_ROLE_INVALIDATES) invalidate(c, x, false, verb);
-        if (sig->p[k].role == K_ROLE_CONSUMES) invalidate(c, x, true, verb);
+        if (sig->p[k].role == K_ROLE_INVALIDATES) { own_invalidation(c, isl_tok(a, callee), x, false); invalidate(c, x, false, verb); }
+        if (sig->p[k].role == K_ROLE_CONSUMES) { own_invalidation(c, isl_tok(a, callee), x, true); invalidate(c, x, true, verb); }
     }
     for (size_t k = 0; k < argc && k < sig->n; k++)
         if (sig->p[k].role == K_ROLE_CHILD) isl_produce(c, isl_local_of(c, args[k]), parents, np);
@@ -297,6 +431,12 @@ void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *ar
         if (k_token_role(isl_tok(home, j)) == K_ROLE_CHILD) child_return = true;
     if (child_return && callee >= 2 && isl_punct(a, callee - 1, "=") && isl_ident(a, callee - 2))
         isl_produce(c, isl_local_of(c, (Range){ callee - 2, callee - 1 }), parents, np);
+    else if (child_return && callee >= 1 && isl_word(a, callee - 1, "return")) {    /* `return call(...);`: `T t = call(...); return t;` */
+        size_t stop = c->fn ? c->fn->end : callee, open = callee;
+        while (open < stop && !isl_punct(a, open, "(")) open++;
+        size_t close = open < stop ? isl_close_paren(a, open, stop) : SIZE_MAX;
+        if (close != SIZE_MAX && isl_punct(a, close + 1, ";")) isl_returned_from(c, isl_tok(a, callee), parents, np, true);
+    }
 }
 
 /* ---- instance (spec §4.3) ---------------------------------------------- */

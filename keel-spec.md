@@ -1626,8 +1626,8 @@ Registrar a origem do armazenamento de um símbolo e as operações que o invali
     ele fica sem garantia, e não válido.
 11. O resultado da chamada não é considerado: a relação vale mesmo que a
     operação falhe.
-12. Papéis de assinaturas de outros módulos valem no ponto de chamada. keel não
-    confere o corpo da função contra os papéis declarados.
+12. Papéis de assinaturas de outros módulos valem no ponto de chamada. keel só
+    confere o corpo da função contra os papéis declarados nos casos da regra 16.
 13. Papéis não acrescentam campos, parâmetros nem código ao C emitido.
 14. Uma construção que chama um verbo com papéis vale como a chamada escrita:
     `x[a..b]` chama `as_slice`; `foreach` de binder por ponteiro, `ptr`;
@@ -1637,6 +1637,22 @@ Registrar a origem do armazenamento de um símbolo e as operações que o invali
     o cursor de `walk`, o binder de partição de `parallel` e o símbolo
     inicializado ou atribuído por `x[a..b]`. O binder por valor é cópia e não é
     produto; `x[i]` dentro de expressão não tem símbolo que o receba.
+16. Para a análise, `return expr;` vale como `T t = expr; return t;`, com `T` o
+    tipo de retorno escrito; o C emitido não muda. O corpo é conferido contra a
+    própria assinatura nos dois casos abaixo. A falta do papel é `role-missing`;
+    o papel que sobra não é diagnosticado.
+    - O retorno depende de um parâmetro: exige `parent` nesse parâmetro e
+      `child` no retorno.
+    - Uma chamada reconhecida aplica `invalidates` ou `consumes` a um
+      parâmetro: exige, nele, `invalidates` ou `consumes` (`consumes` basta
+      onde se exige `invalidates`).
+
+    Num verbo de protocolo sem papéis escritos, valem os herdados (§5.1,
+    regra 10).
+17. Num `return` cuja expressão não é um símbolo nem uma chamada reconhecida,
+    cada símbolo que aparece como operando (fora de chamadas, e sem `.`, `->`,
+    `[` ou `*` aplicados) e que depende de origem local ou de parâmetro sem o
+    papel é `return-may-escape`, aviso.
 
 Referências: [Rationale: papéis e núcleo mínimo](keel-rationale.md#papéis-e-núcleo-mínimo).
 
@@ -1656,11 +1672,11 @@ O C emitido é o da chamada comum; os papéis não deixam traço.
 
 #### 4. Erros
 
-`region-escape`, `child-region-after-invalidation`, `role-position`.
+`region-escape`, `child-region-after-invalidation`, `role-position`, `role-missing`, `return-may-escape`.
 
 #### 5. Casos especiais
 
-- O programa garante que os papéis declarados descrevem o comportamento da função.
+- O programa garante que os papéis declarados descrevem o comportamento da função, além do que a regra 16 confere.
 - Cópias, campos, aliases e ponteiros crus não são seguidos: depois de
   `f = e;`, invalidar `e` não invalida `f`. Ausência de diagnóstico não prova
   validade.
@@ -2811,6 +2827,8 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `type-param-shadows-type` | Parâmetro `type` apagado com nome de tipo conhecido no escopo | `error` | keel | §4.4 |
 | `type-arg-foreign` | Argumento de tipo escrito num parâmetro `type` apagado (§4.4, regra 13) que é de outro módulo | `error` | keel | §4.4 |
 | `role-position` | Papel fora de posição admitida | `error` | keel, na tradução | §4.12 |
+| `role-missing` | Corpo cujo retorno depende de parâmetro, ou que invalida ou consome parâmetro, sem o papel correspondente na assinatura | `error` | keel, na tradução | §4.12 |
+| `return-may-escape` | Retorno de expressão que contém, como operando, símbolo que depende de origem local ou de parâmetro sem o papel | `warning` | keel, na tradução | §4.12 |
 | `unknown-protocol` | Nome de protocolo desconhecido | `error` | keel, na tradução | §5.1 |
 | `associated-type-unbound` | Tipo associado que não aparece em nenhum verbo exigido do protocolo | `error` | keel, na tradução | §5.1 |
 | `associated-type-conflict` | Ligações incompatíveis para o mesmo tipo associado | `error` | keel, na tradução | §5.1 |

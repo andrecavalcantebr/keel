@@ -1906,6 +1906,18 @@ pool e bibliotecas do programa usam a mesma análise lexical. Os papéis não
 geram campos nem instruções e não provam corpos C. O programa responde pela
 veracidade do contrato declarado; cópias e aliases continuam fora da análise.
 
+O contrato, porém, é conferido onde o corpo o mostra. Um papel que ninguém
+confere é um comentário, e a falta dele esconde justamente o erro que o papel
+existe para pegar: a função que devolve um filho da arena recebida, sem dizê-lo,
+entrega ao chamador um símbolo sem procedência. Por isso o corpo é lido contra a
+própria assinatura (`role-missing`), com `return expr;` descido na análise a
+`T t = expr; return t;` e sem tocar o C emitido, ao contrário do temporário do
+`defer`, que o backend precisa escrever. A conferência continua lexical e
+modular: lê as assinaturas das chamadas, nunca os corpos alheios. O papel que
+sobra não é erro, porque só torna o chamador conservador. A expressão que mistura
+o símbolo com operadores não permite saber se o endereço escapa; a suspeita é
+aviso (`return-may-escape`), e o `return` de um símbolo isolado, erro.
+
 A generalização não está completa apenas por trocar os diagnósticos: o `{0}`
 implícito da arena e sua restrição de passagem por valor permanecem
 privilégios explícitos até a decisão sobre inicialização e `byref` em `typedef`.

@@ -1,0 +1,82 @@
+O que este caso afirma
+=======================
+
+Uma função sobre protocolo (spec §4.14) declarada num módulo comum,
+`app.ibox_use`, chamada com um tipo concreto que é instância de um modificador
+de OUTRO módulo genérico, `app.ibox`: `box i32`. Nenhum golden anterior
+exercita isso. O 065 usa tipo comum do próprio módulo; `keel.slice.of` só
+aparece via `--instance`, e o 067 não tem função sobre protocolo.
+
+O que o esperado fixa, arquivo por arquivo
+------------------------------------------
+
+**`app/app_ibox_use_count_app_ibox_box_i32.type.h`** e **`.h`** (c23, c11)
+
+O par próprio da instância de `count` (backend §5.19, regra 4), com o nome
+`<prefixo>_<nome>_<tipo>`: o prefixo é o do módulo que declara a função,
+`app_ibox_use` (backend §5.19, regra 1; linguagem §4.14, regra 10 não se
+aplica, `app.ibox_use` não é genérico). Diretório `app/`, pelo componente-pai
+do módulo (backend §4.1, regra 5). Aridade única, então sem sufixo
+(backend §2.1.1, regra 1).
+
+O `.h` segue as quatro seções do backend §4.3.2, regra 3:
+
+1. o `.type.h` próprio e o `.type.h` de `app_ibox_box_i32`, que o parâmetro
+   `items` usa **por valor** (regra 7 da §4.14; `box` não é `byref`);
+2. o protótipo;
+3. o `.h` de `app_ibox_box_i32`, cujo verbo `length` o corpo chama;
+4. o corpo, `return app_ibox_box_i32_length(&items);`. A adaptação é a da
+   §4.4: o verbo recebe `box *`, e o argumento é valor, então `&items`
+   (backend §5.19, regra 3). É o mesmo `pf_limit(&items)` do 065.
+
+**`app/app_ibox_box_i32.type.h`** e **`.h`** (c23, c11)
+
+O tipo concreto `box i32` do `app.ibox` genérico, no mesmo molde do 067
+(`app_cbox_box_i32*`). Duas diferenças em relação a ele: o modificador tem
+`size_t length;`, então o campo e o verbo têm o mesmo nome (`b->length` e a
+função `app_ibox_box_i32_length`, que não colidem em C); e o `.h` tem dois
+verbos, `length` e `ptr`, ambos `pub inline` e ambos mencionam `box`, então
+ambos são da instância (backend §4.3, regra 1). `ptr` tem aridade única, e
+por isso não leva sufixo. Ele não é chamado aqui; está no `.h` porque a regra
+o põe lá.
+
+**`app/app_ibox.type.h`** e **`app/app_ibox.h`** (c23, c11)
+
+O módulo genérico, com a parte fixa vazia: nada nele deixa de mencionar `T`
+ou `box`. Idem 067.
+
+**`app/app_ibox_use.type.h`**, **`.h`** e **`.c`** (c23, c11)
+
+O módulo que o caso compila. O `.h` declara só `probe_count`: `count` não
+tem C no módulo, porque é função sobre protocolo, e cada tipo concreto lhe dá
+a sua instância (linguagem §4.14, regra 1). O `.c` traz o corpo de
+`probe_count`, que não é `inline`, e inclui só o `.h` da instância que chama
+(`count`). O `.h` de `box i32` não entra: nenhum verbo dele é chamado no
+`.c`, e os includes são derivados das chamadas já resolvidas (backend §4.3.2,
+regra 7).
+
+Linhas (backend §6)
+--------------------
+
+Os `#line` seguem a invariante: um sai quando a linha da saída e a do `.k`
+divergem. `count` está na linha 4 do `app/ibox_use.k`, `probe_count` na 6,
+`length` e `ptr` na 5 e 6 do `app/ibox.k`, o `typedef` no 3. No `.c`, o
+`#line 1` abre o fonte e as cinco linhas em branco são as linhas 1 a 5 do
+`.k`, de modo que o corpo cai na 6 sem outro `#line`.
+
+Não há código injetado: nenhuma linha de `line-check.allow` é necessária.
+
+Perfis
+------
+
+Escritos separadamente. Os dois são iguais em conteúdo, exceto o nome do
+perfil no cabeçalho de uma linha: nenhum verbo desta forma pode falhar, então
+nenhum sai com `[[nodiscard]]` (backend §9.1), e nada mais varia.
+
+Por que este caso existe
+-------------------------
+
+O par de headers da instância de uma função sobre protocolo era testado só
+com o tipo do mesmo módulo (065), e nunca com um tipo que vem de outro
+módulo genérico, cujo `.h` precisa ser incluído pelo corpo. É o caso em que
+a chamada cruza dois módulos e dois pares de headers.

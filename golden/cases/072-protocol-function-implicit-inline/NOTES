@@ -1,0 +1,27 @@
+O que este caso afirma
+=======================
+
+A mesma forma do caso 065 (`box` com `first`/`limit`, `span` sobre `Countable`,
+chamada de `span_of` sem `--instance`), com uma diferença só: `span` é escrita
+**sem** `inline`. Spec §4.14, regra 8: a função sobre protocolo é sempre
+`inline`, e a palavra é redundante quando presente e dispensável quando ausente.
+Por isso o esperado é idêntico em forma ao do 065 — mesmo `static inline` no
+header da instância (`backend §5.19`), mesmos cortes de `.type.h`/`.h`/`.c` —
+trocando só o nome do módulo (`pf2`) e as linhas do `.k`.
+
+Linhas do `pf2.k` (o módulo tem uma linha a menos que `pf.k` no comentário):
+typedef na 6, `first` na 8, `limit` na 9, `span` na 11, `span_of` na 13.
+
+Por que faltava
+================
+
+Hoje o cgen trata `span` como `inline` só quando a palavra está escrita. Sem
+ela, o programa compila e falha só no link (`undefined reference` a
+`pf2_span_pf2_box`), porque a instância não é emitida como `static inline` no
+seu header. O esperado aqui afirma o comportamento da regra 8; a correção vem
+no cartão seguinte (T53).
+
+Este caso foi escrito à mão, a partir do 065 e da spec, sem rodar o `cgen`
+(`golden/README.md`). `test/cgen/gen/golden-cases.txt` lista o caso com `|wip`:
+o esperado está à frente do emissor, e o oráculo não reprova a suíte até a
+correção sair.

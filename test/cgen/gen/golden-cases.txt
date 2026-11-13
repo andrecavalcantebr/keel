@@ -85,3 +85,4 @@ test/cgen/gen/share|use.k|-
 069-indirect-import|ia.k ib.k ic.k|-
 070-dim-permuted-return|app/mx_use.k|app.mx_use
 071-protocol-function-instance|app/ibox_use.k|-
+072-protocol-function-implicit-inline|pf2.k|-|wip

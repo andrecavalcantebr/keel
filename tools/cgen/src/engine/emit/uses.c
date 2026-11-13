@@ -799,7 +799,7 @@ bool k_em_h_body_includes(Emit *e) {
         bool body = false;
         for (size_t k = 0; k < ast->nodes.len && !body; k++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
-            body = n->kind == K_AST_FUNCTION && n->is_public && n->is_inline && n->body_first != NO_TOKEN &&
+            body = n->kind == K_AST_FUNCTION && n->is_public && (n->is_inline || proto_instance) && n->body_first != NO_TOKEN &&
                    is->anchor >= n->body_first && is->anchor < n->end && !k_em_skip(e, n);
         }
         /* k_em_own_instance treats "this module already declares it" as "already in this

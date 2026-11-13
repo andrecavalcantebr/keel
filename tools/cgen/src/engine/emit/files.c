@@ -85,6 +85,7 @@ static bool header_function(const Emit *e, const KAstNode *n) {
 
 /* a `pub inline` function, or in an instance a `priv inline` one: its body is in the .h */
 static bool header_body(const Emit *e, const KAstNode *n) {
+    if (e->inst && e->inst->proto_fn.len) return true;
     return k_em_is_pub_inline(e->ast, n) || (e->inst && n->kind == K_AST_FUNCTION && n->is_inline);
 }
 

@@ -34,9 +34,13 @@ bool k_em_decl_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
             if (value && k_em_text_is(k_em_tok(ast, n->first), "priv")) {
                 /* a priv function or variable is internal linkage in the .c */
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_STATIC, .at = at, .skip = k_em_tok(ast, n->first).len, .name_tok = 0, .is_type = false });
-            } else if (k_em_is_pub_inline(ast, n)) {
+            } else if (k_em_is_pub_inline(ast, n) || (e->inst && e->inst->proto_fn.len && k_em_over_protocol(ast, n))) {
+                /* a function over a protocol is inline without the word too (spec §4.14, rule 8) */
+                bool word = k_em_is_pub_inline(ast, n);
                 bool nodiscard = e->opt.c23 && k_em_nodiscard(ast, n);
-                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, n->first).len, .name_tok = 0, .is_type = false, .text = nodiscard ? "[[nodiscard]] static" : "static", .text_len = nodiscard ? 20 : 6 });
+                const char *text = nodiscard ? (word ? "[[nodiscard]] static" : "[[nodiscard]] static inline")
+                                             : (word ? "static" : "static inline");
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = at, .skip = k_em_tok(ast, n->first).len, .name_tok = 0, .is_type = false, .text = text, .text_len = strlen(text) });
             } else {
                 /* the keyword and the blanks after it */
                 size_t skip = k_em_tok(ast, n->first).len;

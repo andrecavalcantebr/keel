@@ -248,6 +248,7 @@ static int emit_protocol_functions(keel_arena *arena, const char *dest, const KA
            case this is: found only for a concrete type that is a generic instance) */
         size_t save_islands = generic->islands.len, save_island_text = generic->island_text.len;
         size_t save_closure = generic->closure.len, save_closure_text = generic->closure_text.len;
+        size_t save_unavailable = generic->unavailable.len;
         if (k) k_collect_instance_islands(generic, &ii, &scratch);
         char src_buf[8192];
         keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf);
@@ -275,6 +276,7 @@ static int emit_protocol_functions(keel_arena *arena, const char *dest, const KA
         generic->island_text.len = save_island_text;
         generic->closure.len = save_closure;
         generic->closure_text.len = save_closure_text;
+        generic->unavailable.len = save_unavailable;
         if (rc) return rc;
     }
     return 0;

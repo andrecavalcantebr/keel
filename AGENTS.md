@@ -13,8 +13,16 @@ para cá.
   A cópia foi feita em 2026-09-21, a partir da memória local do Claude Code, e
   atualizada em 2026-11-07 (os 67 casos do golden saem do cgen: os dois
   novos, 067-068, vêm de dois bugs achados avaliando um uso real em
-  `../keel_libs`). O que diverge do repositório vale menos que o repositório.
-- **Nenhuma pendência de normativo em aberto** desde 2026-11-07 (a última
+  `../keel_libs`). Desde então o golden chegou a 69 casos (070 é o último) e a
+  cópia ficou defasada: a memória local do Claude Code tem entradas mais
+  novas. O que diverge do repositório vale menos que o repositório.
+- **Nenhuma pendência de normativo em aberto** em 2026-11-13. Desde 2026-11-07
+  entraram a regra `|S|` de papéis × protocolo estrutural (§5.1, regra 10, com o
+  diagnóstico `protocol-role-ambiguous`, commit 9d84819), a conferência do corpo
+  contra a própria assinatura (§4.12, regras 16 e 17) e a retirada de
+  `--pedantic-names` (D22). Em aberto fica só a decisão de release da 0.2.0
+  (trabalho rotineiro vai na branch `0.2.0`; `master` fica estável). Antes
+  disso, em 2026-11-07 (a última
   leva, `dim-generates-declaration` saiu do catálogo — o caso que o motivou
   (tensor de N dimensões) já se resolve com laço em runtime, e a gramática
   nunca ofereceu como escrever o que ele temia — escrita com o "sim" do

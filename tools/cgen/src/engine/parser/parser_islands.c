@@ -139,7 +139,7 @@ bool isl_emit(Ctx *c, KIslandKind kind, size_t anchor, const Text *t) {
         return false;
     }
     size_t pos = a->islands.len;
-    while (pos > 0 && keel_buffer_KIsland_ptr(&a->islands, pos - 1)->anchor > anchor) pos--;
+    while (!c->keep_islands && pos > 0 && keel_buffer_KIsland_ptr(&a->islands, pos - 1)->anchor > anchor) pos--;
     memmove(a->islands.ptr + pos + 1, a->islands.ptr + pos, (a->islands.len - pos) * sizeof *a->islands.ptr);
     a->islands.len++;
     *keel_buffer_KIsland_ptr(&a->islands, pos) =
@@ -1108,13 +1108,20 @@ static bool names_instance(const KAst *a, const KAstNode *fn) {
 }
 
 bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosticSink *diag) {
-    a->islands.len = 0;
-    a->island_text.len = 0;
+    /* a function over a protocol in a module that is not generic is read too: its body's
+       verbs of the protocol are the concrete type's (spec §4.14, rule 5). That module is
+       emitted from its own islands and closure, so they are kept and this walk appends to
+       them; the caller restores the lengths (stop_gen.c, emit_protocol_functions) */
+    bool keep = a->symbols && inst->proto_fn.len && !isl_generic(a);
+    if (!keep) {
+        a->islands.len = 0;
+        a->island_text.len = 0;
+    }
     seed_count = seed_node_count = 0;
-    if (!a->symbols || !isl_generic(a) || inst->argc > K_SPEC_MAX_ARGS) return false;
+    if (!a->symbols || (!isl_generic(a) && !keep) || inst->argc > K_SPEC_MAX_ARGS) return false;
     static Surface surface[K_SURFACE_MAX];
     static Ctx ctx;
-    ctx = (Ctx){ .ast = a, .diag = diag, .surface = surface, .inst_mode = true };
+    ctx = (Ctx){ .ast = a, .diag = diag, .surface = surface, .inst_mode = true, .keep_islands = keep };
     /* the instance's type, index 0, over its arguments, 1..argc */
     KType *k = &ctx.inst_types[0];
     *k = (KType){ .kind = KT_MODIFIER, .module = inst->self, .name = inst->modifier, .elem = -1 };
@@ -1162,8 +1169,10 @@ bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosti
         isl_walk(&ctx, n);
     }
     /* the instances the bodies use, and their own closure: the headers they need */
-    a->closure.len = 0;
-    a->closure_text.len = 0;
+    if (!keep) {
+        a->closure.len = 0;
+        a->closure_text.len = 0;
+    }
     ctx.inst_mode = false;
     if (!ctx.failed) close_instances(&ctx);
     return !ctx.failed;

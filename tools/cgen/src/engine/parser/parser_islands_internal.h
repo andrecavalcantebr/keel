@@ -26,6 +26,8 @@ typedef struct {
     keel_slice_char element;    /* an `array`'s element type, as written */
     keel_slice_char dims;       /* its dimensions, as written: `[2,3,4]` */
     bool global;                /* declared at file scope: also a name of the module */
+    bool proto_param;           /* the protocol parameter of a function over a protocol, read in its
+                                   protocol mode: its type is the concrete type (spec §4.14) */
     bool is_ref;                /* declared with `ref` */
     bool is_constexpr;          /* a block-level `constexpr` */
     keel_slice_char value;      /* its initializer, as written */
@@ -111,6 +113,10 @@ typedef struct {
        and the protocol parameter's value is at `proto_value` (the instance, a
        pointer to it when byref, or an `array` of one dimension) */
     bool proto_mode;
+    /* the islands of a function over a protocol in a file that is emitted from its own islands
+       (k_collect_instance_islands, not generic): they are appended, not sorted in, so the
+       file's islands keep their places and the caller restores the length */
+    bool keep_islands;
     const KAst *proto_own;          /* the module of the concrete type */
     bool proto_array, proto_byref;
 } Ctx;

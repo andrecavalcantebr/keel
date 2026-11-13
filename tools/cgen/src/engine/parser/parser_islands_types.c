@@ -106,6 +106,8 @@ static int kt_of_local(Ctx *c, const Local *l) {
         isl_kt(c, t)->rank = l->rank;
         isl_kt(c, t)->dims = l->dims;
         isl_kt(c, t)->elem = element;
+    } else if (l->proto_param) {
+        t = c->proto_mode ? kt_copy(c, 0) : isl_kt_new(c);   /* the protocol parameter: the concrete type */
     } else if (l->spec.kind == K_SPEC_NONE) {
         t = isl_kt_new(c);
     } else if (c->proto_mode && !k_symbol_resolve(c->ast->symbols, l->spec.text)) {
@@ -880,6 +882,18 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             redirect_arity = v->arity;
         }
     }
+    /* a verb of the protocol called on the protocol parameter of a function over a protocol
+       (spec §4.14, rule 5; backend §5.19, rule 3): the verb is the concrete type's, found in the
+       type's module as a qualified call would find it, so the instance and the adaptation are
+       the type's. `length(items)` over `IndexPtr items`, a type of `app.ibox`, is
+       `app_ibox_box_i32_length(&items)`. */
+    const Local *recv_param = !proto_of && !module && argc ? isl_arg_local(c, args[0]) : NULL;
+    if (recv_param && recv_param->proto_param && k0 && (k0->kind == KT_MODIFIER || k0->kind == KT_NAMED) && k0->module) {
+        module = k0->module;
+        home = isl_ast_of(c, module);
+        if (!home) return -1;
+    }
+
     Sig sig = isl_find_verb(home, redirected.len ? redirected : name, redirected.len ? redirect_arity : argc);
     keel_slice_char declared = redirected.len ? redirected : name;
     bool gen = module && isl_generic(home);
@@ -1092,7 +1106,14 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
                     isl_put(&fn, own.s, own.n);
                     if (fn.ok && fn.n < K_SYMBOL_MAX) {
                         fn.s[fn.n] = 0;
-                        isl_record_seed(c, -1, fn.s, K_CLOSURE_PROTOCOL_FUNCTION, ast_module(c, proto_home));
+                        /* the function's module, as the ordinary-type branch below finds it: a
+                           function of this very file is not its own import (ast_module is null).
+                           The concrete type is this instance, in its own module: the closure
+                           needs both to resolve the function's body over it (backend §5.19) */
+                        const KSymbol *fs = k_symbol_resolve(a->symbols, name);
+                        const KModule *proto_module = fs && fs->origin ? fs->origin : ast_module(c, proto_home);
+                        if (module && proto_module)
+                            isl_record_protocol_seed_plain(c, fn.s, proto_module, module, own.s, own.n, name);
                     }
                 }
             }
@@ -1528,10 +1549,15 @@ bool isl_proto_param(Ctx *c, size_t i, size_t *next) {
     size_t np = isl_params_of(a, fn, p, K_PARAMS_MAX);
     if (np == SIZE_MAX || !np || !p[0].is_protocol) return false;
     size_t base = p[0].role != K_ROLE_NONE ? p[0].first + 1 : p[0].first;
-    if (base + 3 != p[0].end || !isl_ident(a, base + 1) || !isl_ident(a, base + 2)) return false;
-    KToken binder = isl_tok(a, base + 1);
+    /* the alias is optional (spec §4.14): `Proto C x`, or `Proto x`, whose type is the
+       concrete one with no name for it (`IndexPtr items`, spec §4.14 example) */
+    bool alias = base + 3 == p[0].end && isl_ident(a, base + 1) && isl_ident(a, base + 2);
+    bool bare = base + 2 == p[0].end && isl_ident(a, base + 1);
+    if (!alias && !bare) return false;
+    size_t name_at = alias ? base + 2 : base + 1;
+    KToken binder = alias ? isl_tok(a, base + 1) : (KToken){0};
     if (i == base) {
-        Local l = { .name = isl_tok(a, base + 2), .decl_at = base + 2, .depth = c->depth };
+        Local l = { .name = isl_tok(a, name_at), .decl_at = name_at, .depth = c->depth };
         if (c->proto_array) {
             /* an `array` of one dimension, its extent by the binder (backend §5.18) */
             l.rank = 1;
@@ -1541,16 +1567,17 @@ bool isl_proto_param(Ctx *c, size_t i, size_t *next) {
             Text d = { .ok = true };
             isl_put(&d, l.name.ptr, l.name.len);
             isl_put_str(&d, " [size_t N]");
-            isl_emit(c, K_ISLAND_ARRAY, base + 2, &d);
+            isl_emit(c, K_ISLAND_ARRAY, name_at, &d);
         } else {
-            l.spec = (KSpecifier){ .kind = K_SPEC_MODIFIER, .modifier_name = binder, .text = binder };
+            if (alias) l.spec = (KSpecifier){ .kind = K_SPEC_MODIFIER, .modifier_name = binder, .text = binder };
+            l.proto_param = true;
             l.pointers = c->proto_byref ? 1 : 0;
         }
         isl_add_local(c, l);
-        *next = base + 3;
+        *next = name_at + 1;
         return true;
     }
-    if (i < fn->name_first && k_symtab_same_name(isl_tok(a, i), binder) && isl_punct(a, i + 1, ".") && isl_ident(a, i + 2)) {
+    if (alias && i < fn->name_first && k_symtab_same_name(isl_tok(a, i), binder) && isl_punct(a, i + 1, ".") && isl_ident(a, i + 2)) {
         KProtocolDecl pd;
         if (!isl_protocol_decl(c, a, p[0].base, &pd, 0)) return false;
         const KProtocolVerb *v = isl_verb_for_return(a, fn, &pd);

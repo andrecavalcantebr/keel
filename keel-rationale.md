@@ -1986,6 +1986,17 @@ para a orientação a objetos: primeiro um implementador por módulo, depois um
 protocolo por módulo, sem retorno que pagasse o custo. Uma declaração opcional
 seria um comentário com sintaxe.
 
+**Por que a função sobre protocolo é sempre `inline` (§4.14, regra 8).** Ela
+não tem um único corpo C: cada tipo concreto lhe dá uma instância, no próprio
+header (backend §5.19), do mesmo jeito que um `typedef` que menciona um
+parâmetro de módulo genérico não tem forma escrita fora do corpo da instância
+(§4.3, regra 15). Dar-lhe uma forma fora de linha exigiria um lugar para o
+corpo escolher — e `instance` (§4.3, regra 19) só nomeia o modificador de um
+módulo genérico, nunca uma função; não há como pedir o corpo de uma instância
+que a própria declaração nunca nomeia. A palavra `inline` segue aceita, como
+em qualquer função pública, mas não muda nada: declará-la é documentar o que
+já vale.
+
 Os verbos são do módulo, e não há sobrecarga por tipo C (§4.4): um módulo dá um
 só `length` a um receptor. Isso é corolário da resolução, e não regra de
 protocolo.

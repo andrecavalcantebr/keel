@@ -1790,7 +1790,10 @@ do argumento, e dá acesso aos tipos associados por `C.nome`.
 7. Na assinatura C da instância, o parâmetro tem o tipo concreto, por valor ou
    por ponteiro conforme `byref`. Não há teste em execução, vtable nem objeto
    de interface.
-8. Emissão `inline` e fora de linha seguem a declaração e as regras 18 e 19 da §4.3.
+8. A função sobre protocolo é sempre `inline`: cada instância sai por inteiro
+   no seu próprio header (backend §5.19). Escrever `inline` é permitido e
+   redundante; não há forma fora de linha, porque `instance` não nomeia
+   função (§4.3, regra 19) e o corpo não teria onde ficar.
 9. Um argumento `array` é recebido como num parâmetro com binder (§4.2): o vetor
    e a dimensão 0. O tipo concreto é o `array` do tipo do elemento, e os verbos
    do protocolo são os de `keel.array` (§5.3).

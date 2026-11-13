@@ -16,11 +16,18 @@ para cá.
   `../keel_libs`). Desde então o golden chegou a 69 casos (070 é o último) e a
   cópia ficou defasada: a memória local do Claude Code tem entradas mais
   novas. O que diverge do repositório vale menos que o repositório.
-- **Nenhuma pendência de normativo em aberto** em 2026-11-13. Desde 2026-11-07
+- **Nenhuma pendência de normativo em aberto** em 2026-11-13, mas uma decisão
+  nova ainda sem implementação no cgen: função sobre protocolo (§4.14) é
+  sempre `inline` (regra 8, reescrita; rationale, "Por que a função sobre
+  protocolo é sempre `inline`"), achado avaliando `../keel_libs/keel_coll`
+  (um `pub` sem `inline` sobre protocolo aceita em silêncio e falha só no
+  link — não existe forma fora de linha, porque `instance` não nomeia
+  função). Texto escrito com o "sim" do André; falta o cartão de
+  implementação ao cgen e o golden que a exercite. Antes, desde 2026-11-07,
   entraram a regra `|S|` de papéis × protocolo estrutural (§5.1, regra 10, com o
   diagnóstico `protocol-role-ambiguous`, commit 9d84819), a conferência do corpo
   contra a própria assinatura (§4.12, regras 16 e 17) e a retirada de
-  `--pedantic-names` (D22). Em aberto fica só a decisão de release da 0.2.0
+  `--pedantic-names` (D22). Em aberto fica também a decisão de release da 0.2.0
   (trabalho rotineiro vai na branch `0.2.0`; `master` fica estável). Antes
   disso, em 2026-11-07 (a última
   leva, `dim-generates-declaration` saiu do catálogo — o caso que o motivou

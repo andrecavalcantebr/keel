@@ -139,6 +139,7 @@
     X(CIRCULAR_PROTOCOL, "the composition of `%s` comes back to itself through `%s`") \
     X(PROTOCOL_VERB_CONFLICT, "the protocol requires `%s` twice with the same arity and different signatures (in `%s`)") \
     X(PROTOCOL_ROLE_MISMATCH, "`%s` declares roles that differ from the prototype in `%s`: write the same roles in the same positions, or none, and the prototype's apply") \
+    X(PROTOCOL_ROLE_AMBIGUOUS, "`%s` matches %s by name and arity, and its roles disagree: write, at %s, at least their union") \
     X(NOT_IN_V0, "`%s` is a v1 construction: this implementation recognizes it and does not translate it") \
     X(PROTOCOL_NOT_SATISFIED, "`%s` does not meet `%s`: its module does not declare %s (an `array` takes the verbs from `keel.array`, which must be imported)") \
     X(VERB_NOT_IN_PROTOCOL, "`%s` is not a verb of `%s`: a function over a protocol calls on its parameter only the verbs the protocol requires") \

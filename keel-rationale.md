@@ -1990,9 +1990,20 @@ Os verbos são do módulo, e não há sobrecarga por tipo C (§4.4): um módulo 
 só `length` a um receptor. Isso é corolário da resolução, e não regra de
 protocolo.
 
-Os papéis do protótipo valem também para o implementador que não os escreve.
-Assim a procedência é rastreada sem que cada módulo do programa repita `parent`
-e `child`; escrever papéis diferentes contradiz o contrato e é erro.
+Os papéis do protótipo valem também para o implementador que não os escreve, e
+a busca pelo protótipo olha só os protocolos que o próprio módulo do verbo
+importa: nenhum módulo é afetado por um protocolo que ele nunca viu, ainda que
+um módulo que o chame o conheça. Assim a procedência é rastreada sem que cada
+módulo do programa repita `parent` e `child`, e sem que uma biblioteca
+desconhecida force quem escreve um verbo comum a enumerar papéis de algo que
+nunca importou. A ambiguidade só existe quando o próprio módulo importa dois
+protocolos que colidem no mesmo verbo e na mesma aridade — é autoinfligida, e
+visível na própria lista de imports. Nesse caso, estar calado não é seguro:
+como a conformidade é estrutural, o verbo atende aos dois contratos ao mesmo
+tempo, quer o autor saiba ou não, e cada um pode ser usado por um chamador
+diferente; cobrir só um deles deixaria o outro sem rastro verdadeiro. Por isso
+a saída é a união, nunca a escolha de um — e, como ela nunca cria papel
+contraditório (§5.1, regra 10), cobri-la é sempre possível.
 
 `array` não é tipo: `x[i]` e `foreach` sobre `array` são a sintaxe do C. Os
 verbos dos protocolos sobre `array` são de `keel.array`, com a extensão

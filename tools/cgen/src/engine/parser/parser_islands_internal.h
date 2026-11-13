@@ -259,6 +259,7 @@ int isl_local_of(const Ctx *c, Range r);
 void isl_produce(Ctx *c, int p, const int *parents, int np);
 void isl_returned_from(Ctx *c, KToken at, const int *srcs, int ns, bool origin_too);
 void isl_check_return(Ctx *c, size_t i, size_t end);
+void isl_check_protocol_roles(Ctx *c, const KAstNode *fn);
 void isl_roles_at_call(Ctx *c, const KAst *home, const Sig *sig, const Range *args, size_t argc, size_t callee,
                    keel_slice_char verb);
 void isl_record_seed(Ctx *c, int t, const char *symbol, KClosureKind kind, const KModule *module);

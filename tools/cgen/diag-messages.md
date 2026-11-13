@@ -190,6 +190,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `circular-protocol` | the composition of `%s` comes back to itself through `%s` | A cycle in the composition of protocols |
 | `protocol-verb-conflict` | the protocol requires `%s` twice with the same arity and different signatures (in `%s`) | Verbs with the same name and arity and conflicting signatures |
 | `protocol-role-mismatch` | `%s` declares roles that differ from the prototype in `%s`: write the same roles in the same positions, or none, and the prototype's apply | The roles of the implementer differ from the required ones |
+| `protocol-role-ambiguous` | `%s` matches %s by name and arity, and its roles disagree: write, at %s, at least their union | A verb whose name and arity meet two or more protocols visible to its own module, with a role missing or short of their union |
 | `not-in-v0` | `%s` is a v1 construction: this implementation recognizes it and does not translate it | A normative v1 construction recognized by a v0 implementation |
 | `mold-position` |  | (v1) A call to a mold in a position that is not admitted |
 | `mold-return` |  | (v1) A mold return outside the allowed final form |

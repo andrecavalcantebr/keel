@@ -284,45 +284,162 @@ typedef struct {
     KRole result;               /* K_ROLE_CHILD or K_ROLE_NONE */
 } Roles;
 
-/* the verb of a protocol `where` sees that `name` with `arity` parameters meets */
-static const KProtocolVerb *protocol_verb(Ctx *c, const KAst *where, keel_slice_char name, size_t arity, KProtocolDecl *pd) {
-    if (!where || !where->symbols) return NULL;
-    for (size_t i = 0; i < where->symbols->len; i++) {
-        const KSymbol *s = keel_buffer_KSymbol_ptr(where->symbols, i);
-        if (s->kind != K_SYM_PROTOCOL || !isl_protocol_decl(c, where, s->name, pd, 0)) continue;
-        for (size_t k = 0; k < pd->verb_count; k++)
-            if (k_symtab_same_name(pd->verbs[k].name, name) && pd->verbs[k].arity == arity) return &pd->verbs[k];
+/* A role set, as the bits that make it up: `invalidates` and `consumes` collapse to `consumes`, the only
+   pair that reduces (spec §5.1, rule 10) — the other three bits never conflict with one another. */
+typedef unsigned RoleMask;
+enum { ROLE_BIT_PARENT = 1u << 0, ROLE_BIT_CHILD = 1u << 1, ROLE_BIT_INVALIDATES = 1u << 2, ROLE_BIT_CONSUMES = 1u << 3 };
+
+static RoleMask role_bit(KRole r) {
+    switch (r) {
+        case K_ROLE_PARENT: return ROLE_BIT_PARENT;
+        case K_ROLE_CHILD: return ROLE_BIT_CHILD;
+        case K_ROLE_INVALIDATES: return ROLE_BIT_INVALIDATES;
+        case K_ROLE_CONSUMES: return ROLE_BIT_CONSUMES;
+        default: return 0;
     }
-    return NULL;
+}
+static RoleMask role_collapse(RoleMask m) {
+    return (m & ROLE_BIT_INVALIDATES) && (m & ROLE_BIT_CONSUMES) ? m & ~(RoleMask)ROLE_BIT_INVALIDATES : m;
+}
+/* the mask as one KRole, when it holds at most one bit (every position a single written role can still
+   name; two or more bits need the multi-role syntax rule 10 anticipates and the parser does not read yet) */
+static bool role_mask_as_one(RoleMask m, KRole *out) {
+    if (!m) { *out = K_ROLE_NONE; return true; }
+    if (m & (m - 1)) return false;
+    *out = m == ROLE_BIT_PARENT ? K_ROLE_PARENT : m == ROLE_BIT_CHILD ? K_ROLE_CHILD
+         : m == ROLE_BIT_INVALIDATES ? K_ROLE_INVALIDATES : K_ROLE_CONSUMES;
+    return true;
+}
+static void put_mask(Text *t, RoleMask m) {
+    static const struct { RoleMask bit; const char *name; } names[] = {
+        { ROLE_BIT_PARENT, "parent" }, { ROLE_BIT_CHILD, "child" },
+        { ROLE_BIT_INVALIDATES, "invalidates" }, { ROLE_BIT_CONSUMES, "consumes" },
+    };
+    bool first = true;
+    for (size_t i = 0; i < 4; i++)
+        if (m & names[i].bit) { if (!first) isl_put_str(t, " "); isl_put_str(t, names[i].name); first = false; }
 }
 
-/* the roles of the function `fn` of `home`: those it writes, or else, when it writes none, those of the
-   protocol verb it meets by name and arity. A function over a protocol has its own. */
+#define ROLE_UNION_NAMES_MAX 8
+
+/* The union, over every protocol visible to `home` (never the caller's own file, when different: a module
+   is affected only by what it itself imports, spec §5.1 rule 10) with a verb of this name and arity, of the
+   role at each position and at the result; and how many protocols matched (`|S|`), their names kept in
+   `names` up to `ROLE_UNION_NAMES_MAX`, for the diagnostic. */
+static size_t verb_role_union(Ctx *c, const KAst *home, keel_slice_char name, size_t arity,
+                               RoleMask *p, size_t pn, RoleMask *result, keel_slice_char *names) {
+    size_t matches = 0;
+    *result = 0;
+    for (size_t k = 0; k < pn; k++) p[k] = 0;
+    if (!home || !home->symbols) return 0;
+    for (size_t i = 0; i < home->symbols->len; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(home->symbols, i);
+        if (s->kind != K_SYM_PROTOCOL) continue;
+        bool seen = false;
+        for (size_t m = 0; m < matches && m < ROLE_UNION_NAMES_MAX; m++)
+            if (k_symtab_same_name(names[m], s->name)) seen = true;
+        if (seen) continue;                 /* the same protocol, reached under a second name (alias, `types`) */
+        KProtocolDecl pd;
+        if (!isl_protocol_decl(c, home, s->name, &pd, 0)) continue;
+        for (size_t k = 0; k < pd.verb_count; k++) {
+            const KProtocolVerb *v = &pd.verbs[k];
+            if (!k_symtab_same_name(v->name, name) || v->arity != arity) continue;
+            if (matches < ROLE_UNION_NAMES_MAX) names[matches] = pd.name;
+            matches++;
+            for (size_t j = 0; j < v->arity && j < pn; j++) p[j] |= role_bit(v->roles[j]);
+            *result |= role_bit(v->result_role);
+            break;                          /* a protocol declares a name/arity once (protocol-verb-conflict) */
+        }
+    }
+    for (size_t k = 0; k < pn; k++) p[k] = role_collapse(p[k]);
+    *result = role_collapse(*result);
+    return matches;
+}
+
+/* the roles of the function `fn` of `home`, for the analysis: those it writes, completed by inheritance
+   when exactly one protocol matches, or by its own written roles alone when several do (spec §5.1, rule
+   10) — ambiguity there is reported once, where `fn` is declared (isl_check_protocol_roles), not here.
+   A function over a protocol has its own roles, never inherited. */
 static void roles_of(Ctx *c, const KAst *home, const KAstNode *fn, Roles *out) {
     *out = (Roles){0};
     Param p[K_PARAMS_MAX];
     size_t np = isl_params_of(home, fn, p, K_PARAMS_MAX);
     if (np == SIZE_MAX) return;
-    bool written = false, over_protocol = false;
+    bool over_protocol = false;
     size_t arity = 0;
     for (size_t k = 0; k < np; k++) {
         out->p[k] = p[k].role;
-        if (p[k].role != K_ROLE_NONE) written = true;
         if (p[k].is_protocol) over_protocol = true;
         if (!p[k].is_type) arity++;
     }
     out->n = np;
     for (size_t j = fn->first; j < fn->name_first; j++)
-        if (k_token_role(isl_tok(home, j)) == K_ROLE_CHILD) { out->result = K_ROLE_CHILD; written = true; }
-    if (written || over_protocol) return;
-    KProtocolDecl pd;
-    const KProtocolVerb *v = protocol_verb(c, home, isl_tok(home, fn->name_first), arity, &pd);
-    if (!v && c->ast != home) v = protocol_verb(c, c->ast, isl_tok(home, fn->name_first), arity, &pd);
-    if (!v) return;
-    size_t at = 0;
-    for (size_t k = 0; k < np && at < v->arity; k++)
-        if (!p[k].is_type) out->p[k] = v->roles[at++];
-    out->result = v->result_role;
+        if (k_token_role(isl_tok(home, j)) == K_ROLE_CHILD) out->result = K_ROLE_CHILD;
+    if (over_protocol) return;
+
+    RoleMask pmask[K_PARAMS_MAX], rmask;
+    keel_slice_char names[ROLE_UNION_NAMES_MAX];
+    size_t matches = verb_role_union(c, home, isl_tok(home, fn->name_first), arity, pmask, np, &rmask, names);
+    if (!matches) return;
+    if (matches == 1) {
+        /* |S| = 1: written stands if any, else inherit (a mismatch is `protocol-role-mismatch`, at the
+           explicit conformance check, isl_satisfies — unchanged, spec §5.1 rule 10) */
+        bool written = out->result != K_ROLE_NONE;
+        for (size_t k = 0; k < np && !written; k++) if (p[k].role != K_ROLE_NONE) written = true;
+        if (written) return;
+        for (size_t k = 0; k < np; k++) { KRole r; if (role_mask_as_one(pmask[k], &r)) out->p[k] = r; }
+        { KRole r; if (role_mask_as_one(rmask, &r)) out->result = r; }
+        return;
+    }
+    /* |S| >= 2: best effort for the analysis even when incomplete — written wins; else, the union, when a
+       single role names it. The completeness check (protocol-role-ambiguous) runs once, elsewhere. */
+    for (size_t k = 0; k < np; k++) {
+        KRole r;
+        if (p[k].role == K_ROLE_NONE && role_mask_as_one(pmask[k], &r)) out->p[k] = r;
+    }
+    if (out->result == K_ROLE_NONE) { KRole r; if (role_mask_as_one(rmask, &r)) out->result = r; }
+}
+
+/* `fn`, declared in `c->ast`, against every protocol its own module sees with the same verb name and
+   arity: `|S| >= 2` and the written roles short of their union is `protocol-role-ambiguous` (spec §5.1,
+   rule 10). Checked once, where `fn` is declared — never recomputed at a call site. */
+void isl_check_protocol_roles(Ctx *c, const KAstNode *fn) {
+    KAst *a = c->ast;
+    Param p[K_PARAMS_MAX];
+    size_t np = isl_params_of(a, fn, p, K_PARAMS_MAX);
+    if (np == SIZE_MAX) return;
+    size_t arity = 0;
+    for (size_t k = 0; k < np; k++) if (!p[k].is_type) arity++;
+    KRole written_result = K_ROLE_NONE;
+    for (size_t j = fn->first; j < fn->name_first; j++)
+        if (k_token_role(isl_tok(a, j)) == K_ROLE_CHILD) written_result = K_ROLE_CHILD;
+    RoleMask pmask[K_PARAMS_MAX], rmask;
+    keel_slice_char names[ROLE_UNION_NAMES_MAX];
+    size_t matches = verb_role_union(c, a, isl_tok(a, fn->name_first), arity, pmask, np, &rmask, names);
+    if (matches < 2) return;
+    Text where = { .ok = true };
+    bool any = false;
+    for (size_t k = 0; k < np; k++) {
+        RoleMask missing = pmask[k] & ~role_bit(p[k].role);
+        if (!missing) continue;
+        if (any) isl_put_str(&where, "; ");
+        isl_put_str(&where, "position "); isl_put_uint(&where, k + 1); isl_put_str(&where, " needs "); put_mask(&where, missing);
+        any = true;
+    }
+    RoleMask missing_result = rmask & ~role_bit(written_result);
+    if (missing_result) {
+        if (any) isl_put_str(&where, "; ");
+        isl_put_str(&where, "the result needs "); put_mask(&where, missing_result);
+        any = true;
+    }
+    if (!any) return;
+    Text list = { .ok = true };
+    for (size_t m = 0; m < matches && m < ROLE_UNION_NAMES_MAX; m++) {
+        if (m) isl_put_str(&list, ", ");
+        isl_put(&list, names[m].ptr, names[m].len);
+    }
+    isl_diag3(c, K_DIAG_PROTOCOL_ROLE_AMBIGUOUS, isl_tok(a, fn->name_first), isl_tok(a, fn->name_first),
+          isl_keep(c, &list), isl_keep(c, &where));
 }
 
 /* ---- the body against its own signature (spec §4.12, rules 16 and 17) ---- */

@@ -1928,9 +1928,28 @@ pub protocol Sequence [IndexPtr, Sliceable, Traversable];
    construção que consome os protocolos.
 9. Os protocolos da base são do prelúdio `keel`: todo módulo os vê pelo import implícito (§4.1), e as construções os consultam ali.
 10. Papéis escritos num protótipo de protocolo (§4.12) fazem parte do
-    contrato. Se o verbo do implementador não declara papéis, valem os do
-    protótipo; se declara, são os mesmos nas mesmas posições, sob pena de
-    `protocol-role-mismatch`.
+    contrato. Seja `S` o conjunto dos protocolos visíveis ao próprio módulo
+    que declara o verbo, com o mesmo nome e a mesma aridade dele.
+    - Com `|S| = 1`: se o verbo não escreve papéis, valem os do único
+      protocolo; se escreve, são os mesmos nas mesmas posições, sob pena de
+      `protocol-role-mismatch`.
+    - Com `|S| ≥ 2`: os protocolos colidem na própria declaração. O verbo
+      escreve, em cada posição, ao menos a união dos papéis que todos exigem
+      nela — nunca há conflito dentro da união, porque `parent`/`child` e
+      `invalidates`/`consumes` são eixos independentes. A falta, inclusive
+      não escrever papel alguma, é `protocol-role-ambiguous`.
+    - Com `|S| = 0`, os papéis seguem só a §4.12.
+
+    A união nunca reduz dois papéis de eixos diferentes: `parent`, `child` e
+    qualquer um dos dois ao lado de `invalidates` ou `consumes` coexistem sem
+    perda, porque descrevem relações diferentes — uma posição pode ser
+    `parent` e `child` ao mesmo tempo, ou `parent` e `invalidates`. Só dentro
+    do eixo de invalidação a união reduz: `invalidates` ∪ `consumes` =
+    `consumes`, porque o efeito de `consumes` (regra 7 da §4.12: invalida o
+    argumento, os produtos e os descendentes) já contém o de `invalidates`
+    (regra 6 da §4.12: invalida os produtos e os descendentes, mas não o
+    argumento); a presença de `invalidates` ao lado de `consumes` não
+    acrescenta nada.
 11. Todo verbo de protocolo que entrega vista, parte, cursor ou endereço de
     elemento do receptor declara o receptor `parent` e o produto `child`.
     Assim, invalidar o dono do armazenamento invalida as vistas e os ponteiros
@@ -1971,7 +1990,7 @@ o implementador importa o tipo da vista que devolve.
 
 `unknown-protocol`, `protocol-not-satisfied`, `associated-type-unbound`,
 `associated-type-conflict`, `circular-protocol`, `protocol-verb-conflict`,
-`protocol-role-mismatch`.
+`protocol-role-mismatch`, `protocol-role-ambiguous`.
 
 
 #### O que o núcleo conhece pelo nome
@@ -2835,6 +2854,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `circular-protocol` | Ciclo na composição de protocolos | `error` | keel, na tradução | §5.1 |
 | `protocol-verb-conflict` | Verbos de mesmo nome e aridade com assinaturas conflitantes | `error` | keel, na tradução | §5.1 |
 | `protocol-role-mismatch` | Papéis do implementador divergentes dos exigidos | `error` | keel, na tradução | §5.1 |
+| `protocol-role-ambiguous` | Verbo cujo nome e aridade atendem a dois ou mais protocolos visíveis ao seu módulo, com papel ausente ou que não cobre a união exigida | `error` | keel, na tradução | §5.1 |
 | `not-in-v0` | Construção normativa v1 reconhecida por implementação v0 | `error` | keel, na tradução | §6.3 |
 | `mold-position` | (v1) Chamada a molde em posição não admitida | `error` | keel, na tradução | §4.13 |
 | `mold-return` | (v1) Retorno de molde fora da forma final permitida | `error` | keel, na tradução | §4.13 |

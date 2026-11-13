@@ -1063,7 +1063,7 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     }
     ctx.quiet = false;
     for (size_t i = 0; i < a->nodes.len; i++)
-        if (isl_node_at(a, i)->kind == K_AST_FUNCTION) check_signature(&ctx, isl_node_at(a, i));
+        if (isl_node_at(a, i)->kind == K_AST_FUNCTION) { check_signature(&ctx, isl_node_at(a, i)); isl_check_protocol_roles(&ctx, isl_node_at(a, i)); }
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++)
         if (isl_node_at(a, i)->kind == K_AST_TYPE) {
             ctx.local_count = ctx.global_count;

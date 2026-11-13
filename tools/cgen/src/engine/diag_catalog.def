@@ -140,6 +140,7 @@
     X(CIRCULAR_PROTOCOL, "circular-protocol", K_ERROR) \
     X(PROTOCOL_VERB_CONFLICT, "protocol-verb-conflict", K_ERROR) \
     X(PROTOCOL_ROLE_MISMATCH, "protocol-role-mismatch", K_ERROR) \
+    X(PROTOCOL_ROLE_AMBIGUOUS, "protocol-role-ambiguous", K_ERROR) \
     X(NOT_IN_V0, "not-in-v0", K_ERROR) \
     X(MOLD_POSITION, "mold-position", K_ERROR) \
     X(MOLD_RETURN, "mold-return", K_ERROR) \

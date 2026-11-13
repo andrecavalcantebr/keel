@@ -55,3 +55,4 @@ protocol-roles use.k
 protocol-roles-bad bad.k
 import-analysis-error use.k
 use-after-effects use.k
+protocol-role-ambiguous amb.k

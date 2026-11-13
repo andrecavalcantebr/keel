@@ -719,6 +719,7 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`base/`](base/) | os onze módulos da base, em keel: o prelúdio `keel` e os dez de `keel/` |
 | [`golden/`](golden/) | 69 casos com a saída C esperada, nos dois perfis |
 | [`tools/cgen/`](tools/cgen/) | o transpilador: lê, verifica e emite C (`--stop-after=gen`) |
+| [`ROADMAP.md`](ROADMAP.md) | a sequência do trabalho e os gatilhos de cada ideia (não normativo) |
 | [`design/`](design/) | desenho da implementação, e as ideias que não são v0 |
 
 A divisão entre os quatro documentos é normativa e usada como critério: quando

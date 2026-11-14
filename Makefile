@@ -32,7 +32,7 @@ dist:
 	  -e 's#\]\((golden|design|tools/cgen)/\)#]($(REPO)/tree/$(REF)/\1/)#g' \
 	  README.md > $(DIST)/README.md
 	cp design/keel-llm-context.md $(DIST)/
-	cp $(DOCS) $(LICENSES) $(DIST)/doc/
+	cp $(DOCS) $(LICENSES) CHANGELOG.md $(DIST)/doc/
 	cp -r editors/. $(DIST)/editors/
 	@printf 'version %s\n%s\ncommit %s\ndate %s\n' '$(or $(VERSION),dev)' \
 	  "$$($(DIST)/bin/cgen --cgen-version | head -n1)" "$$(git describe --tags --always --dirty)" \

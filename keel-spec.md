@@ -15,6 +15,8 @@
 > [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit)
 > para o argumento. Esta nota não é normativa.
 
+**Versão descrita: keel 0.2.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+
 Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições de keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
 
 **Versões.** Construções marcadas **(v1)** são normativas nesta spec, mas não
@@ -1627,7 +1629,7 @@ Registrar a origem do armazenamento de um símbolo e as operações que o invali
 11. O resultado da chamada não é considerado: a relação vale mesmo que a
     operação falhe.
 12. Papéis de assinaturas de outros módulos valem no ponto de chamada. keel só
-    confere o corpo da função contra os papéis declarados nos casos da regra 16.
+    confere o corpo da função contra os papéis declarados nos casos da regra 16. *(desde 0.2.0)*
 13. Papéis não acrescentam campos, parâmetros nem código ao C emitido.
 14. Uma construção que chama um verbo com papéis vale como a chamada escrita:
     `x[a..b]` chama `as_slice`; `foreach` de binder por ponteiro, `ptr`;
@@ -1637,7 +1639,7 @@ Registrar a origem do armazenamento de um símbolo e as operações que o invali
     o cursor de `walk`, o binder de partição de `parallel` e o símbolo
     inicializado ou atribuído por `x[a..b]`. O binder por valor é cópia e não é
     produto; `x[i]` dentro de expressão não tem símbolo que o receba.
-16. Para a análise, `return expr;` vale como `T t = expr; return t;`, com `T` o
+16. *(desde 0.2.0)* Para a análise, `return expr;` vale como `T t = expr; return t;`, com `T` o
     tipo de retorno escrito; o C emitido não muda. O corpo é conferido contra a
     própria assinatura nos dois casos abaixo. A falta do papel é `role-missing`;
     o papel que sobra não é diagnosticado.
@@ -1649,7 +1651,7 @@ Registrar a origem do armazenamento de um símbolo e as operações que o invali
 
     Num verbo de protocolo sem papéis escritos, valem os herdados (§5.1,
     regra 10).
-17. Num `return` cuja expressão não é um símbolo nem uma chamada reconhecida,
+17. *(desde 0.2.0)* Num `return` cuja expressão não é um símbolo nem uma chamada reconhecida,
     cada símbolo que aparece como operando (fora de chamadas, e sem `.`, `->`,
     `[` ou `*` aplicados) e que depende de origem local ou de parâmetro sem o
     papel é `return-may-escape`, aviso.
@@ -1790,7 +1792,7 @@ do argumento, e dá acesso aos tipos associados por `C.nome`.
 7. Na assinatura C da instância, o parâmetro tem o tipo concreto, por valor ou
    por ponteiro conforme `byref`. Não há teste em execução, vtable nem objeto
    de interface.
-8. A função sobre protocolo é sempre `inline`: cada instância sai por inteiro
+8. *(desde 0.2.0)* A função sobre protocolo é sempre `inline`: cada instância sai por inteiro
    no seu próprio header (backend §5.19). Escrever `inline` é permitido e
    redundante; não há forma fora de linha, porque `instance` não nomeia
    função (§4.3, regra 19) e o corpo não teria onde ficar.
@@ -1931,7 +1933,7 @@ pub protocol Sequence [IndexPtr, Sliceable, Traversable];
    construção que consome os protocolos.
 9. Os protocolos da base são do prelúdio `keel`: todo módulo os vê pelo import implícito (§4.1), e as construções os consultam ali.
 10. Papéis escritos num protótipo de protocolo (§4.12) fazem parte do
-    contrato. Seja `S` o conjunto dos protocolos visíveis ao próprio módulo
+    contrato. *(desde 0.2.0)* Seja `S` o conjunto dos protocolos visíveis ao próprio módulo
     que declara o verbo, com o mesmo nome e a mesma aridade dele.
     - Com `|S| = 1`: se o verbo não escreve papéis, valem os do único
       protocolo; se escreve, são os mesmos nas mesmas posições, sob pena de
@@ -2849,15 +2851,15 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `type-param-shadows-type` | Parâmetro `type` apagado com nome de tipo conhecido no escopo | `error` | keel | §4.4 |
 | `type-arg-foreign` | Argumento de tipo escrito num parâmetro `type` apagado (§4.4, regra 13) que é de outro módulo | `error` | keel | §4.4 |
 | `role-position` | Papel fora de posição admitida | `error` | keel, na tradução | §4.12 |
-| `role-missing` | Corpo cujo retorno depende de parâmetro, ou que invalida ou consome parâmetro, sem o papel correspondente na assinatura | `error` | keel, na tradução | §4.12 |
-| `return-may-escape` | Retorno de expressão que contém, como operando, símbolo que depende de origem local ou de parâmetro sem o papel | `warning` | keel, na tradução | §4.12 |
+| `role-missing` | Corpo cujo retorno depende de parâmetro, ou que invalida ou consome parâmetro, sem o papel correspondente na assinatura *(desde 0.2.0)* | `error` | keel, na tradução | §4.12 |
+| `return-may-escape` | Retorno de expressão que contém, como operando, símbolo que depende de origem local ou de parâmetro sem o papel *(desde 0.2.0)* | `warning` | keel, na tradução | §4.12 |
 | `unknown-protocol` | Nome de protocolo desconhecido | `error` | keel, na tradução | §5.1 |
 | `associated-type-unbound` | Tipo associado que não aparece em nenhum verbo exigido do protocolo | `error` | keel, na tradução | §5.1 |
 | `associated-type-conflict` | Ligações incompatíveis para o mesmo tipo associado | `error` | keel, na tradução | §5.1 |
 | `circular-protocol` | Ciclo na composição de protocolos | `error` | keel, na tradução | §5.1 |
 | `protocol-verb-conflict` | Verbos de mesmo nome e aridade com assinaturas conflitantes | `error` | keel, na tradução | §5.1 |
 | `protocol-role-mismatch` | Papéis do implementador divergentes dos exigidos | `error` | keel, na tradução | §5.1 |
-| `protocol-role-ambiguous` | Verbo cujo nome e aridade atendem a dois ou mais protocolos visíveis ao seu módulo, com papel ausente ou que não cobre a união exigida | `error` | keel, na tradução | §5.1 |
+| `protocol-role-ambiguous` | Verbo cujo nome e aridade atendem a dois ou mais protocolos visíveis ao seu módulo, com papel ausente ou que não cobre a união exigida *(desde 0.2.0)* | `error` | keel, na tradução | §5.1 |
 | `not-in-v0` | Construção normativa v1 reconhecida por implementação v0 | `error` | keel, na tradução | §6.3 |
 | `mold-position` | (v1) Chamada a molde em posição não admitida | `error` | keel, na tradução | §4.13 |
 | `mold-return` | (v1) Retorno de molde fora da forma final permitida | `error` | keel, na tradução | §4.13 |

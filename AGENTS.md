@@ -52,6 +52,13 @@ para cá.
 - **Discuta antes de editar os normativos** (`keel-spec.md`,
   `keel-rationale.md`, `keel-c-backend.md`, `cgen-tool-spec.md`): proponha o
   texto e o argumento, e só escreva depois do "sim" do André.
+- **Os normativos são versionados (desde 2026-11-14).** Cada um traz a versão
+  que descreve no cabeçalho. Toda alteração normativa leva a marca
+  *(desde X.Y.Z)* na regra, no diagnóstico ou na opção que entrou ou mudou, com
+  X.Y.Z a versão em que a mudança sai, e uma linha no `CHANGELOG.md`. O que
+  existia na 0.1.2 não leva marca. Quando a versão sobe, o número muda no
+  cabeçalho dos quatro documentos, no manual, no `main.c` e em
+  `test/cgen/cli/args_partition.sh`.
 - **A prosa dos documentos é em pt-BR, e o código é em inglês**: nomes,
   comentários, ids de diagnóstico e mensagens do cgen, inclusive o código dentro
   dos documentos.

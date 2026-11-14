@@ -7,6 +7,8 @@
 > licença própria, ver [`LICENSE.md`](LICENSE.md). Escrita e revisão tiveram
 > auxílio de Claude Opus e Claude Sonnet (Anthropic), sob direção humana.
 
+**Versão descrita: keel 0.2.0.** Justifica as decisões dos três documentos normativos na versão em que estão; o registro das mudanças por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+
 Este documento reúne as motivações e as decisões de projeto de keel. Os
 contratos pertencem à [especificação](keel-spec.md); a representação e a emissão
 de C, ao [backend](keel-c-backend.md); a linha de comando, à

@@ -8,6 +8,8 @@
 > revisão tiveram auxílio de Claude Opus e Claude Sonnet (Anthropic), sob
 > direção humana.
 
+**Versão descrita: keel 0.2.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+
 **Documento normativo.** Especifica como as construções da linguagem ([`keel-spec.md`](keel-spec.md)) são materializadas em C.
 
 **A linguagem não é o lowering.** A spec define o que cada construção faz; este documento, como ela sai em C. Um segundo backend deve as mesmas obrigações e pode cumpri-las de outro jeito onde a linguagem não nomeou a forma: `parallel`, por exemplo, tem aqui dois mecanismos, série e OpenMP, escolhidos pela invocação (§5.9.1).
@@ -232,7 +234,7 @@ buffer _Atomic u32 →  keel_buffer_atomic_u32
 **Regras**
 
 1. Nome gerado acima de 255 caracteres é erro: `name-too-long`. [D21](#10-decisões-de-emissão)
-2. *(retirada: o teto é um só, 255; ver [D22](#10-decisões-de-emissão))*
+2. *(retirada na 0.2.0: o teto é um só, 255; ver [D22](#10-decisões-de-emissão))*
 3. Não há truncamento nem hash: o nome gerado é sempre o nome inteiro.
 4. É esse teto, e nenhuma regra própria, que limita o aninhamento de modificadores. A 255 ele não é sentido: `mat_matrix_keel_buffer_geom_Point` tem 33 caracteres.
 
@@ -323,7 +325,7 @@ app/cfg.k  →  app/app_cfg.type.h                tipos
 
 **Regras**
 
-1. O que a invocação compila — o `.k` da linha de comando, ou a instância de `--instance` (ferramenta §4.3) — produz sempre quatro arquivos: `.type.h`, `.h`, `.c` e `.keelsyms` (ferramenta §4.11), ainda que o `.c` só inclua o próprio `.h`, um header só tenha as guardas, e o `.keelsyms` fique vazio. [D28](#10-decisões-de-emissão)
+1. *(desde 0.2.0)* O que a invocação compila — o `.k` da linha de comando, ou a instância de `--instance` (ferramenta §4.3) — produz sempre quatro arquivos: `.type.h`, `.h`, `.c` e `.keelsyms` (ferramenta §4.11), ainda que o `.c` só inclua o próprio `.h`, um header só tenha as guardas, e o `.keelsyms` fique vazio. [D28](#10-decisões-de-emissão)
 2. O que a invocação só alcança — os módulos importados, inclusive o `keel` implícito, e as instâncias que os usos pedem — produz os dois headers e nenhum `.c`. O `.c` de um módulo importado é escrito pela invocação dele. Um módulo genérico importado produz os dois headers da sua parte fixa (§4.4.1, regra 5), e nunca um `.c`.
 3. Todo corpo fora de linha termina no `.c` da invocação: o do próprio módulo e o das instâncias que ele declara com `instance` (§4.4).
 4. O corte entre os dois headers é o do §4.3.2.
@@ -2131,13 +2133,13 @@ alternativa em aberto.
 | 19 | O argumento de `dim` entra no nome pelo valor, e não pela grafia | §2.2. Com a grafia, dois módulos que declarassem `DIM` com valores diferentes pediriam o mesmo arquivo com conteúdos diferentes, e o header de instância deixaria de ser função das entradas (§7.1) |
 | 20 | O C gerado usa `i32`, e não `int32_t` | §2.2. O corpo do usuário é copiado como escrito, então `i32` chega ao `.c` de qualquer forma e o `typedef` do prelúdio é necessário. Emitir `int32_t` nas structs criaria duas grafias para o mesmo tipo, e a mensagem do compilador C deve citar o nome que o usuário escreveu: `expected i32 *` lê direto contra o fonte |
 | 21 | Nome gerado acima de 255 caracteres é erro | §2.4. Onde o linker só considera os primeiros *N* caracteres, duas instâncias que só diferem depois do corte colidem em silêncio no link, com um símbolo vencendo o outro; o teto transforma isso em diagnóstico. Truncar com hash mataria a legibilidade. O mínimo do padrão para nome externo é 31, que tornaria a composição de modificadores inutilizável (`keel_buffer_geom_Point` já tem 22), e não descreve compilador real: o pior caso prático é 255, do IAR (Anexo). Uma edição anterior deste documento dava 63, que é o mínimo do padrão para nome **interno** |
-| 22 | *(retirada)* `--pedantic-names` não existe: o teto é 255, sem opção para baixá-lo | §2.4. A opção chegou a ser especificada (31 para nome externo, 63 para os demais) e foi retirada em 2026-11-11 sem ter sido implementada. A razão e o gatilho de reabertura estão no rationale, em "Por que não há `--pedantic-names`". O número 22 não é reaproveitado |
+| 22 | *(retirada na 0.2.0)* `--pedantic-names` não existe: o teto é 255, sem opção para baixá-lo | §2.4. A opção chegou a ser especificada (31 para nome externo, 63 para os demais) e foi retirada em 2026-11-11 sem ter sido implementada. A razão e o gatilho de reabertura estão no rationale, em "Por que não há `--pedantic-names`". O número 22 não é reaproveitado |
 | 23 | A definição dos primitivos é da linguagem, e a materialização, do backend | §3. `f32` **é** binary32; `typedef float f32;` é como este backend entrega isso. Sem a separação, trocar de backend obrigaria a reescrever a definição dos primitivos, que não deve se mover porque a saída mudou |
 | 24 | `f32` e `f64` são `float` e `double`, e não `_Float32` e `_Float64` | §3.1. O C define `_FloatN` como tipos distintos de `float` e `double`, mesmo com representação idêntica. Ponteiro é o caso fatal: não há conversão implícita entre `_Float64 *` e `double *`, e todo `ptr(x)` entregue a biblioteca C exigiria cast. E `_Float32` não sofre a promoção variádica para `double`: `printf("%f", x)` seria UB silencioso. O ganho teórico de `_Float32` some onde seria necessário: onde `float` não é binary32, `_Float32` quase certamente também não existe |
 | 25 | O `typedef` de primitivo é incondicional | §3.1. Com `typedef` condicional, `f32` teria identidade diferente conforme a plataforma, e o mesmo fonte compilaria num alvo e falharia noutro por incompatibilidade de ponteiro — pior que qualquer das duas escolhas fixas |
 | 26 | Um header por formato estreito, incluído só por quem o nomeia | §3.2. No prelúdio, todo projeto num alvo sem binary16 deixaria de compilar por um tipo que não usa; no mesmo arquivo, quem só nomeia `f16` pararia pela guarda de `bf16`, e os dois não chegam juntos aos alvos. O custo recai sobre quem pediu, pela mesma mecânica de `keel/keel_arena.h` |
 | 27 | `f16` não é `u16` com reinterpretação | §3.2. Compilaria em todo lugar, mas troca uma falha visível por duas silenciosas: `+` passaria a somar padrões de bits, e `buffer f16` deixaria de ser distinguível de `buffer u16`, que a identidade nominal existe para separar |
-| 28 | A invocação compila sempre quatro arquivos, ainda que vazios | §4.1. O build usa uma regra de padrão `%.o: %.c` sem exceção, e não existe alvo sem fonte para ele descobrir por glob, manifesto ou arquivo agregador. Headers e o `.keelsyms` não compilam nem geram objeto, e por isso não são alvos |
+| 28 | A invocação compila sempre quatro arquivos *(desde 0.2.0)*, ainda que vazios | §4.1. O build usa uma regra de padrão `%.o: %.c` sem exceção, e não existe alvo sem fonte para ele descobrir por glob, manifesto ou arquivo agregador. Headers e o `.keelsyms` não compilam nem geram objeto, e por isso não são alvos |
 | 29 | Tipo `priv` vai para o `.type.h`, como o público | §4.1. O `.type.h` é L1: um tipo privado que aparecesse só no `.c` não poderia ser campo de nada que o módulo declare. A privacidade é de keel, que recusa o nome fora do módulo; o arquivo não é o mecanismo |
 | 30 | Variável pública nunca sai `static` no `.h` | §4.1. Compilaria e linkaria, mas com uma cópia independente por unidade de tradução: um módulo escreve, outro lê e não enxerga nada, sem erro nem aviso |
 | 31 | `import_c` vai para o `.type.h`, a camada mais baixa | §4.1. É o único lugar de onde todas as camadas o enxergam, e um tipo do módulo pode precisar dele: `pub struct Log { FILE *f; };` não compila se `<stdio.h>` chega depois, e `FILE` não admite declaração adiantada. O preço é um contrato que keel não verifica, o mesmo que o C já tem entre dois headers que se incluem |

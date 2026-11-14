@@ -8,6 +8,8 @@
 > revisão tiveram auxílio de Claude Opus e Claude Sonnet (Anthropic), sob
 > direção humana.
 
+**Versão descrita: keel 0.2.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+
 **Documento normativo.** Especifica o cgen, transpilador de referência de keel para C — C11 ou C23, conforme o perfil da §4.9: o que depende da invocação.
 
 Três documentos dividem o assunto, por um critério só:
@@ -109,7 +111,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de execução emitido para `parallel`; ver §4.8 | `auto` |
 | `--profile=<c11\|c23\|auto>` | padrão C a que o gerado se conforma; ver §4.9 | `auto` |
 | `-f` | força a escrita de todo gerado, mesmo com conteúdo idêntico ao que está em disco: o timestamp muda, e é ele que faz o build refazer o que depende do gerado (§5, §6) | desligado |
-| `--cgen-version` | imprime a versão do cgen e a procedência do binário, em stdout, e sai 0; ver a nota abaixo | — |
+| `--cgen-version` | imprime a versão do cgen e a procedência do binário, em stdout, e sai 0; ver a nota abaixo *(desde 0.2.0)* | — |
 | `--cgen-help`, `--help` | imprimem a sinopse e as opções do cgen, e saem 0 | — |
 
 `-o` mantém o significado do gcc: nomeia o arquivo da última fase que a invocação executa. Quando essa fase é do compilador C — compilar, ligar —, o `-o` é dele e atravessa verbatim. Quando a invocação para numa fase do cgen (§4.2), não há compilador C a quem repassá-lo, e o cgen o lê, como o gcc lê o `-o` de `-E`. Foi por isso que a saída gerada ganhou `--dest-dir`: `gen` escreve vários arquivos, e `-o` nomeia um.
@@ -455,7 +457,7 @@ A consequência prática é que o build **não precisa** declarar os headers dos
 módulos importados como saídas da regra. Ele declara um alvo por módulo, e a
 redundância se paga sozinha.
 
-### 4.11 Tabela de símbolos (`.keelsyms`)
+### 4.11 Tabela de símbolos (`.keelsyms`) *(desde 0.2.0)*
 
 Ao lado de cada `.c`/`.h`/`.type.h` que gera (backend §4.3.2), o cgen escreve
 um `.keelsyms`: uma linha por declaração de nível de módulo que o arquivo

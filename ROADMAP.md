@@ -10,19 +10,21 @@ só a sequência e os gatilhos.
 
 A linguagem v0 está fechada: os quatro normativos estão completos, a base está
 escrita em keel e o `cgen` emite C11 e C23 para todos os casos do `golden/`
-(69 casos, nos dois perfis). A versão publicada é a 0.1.2; a branch `0.2.0`
-acumula as correções desde então e `master` fica estável até o próximo release.
+(71 casos, nos dois perfis). A versão corrente é a 0.2.0, em `master`
+(2026-11-14); os normativos são versionados e o `CHANGELOG.md` registra o que
+mudou. Trabalho rotineiro continua na branch de longa duração da versão
+seguinte.
 
-## 1. Agora: fechar a 0.2.0
+## 1. Agora: o que fica depois da 0.2.0
 
-- **Decidir o release.** O `cgen` já fechou a ambiguidade de papéis ×
-  protocolo estrutural (§5.1, regra 10) e a conferência do corpo contra a
-  assinatura (§4.12). Falta a decisão de cortar a versão e o merge em `master`.
-- **Manual (`keel-manual.md`).** Exemplos soltos 3.5, 3.8 e 3.9, conferência
-  contra a spec e o aviso de versão, que hoje diz 0.1.2.
-- **Gap de função sobre protocolo**, registrado nas pendências do `cgen`.
-- **Canal de reporte.** Formulários de issue (bug, necessidade, funcionalidade)
-  e rótulos prontos antes de os alunos começarem a relatar.
+- **Manual (`keel-manual.md`).** Exemplos soltos 3.5, 3.8 e 3.9 e a
+  reverificação dos exemplos *(verificado)* contra o cgen 0.2.0 (foram
+  compilados com o 0.1.1).
+- **Publicar a 0.2.0 no GitHub** (tag `v0.2.0`, `make release VERSION=0.2.0`).
+  Depois, as bibliotecas passam a citar a tag nos resultados.
+- **Bibliotecas.** Atualizar `check_probes.py` e os resultados de `keel_maths`
+  (dois probes de lacuna agora compilam) e rodar `make clean` ao trocar de
+  compilador.
 
 ## 2. Em seguida: uso real alimenta o cgen
 

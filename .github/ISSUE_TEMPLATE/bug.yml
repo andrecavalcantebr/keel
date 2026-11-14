@@ -6,7 +6,7 @@ body:
     id: version
     attributes:
       label: Versão
-      description: Saída de `cgen --cgen-version`, e o commit se vier do repositório.
+      description: A saída completa de `cgen --cgen-version`. Ela traz `commit`, `date` e `cc` do build, e é o que separa um build de desenvolvimento do lançamento.
     validations:
       required: true
   - type: textarea
@@ -42,4 +42,4 @@ body:
     id: env
     attributes:
       label: Ambiente
-      description: Sistema, compilador C e versão (por exemplo `gcc 14`, `clang 18`).
+      description: Sistema e o compilador C que compilou o código gerado, com a versão (por exemplo `gcc 14`, `clang 18`). O compilador que construiu o cgen já vem em `cc`, na linha acima.

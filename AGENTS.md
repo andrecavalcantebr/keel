@@ -59,6 +59,11 @@ para cá.
   existia na 0.1.2 não leva marca. Quando a versão sobe, o número muda no
   cabeçalho dos quatro documentos, no manual, no `main.c` e em
   `test/cgen/cli/args_partition.sh`.
+- **Os achados das bibliotecas entram como relatório de bug**, e não como
+  pedido de módulo (desde 2026-11-14): só valem se reproduzirem como bug do
+  cgen ou lacuna da spec, com repro mínimo. O fluxo e o registro estão em
+  [`achados/README.md`](achados/README.md). A linguagem está fechada, salvo
+  bug ou erro de spec; a "stdlib" da v1 é só um conjunto de casos para depurá-la.
 - **A prosa dos documentos é em pt-BR, e o código é em inglês**: nomes,
   comentários, ids de diagnóstico e mensagens do cgen, inclusive o código dentro
   dos documentos.

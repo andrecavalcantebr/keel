@@ -38,19 +38,32 @@ mudar o normativo às pressas.
 - Matrizes e tensores em `keel_maths`.
 - Lacunas de cobertura dos diagnósticos e novas auditorias externas.
 
-## 3. v1: biblioteca padrão
+## 3. v1: casos que depuram a linguagem
 
-Nenhum item pede trabalho de núcleo: cabem em `module`/`modifier`. A ordem
-proposta segue a dependência, e cada item só começa com um caso real que o peça:
+A linguagem está fechada, salvo bug ou erro de spec; funcionalidade nova é
+futuro (§4). A v1 **não** é uma biblioteca padrão canônica a construir. Com
+protocolos e papéis conferidos em todos os módulos, qualquer biblioteca pode
+ser "da stdlib", então o que se chamar de stdlib é só a escolha de um conjunto
+de casos de uso que servem para depurar keel e o cgen.
 
-1. `keel.pair` — sem dependências, pequeno, serve de primeiro exercício.
-2. `keel.buffer(N)` / `keel.slice(N)` e `keel.slice.from`.
-3. `keel.coll` (`stack`, `queue`, `ring`) — depende de buffer/slice. Já existe
-   uma versão independente em `keel_libs/keel_coll` para comparar.
-4. `keel.string` / `keel.strview`.
-5. `keel.bitbuffer(W)` / `keel.bitslice(W)`.
-6. `keel.grid` (`box(N)`, `index(N)`) — depende de buffer/slice.
-7. Cooperativo: `keel.atomic`, `keel.chan`, `keel.barrier`.
+As bibliotecas vivem em projetos independentes (`../keel_libs`: `keel_coll`,
+`keel_maths`). Os módulos de `base/` estão neste repositório porque as próprias
+construções da keel dependem deles, e por nenhum outro motivo. O que as
+bibliotecas acham volta para cá como relatório de bug (`achados/README.md`),
+nunca como pedido de módulo novo.
+
+Candidatos a caso de uso, em ordem de dependência. Cada um só se torna caso
+quando uma biblioteca real o pedir, e o que importa é o que ele revela na
+linguagem:
+
+1. `pair` — sem dependências; o primeiro exercício.
+2. `buffer(N)` / `slice(N)` e `slice.from` — o que a `keel_coll` hoje resolve
+   com `coll.span` e `coll.readspan`.
+3. Coleções (`stack`, `queue`, `ring`) — já em `keel_libs/keel_coll`.
+4. `string` / `strview`.
+5. `bitbuffer(W)` / `bitslice(W)`.
+6. `grid` (`box(N)`, `index(N)`) — em parte em `keel_libs/keel_maths`.
+7. Cooperativo: `atomic`, `chan`, `barrier`.
 
 ## 4. v2+: extensões da linguagem
 

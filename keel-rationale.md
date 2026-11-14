@@ -2102,3 +2102,26 @@ linker de 31 caracteres recebe uma mensagem que pode reportar, e uma linha `hint
 abaixo de 255. Aí a decisão volta com o caso na mesa, e a tabela de ligação
 (31 para função `pub` fora de linha e variável `pub`; 63 para `static inline`,
 tipos, tags, constantes de enum e nomes `keel__`) é o ponto de partida.
+
+### Por que `--cgen-version` diz o commit, a data e o compilador
+
+A versão `0.1.2` nomeia o lançamento e também todo binário construído depois
+dele, na branch de trabalho: em 2026-11-14 o `cgen` instalado era a `0.1.2` mais
+33 commits, e `cgen --cgen-version` respondia só `cgen 0.1.2`. O número não
+separava os dois. Isso importa porque as bibliotecas que exercitam o cgen
+registram o resultado de uma suíte junto com a versão do compilador, e um
+resultado atribuído a `0.1.2` que na verdade saiu de um commit intermediário não
+se reproduz. O mesmo vale para o relato de um bug: quem o recebe precisa saber
+qual emissão o produziu, e o compilador C que construiu o cgen entra porque
+diferenças de comportamento entre máquinas começam por ele.
+
+Por isso a procedência fica **no binário**, onde ele a carrega para onde for, e
+não num arquivo ao lado (o `VERSION` da distribuição diz o que foi empacotado, e
+não o que está em `bin/cgen`). O formato é `chave valor` em linhas, porque a
+saída é lida por gente e por `grep`, e uma estrutura mais pesada (JSON, opção
+extra) paga um analisador que nenhum consumidor pediu; a primeira linha
+continua `cgen <versão>` para não quebrar quem só a lia.
+
+O que **não** muda: o gerado. Data e commit variam a cada build, e o §6.1 da
+ferramenta existe para que o gerado dependa só do fonte e das opções. A
+procedência é impressa, nunca escrita em `.c` ou `.h`.

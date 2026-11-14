@@ -35,9 +35,9 @@ dist:
 	cp $(DOCS) $(LICENSES) $(DIST)/doc/
 	cp -r editors/. $(DIST)/editors/
 	@printf 'version %s\n%s\ncommit %s\ndate %s\n' '$(or $(VERSION),dev)' \
-	  "$$($(DIST)/bin/cgen --cgen-version)" "$$(git describe --tags --always --dirty)" \
+	  "$$($(DIST)/bin/cgen --cgen-version | head -n1)" "$$(git describe --tags --always --dirty)" \
 	  "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > $(DIST)/VERSION
-	@echo "ok: $(DIST)/ ($$($(DIST)/bin/cgen --cgen-version))"
+	@echo "ok: $(DIST)/ ($$($(DIST)/bin/cgen --cgen-version | head -n1))"
 
 release:
 	@test -n "$(VERSION)" || { echo "uso: make release VERSION=x.y.z" >&2; exit 1; }

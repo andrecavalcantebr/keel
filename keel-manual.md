@@ -1,8 +1,10 @@
 # keel — manual (not so quick start)
 
-> **Versão descrita: keel 0.1.2** (`cgen 0.1.2`, tag `v0.1.2`). Se a sua versão
+> **Versão descrita: keel 0.2.0** (`cgen 0.2.0`, tag `v0.2.0`). Se a sua versão
 > for outra, desconfie dos detalhes: a spec e o `cgen --cgen-version` valem
-> mais que este texto.
+> mais que este texto. `cgen --cgen-version` também imprime o commit de que o
+> binário saiu, e é por ele que se distingue um build de desenvolvimento do
+> lançamento.
 
 Este não é um dos quatro documentos normativos (`keel-spec.md`,
 `keel-rationale.md`, `keel-c-backend.md`, `cgen-tool-spec.md`): é um manual

@@ -109,7 +109,7 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 | `--parallel-lowering=<auto\|serie\|openmp>` | mecanismo de execução emitido para `parallel`; ver §4.8 | `auto` |
 | `--profile=<c11\|c23\|auto>` | padrão C a que o gerado se conforma; ver §4.9 | `auto` |
 | `-f` | força a escrita de todo gerado, mesmo com conteúdo idêntico ao que está em disco: o timestamp muda, e é ele que faz o build refazer o que depende do gerado (§5, §6) | desligado |
-| `--cgen-version` | imprime a versão do cgen e sai 0 | — |
+| `--cgen-version` | imprime a versão do cgen e a procedência do binário, em stdout, e sai 0; ver a nota abaixo | — |
 | `--cgen-help`, `--help` | imprimem a sinopse e as opções do cgen, e saem 0 | — |
 
 `-o` mantém o significado do gcc: nomeia o arquivo da última fase que a invocação executa. Quando essa fase é do compilador C — compilar, ligar —, o `-o` é dele e atravessa verbatim. Quando a invocação para numa fase do cgen (§4.2), não há compilador C a quem repassá-lo, e o cgen o lê, como o gcc lê o `-o` de `-E`. Foi por isso que a saída gerada ganhou `--dest-dir`: `gen` escreve vários arquivos, e `-o` nomeia um.
@@ -121,6 +121,26 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 > build que sonda `$(CC) --version` espera a resposta do compilador C, e o cgen
 > não se interpõe entre os dois; a versão do cgen é `--cgen-version`. `-h` é do
 > gcc (o soname do linker) e atravessa.
+
+> **Nota — `--cgen-version` diz qual binário é, e não só qual versão.** A
+> saída são linhas `chave valor`, uma por linha, a chave separada do valor por
+> um espaço:
+>
+> ```
+> cgen 0.2.0
+> commit v0.2.0
+> date 2026-11-13T21:50:22Z
+> cc GCC 13.3.0
+> ```
+>
+> A primeira linha é sempre `cgen <versão>`, e quem lê só ela não vê diferença.
+> As seguintes são `commit` (o `git describe` do fonte de que o binário saiu;
+> o sufixo `-dirty` marca árvore com alterações não commitadas), `date` (o
+> instante UTC do build, em ISO 8601) e `cc` (a primeira linha da versão do
+> compilador C que construiu o cgen). Uma chave que o build não soube
+> determinar vale `unknown`. Chaves novas podem entrar depois da `cc`; quem
+> consome procura a chave que quer, não a posição. A procedência é do binário
+> e **nunca** vai para o gerado: as fontes de variação do §6.1 não crescem.
 
 > **Nota — `-fno-strict-aliasing` é repasse, e é deliberado que seja.** O respaldo
 > de tipo-caractere da arena é uma guarda nomeada da linguagem §6.3, e quem a

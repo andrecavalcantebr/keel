@@ -7,6 +7,7 @@
 #include "tool/cli_limits.h"
 #include "tool/tool.h"
 
+extern const char cgen_build_commit[], cgen_build_date[], cgen_build_cc[];
 bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, const char **value);
 bool cgen_source_under_root(const char *source, const char *root);
 bool cgen_source_in_multiple_roots(const char *source, const char *const *roots, int root_count);
@@ -96,7 +97,8 @@ int main(int argc, char *argv[]) {
         const char *w = argv[i];
 
         if (strcmp(w, "--cgen-version") == 0) {
-            printf("cgen 0.1.2\n");
+            printf("cgen 0.2.0\ncommit %s\ndate %s\ncc %s\n",
+                   cgen_build_commit, cgen_build_date, cgen_build_cc);
             exit(0);
         }
 

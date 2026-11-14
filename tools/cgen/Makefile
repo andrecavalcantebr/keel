@@ -21,6 +21,19 @@ deps    := $(objects:.o=.d)
 
 all: base boundary $(PRJ)
 
+# Procedência do binário, impressa por `--cgen-version` (cgen-tool-spec §4.1).
+# Só o build_info.o a carrega, e ele é refeito a cada `make` (FORCE): o commit
+# e a data nunca ficam velhos em relação ao que foi ligado. `dirty` no commit
+# marca árvore com alterações não commitadas.
+BUILD_COMMIT := $(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)
+BUILD_DATE   := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+BUILD_CC     := $(shell $(CC) --version 2>/dev/null | head -n1 | sed 's/"//g')
+$(OBJDIR)/tool/build_info.o: override CFLAGS += \
+  -DCGEN_BUILD_COMMIT='"$(BUILD_COMMIT)"' -DCGEN_BUILD_DATE='"$(BUILD_DATE)"' \
+  -DCGEN_BUILD_CC='"$(BUILD_CC)"'
+$(OBJDIR)/tool/build_info.o: FORCE
+FORCE:
+
 vars:
 	@echo "sources=$(sources)"
 	@echo "objects=$(objects)"
@@ -91,7 +104,7 @@ release: base boundary
 cgen-release: $(objects)
 	$(CC) $(objects) $(LDLIBS) -o cgen-release
 
-.PHONY: all clean ccjson base boundary run vars release cgen-release
+.PHONY: FORCE all clean ccjson base boundary run vars release cgen-release
 
 clean:
 	@rm -rf $(OBJDIR) $(PRJ) obj-release cgen-release

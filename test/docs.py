@@ -73,7 +73,7 @@ print(f"docs: {ok} ok, {bad} fail")
 ROOT = GOLDEN.parent
 manual = re.search(r"Versão descrita: keel (\d+\.\d+\.\d+)",
                    (ROOT / "keel-manual.md").read_text())
-tool = re.search(r'printf\("cgen (\d+\.\d+\.\d+)\\n"\)',
+tool = re.search(r'printf\("cgen (\d+\.\d+\.\d+)\\n',
                  (ROOT / "tools/cgen/src/tool/main.c").read_text())
 if not manual or not tool:
     print("docs: warning: could not read the version of keel-manual.md or of the cgen")

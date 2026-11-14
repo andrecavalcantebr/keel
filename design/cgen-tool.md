@@ -112,7 +112,7 @@ Conjunto fechado, o da spec da ferramenta §4.1. Toda opção desta tabela é
 | `--parallel-lowering` | `=V` ou ` V` | `auto` \| `serie` \| `openmp` | `auto` |
 | `--profile` | `=V` ou ` V` | `auto` \| `c11` \| `c23` | `auto` |
 | `-f` | — | força regeração | desligado |
-| `--cgen-version` | — | imprime `cgen <versão>` em stdout, sai 0 | — |
+| `--cgen-version` | — | imprime `cgen <versão>` e a procedência do binário (`commit`, `date`, `cc`, uma por linha) em stdout, sai 0 | — |
 | `--cgen-help`, `--help` | — | imprime a sinopse e esta tabela, sai 0 | — |
 
 `--parallel-lowering=openmp` sem `-fopenmp` entre as opções repassadas é
@@ -619,6 +619,9 @@ Todos a partir de um diretório vazio, com a instalação em `/opt/keel` (base e
 ```sh
 $ cgen --cgen-version
 cgen 0.1.0
+commit v0.1.0
+date 2026-09-21T12:00:00Z
+cc GCC 14.2.1
 $ echo $?
 0
 $ cgen --version          # comes from the cc

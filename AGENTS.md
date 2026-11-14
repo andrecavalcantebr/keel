@@ -16,36 +16,19 @@ para cá.
   `../keel_libs`). Desde então o golden chegou a 69 casos (070 é o último) e a
   cópia ficou defasada: a memória local do Claude Code tem entradas mais
   novas. O que diverge do repositório vale menos que o repositório.
-- **Nenhuma pendência de normativo em aberto** em 2026-11-13, mas uma decisão
-  nova ainda sem implementação no cgen: função sobre protocolo (§4.14) é
-  sempre `inline` (regra 8, reescrita; rationale, "Por que a função sobre
-  protocolo é sempre `inline`"), achado avaliando `../keel_libs/keel_coll`
-  (um `pub` sem `inline` sobre protocolo aceita em silêncio e falha só no
-  link — não existe forma fora de linha, porque `instance` não nomeia
-  função). Texto escrito com o "sim" do André; falta o cartão de
-  implementação ao cgen e o golden que a exercite. Antes, desde 2026-11-07,
-  entraram a regra `|S|` de papéis × protocolo estrutural (§5.1, regra 10, com o
-  diagnóstico `protocol-role-ambiguous`, commit 9d84819), a conferência do corpo
-  contra a própria assinatura (§4.12, regras 16 e 17) e a retirada de
-  `--pedantic-names` (D22). Em aberto fica também a decisão de release da 0.2.0
-  (trabalho rotineiro vai na branch `0.2.0`; `master` fica estável). Antes
-  disso, em 2026-11-07 (a última
-  leva, `dim-generates-declaration` saiu do catálogo — o caso que o motivou
-  (tensor de N dimensões) já se resolve com laço em runtime, e a gramática
-  nunca ofereceu como escrever o que ele temia — escrita com o "sim" do
-  André depois de ele lembrar o caso original. Antes, na mesma data,
-  `instance-depth` (§4.14) estendido para cobrir também o aninhamento
-  comum de modificador (§4.4, regra 16) — mesmo diagnóstico, duas seções de
-  origem, achado investigando as lacunas de cobertura dos diagnósticos —
-  foi escrita com o "sim" do André). Antes, em 2026-11-06, a regra 20 da
-  §4.4 e o diagnóstico `type-arg-foreign` — argumento
-  de tipo apagado que precisa de renome, achado investigando `../keel_maths`
-  — foi escrita com o "sim" do André; T40-T44 em
-  `.claude/memory/cgen-pendencias.md`. P16 (visibilidade do C que
-  atravessa um módulo) foi resolvida em 2026-09-21; o registro está em
-  `design/cgen-tool.md` §13, e o briefing que a levantou, em
-  [`.claude/p16-visibilidade-do-c.md`](.claude/p16-visibilidade-do-c.md), fica
-  como histórico.
+- **Estado (2026-11-14): a 0.2.0 está publicada** (tag `v0.2.0`, `master`). Não
+  há pendência de normativo em aberto. O que mudou nos normativos, por versão,
+  está no [`CHANGELOG.md`](CHANGELOG.md), e o que fica depois está no
+  [`ROADMAP.md`](ROADMAP.md). Os achados das bibliotecas entram por
+  [`achados/README.md`](achados/README.md). O histórico das pendências do cgen
+  (T40-T44 e outras) está em `.claude/memory/cgen-pendencias.md`; P16
+  (visibilidade do C que atravessa um módulo) foi resolvida em 2026-09-21, com o
+  registro em `design/cgen-tool.md` §13 e o briefing em
+  [`.claude/p16-visibilidade-do-c.md`](.claude/p16-visibilidade-do-c.md).
+- **Branches.** `master` é o que a última release prometeu: só recebe
+  documentação não normativa que valha para a versão corrente e o merge da
+  próxima release. O trabalho rotineiro vai na branch de longa duração da
+  versão seguinte, hoje a `0.3.0`. Antes de commitar, `git status -sb`.
 
 ## Regras de trabalho
 
@@ -71,8 +54,8 @@ para cá.
   outro. "A emissão segue o `.k` sempre."
 - `golden/run.sh` é o oráculo, e tem de ficar verde. Caso em construção leva
   `WIP` (ver `golden/README.md`).
-- Trabalho local vai direto no `master`, com um commit local depois de cada
-  alteração. Os dois oráculos (`make -C tools/cgen check` e `golden/run.sh`,
+- Trabalho local vai na branch da versão seguinte (hoje `0.3.0`, ver
+  "Branches" acima), com um commit local depois de cada alteração. Os dois oráculos (`make -C tools/cgen check` e `golden/run.sh`,
   juntos em `test/run.sh`) rodam antes de cada commit. Os testes do cgen
   moram em `test/cgen/`, ao lado do `golden/`.
 

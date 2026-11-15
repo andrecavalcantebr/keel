@@ -63,6 +63,18 @@ do golden ou o commit, e a versão em que saiu.
 | 2026-11-13 | `keel_coll` | função sobre protocolo `pub` sem `inline`: aceita e falha só no link | lacuna da spec | caso 072, §4.14 regra 8, 0.2.0 |
 | 2026-11-14 | `keel_coll` | `keel.slice const T` perde o `const` em módulo genérico (`docs/achados/`, item 1) | não reproduzido | repro em 0.1.2 e 0.2.0; sem ação |
 
+| 2026-11-15 | `keel_coll` | A1: `slice const T` com `T` struct emite o tipo `const_<módulo>_<struct>`, inexistente (`docs/achados/slice_const_struct/`) | bug | aberto; caso do golden pendente |
+| 2026-11-15 | `keel_coll` | A4: tipo de modificador de outro módulo genérico (`pair.pair K V`) como retorno não é emitido (`cgen_limites/src/r3/`) | bug | aberto; caso do golden pendente |
+| 2026-11-15 | `keel_coll` | A6: parâmetro de ponteiro de função repassado como argumento recebe `&` (`cgen_limites/src/r5_fnptr_arg.k`) | bug | aberto; caso do golden pendente |
+| 2026-11-15 | `keel_coll` | A8: modificador com `dim` usado sem a dimensão passa pelo cgen e falha no `cc` (`cgen_limites/src/r8/`) | bug (diagnóstico ausente) | aberto; teste em `test/cgen/` pendente |
+| 2026-11-15 | `keel_coll` | A5, A7, A9: `implementation-limit` sem posição nem construção (`array` com expressão na dimensão passado a `arena.from_array`; `walk` sobre módulo com `dim`) | bug (contraria `cgen-tool-spec.md` §diagnósticos) | aberto; teste em `test/cgen/` pendente |
+| 2026-11-15 | `keel_coll` | A2: o cgen emite toda função `inline` da instância, usada ou não | não é bug (decisão da spec: a instância sai por inteiro, `keel-c-backend.md`) | pedido de emissão sob demanda é funcionalidade, `ROADMAP` §4 |
+| 2026-11-15 | `keel_coll` | A3: módulo genérico companheiro não infere o tipo do argumento (`from-without-target`) | não é bug (o tipo vem do alvo, spec §4.4) | possível lacuna de documentação |
+| 2026-11-15 | `keel_coll` | A10: `extent` com coluna de tipo genérico em módulo genérico | sem repro | pista, não investigada |
+| 2026-11-15 | `keel_coll` | A11: contrato de `keel.slice` (`next` sem `NULL`, `partition` por passo) difere do da biblioteca | não é bug | documentação da base |
+| 2026-11-15 | `keel_coll` | B6: comparador como parâmetro de instanciação (`instance coll.set i32 by cmp`) | funcionalidade | `ROADMAP` §4 |
+| 2026-11-15 | `keel_coll` | B5: o gcc não propaga `p->eq` através de `init`/`put` no C gerado | pergunta aberta sobre o emissor | a discutir |
+
 Os dois probes de `keel_maths` que esperavam falha (`symbolic_shape_use`,
 `matrix_partition_protocol_call_gap`) compilam na 0.2.0: são os achados dos
 casos 070 e da regra 8 fechados, e o `check_probes.py` da biblioteca deve

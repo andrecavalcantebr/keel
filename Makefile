@@ -13,7 +13,7 @@ REPO     := https://github.com/andrecavalcantebr/keel
 # o ref a que os links do README para fora da dist apontam: a tag, numa release
 REF      ?= master
 VERSION  ?=
-DOCS     := keel-spec.md keel-rationale.md keel-c-backend.md cgen-tool-spec.md
+DOCS     := keel-spec.md keel-rationale.md keel-c-backend.md cgen-tool-spec.md keel-manual.md
 LICENSES := LICENSE.md LICENSE.pt.md LICENSE-DOCS.md LICENSE-DOCS.pt.md
 
 dist:
@@ -27,7 +27,7 @@ dist:
 	cp tools/dist/install.sh tools/dist/uninstall.sh $(DIST)/
 	cp tools/dist/README.md $(DIST)/INSTALL.md
 	sed -E \
-	  -e 's#\]\((keel-spec|keel-rationale|keel-c-backend|cgen-tool-spec|LICENSE(-DOCS)?(\.pt)?)\.md#](doc/\1.md#g' \
+	  -e 's#\]\((keel-spec|keel-rationale|keel-c-backend|cgen-tool-spec|keel-manual|LICENSE(-DOCS)?(\.pt)?)\.md#](doc/\1.md#g' \
 	  -e 's#\]\(base/\)#](lib/base/)#g' \
 	  -e 's#\]\((golden|design|tools/cgen)/\)#]($(REPO)/tree/$(REF)/\1/)#g' \
 	  README.md > $(DIST)/README.md

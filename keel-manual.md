@@ -412,6 +412,117 @@ Repare em dois fatos: `buffer` é `byref`, então vai por ponteiro (`&b`); e
 `arena.alloc(a, i32, 4)` virou `sizeof`/`_Alignof` na chamada: o tipo escrito
 vira dois números e a função de arena é uma só para todos os tipos (§6).
 
+### 3.11 O custo é o do C: escrever para o compilador vetorizar
+
+keel não põe camada nenhuma entre o seu laço e o compilador C. O C gerado é o
+corpo do `.k` copiado; as funções da base são `static inline`; `foreach`,
+`walk` e a indexação viram `for` e `while` sobre ponteiro e índice. Por isso o
+que acelera um programa keel é o que acelera C. Em laço de dados, o que mais
+conta é o compilador **vetorizar** o laço (processar vários elementos por
+instrução). Esta seção diz o que keel garante, o que deixa para você e como
+conferir. Os números são de uma máquina (Ryzen 7 5825U, gcc 13.3,
+`-O3 -march=native`): valem como ordem de grandeza, não como promessa.
+
+**O que keel garante** *(verificado: `cgen` 0.3.0-dev e gcc 13.3 com
+`-fopt-info-vec-optimized`)*. As formas abaixo geram laços que o gcc vetoriza,
+e obter uma vista (`slice`, `partition`) é por valor e O(1):
+
+```keel
+pub i32 sum_index(slice i32 s) {                     // indexação s[i]
+    i32 t = 0; size_t n = slice.length(s);
+    for (size_t i = 0; i < n; ++i) t += s[i];
+    return t;
+}
+pub i32 sum_foreach(slice i32 s) {                   // foreach: ponteiro + índice
+    i32 t = 0;
+    foreach (i32 *p, size_t i : s) { (void)i; t += *p; }
+    return t;
+}
+pub u32 count_lt(slice u32 s, u32 x) {               // walk: cursor
+    u32 c = 0;
+    walk (u32 *p, slice.cursor cu : s) c += (*p < x);
+    return c;
+}
+```
+
+Também vetorizam o laço C sobre `slice.ptr(s)` e `foreach (size_t i : 0..n)`.
+Nenhuma forma de travessia custa mais do que o laço que você escreveria à mão.
+
+**O que fica para você.** O compilador só vetoriza o que é uma redução simples
+sobre dados contíguos. Três regras decidem a maior parte dos casos:
+
+1. **Redução vetoriza; saída antecipada não.** Contar acertos vetoriza. Achar
+   o primeiro acerto e sair do laço, não. Para buscar em dado grande, varra em
+   blocos: um OR sem desvio dentro do bloco (vetoriza) e só então procure o
+   acerto dentro do bloco que bateu.
+
+```keel
+pub u32 count_eq(slice u32 s, u32 x) {               // vetoriza
+    u32 c = 0;
+    foreach (u32 *p, size_t i : s) { (void)i; c += (*p == x); }
+    return c;
+}
+pub size_t first_eq(slice u32 s, u32 x) {            // NÃO vetoriza: sai no primeiro acerto
+    size_t n = slice.length(s);
+    for (size_t i = 0; i < n; ++i) if (s[i] == x) return i;
+    return SIZE_MAX;
+}
+pub size_t first_eq_blocked(slice u32 s, u32 x) {    // o OR do bloco vetoriza
+    size_t n = slice.length(s), i = 0;
+    u32 *p = slice.ptr(s);
+    for (; i + 32 <= n; i += 32) {
+        u32 hit = 0;
+        for (size_t j = 0; j < 32; ++j) hit |= (p[i + j] == x);
+        if (hit) for (size_t j = 0; j < 32; ++j) if (p[i + j] == x) return i + j;
+    }
+    for (; i < n; ++i) if (p[i] == x) return i;
+    return SIZE_MAX;
+}
+```
+
+   O gcc relata `loop vectorized` em `count_eq` e no laço interno de
+   `first_eq_blocked`, e em mais nenhum. Numa busca em 4096 `u32`, a forma em
+   blocos ficou em torno de 135 ns, contra algo perto de 900 ns do laço com
+   saída antecipada.
+
+2. **Compare direto, não por ponteiro de função.** Num módulo genérico, `==` e
+   `<` sobre `T` escalar entram no corpo e o compilador os vê. Um comparador
+   guardado como ponteiro de função na estrutura (`s->eq(&a, &b)`) custa uma
+   chamada indireta por elemento e impede a vetorização: na mesma busca de 4096
+   `u32`, foi de ~900 ns (chamada direta) a ~5000 ns (ponteiro guardado na
+   estrutura). `memcmp` também fica como chamada e quebra o laço; para igualdade
+   bit a bit de um `T` qualquer, compare por palavras, com `memcpy` de tamanho
+   constante, que o compilador transforma em uma carga:
+
+```keel
+if (sizeof(T) == 4) { u32 x, y; memcpy(&x, a, 4); memcpy(&y, b, 4); return x == y; }
+if (sizeof(T) == 8) { u64 x, y; memcpy(&x, a, 8); memcpy(&y, b, 8); return x == y; }
+```
+
+3. **Struct: guarde a chave numa coluna.** Para buscar por chave num conjunto
+   de structs, não varra as structs: guarde a chave em uma coluna escalar
+   (`extent`, §6.2) e o resto dos campos em outras. O laço de busca passa a
+   varrer só a coluna da chave, contígua e escalar, que é o caso da regra 1.
+
+**Como conferir.** Compile com otimização e peça ao gcc o relatório:
+
+```sh
+cgen -I src --dest-dir gen -c src/busca.k -o busca.o -std=c2x -O3 -march=native \
+     -fopt-info-vec-optimized -fno-ipa-icf
+```
+
+`-fno-ipa-icf` evita uma armadilha: o gcc funde funções idênticas e relata a
+vetorização só de uma delas, o que faz outra parecer não vetorizada.
+
+**Por que keel é assim.** O custo está à vista: o C gerado é legível e é o que
+roda. keel não promete que o compilador vai inlinar um comparador guardado em
+ponteiro nem emite atributos que dependam da heurística de um compilador
+(`always_inline`): um alvo embarcado, compilado com outro compilador (RISC-V
+com LLVM, por exemplo), não pode contar com isso. Você escolhe a forma do laço;
+keel garante que a forma que você escolheu chega ao compilador como está. Um
+comparador conhecido na geração, como parâmetro de instanciação, é um caminho
+futuro (`ROADMAP.md`), não parte da linguagem hoje.
+
 ---
 
 ## 4. Protocolos

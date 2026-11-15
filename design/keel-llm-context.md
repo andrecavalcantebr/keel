@@ -438,6 +438,39 @@ A forma por si só não decide se um programa é aceito. O essencial:
 - **Mangling, `#line`, divisão entre `.h`/`.type.h`/`.c`** são decisão do
   `cgen`, não da fonte `.k`: escrever `.k` nunca exige prever o nome C final
   de nada.
+- **Desempenho: escreva para o compilador C vetorizar.** keel não tem camada
+  entre o seu laço e o compilador C: o C gerado é o corpo do `.k` copiado, as
+  funções da base são `static inline`, e `foreach`, `walk` e `s[i]` viram
+  `for`/`while` sobre ponteiro e índice. O que decide a velocidade de um laço
+  de dados é o gcc/clang **vetorizar** o laço (vários elementos por instrução),
+  e keel só garante que a forma escrita chega ao compilador como está. Ao gerar
+  `.k` para dados, siga:
+  - **Redução sem saída antecipada vetoriza; busca que sai no primeiro acerto
+    não.** Contar (`c += (*p == x)`), somar, achar máximo: bom. `for (...) if
+    (s[i] == x) return i;`: não vetoriza. Para busca em dado grande, varra em
+    blocos de 32: `hit |= (p[i+j] == x)` num laço interno sem desvio
+    (vetoriza) e só então procure o acerto dentro do bloco que bateu.
+  - **Compare direto, não por ponteiro de função.** Em módulo genérico,
+    `==` e `<` sobre `T` escalar entram no corpo e vetorizam. Um comparador
+    guardado como ponteiro de função na struct (`s->eq(&a, &b)`) é uma chamada
+    indireta por elemento (~5× mais lento numa busca linear de 4096 `u32`) e
+    impede a vetorização. Não conte com o compilador inlinar um ponteiro
+    guardado: ele não faz, e keel não emite atributos para forçar (alvos como
+    RISC-V com LLVM não podem depender de heurística de um compilador).
+  - **Igualdade bit a bit de um `T` qualquer:** compare por palavras, com
+    `memcpy` de tamanho constante (`u32`, `u64`), nunca com `memcmp` (fica como
+    chamada e quebra o laço).
+  - **Struct com chave: coluna escalar.** Para buscar por chave num conjunto de
+    structs, guarde a chave numa coluna escalar contígua (`extent`, parte 4.9) e
+    o resto dos campos em outras colunas; o laço de busca varre só a coluna da
+    chave.
+  - **Vistas são de graça:** `slice`, `partition` e `slice.ptr(s)` são por
+    valor e O(1); o laço sobre `slice.ptr(s)` e o `foreach`/`walk` sobre o
+    mesmo `slice` geram o mesmo C.
+  - **Conferir:** `cgen ... -c x.k -o x.o -O3 -march=native
+    -fopt-info-vec-optimized -fno-ipa-icf` e procurar `loop vectorized` nas
+    linhas do `.k`. `-fno-ipa-icf` porque o gcc funde funções idênticas e
+    relata só uma delas.
 
 ---
 

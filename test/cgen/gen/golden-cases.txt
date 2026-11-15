@@ -87,3 +87,4 @@ test/cgen/gen/share|use.k|-
 071-protocol-function-instance|app/ibox_use.k|-
 072-protocol-function-implicit-inline|pf2.k|-
 073-fnptr-variable-argument|fnptr_arg.k|-
+074-array-dim-expression|adim.k|-

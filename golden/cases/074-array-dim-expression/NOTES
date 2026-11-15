@@ -1,0 +1,10 @@
+O que este caso afirma
+======================
+
+Achado A5 da keel_coll sobre a 0.2.0: a dimensão de um `array` que chega a `arena.from_array` pode ser uma
+expressão constante (`1<<10`), e não só um número. O cgen a copia como veio, como um argumento a mais
+(`keel_arena_from_array(a, adim_memo, 1<<10)`), exatamente como faz com `65536` no caso 002. Antes, o
+emissor recusava o módulo com `implementation-limit` sem dizer onde.
+
+Mesma forma do caso 002; muda só a dimensão. Linhas do `adim.k`: `memo` na 6 e `start` na 8. O esperado
+tem quatro linhas em branco depois do `#line 1` (o comentário e o `import` ficam acima da linha 6).

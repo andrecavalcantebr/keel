@@ -364,6 +364,18 @@ const char *k_emit_limit_text(size_t code) {
     }
 }
 
+/* the site of the refusal, for the message: line and column of its first token */
+static void say_refusal(Emit *e, KEmitRefusal *r) {
+    if (!r || e->refuse_tok == SIZE_MAX) return;
+    KToken t = k_em_tok(e->ast, e->refuse_tok);
+    size_t off = k_em_tok_off(e->ast, e->refuse_tok);
+    r->line = k_em_line_at(e, off);
+    r->col = off - k_em_line_start(e, off) + 1;
+    r->tok = t.ptr;
+    r->tok_len = t.len;
+    r->what = e->refuse_what ? e->refuse_what : "this construction";
+}
+
 size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_path,
                    KEmitFile which, KEmitOptions opt, keel_slice_char out) {
     Emit e;
@@ -377,6 +389,8 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     e.cache_line = 1;
     e.ok = true;
     e.limit = 0;
+    e.refuse_tok = SIZE_MAX;
+    e.refuse_what = NULL;
     e.n = 0;
     e.block_ordinal = 0;
     e.scratch_n = 0;
@@ -385,10 +399,13 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     if (which == K_EMIT_ENTRY) {
         emit_entry(&e);
     } else {
-        if (!k_em_supported(&e)) return K_EMIT_UNSUPPORTED;
+        if (!k_em_supported(&e)) { say_refusal(&e, opt.refusal); return K_EMIT_UNSUPPORTED; }
         if (which == K_EMIT_C) emit_c(&e);
         else emit_header(&e, which);
     }
-    if (!e.ok) return e.limit ? e.limit : K_EMIT_UNSUPPORTED;
+    if (!e.ok) {
+        if (!e.limit) say_refusal(&e, opt.refusal);
+        return e.limit ? e.limit : K_EMIT_UNSUPPORTED;
+    }
     return k_writer_len(&e.w);
 }

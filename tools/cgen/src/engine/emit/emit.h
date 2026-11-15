@@ -22,10 +22,21 @@ typedef enum {
     K_EMIT_ENTRY     /* main_<symbol>.c, for --main (backend §5.8); `ast` is the module's, for the signature of its main */
 } KEmitFile;
 
+/* Where the emitter refused a module, when it can say (cgen-tool-spec §7.1, `implementation-limit`):
+ * the position of the construction, its first token, and what is not covered. `what` is NULL when
+ * the refusal has no site. */
+typedef struct {
+    size_t line, col;
+    const char *tok;
+    size_t tok_len;
+    const char *what;
+} KEmitRefusal;
+
 typedef struct {
     bool c23;        /* the profile: C23 when true, C11 when false (backend §9) */
     bool line_on;    /* false under --line=off: no #line at all */
     bool omp;        /* the `parallel` lowering: the OpenMP directive when true, series when false (backend §5.9.1) */
+    KEmitRefusal *refusal;   /* NULL, or where k_emit_file says what it refused */
 } KEmitOptions;
 
 #define K_EMIT_UNSUPPORTED ((size_t)-1)

@@ -15,11 +15,18 @@ static bool island_out(const KAst *ast, const KIsland *is) {
     return false;
 }
 
+/* the refusal of island `is`: its anchor is the site */
+static bool refuse_island(Emit *e, const KIsland *is) {
+    k_em_refuse(e, is->anchor, NULL);
+    return false;
+}
+
 /* Whether the islands of the module are the ones a rename covers: a type,
  * a name or a call whose detail is `<name>[/arity] → <symbol>` and whose name
  * is declared by this module. Any other island is a construction that needs
  * lowering (backend §5), which the slice does not have. */
-static bool islands_supported(const KAst *ast) {
+static bool islands_supported(Emit *e) {
+    const KAst *ast = e->ast;
     for (size_t i = 0; i < ast->islands.len; i++) {
         const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, i);
         if (island_out(ast, is)) continue;   /* in a declaration of the instance */
@@ -32,11 +39,11 @@ static bool islands_supported(const KAst *ast) {
                 k_em_handles_else(ast, is) || k_em_handles_subscript(ast, is) || k_em_handles_match(ast, is) ||
                 k_em_handles_parallel(ast, is) || k_em_handles_worker_exit(ast, is) ||
                 is->kind == K_ISLAND_EXTENT || k_em_handles_column(ast, is)) continue;
-            return false;
+            return refuse_island(e, is);
         }
         /* a name another module declares: renamed by its island (uses.c) */
         if (k_em_foreign_island(ast, is)) {
-            if (!k_em_handles_use(ast, is) && !k_em_handles_core(ast, is)) return false;
+            if (!k_em_handles_use(ast, is) && !k_em_handles_core(ast, is)) return refuse_island(e, is);
             continue;
         }
         const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
@@ -45,7 +52,7 @@ static bool islands_supported(const KAst *ast) {
         bool arrow = false;
         for (size_t k = nm; k + 3 <= len; k++)
             if (memcmp(d + k, "\xE2\x86\x92", 3) == 0) { arrow = true; break; }
-        if (!arrow) return false;
+        if (!arrow) return refuse_island(e, is);
         bool declared = false;
         for (size_t k = 0; k < ast->nodes.len && !declared; k++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
@@ -53,19 +60,25 @@ static bool islands_supported(const KAst *ast) {
             KToken t = k_em_tok(ast, n->name_first);
             declared = t.len == nm && memcmp(t.ptr, d, nm) == 0;
         }
-        if (!declared) return false;
+        if (!declared) return refuse_island(e, is);
     }
     return true;
 }
 
+/* the refusal of node `n`: its first token is the site */
+static bool refuse_node(Emit *e, const KAstNode *n) {
+    k_em_refuse(e, n->first, NULL);
+    return false;
+}
+
 /* Whether the slice of emit.h covers every node of the module. */
-bool k_em_supported(const Emit *e) {
+bool k_em_supported(Emit *e) {
     const KAst *ast = e->ast;
-    if (!islands_supported(ast)) return false;
+    if (!islands_supported(e)) return false;
     if (k_em_places_instances(ast)) return k_em_supported_placement(ast);
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
-        if (n->first >= n->end) return false;
+        if (n->first >= n->end) return refuse_node(e, n);
         if (k_em_generic_out(ast, n)) continue;
         switch (n->kind) {
         case K_AST_MODULE:
@@ -74,28 +87,28 @@ bool k_em_supported(const Emit *e) {
         case K_AST_OPAQUE:
             break;
         case K_AST_IMPORT_C:
-            if (!k_em_handles_import_c(ast, n)) return false;
+            if (!k_em_handles_import_c(ast, n)) return refuse_node(e, n);
             break;
         case K_AST_TYPE:
-            if (!k_em_handles_type(ast, n, i > 0 ? keel_buffer_KAstNode_ptr(&ast->nodes, i - 1) : NULL)) return false;
+            if (!k_em_handles_type(ast, n, i > 0 ? keel_buffer_KAstNode_ptr(&ast->nodes, i - 1) : NULL)) return refuse_node(e, n);
             break;
         case K_AST_TAGS:
-            if (!k_em_handles_tags(ast, n)) return false;
+            if (!k_em_handles_tags(ast, n)) return refuse_node(e, n);
             break;
         case K_AST_CONSTEXPR:
-            if (!k_em_handles_constexpr(ast, n)) return false;
+            if (!k_em_handles_constexpr(ast, n)) return refuse_node(e, n);
             break;
         case K_AST_VARIABLE:
-            if (!k_em_handles_variable(ast, n)) return false;
+            if (!k_em_handles_variable(ast, n)) return refuse_node(e, n);
             break;
         case K_AST_EXTERN_C:
-            if (!k_em_handles_extern_c(e, n)) return false;
+            if (!k_em_handles_extern_c(e, n)) return refuse_node(e, n);
             break;
         case K_AST_FUNCTION:
-            if (!k_em_handles_function(e, n)) return false;
+            if (!k_em_handles_function(e, n)) return refuse_node(e, n);
             break;
         default:
-            return false;
+            return refuse_node(e, n);
         }
     }
     return true;

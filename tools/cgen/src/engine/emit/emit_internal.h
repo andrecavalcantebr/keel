@@ -59,6 +59,8 @@ typedef struct {
     size_t cache_off, cache_line;   /* line_at's last answer */
     bool ok;                   /* false: the call is refused (UNSUPPORTED, or the limit in `limit`) */
     size_t limit;              /* 0, or the K_EMIT_LIMIT_* code of the first capacity that ran out */
+    size_t refuse_tok;         /* SIZE_MAX, or the first token of the first construction refused (k_em_refuse) */
+    const char *refuse_what;   /* what is not covered there, or NULL for "this construction" */
     char buf[LINE_CAP];        /* the line being built */
     size_t n;                  /* bytes in buf */
     size_t block_ordinal;      /* unused: the ordinal is computed from the tokens (constexpr_block.c) */
@@ -198,7 +200,10 @@ void k_em_extern_c_text(Emit *e, const KAstNode *n);
 bool k_em_uses_share(const Emit *e);
 
 /* supported.c: whether the slice of emit.h covers every node of the module */
-bool k_em_supported(const Emit *e);
+bool k_em_supported(Emit *e);
+/* Refuse the call at token `tok`, saying what is not covered (`what` may be NULL). The first refusal
+ * stays: it is the one the message names. */
+void k_em_refuse(Emit *e, size_t tok, const char *what);
 
 /* decls.c: whether k_em_supported's own switch, one function per K_AST_* kind,
  * named like the k_em_handles_* of an island (below) */

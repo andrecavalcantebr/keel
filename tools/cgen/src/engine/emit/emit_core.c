@@ -50,6 +50,11 @@ void k_em_limit(Emit *e, size_t code) {
     if (!e->limit) e->limit = code;
 }
 
+void k_em_refuse(Emit *e, size_t tok, const char *what) {
+    e->ok = false;
+    if (e->refuse_tok == SIZE_MAX) { e->refuse_tok = tok; e->refuse_what = what; }
+}
+
 void k_em_put_bytes(Emit *e, const char *p, size_t len) {
     for (size_t i = 0; i < len; i++) {
         if (e->n >= LINE_CAP) { k_em_limit(e, K_EMIT_LIMIT_LINE); return; }

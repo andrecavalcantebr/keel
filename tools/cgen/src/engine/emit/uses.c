@@ -321,9 +321,21 @@ static bool array_dim0(const KAst *ast, size_t tok, const char **p, size_t *len,
             if (binder) *binder = true;
             return true;
         }
+        if (e < is->text_len && d[e] != ']' && d[e] != ',') {
+            /* a constant expression that starts with a digit (`1<<4`, `2 * 8`): it is one argument,
+               copied as written, up to the `,` or `]` that closes the dimension */
+            size_t depth = 0;
+            while (e < is->text_len && (depth || (d[e] != ']' && d[e] != ','))) {
+                if (d[e] == '(' || d[e] == '[') depth++;
+                else if (d[e] == ')' || d[e] == ']') depth--;
+                e++;
+            }
+        }
         if (e >= is->text_len || (d[e] != ']' && d[e] != ',')) return false;
+        size_t stop = e;
+        while (stop > s && d[stop - 1] == ' ') stop--;
         *p = d + s;
-        *len = e - s;
+        *len = stop - s;
         return true;
     }
 }
@@ -486,7 +498,10 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
                 const char *dp;
                 size_t dl;
                 bool bound;
-                if (!array_dim0(ast, first[k], &dp, &dl, &bound) || q > b) { e->ok = false; return; }
+                if (!array_dim0(ast, first[k], &dp, &dl, &bound) || q > b) {
+                    k_em_refuse(e, first[k], "an `array` dimension that is not a number or a binder");
+                    return;
+                }
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = ", ", .text_len = 2 });
                 if (bound) k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = "keel__", .text_len = 6 });
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = q, .skip = 0, .text = dp, .text_len = dl });

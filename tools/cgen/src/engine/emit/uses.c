@@ -700,6 +700,7 @@ void k_em_h_type_includes(Emit *e) {
         char path[NAME_CAP];
         size_t pl = k_em_arg_header(e, d.sym, d.sym_len, ".type.h", path, sizeof path);
         if (pl == SIZE_MAX) continue;
+        if (!pl && e->inst && e->inst->user) pl = k_em_header_of_instance(e->inst->user, d.sym, d.sym_len, ".type.h", path, sizeof path);
         if (!pl) pl = k_em_header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
         if (!pl && k_em_plain_arg(e, d.sym, d.sym_len)) continue;   /* a C type: no header of keel */
         if (!pl) { e->ok = false; return; }

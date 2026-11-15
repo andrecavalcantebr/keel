@@ -65,6 +65,21 @@ static const char *proto_family(const KAst *ast, const char *sym, size_t len, si
     return sym;
 }
 
+/* The header of an instance of the closure of `ast` that `sym` names, or 0: the instance emitter reads the
+ * generic module's tree, whose own closure is empty, and asks the user's (`inst->user`) for the instances
+ * the generic's body names through its binders (`pair.pair K V` -> `r3_pair_i32_i64`). */
+size_t k_em_header_of_instance(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap) {
+    int c = instance_of(ast, sym, len);
+    if (c < 0) return 0;
+    const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, (size_t)c);
+    if (!k->module) return 0;
+    char unit[NAME_CAP];
+    size_t ul = k_em_unit_symbol(ast, k, unit, sizeof unit);
+    size_t pl = k_mangle_instance_path(k->module->name, ul ? (keel_slice_char){ ul, unit } : (keel_slice_char){ k->symbol_len, (char *)k->symbol }, ext,
+                                       (keel_slice_char){ cap, path });
+    return pl <= cap ? pl : 0;
+}
+
 /* The header a symbol of another module lives in, with extension `ext`: its
  * instance's, or the imported module's whose symbol prefixes it (the longest).
  * Its length in path, 0 when none (the prelude's names are everywhere). */

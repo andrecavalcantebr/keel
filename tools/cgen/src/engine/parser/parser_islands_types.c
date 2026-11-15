@@ -1052,7 +1052,8 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             inst = isl_kt_from_text(c, a->symbols, (keel_slice_char){ spelled.n, spelled.s });
             named = true;
         } else if (sig.found && c->has_target && c->target.kind == K_SPEC_MODIFIER) {
-            inst = isl_kt_from_text(c, a->symbols, c->target.text);
+            /* in a generic's instance the target is written with its binders (`pair.pair K V`) */
+            inst = c->inst_mode ? isl_kt_from_home(c, a, c->target.text, 0) : isl_kt_from_text(c, a->symbols, c->target.text);
             if (inst < 0 || isl_kt(c, inst)->module != module) return -1;
             named = true;
         } else {
@@ -1084,7 +1085,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
                 }
                 return -1;
             }
-            inst = isl_kt_from_text(c, a->symbols, spec.text);
+            inst = c->inst_mode ? isl_kt_from_home(c, a, spec.text, 0) : isl_kt_from_text(c, a->symbols, spec.text);
             if (inst < 0 || isl_kt(c, inst)->module != module) return -1;
             named = true;
         }

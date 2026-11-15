@@ -72,7 +72,7 @@ do golden ou o commit, e a versão em que saiu.
 | 2026-11-15 | `keel_coll` | A10: `extent` com coluna de tipo genérico em módulo genérico | sem repro | pista, não investigada |
 | 2026-11-15 | `keel_coll` | A11: contrato de `keel.slice` (`next` sem `NULL`, `partition` por passo) difere do da biblioteca | não é bug | documentação da base |
 | 2026-11-15 | `keel_coll` | B6: comparador como parâmetro de instanciação (`instance coll.set i32 by cmp`) | funcionalidade | `ROADMAP` §4 |
-| 2026-11-15 | `keel_coll` | B5: o gcc não propaga `p->eq` através de `init`/`put` no C gerado | pergunta aberta sobre o emissor | a discutir |
+| 2026-11-15 | `keel_coll` | B5: o gcc não propaga `p->eq` através de `init`/`put` no C gerado | não é bug do cgen: o gcc não inlina o `init` cedo, e o `init` deixa um caminho com `eq` nulo (vale para `u32`, não só struct) | repro e causa em `keel_coll/docs/achados/comparador_conhecido/` (`t_causa.c`); decisão de desenho em B6 |
 
 Os dois probes de `keel_maths` que esperavam falha (`symbolic_shape_use`,
 `matrix_partition_protocol_call_gap`) compilam na 0.2.0: são os achados dos

@@ -1249,6 +1249,9 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             check_array_argument(c, home, &sig.p[k], args[k], ak);
             continue;
         }
+        /* a function-pointer parameter takes the pointer as it is: a variable `h` of that type is
+           passed as `h`, never as `&h` (rule 5 adapts data pointers only) */
+        if (sig.p[k].is_fnptr) continue;
         /* a function over a protocol (spec §4.14, rule 7): the instance takes the concrete type
            by value or by pointer according to its own `byref`, not the redirected verb's (`sig`
            is `first`/`limit` or whichever verb matches the return type, found above to resolve

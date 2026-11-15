@@ -64,7 +64,7 @@ do golden ou o commit, e a versão em que saiu.
 | 2026-11-14 | `keel_coll` | `keel.slice const T` perde o `const` em módulo genérico (`docs/achados/`, item 1) | não reproduzido | repro em 0.1.2 e 0.2.0; sem ação |
 | 2026-11-15 | `keel_coll` | A1: `slice const T` com `T` struct emite o tipo `const_<módulo>_<struct>`, inexistente (`docs/achados/slice_const_struct/`) | bug | aberto; caso do golden pendente |
 | 2026-11-15 | `keel_coll` | A4: tipo de modificador de outro módulo genérico (`pair.pair K V`) como retorno não é emitido (`cgen_limites/src/r3/`) | bug | aberto; caso do golden pendente |
-| 2026-11-15 | `keel_coll` | A6: parâmetro de ponteiro de função repassado como argumento recebe `&` (`cgen_limites/src/r5_fnptr_arg.k`) | bug | aberto; caso do golden pendente |
+| 2026-11-15 | `keel_coll` | A6: parâmetro de ponteiro de função repassado como argumento recebe `&` (`cgen_limites/src/r5_fnptr_arg.k`) | bug | caso 073, 0.3.0 |
 | 2026-11-15 | `keel_coll` | A8: modificador com `dim` usado sem a dimensão passa pelo cgen e falha no `cc` (`cgen_limites/src/r8/`) | bug (diagnóstico ausente) | aberto; teste em `test/cgen/` pendente |
 | 2026-11-15 | `keel_coll` | A5, A7, A9: `implementation-limit` sem posição nem construção (`array` com expressão na dimensão passado a `arena.from_array`; `walk` sobre módulo com `dim`) | bug (contraria `cgen-tool-spec.md` §diagnósticos) | aberto; teste em `test/cgen/` pendente |
 | 2026-11-15 | `keel_coll` | A2: o cgen emite toda função `inline` da instância, usada ou não | não é bug (decisão da spec: a instância sai por inteiro, `keel-c-backend.md`) | pedido de emissão sob demanda é funcionalidade, `ROADMAP` §4 |

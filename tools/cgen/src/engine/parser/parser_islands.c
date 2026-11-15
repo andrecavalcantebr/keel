@@ -319,6 +319,7 @@ size_t isl_params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap) 
                         .role = role, .first = start, .end = j };
             for (size_t k = lead; k < j; k++) {
                 if (isl_punct(a, k, "*") || (isl_punct(a, k, "[") && !p.is_array)) p.pointer = true;
+                if (isl_punct(a, k, "(") && k + 1 < j && isl_punct(a, k + 1, "*")) p.is_fnptr = true;
                 if (!p.base.len && isl_ident(a, k) && !((p.is_type || p.is_array) && k == lead)) p.base = isl_tok(a, k);
             }
             if (p.base.len && a->symbols) {

@@ -1,0 +1,15 @@
+O que este caso afirma
+======================
+
+Achado A6 da keel_coll sobre a 0.2.0 (`achados/README.md`, 2026-11-15): uma variável de
+ponteiro de função, repassada como argumento a uma função cujo parâmetro é um ponteiro de
+função, é passada **pelo valor**: `fnptr_arg_apply(h, x)`. A cadeia é `run` → `forward`
+(`h`, parâmetro do tipo ponteiro de função) → `apply` (`f`).
+
+O defeito era o cgen emitir `&h`, tratando `h` como símbolo que precisa de endereço (a regra
+do §4.4, item 5, vale para o argumento de um parâmetro de ponteiro **de dado**). O tipo
+`u64 (**)(const i32 *)` é rejeitado pelo `cc` com `-Werror`. Passar o nome da função
+(`forward(hash, ...)`) sempre funcionou: um nome de função não é lvalue.
+
+Linhas do `fnptr_arg.k`: `hash` na 3, `apply` na 4, `forward` na 5, `run` na 7.
+`hash`, `apply` e `forward` são `priv`: saem `static` no `.c`, sem protótipo no `.h`.

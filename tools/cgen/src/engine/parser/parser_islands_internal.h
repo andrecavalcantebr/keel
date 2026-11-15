@@ -141,6 +141,7 @@ typedef struct {
     bool is_protocol;           /* `Proto [C] x`: a function over the protocol (spec §4.14) */
     KRole role;                 /* the role written before it (spec §4.12) */
     bool pointer;               /* declared as pointer */
+    bool is_fnptr;              /* `R (*f)(...)`: the pointer is the function's, not a datum's (rule 5 does not adapt it) */
     keel_slice_char base;       /* first type name of the parameter; the element of an array */
     size_t first, end;          /* its tokens, in the module that declares it */
 } Param;

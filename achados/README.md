@@ -62,7 +62,6 @@ do golden ou o commit, e a versão em que saiu.
 | 2026-11-13 | `keel_coll` | função sobre protocolo com tipo concreto instância de outro módulo | bug | caso 071, 0.2.0 |
 | 2026-11-13 | `keel_coll` | função sobre protocolo `pub` sem `inline`: aceita e falha só no link | lacuna da spec | caso 072, §4.14 regra 8, 0.2.0 |
 | 2026-11-14 | `keel_coll` | `keel.slice const T` perde o `const` em módulo genérico (`docs/achados/`, item 1) | não reproduzido | repro em 0.1.2 e 0.2.0; sem ação |
-
 | 2026-11-15 | `keel_coll` | A1: `slice const T` com `T` struct emite o tipo `const_<módulo>_<struct>`, inexistente (`docs/achados/slice_const_struct/`) | bug | aberto; caso do golden pendente |
 | 2026-11-15 | `keel_coll` | A4: tipo de modificador de outro módulo genérico (`pair.pair K V`) como retorno não é emitido (`cgen_limites/src/r3/`) | bug | aberto; caso do golden pendente |
 | 2026-11-15 | `keel_coll` | A6: parâmetro de ponteiro de função repassado como argumento recebe `&` (`cgen_limites/src/r5_fnptr_arg.k`) | bug | aberto; caso do golden pendente |

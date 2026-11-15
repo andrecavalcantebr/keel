@@ -879,6 +879,24 @@ static void close_instances(Ctx *c) {
             /* the C spelling of a type that is no module's (`const char`); else the symbol */
             const KType *ka = isl_kt(c, k->arg[g]);
             keel_slice_char sp = ka->kind == KT_PRIM && ka->spell.len ? ka->spell : (keel_slice_char){ strlen(sym), (char *)sym };
+            /* a qualified named type or instance (`const t_use_record`): its symbol carries the qualifiers as the
+               prefixes `const_`, `volatile_`, `atomic_` (instances.c, type_name), which C does not know */
+            char qspell[K_SYMBOL_MAX];
+            if (ka->kind != KT_PRIM) {
+                size_t qn = 0, skip = 0;
+                for (;;) {
+                    const char *w = sym + skip;
+                    if (!strncmp(w, "const_", 6)) { if (qn + 6 >= sizeof qspell) break; memcpy(qspell + qn, "const ", 6); qn += 6; skip += 6; }
+                    else if (!strncmp(w, "volatile_", 9)) { if (qn + 9 >= sizeof qspell) break; memcpy(qspell + qn, "volatile ", 9); qn += 9; skip += 9; }
+                    else if (!strncmp(w, "atomic_", 7)) { if (qn + 8 >= sizeof qspell) break; memcpy(qspell + qn, "_Atomic ", 8); qn += 8; skip += 7; }
+                    else break;
+                }
+                size_t rest = strlen(sym + skip);
+                if (skip && sym[skip] && qn + rest < sizeof qspell) {
+                    memcpy(qspell + qn, sym + skip, rest);
+                    sp = (keel_slice_char){ qn + rest, qspell };
+                }
+            }
             if (!pool(c, sp.ptr, sp.len, &e.arg_spell[e.argc])) break;
             e.arg_spell_len[e.argc] = sp.len;
             e.arg_len[e.argc++] = strlen(sym);

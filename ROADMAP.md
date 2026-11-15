@@ -76,6 +76,7 @@ sem caso real que o dispare.
 | `source` / `pub import` | listas de imports longas e repetidas em tarefas comuns (ex.: Tensor) |
 | Intervalo inclusivo `a..<b`, `a..=b` | uso frequente do padrão meio-aberto escrito à mão |
 | Moldes (`keel_code`) | engavetado; o caso real (conjunto ordenado) apontou antes para o comparador como eixo de instanciação |
+| Comparador como eixo de instanciação (`instance ... by cmp`) | chave que `==`/`<` direto e a coluna-índice não cobrem (string, ordem do usuário); medido em 2026-11-15: 5× sobre o ponteiro guardado (`achados/`, B3/B6) |
 | Handle (ponteiro com geração), regiões e arena na base | decisão de incorporar o texto candidato da §2 de `possibilidades.md` |
 
 ## Fora do escopo

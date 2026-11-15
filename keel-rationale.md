@@ -115,8 +115,8 @@ Várias decisões de desenho respondem a essa pergunta, e é por ela que ficam
 explicadas:
 
 - **A base é toda `pub inline`** (backend, D7). Em laço quente, a função inline
-  mantém o código junto do dado; a chamada fora de linha seria uma barreira
-  para o vetorizador.
+  mantém o código junto do dado, e uma chamada fora de linha tende a ser uma
+  barreira para o vetorizador.
 - **`foreach`, `walk` e `s[i]` viram `for` e `while`** sobre ponteiro e índice,
   sem objeto iterador. O laço que o programador lê é o laço que o compilador vê.
 - **Vista (`slice`, `partition`) é por valor e O(1).** Obter uma vista não
@@ -136,12 +136,13 @@ promessa). O C gerado por keel é o corpo do `.k` copiado, e escrito à mão em 
 com as mesmas estruturas dá o mesmo desempenho: a razão entre os dois ficou
 entre 0,8 e 1,2 nas operações testadas. A diferença de 1,5 a 5 vezes que
 apareceu contra "C escrito sem a abstração" veio de uma só causa: o comparador
-guardado como ponteiro de função na estrutura, que o gcc não inlina através de
-`init` e `put`, e que custa uma chamada indireta por elemento e impede a
-vetorização. Numa busca linear em 4096 `u32`, foram cerca de 5000 ns com o
+guardado como ponteiro de função na estrutura. O gcc só o devirtualiza quando a
+atribuição do ponteiro e a chamada estão na mesma função antes do inlining entre
+funções; no C gerado a atribuição está em `init`, que ele não inlina cedo. O
+resultado é uma chamada indireta por elemento, e a vetorização fica impedida. Numa busca linear em 4096 `u32`, foram cerca de 5000 ns com o
 ponteiro guardado, 900 ns com a chamada direta, e 135 ns com `==` sobre um
 laço que vetoriza. Para `T` escalar a saída é escrever `==` e `<` no corpo; é o
-mesmo problema da segunda saída do assembly portável, e a mesma conclusão.
+mesmo problema da segunda saída da seção do assembly portável.
 
 **O que keel recusa por isso.** keel não emite `always_inline` nem qualquer
 atributo que dependa da heurística de inlining de um compilador, embora o

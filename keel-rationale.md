@@ -102,6 +102,70 @@ promete prever tem de estar escrito em algum lugar que não mente.
 
 Referência: [spec §1.1](keel-spec.md#11-princípios-de-projeto), princípio 2.
 
+## O custo também é previsível: o laço que o compilador vetoriza *(desde 0.3.0)*
+
+O fato 1 da seção "C usado como o assembly portável" (o gerado é código que um
+humano assinaria) tem um corolário que nenhum princípio enuncia: se o C que uma
+construção produz é previsível, o **custo** dela também é. Quem escreve keel
+mantém a imagem do C gerado, e essa imagem inclui uma pergunta que decide o
+desempenho de qualquer laço de dados: o compilador C consegue **vetorizar**
+esse laço, isto é, processar vários elementos por instrução?
+
+Várias decisões de desenho respondem a essa pergunta, e é por ela que ficam
+explicadas:
+
+- **A base é toda `pub inline`** (backend, D7). Em laço quente, a função inline
+  mantém o código junto do dado; a chamada fora de linha seria uma barreira
+  para o vetorizador.
+- **`foreach`, `walk` e `s[i]` viram `for` e `while`** sobre ponteiro e índice,
+  sem objeto iterador. O laço que o programador lê é o laço que o compilador vê.
+- **Vista (`slice`, `partition`) é por valor e O(1).** Obter uma vista não
+  aloca nem passa por indireção, de modo que fatiar um dado não custa mais do
+  que o laço sobre ele.
+- **`extent` guarda um vetor por campo.** Dado em coluna, contíguo e escalar, é
+  a forma sobre a qual o compilador vetoriza; uma lista de structs, não.
+- **Um módulo genérico é instanciado por tipo** (spec §4.3). O corpo da
+  instância conhece `T`, e `==` e `<` entram no corpo e são vistos pelo
+  compilador. A alternativa, que é a segunda saída da seção do assembly
+  portável (`void *` com `sizeof` e uma função de comparação), esconde a
+  operação atrás de um ponteiro.
+
+**O que se mediu** (keel_coll, 2026-11-15; gcc 13.3, `-O3 -march=native`, Ryzen
+7 5825U; uma máquina e um compilador, portanto ordem de grandeza e não
+promessa). O C gerado por keel é o corpo do `.k` copiado, e escrito à mão em C
+com as mesmas estruturas dá o mesmo desempenho: a razão entre os dois ficou
+entre 0,8 e 1,2 nas operações testadas. A diferença de 1,5 a 5 vezes que
+apareceu contra "C escrito sem a abstração" veio de uma só causa: o comparador
+guardado como ponteiro de função na estrutura, que o gcc não inlina através de
+`init` e `put`, e que custa uma chamada indireta por elemento e impede a
+vetorização. Numa busca linear em 4096 `u32`, foram cerca de 5000 ns com o
+ponteiro guardado, 900 ns com a chamada direta, e 135 ns com `==` sobre um
+laço que vetoriza. Para `T` escalar a saída é escrever `==` e `<` no corpo; é o
+mesmo problema da segunda saída do assembly portável, e a mesma conclusão.
+
+**O que keel recusa por isso.** keel não emite `always_inline` nem qualquer
+atributo que dependa da heurística de inlining de um compilador, embora o
+atributo recuperasse parte da perda nesse caso (a causa é a ordem das passagens
+do gcc, e não o C gerado). O fato 3 da mesma seção, o compilador C como
+verificador final, vale também para o desempenho: o C gerado é entregue ao
+compilador como está, e o que ele fizer com ele é dele. O alvo de keel é
+qualquer máquina que tenha um compilador C, um microcontrolador RISC-V
+compilado com LLVM entre elas, e um atributo de um compilador deixaria de
+valer ali. keel dá a forma do laço, e quem escreve escolhe a mais adequada ao
+caso; o custo está à vista, e esse é o preço da transparência.
+
+**O que fica em aberto, e quando volta.** Um comparador conhecido na geração
+daria ao módulo genérico o que a instância por tipo dá a `==`: a chamada
+direta, sem ponteiro. É a "Rota A" do molde (comparador como eixo de
+instanciação, ao lado de `type` e `dim`), e fica fora da linguagem hoje, porque
+`==`, `<` e a chave em coluna escalar cobrem os casos que apareceram. O gatilho
+de reabertura está no `ROADMAP.md`: uma chave que esses três não cobrem
+(texto, ordem definida pelo usuário). O medido, para esse caso, é o fator de 5
+sobre o ponteiro guardado.
+
+Referência: [manual §3.11](keel-manual.md) (como escrever e como conferir) e
+`achados/README.md` (B3 e B5 da keel_coll).
+
 ## Critério de admissão, em exercício
 
 Uma construção entra no núcleo quando passa por três perguntas, nesta ordem:

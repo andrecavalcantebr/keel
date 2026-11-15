@@ -18,6 +18,17 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   as dimensões passava pelo cgen e falhava no compilador C
   (`unknown type name`).
 
+**Rationale** (`keel-rationale.md`)
+
+- Seção nova, "O custo também é previsível: o laço que o compilador
+  vetoriza": a previsibilidade do C gerado como justificativa de várias
+  decisões, o que se mediu e o que keel recusa (`always_inline`).
+
+**Documentação** (não normativa)
+
+- `keel-manual.md` §3.11 e `design/keel-llm-context.md`: como escrever para o
+  compilador C vetorizar e como conferir.
+
 **Ferramenta** (`tools/cgen`)
 
 - Correções dos achados da `keel_coll` sobre a 0.2.0 (`achados/README.md`): o

@@ -206,6 +206,16 @@ void isl_check_arguments(Ctx *c, const KSpecifier *spec, KToken at) {
     const KAst *home = m && m->origin ? m->origin->ast : NULL;
     if (!home) return;
     const KAstNode *mn = isl_module_node(home);
+    /* one value per `dim` of the module line (spec §4.3); the module's own bare name is its own instance */
+    size_t dims = 0;
+    for (size_t j = mn->dim_first; j < mn->dim_end; j++) if (isl_ident(home, j) && !isl_word(home, j, "dim")) dims++;
+    if (home != a && dims != spec->dim_count) {
+        Text want = { .ok = true }, got = { .ok = true };
+        isl_put_uint(&want, dims);
+        isl_put_uint(&got, spec->dim_count);
+        keel_slice_char w = isl_keep(c, &want), g = isl_keep(c, &got);
+        isl_diag3(c, K_DIAG_MODIFIER_DIMENSION_COUNT, at, spec->modifier_name, w, g);
+    }
     size_t tags = 0;
     for (size_t j = mn->tags_first; j < mn->tags_end; j++) if (isl_ident(home, j)) tags++;
     for (size_t k = 0; k < tags && k < spec->arg_count; k++) {

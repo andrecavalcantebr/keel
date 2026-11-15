@@ -9,6 +9,27 @@ leva marca.
 
 Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
+## 0.3.0 (em andamento)
+
+**Linguagem** (`keel-spec.md`)
+
+- §4.3: o uso de um modificador de módulo com `dim` leva um valor para cada
+  `dim`. Diagnóstico novo: `modifier-dimension-count` (erro). Antes, o uso sem
+  as dimensões passava pelo cgen e falhava no compilador C
+  (`unknown type name`).
+
+**Ferramenta** (`tools/cgen`)
+
+- Correções dos achados da `keel_coll` sobre a 0.2.0 (`achados/README.md`): o
+  ponteiro de função passado como argumento não recebe `&` (A6); a dimensão de
+  `array` passada a `arena.from_array` pode ser expressão constante que começa
+  por dígito (A5); `slice const T` com `T` struct sai grafado como C (A1); a
+  instância de um genérico que devolve ou constrói instância de outro genérico
+  pelos binders sai completa (A4).
+- O `implementation-limit` de uma construção que o emissor não cobre passa a
+  dizer `arquivo:linha:coluna` e a construção (A7, A9); a
+  `cgen-tool-spec.md` §7.1 já pedia a posição.
+
 ## 0.2.0
 
 **Linguagem** (`keel-spec.md`)

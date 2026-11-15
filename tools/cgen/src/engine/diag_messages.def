@@ -130,6 +130,7 @@
     X(TYPE_PARAM_OUTSIDE_SIZE, "the erased type parameter `%s` stands only in `sizeof(%s)` and `alignof(%s)` in the body, and as a pointee in the signature") \
     X(TYPE_PARAM_SHADOWS_TYPE, "the erased type parameter `%s` has the name of a known type: choose another name") \
     X(TYPE_ARG_FOREIGN, "`%s` erases to `sizeof`/`alignof` here, and is from another module: write it in a local type, or pass the instance some other way") \
+    X(MODIFIER_DIMENSION_COUNT, "`%s` takes %s dimension value(s), one per `dim` of its module, and %s are written here: put them in parentheses after the name, as in `name(4) T`") \
     X(ROLE_POSITION, "`%s` is a role: a role stands before the type of a parameter, and only `child` before the return type") \
     X(ROLE_MISSING, "the body %s `%s`: the signature needs %s") \
     X(RETURN_MAY_ESCAPE, "the returned expression holds `%s`, which %s") \

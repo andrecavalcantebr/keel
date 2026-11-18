@@ -230,7 +230,7 @@ void isl_resolution_end(Ctx *c);
 bool isl_call_at(Ctx *c, size_t i);
 bool isl_tag_of_some_set(const KAst *where, keel_slice_char name);
 void isl_name_island(Ctx *c, size_t i);
-void isl_qualified_name(Ctx *c, size_t i, const KModule *module);
+size_t isl_qualified_name(Ctx *c, size_t i, const KModule *module);
 bool isl_tag_qualified(Ctx *c, size_t i);
 bool isl_proto_param(Ctx *c, size_t i, size_t *next);
 bool isl_is_arena(const KAst *a, const KSpecifier *spec);

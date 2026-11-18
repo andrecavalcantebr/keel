@@ -88,3 +88,4 @@ test/cgen/gen/share|use.k|-
 072-protocol-function-implicit-inline|pf2.k|-
 073-fnptr-variable-argument|fnptr_arg.k|-
 074-array-dim-expression|adim.k|-
+075-tag-qualified-import|app/hue.k app/hue_use.k|-

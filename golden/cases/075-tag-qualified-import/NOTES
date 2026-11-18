@@ -1,0 +1,24 @@
+O que este caso afirma
+=======================
+
+`alias.Set.VALOR` (spec §4.9, §4.2 item 9) lê o valor de um conjunto `tags`
+declarado em OUTRO módulo: `hue.Hue.GREEN` vira `app_hue_Hue_GREEN`, e o tipo
+`hue.Hue` continua sendo `app_hue_Hue`. A ilha cobre os cinco tokens.
+
+Por que faltava
+================
+
+Achado em `../xprk` (catálogo de diagnósticos como módulo keel): o cgen
+resolvia `t.Color` como o tipo e deixava `.GREEN` no texto, que o cc recusava
+(`expected expression before 'm_t_Color'`). Dentro do módulo, `Set.VALOR` já
+funcionava (`isl_tag_qualified`); nenhum caso exercitava a forma qualificada
+por alias. O conserto está em `isl_qualified_name`
+(`parser_islands_types.c`): quando o membro é um conjunto e os dois tokens
+seguintes são `.` e um item dele, o símbolo é o do conjunto mais `_ITEM`.
+
+Os valores são explícitos (0, 5, 9) para o proof.c separar o item do índice.
+Os `.h` incluem o `.type.h` do outro módulo porque o enum aparece por valor
+na assinatura de `next` (backend §4.3.2).
+
+Limite conhecido, fora deste caso: a forma sem alias, `import a.b;` seguido
+de `a.b.Set.VALOR` (ou `a.b.NOME`), não é reescrita para nenhum membro.

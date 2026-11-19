@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
         const char *w = argv[i];
 
         if (strcmp(w, "--cgen-version") == 0) {
-            printf("cgen 0.2.0\ncommit %s\ndate %s\ncc %s\n",
+            printf("cgen 0.3.0\ncommit %s\ndate %s\ncc %s\n",
                    cgen_build_commit, cgen_build_date, cgen_build_cc);
             exit(0);
         }

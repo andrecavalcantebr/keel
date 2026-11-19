@@ -10,9 +10,9 @@ só a sequência e os gatilhos.
 
 A linguagem v0 está fechada: os quatro normativos estão completos, a base está
 escrita em keel e o `cgen` emite C11 e C23 para todos os casos do `golden/`
-(71 casos, nos dois perfis). A versão corrente é a 0.2.0, em `master`
-(2026-11-14); os normativos são versionados e o `CHANGELOG.md` registra o que
-mudou. O trabalho rotineiro vai na branch `0.3.0`; `master` fica na versão
+(71 casos, nos dois perfis). A versão corrente é a 0.3.0, em `master`
+(2026-11-19); os normativos são versionados e o `CHANGELOG.md` registra o que
+mudou. O trabalho rotineiro vai na branch `0.4.0`; `master` fica na versão
 publicada.
 
 ## 1. Agora: o que fica depois da 0.2.0

@@ -1,6 +1,6 @@
 # keel — manual (not so quick start)
 
-> **Versão descrita: keel 0.2.0** (`cgen 0.2.0`, tag `v0.2.0`). Se a sua versão
+> **Versão descrita: keel 0.3.0** (`cgen 0.3.0`, tag `v0.3.0`). Se a sua versão
 > for outra, desconfie dos detalhes: a spec e o `cgen --cgen-version` valem
 > mais que este texto. `cgen --cgen-version` também imprime o commit de que o
 > binário saiu, e é por ele que se distingue um build de desenvolvimento do
@@ -423,7 +423,7 @@ instrução). Esta seção diz o que keel garante, o que deixa para você e como
 conferir. Os números são de uma máquina (Ryzen 7 5825U, gcc 13.3,
 `-O3 -march=native`): valem como ordem de grandeza, não como promessa.
 
-**O que keel garante** *(verificado: `cgen` 0.3.0-dev e gcc 13.3 com
+**O que keel garante** *(verificado: `cgen` 0.3.0 e gcc 13.3 com
 `-fopt-info-vec-optimized`)*. As formas abaixo geram laços que o gcc vetoriza,
 e obter uma vista (`slice`, `partition`) é por valor e O(1):
 

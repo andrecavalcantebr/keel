@@ -8,7 +8,7 @@
 > revisão tiveram auxílio de Claude Opus e Claude Sonnet (Anthropic), sob
 > direção humana.
 
-**Versão descrita: keel 0.2.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)* ou *(desde 0.3.0)*, conforme a versão em que sai (a 0.3.0 está em andamento); o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+**Versão descrita: keel 0.3.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)* ou *(desde 0.3.0)*, conforme a versão em que saiu; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
 
 **Documento normativo.** Especifica o cgen, transpilador de referência de keel para C — C11 ou C23, conforme o perfil da §4.9: o que depende da invocação.
 
@@ -129,8 +129,8 @@ Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apar
 > um espaço:
 >
 > ```
-> cgen 0.2.0
-> commit v0.2.0
+> cgen 0.3.0
+> commit v0.3.0
 > date 2026-11-13T21:50:22Z
 > cc GCC 13.3.0
 > ```

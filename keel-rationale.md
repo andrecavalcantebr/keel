@@ -7,7 +7,7 @@
 > licença própria, ver [`LICENSE.md`](LICENSE.md). Escrita e revisão tiveram
 > auxílio de Claude Opus e Claude Sonnet (Anthropic), sob direção humana.
 
-**Versão descrita: keel 0.3.0.** Justifica as decisões dos três documentos normativos na versão em que estão; o que entrou na 0.3.0 leva a marca *(desde 0.3.0)*; o registro das mudanças por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+**Versão descrita: keel 0.3.0.** Justifica as decisões dos três documentos normativos na versão em que estão; o que entrou depois da 0.3.0 (a 0.4.0 está em andamento) leva a marca *(desde 0.4.0)*, e o que entrou na 0.3.0, *(desde 0.3.0)*; o registro das mudanças por versão está em [`CHANGELOG.md`](CHANGELOG.md).
 
 Este documento reúne as motivações e as decisões de projeto de keel. Os
 contratos pertencem à [especificação](keel-spec.md); a representação e a emissão
@@ -973,6 +973,22 @@ açúcar tenham o mesmo regime, e para que um módulo do programa não possa
 esquecê-la. A saturação de release fica no corpo do verbo.
 
 Referência: [spec §4.5](keel-spec.md#45-indexação-e-range-index).
+
+## `bitbuffer` e `bitslice` *(desde 0.4.0)*
+
+`bitbuffer`/`bitslice` são a segunda instância do par memória/visão (seção acima): o lado memória, `bitbuffer`, importa o lado visão, `bitslice`, para devolvê-la de `as_slice` e `partition`, e nunca o contrário. O que muda é o elemento, que mede `W` bits e mora dentro de um byte, ou atravessa a fronteira entre dois. Quatro escolhas decorrem disso.
+
+**Sem `ptr`, e a recusa vem do protocolo.** Um elemento de `W` bits não tem endereço, e `IndexPtr` e `Traversable` devolvem `elem *`. Em vez de uma regra especial, `bitbuffer` e `bitslice` não declaram esses verbos, e `foreach` com binder por ponteiro e `walk` caem em `protocol-not-satisfied`, o diagnóstico que já existe. O que sobra é `IndexGet`, e `foreach (T v, size_t i : x)` por valor funciona sem nada novo. `T` é só a interface de `get` e `set`; o armazenamento nunca tem `T`.
+
+**Armazenamento `u8`, layout por byte.** O elemento `i` ocupa os bits `[i*W, (i+1)*W)`, contados do bit menos significativo do byte 0. Acessar por byte faz o resultado independer da endianness do hospedeiro, e `u8` é tipo de caractere, o único que o C deixa aliasar qualquer objeto. O custo é que um elemento que cruza fronteira é lido em dois ou mais bytes, e o laço de `keel.bits` faz isso sem caso especial; para `W` constante o compilador o desenrola.
+
+**`partition` alinha ao byte.** Dois trabalhadores que escrevem elementos vizinhos de uma tabela empacotada podem escrever no mesmo byte, e isso é corrida de dados mesmo com os elementos distintos. Por isso `partition` arredonda o passo para um múltiplo de `8/mdc(W, 8)` elementos, o grupo que termina em fronteira de byte (8 para `W` igual a 3, 1 para `W` igual a 8), e a primeira parte absorve o que antecede a primeira fronteira de uma vista que começa no meio de um byte. A conta é a mesma do `slice`, mais o arredondamento. Já `as_slice` com limites arbitrários não pode garantir isso, e a regra 6 da §5.8 diz que a escrita concorrente por vistas que compartilham byte é do programa.
+
+**`make` e `bytes`.** O tamanho do armazenamento é `ceil(cap*W/8)`, e escrevê-lo à mão duplica o `W`, que é o erro mais provável do usuário. `make(a, cap)` aloca na arena e acerta a conta, e leva um nome próprio em vez de `from_arena`, que a §5.3 recusou para `buffer`, porque aqui `clone` não serve: não há origem. A instância vem do alvo, como em `buffer.from` (§4.4). `bytes(b)` existe porque o tamanho a pedir **antes** de haver um `bitbuffer` não pode ser um verbo: um verbo que usa `W` sem citar o modificador pertence à instância (§4.3, regra 20) e só se chama com receptor ou alvo; `bits.bytes(n, width)` serve a quem calcula com a largura na mão.
+
+**`keel.bits` é um módulo à parte.** O empacotamento não menciona `W`, `T` nem o modificador, e é chamado de dentro dos corpos das instâncias dos dois módulos genéricos. A parte fixa de um módulo genérico (§4.3, regra 20) não alcança essas chamadas, e por isso os cinco verbos moram num módulo comum, que a instância importa como qualquer outro. A largura e o tipo são checados por instância, no corpo de `assert_instance`, pelo mesmo motivo: um `static_assert` no topo de um módulo genérico não tem onde ficar emitido.
+
+Referência: [spec §5.8](keel-spec.md#58-keelbitbuffer-keelbitslice-e-keelbits-desde-040).
 
 ## Particionável e percorrível
 

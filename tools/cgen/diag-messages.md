@@ -70,6 +70,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `element-copy-in-get-set` | `%s` would copy an element that is itself `%s`; take its address with `ptr` instead | `get` or `set` over an element that is an instance of a modifier |
 | `index-out-of-length` |  | `get` or `ptr(x, i)` (and through them the sugar `x[i]`) with an index outside `length`, over `buffer` or `slice` |
 | `set-out-of-length` |  | `set` with an index outside `length` |
+| `bit-value-out-of-width` |  | `set` or `push` of a `bitbuffer` or `bitslice` with a value that does not fit in `W` bits |
 | `buffer-of-unknown-size` | `%s` needs a one-dimensional `array` to read the size from, and `%s` is not one: use `buffer.of(p, n)` | One-argument `buffer.of` over a symbol that is not an `array` |
 | `array-1d-as-parameter` | the one-dimensional `array` parameter `%s` has no binder: write `array T name[size_t n]` so the function receives its length | A one-dimensional `array` function parameter without a binder |
 | `array-parameter-without-dimension` | the parameter `%s` is an `array` without a dimension: write `array T name[size_t n]` to bind its length | `array T v[]` without a dimension in a parameter |
@@ -148,6 +149,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `mask-above-64-slots` |  | `routine.mask` over a slice with more than 64 entries |
 | `restrict-on-container` | `restrict` does not apply to the type `%s`: qualify a pointer to it (`T *restrict p`) | `restrict` written before a modifier: the `note` gives the form with a pointer |
 | `specific-format-unavailable` |  | The module uses `f16` or `bf16`, and the target does not offer the format |
+| `bitbuffer-width-invalid` |  | An instance of `bitbuffer` or `bitslice` with `W` outside `1..8*sizeof(T)`, a signed or non-integer `T`, or a `bool` with `W` other than 1 |
 | `nonconstant-dim` | the dimension `%s` of `%s` is not known at translation time: write a decimal literal or a `constexpr` | An argument of `dim` that is not a decimal literal or a `constexpr` with a known decimal initializer |
 | `alloc-overflow` |  | `arena.alloc` whose `n * sz` does not fit in `size_t` |
 | `canonical-name-collision` | `%s` is the C name of both `%s` and `%s` in this module: rename one | Two declarations of the same module that produce the same canonical name |

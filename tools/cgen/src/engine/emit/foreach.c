@@ -232,6 +232,15 @@ static bool analyze_call_over(const KAst *ast, size_t a, size_t close, Over *o) 
     return true;
 }
 
+/* where the container's type starts in an island's detail, `names : c (type)`: just after the
+ * first `(`. The type may itself hold parentheses, `(bitbuffer(4) u8)`, and so the last `(`
+ * is not its opening. 0 when there is none. */
+static size_t detail_type_open(const char *d, size_t len) {
+    for (size_t i = 0; i < len; i++)
+        if (d[i] == '(') return i + 1;
+    return 0;
+}
+
 /* `( T v , I i : c )` with the container's type in the island's detail:
  * `v, i : c (buffer i32)`; or the container is a call (analyze_call_over) */
 static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KAstNode *fn, Over *o) {
@@ -272,13 +281,13 @@ static bool analyze_over(const KAst *ast, const KIsland *is, size_t kw, const KA
     /* the container's type, from the detail: `... (<type>)` */
     const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
     size_t len = is->text_len, open = len;
-    while (open > 0 && d[open - 1] != '(') open--;
+    open = detail_type_open(d, len);
     if (open == 0 || len < open + 2 || d[len - 1] != ')') return false;
     if (!k_em_type_symbol(ast, d + open, len - 1 - open, &o->sym, &o->sym_len)) return false;
     /* the written modifier: the text up to its first space (`fv.vec i32` gives `fv.vec`) */
     if (o->ptr_binder) {
         size_t nl = 0;
-        while (nl < len - 1 - open && d[open + nl] != ' ') nl++;
+        while (nl < len - 1 - open && d[open + nl] != ' ' && d[open + nl] != '(') nl++;
         bool known = false;
         o->ptr_overloaded = ptr_overloaded_of(ast, d + open, nl, &known);
         if (!known) return false;
@@ -352,7 +361,7 @@ static bool analyze_countable_var(const KAst *ast, const KIsland *is, size_t kw,
     c->type = kw + 2; c->binder = kw + 3; c->colon = kw + 4; c->cont = kw + 5;
     const char *d = keel_buffer_char_ptr(&ast->island_text, is->text);
     size_t len = is->text_len, open = len;
-    while (open > 0 && d[open - 1] != '(') open--;
+    open = detail_type_open(d, len);
     if (open == 0 || len < open + 2 || d[len - 1] != ')') return false;
     size_t tl = len - 1 - open;
     if (tl == 5 && memcmp(d + open, "range", 5) == 0) return false;   /* analyze_range_var's */

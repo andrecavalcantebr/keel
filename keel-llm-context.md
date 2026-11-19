@@ -831,6 +831,279 @@ pub inline range partition(range r, size_t k, size_t w) {
 }
 ```
 
+### `keel.bits` — empacotamento de campos de `W` bits em bytes
+
+Não é genérico; é o que `bitbuffer` e `bitslice` chamam. O campo `pos` conta
+bits a partir do bit menos significativo do byte 0; o acesso é por byte.
+
+```keel
+module keel.bits;
+
+// The packing that `bitbuffer` and `bitslice` share. A field of `width` bits
+// (1..64) at bit position `pos`: bits are numbered from the least significant
+// bit of byte 0, and the access is by byte, so the result does not depend on
+// the host's endianness (spec §5.8, layout). It is a module of its own because
+// it mentions neither `W` nor `T`, and a generic module's fixed part cannot
+// hold a function an instance calls (backend §5.20).
+
+pub inline u64 read(const u8 *w, size_t pos, unsigned width) {
+    u64 v = 0;
+    unsigned n = 0;
+    while (n < width) {
+        unsigned off = (unsigned)(pos & 7);
+        unsigned take = 8 - off;
+        if (take > width - n) take = width - n;
+        v |= (u64)((w[pos >> 3] >> off) & ((1u << take) - 1u)) << n;
+        n += take;
+        pos += take;
+    }
+    return v;
+}
+
+pub inline void write(u8 *w, size_t pos, unsigned width, u64 v) {
+    unsigned n = 0;
+    while (n < width) {
+        unsigned off = (unsigned)(pos & 7);
+        unsigned take = 8 - off;
+        if (take > width - n) take = width - n;
+        unsigned mask = ((1u << take) - 1u) << off;
+        w[pos >> 3] = (u8)((w[pos >> 3] & ~mask) | (((unsigned)(v >> n) << off) & mask));
+        n += take;
+        pos += take;
+    }
+}
+
+// bytes that hold `n` fields of `width` bits, without overflowing `n * width`.
+pub inline size_t bytes(size_t n, unsigned width) {
+    return (n / 8) * width + ((n % 8) * width + 7) / 8;
+}
+
+// fields per group that ends on a byte boundary: 8 / gcd(width, 8) (spec §5.8,
+// rule 4). The part boundaries of `partition` are multiples of it.
+pub inline size_t group(unsigned width) {
+    unsigned a = width, b = 8;
+    while (b) { unsigned t = a % b; a = b; b = t; }
+    return 8 / a;
+}
+
+// fields before the first byte boundary: the smallest `e` such that field `e`
+// of a run that starts at bit `bit` starts a byte.
+pub inline size_t lead(size_t bit, unsigned width) {
+    size_t e = 0;
+    while (((bit + e * width) & 7) != 0) ++e;
+    return e;
+}
+```
+
+### `keel.bitslice` — vista de elementos de `W` bits *(desde 0.4.0)*
+
+Não é `byref`. `W` é o `dim` e `T` é só o tipo de `get` e `set`; `T` é inteiro
+sem sinal ou `bool`. Não há `ptr`, `begin` nem `next`: o elemento não tem
+endereço, então `foreach` é por valor e `walk` não vale. A instância de
+`from` vem do alvo, como em `bitbuffer(3) u8 b = bitbuffer.from(&p[0], n)`.
+
+```keel
+module keel.bitslice dim W type T;
+
+import keel.arena   as arena   types;
+import keel.outcome as outcome types;
+import keel.bits    as bits;
+
+// the widths and the element type are checked once per instance (spec §5.8,
+// rule 1): W bits must fit in T, T is unsigned or `bool`, and a `bool` holds
+// one bit. `(T)-1 > 0` is false for a signed type and for a float. They run
+// wherever the instance is used, because the verb is emitted with it. A
+// file-level `static_assert` that names `W` has no home in a generic module,
+// hence the body (the device of keel_coll's `bstree`).
+pub inline void assert_instance(void) {
+    static_assert(W >= 1 && W <= 8 * sizeof(T), "bitbuffer-width-invalid: W must be in 1..bits of T");
+    static_assert((T)-1 > 0, "bitbuffer-width-invalid: T must be an unsigned integer or bool");
+    static_assert(!((T)2 == 1) || W == 1, "bitbuffer-width-invalid: a bool element holds one bit");
+}
+
+// NOT `byref` — passed by copy, like `slice` (spec §4.3). `bit` is the offset
+// of the first element inside the first byte, in [0, 8).
+pub modifier bitslice { size_t len; size_t bit; u8 *words; }
+
+// raw pointer — the program asserts `p` holds `bits.bytes(n, W)` bytes.
+pub inline bitslice from(u8 *p, size_t n) {
+    return (bitslice){ p ? n : 0, 0, p };
+}
+
+pub inline size_t length(bitslice s) { return s.len; }
+
+pub inline T get(bitslice s, size_t i) {
+    KEEL_CHECK(i < s.len, "index-out-of-length");
+    return (T)bits.read(s.words, s.bit + i * W, W);
+}
+
+pub inline void set(bitslice s, size_t i, T v) {
+    KEEL_CHECK(i < s.len, "set-out-of-length");
+    KEEL_CHECK(W == 64 || ((u64)v >> (W % 64)) == 0, "bit-value-out-of-width");
+    bits.write(s.words, s.bit + i * W, W, (u64)v);
+}
+
+// the only accessor checked in release (spec §5.8).
+pub inline outcome T at(bitslice s, size_t i) {
+    outcome T r = {0};
+    return i < s.len ? outcome.win(r, get(s, i)) : outcome.none(r);
+}
+
+// a slice of a slice: the verb of `x[a..b]` (spec §4.5). Saturates in release.
+pub inline bitslice as_slice(bitslice s, size_t a, size_t b) {
+    if (b > s.len) b = s.len;
+    if (a > b) a = b;
+    size_t pos = s.bit + a * W;
+    return (bitslice){ b - a, pos & 7, s.words + (pos >> 3) };
+}
+
+// allocates in `a` and copies the elements, re-aligned to bit 0 of the new
+// storage (spec §5.8); the arena's memory is never const.
+pub inline child outcome bitslice clone(parent arena *a, bitslice s) {
+    outcome bitslice r = {0};
+    u8 *data = arena.alloc(a, u8, bits.bytes(s.len, W));
+    if (!data) return outcome.none(r);
+    for (size_t i = 0; i < s.len; ++i)
+        bits.write(data, i * W, W, bits.read(s.words, s.bit + i * W, W));
+    return outcome.win(r, (bitslice){ s.len, 0, data });
+}
+
+// `k` disjoint parts covering the view. Part 0 also takes the `lead` elements
+// before the first byte boundary, and every other boundary is that boundary
+// plus a multiple of the byte group, so two parts never write the same byte
+// (spec §5.8, rule 4).
+pub inline bitslice partition(bitslice s, size_t k, size_t w) {
+    if (k == 0) return (bitslice){ 0, s.bit, s.words };
+    size_t g = bits.group(W);
+    size_t lead = bits.lead(s.bit, W);
+    if (lead > s.len) lead = s.len;
+    size_t core = s.len - lead;
+    size_t step = core / k + (core % k ? 1 : 0);
+    step = (step / g + (step % g ? 1 : 0)) * g;
+    size_t lo = w == 0 ? 0 : lead + w * step;
+    if (lo >= s.len) return (bitslice){ 0, s.bit, s.words };
+    size_t hi = lead + (w + 1) * step;
+    if (hi > s.len) hi = s.len;
+    return as_slice(s, lo, hi);
+}
+```
+
+### `keel.bitbuffer` — sequência de elementos de `W` bits *(desde 0.4.0)*
+
+`make(a, cap)` aloca na arena; `from` e `of` recebem `u8 *`, e um `array` entra
+como `&v[0]`. `bytes(b)` é o tamanho do armazenamento.
+
+```keel
+module keel.bitbuffer dim W type T;
+
+import keel.bitslice as bitslice;
+import keel.bits     as bits;
+import keel.outcome  as outcome types;
+import keel.range    as range   types;
+import keel.arena    as arena   types;
+
+// the checks of `bitslice` (spec §5.8, rule 1), once more: each module is its
+// own expansion. They run wherever the instance is used, because the verb is
+// emitted with it. A file-level `static_assert` that names `W` has no home in
+// a generic module, hence the body (the device of keel_coll's `bstree`).
+pub inline void assert_instance(void) {
+    static_assert(W >= 1 && W <= 8 * sizeof(T), "bitbuffer-width-invalid: W must be in 1..bits of T");
+    static_assert((T)-1 > 0, "bitbuffer-width-invalid: T must be an unsigned integer or bool");
+    static_assert(!((T)2 == 1) || W == 1, "bitbuffer-width-invalid: a bool element holds one bit");
+}
+
+// `byref`, like `buffer`: `cap` and `len` count elements, not bits or bytes.
+pub modifier bitbuffer byref { size_t cap, len; u8 *words; }
+
+// allocates the bytes for `cap` elements in the arena; no room gives capacity
+// zero, and the insertions fail through the normal channel (spec §5.8).
+pub inline child bitbuffer make(parent arena *a, size_t cap) {
+    bitbuffer r = {0};
+    u8 *data = arena.alloc(a, u8, bits.bytes(cap, W));
+    if (data) { r.cap = cap; r.words = data; }
+    return r;
+}
+
+// raw pointer — starts empty; the program asserts `p` holds `bits.bytes(cap, W)` bytes.
+pub inline bitbuffer from(u8 *p, size_t cap) {
+    return (bitbuffer){ p ? cap : 0, 0, p };
+}
+
+// starts full, `len == cap`.
+pub inline bitbuffer of(u8 *p, size_t n) {
+    return (bitbuffer){ p ? n : 0, p ? n : 0, p };
+}
+
+pub inline size_t length(bitbuffer *b) { return b->len; }
+pub inline size_t capacity(bitbuffer *b) { return b->cap; }
+pub inline size_t bytes(bitbuffer *b) { return bits.bytes(b->cap, W); }
+
+pub inline T get(bitbuffer *b, size_t i) {
+    KEEL_CHECK(i < b->len, "index-out-of-length");
+    return (T)bits.read(b->words, i * W, W);
+}
+
+pub inline void set(bitbuffer *b, size_t i, T v) {
+    KEEL_CHECK(i < b->len, "set-out-of-length");
+    KEEL_CHECK(W == 64 || ((u64)v >> (W % 64)) == 0, "bit-value-out-of-width");
+    bits.write(b->words, i * W, W, (u64)v);
+}
+
+pub inline bool push(bitbuffer *b, T v) {
+    if (b->len == b->cap) return false;
+    KEEL_CHECK(W == 64 || ((u64)v >> (W % 64)) == 0, "bit-value-out-of-width");
+    bits.write(b->words, b->len * W, W, (u64)v);
+    b->len++;
+    return true;
+}
+
+pub inline outcome T pop(bitbuffer *b) {
+    outcome T r = {0};
+    if (b->len == 0) return outcome.none(r);
+    b->len--;
+    return outcome.win(r, (T)bits.read(b->words, b->len * W, W));
+}
+
+pub inline void clear(bitbuffer *b) { b->len = 0; }
+
+// the only accessor checked in release (spec §5.8).
+pub inline outcome T at(bitbuffer *b, size_t i) {
+    outcome T r = {0};
+    return i < b->len ? outcome.win(r, (T)bits.read(b->words, i * W, W)) : outcome.none(r);
+}
+
+// slicing is a memory verb, not a view verb (rationale, "Memória e visão").
+pub inline child bitslice.bitslice(W) T as_slice(parent bitbuffer *b) {
+    return (bitslice.bitslice(W) T){ b->len, 0, b->words };
+}
+
+pub inline child bitslice.bitslice(W) T as_slice(parent bitbuffer *b, size_t a, size_t c) {
+    if (c > b->len) c = b->len;
+    if (a > c) a = c;
+    size_t pos = a * W;
+    return (bitslice.bitslice(W) T){ c - a, pos & 7, b->words + (pos >> 3) };
+}
+
+pub inline child bitslice.bitslice(W) T as_slice(parent bitbuffer *b, range r) {
+    return as_slice(b, r.first, r.limit);
+}
+
+// allocates in `a`, copies the source's length (spec §5.8); the arena's memory is never const.
+pub inline child outcome bitbuffer clone(parent arena *a, bitbuffer *b) {
+    outcome bitbuffer r = {0};
+    u8 *data = arena.alloc(a, u8, bits.bytes(b->cap, W));
+    if (!data) return outcome.none(r);
+    size_t n = bits.bytes(b->len, W);
+    for (size_t i = 0; i < n; ++i) data[i] = b->words[i];
+    return outcome.win(r, (bitbuffer){ b->cap, b->len, data });
+}
+
+// `k` disjoint parts covering the container; see `bitslice.partition`.
+pub inline child bitslice.bitslice(W) T partition(parent bitbuffer *b, size_t k, size_t w) {
+    return bitslice.partition(as_slice(b), k, w);
+}
+```
+
 ### `keel.outcome` — resultado final, com código
 
 ```keel

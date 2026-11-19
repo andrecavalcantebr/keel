@@ -1,0 +1,8 @@
+# <argument> <diagnostic id> <the .k position the abort reports> (backend §5.17, rule 4)
+1 index-out-of-length keel/bitbuffer.k:53
+2 set-out-of-length keel/bitbuffer.k:58
+3 bit-value-out-of-width keel/bitbuffer.k:59
+4 bit-value-out-of-width keel/bitbuffer.k:65
+5 index-out-of-length keel/bitslice.k:38
+6 set-out-of-length keel/bitslice.k:43
+7 bit-value-out-of-width keel/bitslice.k:44

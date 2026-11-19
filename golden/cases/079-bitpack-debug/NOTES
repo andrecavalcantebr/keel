@@ -1,0 +1,13 @@
+Notas do caso.
+
+As verificações de debug de `bitbuffer` e `bitslice` (backend §5.17): cada
+argumento quebra uma regra, e o runner confere o `abort` e a posição que o
+`#line` dá à verificação, no verbo da base.
+
+- 1, 5: `get` fora do comprimento; 2, 6: `set` fora do comprimento.
+- 3, 7: `set` de um valor que não cabe em `W` bits (8 em três bits).
+- 4: `push` de um valor largo (9 em três bits), num buffer que ainda tem lugar.
+  O `push` num buffer cheio não aborta: devolve `false`.
+
+`bitbuffer-width-invalid` não está aqui: é o compilador C que recusa, e o
+cgen não falha. Ver `test/cgen/`.

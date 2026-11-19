@@ -223,7 +223,9 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
     if (k->kind != KT_MODIFIER || !k->module) return close + 1;
     const KAst *home = isl_ast_of(c, k->module);
     if (!home || close == open + 1) return close + 1;
-    if (isl_module_node(home)->dim_first != isl_module_node(home)->dim_end) return close + 1;   /* full-rank accessor: §5.3.1 */
+    /* full-rank accessor: §5.3.1. Only the index stands aside for it: a range-index has one
+       dimension whatever the module's `dim` (spec §4.5), and its verb is `as_slice` */
+    if (range == SIZE_MAX && isl_module_node(home)->dim_first != isl_module_node(home)->dim_end) return close + 1;
     keel_slice_char text = { (size_t)(isl_tok(a, close).ptr - isl_tok(a, open).ptr) + 1, isl_tok(a, open).ptr };
     bool adapt = false;
     isl_put(&tx, path.ptr, path.len);

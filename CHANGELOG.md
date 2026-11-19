@@ -9,6 +9,41 @@ leva marca.
 
 Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
+## 0.4.0 (em andamento)
+
+**Linguagem** (`keel-spec.md`)
+
+- §5.8, novo: `keel.bitbuffer(W) T` e `keel.bitslice(W) T`, sequência e vista
+  de elementos de `W` bits, e `keel.bits`, o empacotamento que os dois
+  compartilham. Diagnósticos novos: `bitbuffer-width-invalid` (erro, pelo
+  compilador C) e `bit-value-out-of-width` (debug). A §5.8 "Biblioteca padrão"
+  passou a §5.9.
+
+**Backend** (`keel-c-backend.md`)
+
+- §5.20, novo: a emissão de `bitbuffer` e `bitslice`; §5.17 ganha as três
+  verificações dos verbos novos.
+
+**Rationale** (`keel-rationale.md`)
+
+- Seção nova, "`bitbuffer` e `bitslice`": por que não há `ptr`, o layout por
+  byte, o alinhamento de `partition`, `make` e `bytes`, e o módulo `keel.bits`.
+
+**Base** (`base/keel/`)
+
+- `bitbuffer.k`, `bitslice.k` e `bits.k`.
+
+**Ferramenta**
+
+- A recusa de uma instância pelo emissor (`implementation-limit`) passa a dizer
+  em que construção e em que linha.
+- `foreach` e `walk` sobre contêiner de módulo com `dim` (`bitbuffer(4) u8`,
+  `m(4) u32`): o emissor lia o tipo pelo último `(` do detalhe da ilha e
+  recusava. É o que faltava do A7 da `keel_coll`.
+- `x[a..b]` sobre modificador de módulo com `dim`: não era reconhecido e o `cc`
+  recusava a expressão. O `range-index` usa uma dimensão (§4.5), e o acessor
+  de posto completo, `x[i, j]`, continua à parte.
+
 ## 0.3.0 (2026-11-19)
 
 **Linguagem** (`keel-spec.md`)

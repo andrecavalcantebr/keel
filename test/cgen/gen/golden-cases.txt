@@ -91,3 +91,5 @@ test/cgen/gen/share|use.k|-
 075-tag-qualified-import|app/hue.k app/hue_use.k|-
 076-tags-types-injected|app/hue2.k app/hue2_use.k|-
 077-import-without-alias|app/qty.k app/qty_use.k|-
+078-bitpack|app/packed.k|-
+079-bitpack-debug|app/chk.k|app.chk

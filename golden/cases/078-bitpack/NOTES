@@ -1,0 +1,24 @@
+Notas do caso.
+
+Primeiro caso de `keel.bitbuffer`, `keel.bitslice` e `keel.bits` (spec §5.8,
+backend §5.20). O `proof.c` não confia nos verbos para provar o layout: lê os
+três bytes de 0..7 a três bits e os compara com os que saem de conta feita à
+mão, `0x88 0xC6 0xFA` (o bit menos significativo primeiro).
+
+- `widths`: ida e volta em `W` = 3, 5, 13, 33 e `bool` com `W` = 1; o `push` que
+  não cabe devolve `false`; `bytes` dá `ceil(100*3/8)` = 38.
+- `views`: `x[a..b]` sobre um `bitbuffer` (um modificador com `dim`: o cgen
+  recusava, e o conserto está em `parser_islands_index.c`), vista de vista,
+  escrita por vista, `range` e `slice.of`.
+- `total`: `foreach` por valor, que é o que um elemento sem endereço admite. O
+  cgen lia o tipo do contêiner pelo último `(` do detalhe da ilha e se perdia
+  com `bitbuffer(4) u8`; o conserto está em `foreach.c`.
+- `stack`, `cloned`: `pop`, `at`, `clear`, ponteiro nulo, e `clone` de uma vista
+  que começa no meio de um byte, realinhada ao bit 0.
+- O `proof.c` confere `partition` para `n` até 70 e `k` até 9, num `bitbuffer`
+  inteiro e numa vista que começa no bit 15: as partes saem em ordem e sem
+  buraco, e a que vem depois da primeira começa em fronteira de byte, de modo
+  que nenhum byte é de duas partes (regra 4 da §5.8).
+
+Os headers da base (`c11/keel/`, `c23/keel/`) deste caso saíram do cgen e foram
+conferidos pelo `proof.c`, que roda sob `-fsanitize=address,undefined`.

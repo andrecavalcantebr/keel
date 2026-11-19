@@ -15,7 +15,7 @@
 > [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit)
 > para o argumento. Esta nota não é normativa.
 
-**Versão descrita: keel 0.3.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)* ou *(desde 0.3.0)*, conforme a versão em que saiu; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+**Versão descrita: keel 0.3.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*, *(desde 0.3.0)* ou *(desde 0.4.0)*, conforme a versão em que sai (a 0.4.0 está em andamento); o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
 
 Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições de keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
 
@@ -74,7 +74,8 @@ protocolo (§5.1) pertencem à v0.
   - [5.5 `keel.outcome` e `keel.corot`](#55-keeloutcome-e-keelcorot)
   - [5.6 `keel.routine`](#56-keelroutine)
   - [5.7 `keel.parallel`](#57-keelparallel)
-  - [5.8 Biblioteca padrão](#58-biblioteca-padrão)
+  - [5.8 `keel.bitbuffer`, `keel.bitslice` e `keel.bits`](#58-keelbitbuffer-keelbitslice-e-keelbits-desde-040)
+  - [5.9 Biblioteca padrão](#59-biblioteca-padrão)
 - [6. Diagnósticos e conformidade](#6-diagnósticos-e-conformidade)
   - [6.1 Emissão e responsabilidade](#61-emissão-e-responsabilidade)
   - [6.2 Catálogo](#62-catálogo)
@@ -1820,7 +1821,7 @@ instância cuja assinatura C recebe esse buffer por ponteiro, conforme `byref`.
 Os módulos deste capítulo acompanham a distribuição de keel e são módulos
 comuns: declaram tipos, modificadores e verbos pelas regras dos §§4.1–4.4, e
 são importados explicitamente quando seus nomes são escritos. As construções
-consultam os protocolos do prelúdio `keel` (§5.1). Os contratos das §§5.2 a 5.7 seguem o formato
+consultam os protocolos do prelúdio `keel` (§5.1). Os contratos das §§5.2 a 5.8 seguem o formato
 de cinco itens do capítulo 4.
 
 ### 5.1 Protocolos
@@ -2675,9 +2676,129 @@ O módulo não acrescenta diagnósticos; os da construção estão na §4.8.
 - Uma leitura de `interrupted` não diz quanto trabalho os demais workers fizeram.
 - O símbolo pertence ao escopo do bloco: guardá-lo além dele, por ponteiro, não tem significado definido.
 
-### 5.8 Biblioteca padrão
+### 5.8 `keel.bitbuffer`, `keel.bitslice` e `keel.bits` *(desde 0.4.0)*
 
-A biblioteca padrão além da base (§§5.2–5.7) não faz parte desta versão. Os
+#### 1. Sintaxe
+
+```keel
+import keel.bitbuffer as bitbuffer types;
+import keel.bitslice as bitslice types;
+import keel.arena as arena types;
+
+bitbuffer(3) u8 g = bitbuffer.make(a, 100);   // 100 elementos de 3 bits, na arena a
+bitbuffer.push(g, 5);
+u8 x = bitbuffer.get(g, 0);
+bitslice(3) u8 v = g[8..16];
+```
+
+```keel
+array u8 store[38];                            // ceil(100*3/8), escrito à mão
+bitbuffer(3) u8 h = bitbuffer.from(&store[0], 100);
+```
+
+`bitbuffer(W) T` é uma sequência de elementos de `W` bits, com comprimento e capacidade em **elementos**. `bitslice(W) T` é o trecho de extensão fixa sobre elementos de `W` bits. `T` é o tipo da interface de `get` e `set`, e não o do armazenamento. Os módulos são `keel.bitbuffer dim W type T` e `keel.bitslice dim W type T`; `keel.bits` não é genérico e guarda o empacotamento que os dois compartilham.
+
+**Layout.** O elemento `i` ocupa os bits `[i*W, (i+1)*W)`. A contagem começa no bit menos significativo do byte 0. O armazenamento é `u8` e o acesso é por byte, então o resultado independe da endianness do hospedeiro.
+
+**`bitbuffer`** (`byref { size_t cap, len; u8 *words; }`)
+
+| Chamada | Devolve | O que faz |
+| --- | --- | --- |
+| `bitbuffer.make(a, cap)` | `bitbuffer(W) T` | vazio, com `ceil(cap*W/8)` bytes alocados na [`arena`](#52-keelarena) `a`; a instância vem do alvo (§4.4). Sem espaço, capacidade zero |
+| `bitbuffer.from(p, cap)` | idem | vazio, sobre `p`, que o programa garante ter `ceil(cap*W/8)` bytes |
+| `bitbuffer.of(p, n)` | idem | cheio, `n` elementos em `p` |
+| `bitbuffer.length(b)`, `bitbuffer.capacity(b)` | `size_t` | em elementos |
+| `bitbuffer.bytes(b)` | `size_t` | `ceil(capacity*W/8)`: o tamanho do armazenamento |
+| `bitbuffer.get(b, i)` | `T` | o elemento `i` |
+| `bitbuffer.set(b, i, v)` | — | escreve `v` nos `W` bits do elemento `i`, sem estender o comprimento |
+| `bitbuffer.at(b, i)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | o elemento `i`, ou `NONE` fora do comprimento, em toda build |
+| `bitbuffer.push(b, v)` | `bool` | acrescenta `v`; `false` se cheio |
+| `bitbuffer.pop(b)` | `outcome T` | retira o último; `NONE` se vazio |
+| `bitbuffer.clear(b)` | — | comprimento zero, mesma capacidade e região |
+| `bitbuffer.as_slice(b)`, `as_slice(b, a, c)`, `as_slice(b, r)` | `bitslice(W) T` | vista do comprimento atual, de `[a, c)`, ou dos limites do `range` `r`; `[a, c)` é o verbo de `x[a..b]` (§4.5) |
+| `bitbuffer.clone(a, b)` | [`outcome bitbuffer(W) T`](#55-keeloutcome-e-keelcorot) | cópia do comprimento atual na `arena` `a`; falha sem espaço |
+| `partition(b, k, w)` | `bitslice(W) T` | parte `w` de `k`, para `parallel` (§4.8) |
+
+**`bitslice`** (sem `byref`; `{ size_t len; size_t bit; u8 *words; }`)
+
+| Chamada | Devolve | O que faz |
+| --- | --- | --- |
+| `bitslice.from(p, n)` | `bitslice(W) T` | vista dos `n` elementos afirmados em `p`; a instância vem do alvo (§4.4) |
+| `bitslice.length(s)` | `size_t` | elementos da vista |
+| `bitslice.get(s, i)`, `bitslice.set(s, i, v)` | `T`, — | lê ou escreve o elemento `i` |
+| `bitslice.at(s, i)` | `outcome T` | o elemento `i`, ou `NONE` fora do comprimento, em toda build |
+| `bitslice.as_slice(s, a, c)` | `bitslice(W) T` | vista de `[a, c)` de `s`; é o verbo de `x[a..b]` sobre `bitslice` (§4.5) |
+| `bitslice.clone(a, s)` | `outcome bitslice(W) T` | cópia na `arena` `a`, realinhada ao bit 0 do armazenamento novo |
+| `partition(s, k, w)` | `bitslice(W) T` | parte `w` de `k`, para `parallel` (§4.8) |
+
+`bit` é o deslocamento, em bits e em `[0, 8)`, do primeiro elemento dentro do primeiro byte. Uma vista de `bitbuffer` começa em `bit` zero, e uma vista de `[a, c)` começa onde `a*W` cai.
+
+**`bits`**: o empacotamento, sobre bytes e sem tipo de elemento. Os campos têm `width` bits, de 1 a 64.
+
+| Chamada | Devolve | O que faz |
+| --- | --- | --- |
+| `bits.read(w, pos, width)` | `u64` | o campo de `width` bits que começa no bit `pos` de `w` |
+| `bits.write(w, pos, width, v)` | — | escreve os `width` bits baixos de `v` |
+| `bits.bytes(n, width)` | `size_t` | `ceil(n*width/8)`, sem estourar `n*width` |
+| `bits.group(width)` | `size_t` | campos por grupo que termina em fronteira de byte: `8/mdc(width, 8)` |
+| `bits.lead(bit, width)` | `size_t` | campos até a primeira fronteira de byte, para uma sequência que começa no bit `bit` |
+
+**Reconhecimento**
+
+- `bitbuffer(W) T` e `bitslice(W) T` seguem a §4.3: um valor de `dim` entre parênteses, antes do tipo. `bitbuffer.as_slice` e `partition` devolvem a instância de `bitslice` de mesmo `W` e `T`.
+- `make`, `from` e `of` não têm receptor do tipo, e a instância vem do alvo (§4.4, item 4).
+- `bitbuffer.bytes` calcula o tamanho a partir de `W` e só é chamável com um `bitbuffer` como receptor: um verbo que usa `dim` e não menciona o modificador pertence à instância (§4.3, regra 20) e não tem como ser chamado sem instância.
+
+#### Conformidade e procedência
+
+`bitbuffer` e `bitslice` atendem `IndexGet`, `Sliceable` e `Partitionable`. Não atendem `IndexPtr` nem `Traversable`: um elemento de `W` bits não tem endereço.
+
+Os papéis seguem a §5.3: em `as_slice` e `partition`, o receptor é `parent` e a vista, `child`; em `clone` e `make`, a arena é `parent` e o resultado, `child`.
+
+```keel
+pub child bitslice(W) T as_slice(parent bitbuffer *b, size_t a, size_t c);
+pub child bitslice(W) T partition(parent bitbuffer *b, size_t k, size_t w);
+pub child outcome bitbuffer clone(parent arena *a, bitbuffer *b);
+pub child bitbuffer make(parent arena *a, size_t cap);
+```
+
+Nenhuma operação declara `invalidates`: a capacidade é fixa, e a invalidação fica com os donos do armazenamento, como a arena.
+
+#### 2. Regras
+
+Sequências de elementos de largura em bits, e o trecho fixo sobre elas.
+
+1. `T` é inteiro sem sinal ou `bool`, com `1 <= W <= 8*sizeof(T)`, e `bool` só com `W` igual a 1. Fora disso, o `C` emitido não compila: é `bitbuffer-width-invalid`, materializado pelo backend com `static_assert` (§6.1), como `specific-format-unavailable`.
+2. `set` e `push` com valor que não cabe em `W` bits são verificados em debug (`bit-value-out-of-width`). Em release, o valor é mascarado em `W` bits.
+3. Um elemento não tem endereço. `bitbuffer` e `bitslice` não declaram `ptr`, `push(b)` sem valor, `begin`, `has_next` nem `next`. `foreach (T v, size_t i : x)` com binder por valor funciona, por `IndexGet`. O binder por ponteiro e o `walk` dão `protocol-not-satisfied`.
+4. `partition` alinha as partes ao byte. A primeira parte leva também os `lead` elementos que precedem a primeira fronteira de byte da vista (zero num `bitbuffer`). Os demais limites são essa fronteira mais um múltiplo de `bits.group(W)`. Partes distintas não escrevem no mesmo byte, e `parallel` não gera corrida de dados por causa do empacotamento. As `k` partes são disjuntas e cobrem o contêiner, e parte vazia é normal quando `k` excede o comprimento. Só a última parte pode terminar no meio de um byte.
+5. A capacidade de `bitbuffer` é fixa desde a construção. Ponteiro nulo dá capacidade zero, e as inserções falham pelo canal normal. `clone` copia o comprimento da origem, e não a capacidade, como `buffer` (§5.3).
+6. `as_slice` com limites arbitrários pode produzir vistas que compartilham um byte. A escrita concorrente por elas é do programa.
+7. Indexação e `range-index` seguem a §4.5, e as formas de intervalo exigem `a <= b <= length(x)`: a violação é verificada em debug e saturada em release, como em `slice`.
+8. `bits.read` e `bits.write` não verificam limites: o programa garante que `pos + width` cabe no armazenamento.
+
+Referências: [Rationale: bitbuffer e bitslice](keel-rationale.md#bitbuffer-e-bitslice-desde-040); [Backend: bitbuffer e bitslice](keel-c-backend.md#520-bitbuffer-e-bitslice).
+
+#### 3. Exemplo
+
+```keel
+bitbuffer(4) u8 weights = bitbuffer.make(a, 1024);   // pesos quantizados em 4 bits
+foreach (u8 q, size_t i : weights) { acc += q; }
+```
+
+#### 4. Erros
+
+De keel, na tradução; condições no [catálogo](#62-catálogo): `protocol-not-satisfied`, `modifier-dimension-count`, `from-without-target`. Do backend: `bitbuffer-width-invalid` (tradução, pelo compilador C) e, em execução debug, `index-out-of-length`, `set-out-of-length` e `bit-value-out-of-width`.
+
+#### 5. Casos especiais
+
+- O programa garante que `p` descreve `ceil(cap*W/8)` bytes válidos e acessíveis, e que eles vivem enquanto vivem as vistas.
+- Os bits de preenchimento do último byte têm valor indefinido: não são lidos por nenhum verbo.
+- `make` numa arena sem espaço devolve capacidade zero, e nada é alocado.
+
+### 5.9 Biblioteca padrão
+
+A biblioteca padrão além da base (§§5.2–5.8) não faz parte desta versão. Os
 candidatos estão registrados, sem valor normativo, em
 [design/possibilidades.md](design/possibilidades.md).
 
@@ -2739,6 +2860,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `element-copy-in-get-set` | `get` ou `set` sobre elemento que é instância de modificador | `error` | keel | §5.3 |
 | `index-out-of-length` | `get` ou `ptr(x, i)` — e, por eles, o açúcar `x[i]` — com índice fora de `length`, sobre `buffer` ou `slice` | `debug` | Backend, em execução | §5.3 |
 | `set-out-of-length` | `set` com índice fora de `length` | `debug` | Backend, em execução | §5.3 |
+| `bit-value-out-of-width` | `set` ou `push` de `bitbuffer` ou `bitslice` com valor que não cabe em `W` bits *(desde 0.4.0)* | `debug` | Base, em execução | §5.8 |
 | `buffer-of-unknown-size` | `buffer.of` de um argumento sobre símbolo que não é `array` | `error` | keel | §5.3 |
 | `array-1d-as-parameter` | `array` unidimensional em parâmetro de função, sem binder | `error` | keel | §4.2 |
 | `array-parameter-without-dimension` | `array T v[]` sem dimensão em parâmetro | `error` | keel | §4.2 |
@@ -2817,6 +2939,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `mask-above-64-slots` | `routine.mask` sobre fatia com mais de 64 entradas | `debug` | Base, em execução | §5.6 |
 | `restrict-on-container` | `restrict` escrito antes de um modificador — a `note` dá a forma com ponteiro | `error` | keel | §4.2 |
 | `specific-format-unavailable` | Módulo usa `f16` ou `bf16` e o alvo não oferece o formato | `error` | Backend / compilador C | §4.2 |
+| `bitbuffer-width-invalid` | Instância de `bitbuffer` ou `bitslice` com `W` fora de `1..8*sizeof(T)`, `T` com sinal ou não inteiro, ou `bool` com `W` diferente de 1 *(desde 0.4.0)* | `error` | Backend / compilador C | §5.8 |
 | `nonconstant-dim` | Argumento de `dim` sem literal decimal ou `constexpr` de inicializador decimal conhecido | `error` | keel | §4.3 |
 | `alloc-overflow` | `arena.alloc` cujo `n * sz` não cabe em `size_t` | `debug` | Backend, em execução | §5.2 |
 | `canonical-name-collision` | Duas declarações do mesmo módulo produzindo o mesmo nome canônico | `error` | keel | §4.2 |

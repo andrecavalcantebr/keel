@@ -8,7 +8,7 @@
 > revisão tiveram auxílio de Claude Opus e Claude Sonnet (Anthropic), sob
 > direção humana.
 
-**Versão descrita: keel 0.3.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)* ou *(desde 0.3.0)*, conforme a versão em que saiu; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+**Versão descrita: keel 0.3.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*, *(desde 0.3.0)* ou *(desde 0.4.0)*, conforme a versão em que sai (a 0.4.0 está em andamento); o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
 
 **Documento normativo.** Especifica como as construções da linguagem ([`keel-spec.md`](keel-spec.md)) são materializadas em C.
 
@@ -62,6 +62,7 @@ A divisão vale nos três documentos, e é um critério só:
   - [5.17 Verificações de debug](#517-verificações-de-debug)
   - [5.18 Binder de dimensão](#518-binder-de-dimensão)
   - [5.19 Função sobre protocolo](#519-função-sobre-protocolo)
+  - [5.20 `bitbuffer` e `bitslice`](#520-bitbuffer-e-bitslice)
 - [6. Mapeamento de linhas](#6-mapeamento-de-linhas)
   - [6.1 Diagnóstico dentro de instância](#61-diagnóstico-dentro-de-instância)
 - [7. Propriedades exigidas do conteúdo gerado](#7-propriedades-exigidas-do-conteúdo-gerado)
@@ -1830,6 +1831,9 @@ static inline size_t keel_index(size_t i, size_t d) {
 | --- | --- | --- |
 | `get(x, i)`, `ptr(x, i)` de `buffer` e `slice` | `i < len` | `index-out-of-length` |
 | `set(x, i, v)` de `buffer` e `slice` | `i < len` | `set-out-of-length` |
+| `get(x, i)` de `bitbuffer` e `bitslice` | `i < len` | `index-out-of-length` |
+| `set(x, i, v)` de `bitbuffer` e `bitslice` | `i < len` | `set-out-of-length` |
+| `set(x, i, v)` e `push(b, v)` de `bitbuffer` e `bitslice` | `v` cabe em `W` bits *(desde 0.4.0)* | `bit-value-out-of-width` |
 | `arena.alloc(a, n, sz, al)` | `sz == 0 \|\| n <= SIZE_MAX / sz` | `alloc-overflow` |
 | `routine.par(s, alvo)` | `alvo <= length(s)` | `par-target-above-total` |
 | `routine.mask(s)` | `length(s) <= 64` | `mask-above-64-slots` |
@@ -1919,6 +1923,33 @@ static inline keel_slice_i32 keel_slice_of1_keel_buffer_i32(keel_buffer_i32 *x, 
 5. A chamada é reescrita para a instância. O argumento recebe a adaptação da linguagem §4.4, e um `array` recebe a dimensão 0 pela tabela do §5.18.
 
 **Verificações:** as dos verbos chamados. **Perfis:** iguais.
+
+### 5.20 `bitbuffer` e `bitslice` *(desde 0.4.0)*
+
+**Forma:** `bitbuffer(W) T` e `bitslice(W) T` (linguagem §5.8).
+
+**Emissão**
+
+```keel
+//keel, em keel/bitbuffer.k
+pub modifier bitbuffer byref { size_t cap, len; u8 *words; }
+```
+
+```c
+//C gerado, instância bitbuffer(3) u8, em keel/keel_bitbuffer_3_u8.type.h
+typedef struct keel_bitbuffer_3_u8 { size_t cap, len; u8 *words; } keel_bitbuffer_3_u8;
+```
+
+**Regras**
+
+1. A instância se chama `keel_bitbuffer_<W>_<T>` e `keel_bitslice_<W>_<T>`, com o valor de `dim` antes do tipo (§2.1.1). O campo `words` é sempre `u8 *`: `T` não aparece no armazenamento. `bitslice` é `{ size_t len; size_t bit; u8 *words; }`.
+2. O empacotamento é do módulo `keel.bits`, não genérico, e é chamado pelos corpos das instâncias como qualquer verbo de módulo importado: `bits.read(...)` vira `keel_bits_read(...)`. Um módulo genérico não pode guardar na parte fixa uma função que as instâncias chamam (§4.4.1, regra 5), e é por isso que os cinco verbos moram em módulo próprio.
+3. A guarda `bitbuffer-width-invalid` é o verbo `assert_instance`, emitido em todo header de instância com os três `static_assert` sobre os valores já substituídos: `3 >= 1 && 3 <= 8 * sizeof(u8)`, `(u8)-1 > 0` e `!((u8)2 == 1) || 3 == 1`. A mensagem do compilador começa pelo identificador. O `static_assert` fica no corpo porque um de topo, num módulo genérico, não tem onde ser emitido.
+4. O elemento `i` é lido e escrito por `keel_bits_read(words, bit + i*W, W)` e `keel_bits_write(...)`, que acessam byte a byte, do menos significativo ao mais, e portanto não dependem da endianness. `get` converte o `u64` lido para `T` com um cast.
+5. A verificação `bit-value-out-of-width` é `KEEL_CHECK(W == 64 || ((u64)v >> (W % 64)) == 0, "bit-value-out-of-width")` antes da escrita (§5.17). Em release, o valor é mascarado pela própria escrita, que grava só os `W` bits baixos.
+6. `partition` calcula o passo sobre o miolo da vista, depois dos `bits.lead(bit, W)` elementos que precedem a primeira fronteira de byte, e o arredonda para múltiplo de `bits.group(W)`. A primeira parte começa em zero e leva esses elementos; as demais começam em `lead + w*passo`. O resultado é `as_slice` da faixa, e `bit` da parte sai de `(bit + lo*W) % 8`.
+
+**Verificações:** `index-out-of-length`, `set-out-of-length` e `bit-value-out-of-width` (§5.17); `bitbuffer-width-invalid` é do compilador C, pela guarda da regra 3. **Perfis:** iguais.
 
 ## 6. Mapeamento de linhas
 
@@ -2023,9 +2054,9 @@ está no [catálogo da spec](keel-spec.md#62-catálogo), que é a fonte única.
 
 | Severidade | Identificadores |
 | --- | --- |
-| `error` | `name-too-long` (§2.4), `reserved-name` (§2.3), `specific-format-unavailable` (§3.2), `layout-cycle` (§4.3.1) |
+| `error` | `name-too-long` (§2.4), `reserved-name` (§2.3), `specific-format-unavailable` (§3.2), `bitbuffer-width-invalid` (§5.20), `layout-cycle` (§4.3.1) |
 | `warning` | `instance-field-access` (§4.5) |
-| `debug` (§5.17) | `index-out-of-length`, `set-out-of-length`, `array-index-out-of-bounds`, `range-index-out-of-bounds`, `extent-index-out-of-bounds`, `tag-out-of-range`, `alloc-overflow`, `par-target-above-total`, `mask-above-64-slots` |
+| `debug` (§5.17) | `index-out-of-length`, `set-out-of-length`, `array-index-out-of-bounds`, `range-index-out-of-bounds`, `extent-index-out-of-bounds`, `tag-out-of-range`, `alloc-overflow`, `par-target-above-total`, `mask-above-64-slots`, `bit-value-out-of-width` |
 
 ---
 

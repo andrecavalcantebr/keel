@@ -205,6 +205,7 @@ de tipo primitivos e os protocolos.
 | `keel.arena` | armazenamento por região, com tempo de vida explícito |
 | `keel.buffer`, `keel.slice`, `keel.range` | as sequências, a vista e o intervalo |
 | `keel.array` | o acesso por chamada a um `array`, e o seu `x[a..b]` |
+| `keel.bitbuffer`, `keel.bitslice`, `keel.bits` | elementos de `W` bits empacotados: a sequência, a vista e o empacotamento |
 | `keel.outcome`, `keel.corot` | resultado final e estado cooperativo |
 | `keel.tagged` | valor com etiqueta |
 | `keel.routine` | composição cooperativa, `seq` e `par` |

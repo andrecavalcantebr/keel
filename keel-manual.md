@@ -1348,6 +1348,44 @@ Os verbos têm os papéis abaixo; a tabela faz parte das assinaturas
 | `buffer.push`, `buffer.pop` | receptor | endereço |
 
 
+### 8.8 `keel.bitbuffer`, `keel.bitslice`, `keel.bits` — elementos de `W` bits *(desde 0.4.0)*
+
+O par de `buffer`/`slice` para elementos que não ocupam um tipo inteiro:
+pesos quantizados em 4 bits, estados em 3, um conjunto de presença em 1. O
+`W` é o `dim` do módulo, e o `T` é só o tipo com que se lê e se escreve; o
+armazenamento é sempre `u8`, com o elemento `i` nos bits `[i*W, (i+1)*W)`,
+do bit menos significativo.
+
+```keel
+import keel.bitbuffer as bitbuffer types;
+import keel.bitslice  as bitslice  types;
+
+bitbuffer(4) u8 weights = bitbuffer.make(a, 1024);   // 512 bytes, na arena a
+bitbuffer.push(weights, 9);
+u8 w = bitbuffer.get(weights, 0);
+bitslice(4) u8 row = weights[16..32];                // vista, sem cópia
+foreach (u8 q, size_t i : row) acc += q;             // por valor: elemento não tem endereço
+```
+
+| Chamada | Devolve | O que faz |
+| --- | --- | --- |
+| `bitbuffer.make(a, cap)` | `bitbuffer(W) T` | aloca `ceil(cap*W/8)` bytes na arena `a`; vazio |
+| `bitbuffer.from(&p[0], cap)`, `bitbuffer.of(&p[0], n)` | idem | sobre `u8 *`; vazio ou cheio |
+| `length`, `capacity`, `bytes` | `size_t` | em elementos; `bytes` é o tamanho do armazenamento |
+| `get(b, i)`, `set(b, i, v)` | `T`, — | lê e escreve; `v` tem de caber em `W` bits |
+| `push(b, v)`, `pop(b)` | `bool`, `outcome T` | acrescenta e retira |
+| `at(b, i)` | `outcome T` | verificado em toda build |
+| `as_slice`, `x[a..b]`, `clone`, `partition` | como em `buffer` | a vista é `bitslice(W) T` |
+
+Três diferenças em relação a `buffer`: não há `ptr` nem `walk` (o elemento
+não tem endereço), o `foreach` é só por valor, e `partition` entrega partes
+que nunca dividem um byte, de modo que `parallel` pode escrever em partes
+distintas sem corrida de dados. `keel.bits` guarda o empacotamento
+(`read`, `write`, `bytes`) e serve também a quem lê bytes de um arquivo.
+`T` é inteiro sem sinal ou `bool`, e `W` cabe nos bits de `T`; fora disso, o
+compilador C recusa com `bitbuffer-width-invalid`. Contrato completo:
+[spec §5.8](keel-spec.md#58-keelbitbuffer-keelbitslice-e-keelbits-desde-040).
+
 ---
 
 ## Ver também

@@ -74,6 +74,9 @@ do golden ou o commit, e a versão em que saiu.
 | 2026-11-15 | `keel_coll` | B6: comparador como parâmetro de instanciação (`instance coll.set i32 by cmp`) | funcionalidade, adiada | sem ação agora; é o caminho do comparador (Rota A) e substitui o molde para esse caso; só com caso real que `==`/`<` direto e a coluna-índice (struct como `extent`) não cubram |
 | 2026-11-15 | `keel_coll` | D: `always_inline` emitido pelo cgen para o gcc devirtualizar `p->eq` | recusado | a linguagem fica flexível para alvos embarcados (RISC-V, LLVM); nada de heurística de um `cc` no C gerado. A biblioteca usa `==`/`<` direto e chave escalar |
 | 2026-11-15 | `keel_coll` | B5: o gcc não propaga `p->eq` através de `init`/`put` no C gerado | não é bug do cgen: o gcc não inlina o `init` cedo, e o `init` deixa um caminho com `eq` nulo (vale para `u32`, não só struct) | repro e causa em `keel_coll/docs/achados/comparador_conhecido/` (`t_causa.c`); decisão de desenho em B6 |
+| 2026-11-19 | `xprk` | `alias.Set.VALOR` de outro módulo resolvia só até o tipo do conjunto e deixava `.VALOR` para o `cc` recusar (`docs/achados/tags-qualificados-entre-modulos/`, §1) | bug | caso 075, 0.3.0 |
+| 2026-11-19 | `xprk` | `import M;` sem alias não resolvia nenhuma forma do nome do módulo nos usos qualificados (`docs/achados/tags-qualificados-entre-modulos/`, §2) | bug + lacuna da spec | spec §4.1 regra 5, caso 077, 0.3.0 |
+| 2026-11-19 | `xprk` | `types` não injetava o nome de um conjunto `tags` do módulo importado (`docs/achados/tags-qualificados-entre-modulos/`, §3) | bug + lacuna da spec (o rationale já afirmava a regra) | spec §4.1 regra 6, caso 076, 0.3.0 |
 
 Os dois probes de `keel_maths` que esperavam falha (`symbolic_shape_use`,
 `matrix_partition_protocol_call_gap`) compilam na 0.2.0: são os achados dos

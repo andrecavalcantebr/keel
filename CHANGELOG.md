@@ -17,6 +17,9 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   `dim`. Diagnóstico novo: `modifier-dimension-count` (erro). Antes, o uso sem
   as dimensões passava pelo cgen e falhava no compilador C
   (`unknown type name`).
+- §4.1, regra 5: sem alias, o qualificador de um import é o nome do módulo por
+  inteiro (`import m.t;` então `m.t.algo`). A regra não estava escrita; o cgen
+  não resolvia nem essa forma nem a de um só segmento.
 
 **Rationale** (`keel-rationale.md`)
 
@@ -40,6 +43,11 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 - O `implementation-limit` de uma construção que o emissor não cobre passa a
   dizer `arquivo:linha:coluna` e a construção (A7, A9); a
   `cgen-tool-spec.md` §7.1 já pedia a posição.
+- Achados do `xprk` (`achados/README.md`): `alias.Set.VALOR`, com `alias` de
+  outro módulo, resolvia só até o tipo do conjunto e deixava `.VALOR` para o
+  compilador C recusar (golden 075); um import sem alias não resolvia nenhuma
+  forma do nome do módulo nos usos qualificados, nem o próprio por inteiro
+  (regra 5).
 
 ## 0.2.0
 

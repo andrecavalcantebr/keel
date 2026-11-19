@@ -1296,11 +1296,18 @@ void isl_walk(Ctx *c, const KAstNode *n) {
                 isl_diag3(c, K_DIAG_BYREF_ASSIGNMENT, isl_tok(a, i), isl_tok(a, i), isl_tok(a, i + 2), (keel_slice_char){0});
         }
 
-        /* `alias.verb(`, `verb(x, ...)` over a container, and a function of the file */
+        /* `alias.verb(` or `M.N...verb(`, `verb(x, ...)` over a container, and a
+           function of the file */
         if (isl_call_at(c, i)) continue;
-        if (isl_punct(a, i + 1, ".") && isl_ident(a, i + 2) && !isl_punct(a, i + 3, "(")) {
-            const KModule *module = isl_module_alias(a->symbols, t);
-            if (module) { i += isl_qualified_name(c, i, module); continue; }
+        if (isl_punct(a, i + 1, ".") && isl_ident(a, i + 2)) {
+            /* the qualifier: an alias, or — without `as` — the module's own
+               dotted name written out in full (spec §4.1 regra 5) */
+            size_t qlen = 0;
+            const KModule *module = isl_module_alias_at(a->symbols, a, i, &qlen);
+            if (module && isl_punct(a, i + qlen, ".") && isl_ident(a, i + qlen + 1) && !isl_punct(a, i + qlen + 2, "(")) {
+                i += isl_qualified_name(c, i, qlen, module);
+                continue;
+            }
             if (isl_tag_qualified(c, i)) { i += 2; continue; }
         }
         if (isl_punct(a, i + 1, "(")) continue;             /* a C function: not ours */

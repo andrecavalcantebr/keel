@@ -461,6 +461,36 @@ const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char nam
     return isl_module_alias_ex(symbols, name, NULL);
 }
 
+/* The qualifier a use at token `i` names: an alias, or — without `as`
+ * (spec §4.1 regra 5) — the module's own name in full, written out with its
+ * dots, as `module` itself spells it (`import m.t;` then `m.t.BRIDGE`). Tries
+ * the longest run of `IDENT ('.' IDENT)*` first, so a module whose own name
+ * is a prefix of a longer one written out does not shadow it. `*qlen` gets
+ * the token count matched (always odd: 1, 3, 5, ...); untouched when NULL
+ * comes back. */
+const KModule *isl_module_alias_at_ex(const KSymbolTable *symbols, const KAst *a, size_t i, size_t *qlen,
+                                       bool *indirect) {
+    if (!isl_ident(a, i)) return NULL;
+    size_t end = i + 1;
+    while (isl_punct(a, end, ".") && isl_ident(a, end + 1)) end += 2;
+    for (size_t e = end; e > i; e -= 2) {
+        KToken first = isl_tok(a, i), last = isl_tok(a, e - 1);
+        keel_slice_char span = { (size_t)((last.ptr + last.len) - first.ptr), first.ptr };
+        bool ind = false;
+        const KModule *m = isl_module_alias_ex(symbols, span, &ind);
+        if (m) {
+            if (qlen) *qlen = e - i;
+            if (indirect) *indirect = ind;
+            return m;
+        }
+    }
+    return NULL;
+}
+
+const KModule *isl_module_alias_at(const KSymbolTable *symbols, const KAst *a, size_t i, size_t *qlen) {
+    return isl_module_alias_at_ex(symbols, a, i, qlen, NULL);
+}
+
 /* the module a file imports under its own declared name, whatever the alias */
 const KModule *isl_module_by_name(const KSymbolTable *symbols, const char *name) {
     for (size_t i = 0; i < symbols->len; i++) {

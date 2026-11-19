@@ -589,15 +589,24 @@ static bool callee_at(Ctx *c, size_t i, Callee *out) {
     const KAst *a = c->ast;
     KToken name = isl_tok(a, i);
     if (!isl_ident(a, i)) return false;
-    /* `alias.verb(`: a local of the same name does not hide the qualifier,
-       which is read where it stands as one (spec §2.3) */
-    if (isl_punct(a, i + 1, ".") && isl_ident(a, i + 2) && isl_punct(a, i + 3, "(")) {
+    /* `alias.verb(`, or `M.N...verb(` — the module's own dotted name written
+       out in full, without `as` (spec §4.1 regra 5): a local of the same
+       name does not hide the qualifier, which is read where it stands as
+       one (spec §2.3) */
+    if (isl_punct(a, i + 1, ".") && isl_ident(a, i + 2)) {
+        size_t qlen = 0;
         bool indirect = false;
-        const KModule *m = isl_module_alias_ex(a->symbols, name, &indirect);
-        if (!m) return false;
-        if (indirect) isl_diag3(c, K_DIAG_INDIRECT_IMPORT, name, name, (keel_slice_char){0}, (keel_slice_char){0});
-        *out = (Callee){ i + 2, i + 3, m };
-        return true;
+        const KModule *m = isl_module_alias_at_ex(a->symbols, a, i, &qlen, &indirect);
+        if (m && isl_punct(a, i + qlen, ".") && isl_ident(a, i + qlen + 1) && isl_punct(a, i + qlen + 2, "(")) {
+            if (indirect) {
+                KToken last = isl_tok(a, i + qlen - 1);
+                keel_slice_char full = { (size_t)((last.ptr + last.len) - name.ptr), name.ptr };
+                isl_diag3(c, K_DIAG_INDIRECT_IMPORT, name, full, (keel_slice_char){0}, (keel_slice_char){0});
+            }
+            *out = (Callee){ i + qlen + 1, i + qlen + 2, m };
+            return true;
+        }
+        if (isl_punct(a, i + 3, "(")) return false;   /* `X.Y(`, X not a module: handled elsewhere */
     }
     if (isl_find_local(c, name)) return false;
     if (!isl_punct(a, i + 1, "(")) return false;
@@ -1373,32 +1382,35 @@ static bool tags_has_item(const KAst *where, keel_slice_char set, keel_slice_cha
 }
 
 /* `Q.IDENT` that is not a call: a constant, a variable or a function of the
-   module the qualifier names. What the module does not export goes on as the
+   module the qualifier names. `Q` is `qlen` tokens — an alias (1), or the
+   module's own dotted name written out without `as` (spec §4.1 regra 5; `*qlen`
+   of isl_module_alias_at). What the module does not export goes on as the
    qualified name, for the C compiler to validate (spec §4.4, item 3).
-   Returns the tokens after the first that the island covers: 2, or 4 for
-   `Q.Set.VALUE`. */
-size_t isl_qualified_name(Ctx *c, size_t i, const KModule *module) {
+   Returns the tokens after `Q` that the island covers: `qlen + 1`, or
+   `qlen + 3` for `Q.Set.VALUE`. */
+size_t isl_qualified_name(Ctx *c, size_t i, size_t qlen, const KModule *module) {
     KAst *a = c->ast;
-    KToken member = isl_tok(a, i + 2);
+    size_t dot = i + qlen;   /* the '.' right after the qualifier */
+    KToken member = isl_tok(a, dot + 1);
     Text t = { .ok = true };
-    size_t used = 2;   /* tokens after the first the island covers */
+    size_t end = dot + 2;    /* one past the member: what the island covers so far */
     const KSymbol *found = NULL;
     for (size_t k = 0; k < module->symbol_count && !found; k++)
         if (k_symtab_same_name(module->symbols[k].name, member)) found = &module->symbols[k];
-    /* `M.Set.VALUE`: the value of a set of the module, written with its level (spec §4.9) */
-    if (found && found->kind == K_SYM_TAGS && module->ast && isl_punct(a, i + 3, ".") && isl_ident(a, i + 4) &&
-        tags_has_item(module->ast, member, isl_tok(a, i + 4)))
-        used = 4;
-    isl_put_glued(&t, a, i, i + used + 1);
+    /* `Q.Set.VALUE`: the value of a set of the module, written with its level (spec §4.9) */
+    if (found && found->kind == K_SYM_TAGS && module->ast && isl_punct(a, end, ".") && isl_ident(a, end + 1) &&
+        tags_has_item(module->ast, member, isl_tok(a, end + 1)))
+        end += 2;
+    isl_put_glued(&t, a, i, end);
     isl_put_str(&t, " \xe2\x86\x92 ");
     if (found) {
         char sym[K_DETAIL_MAX];
         size_t n = k_mangle_symbol(found, (keel_slice_char){ sizeof sym, sym });
-        if (n > sizeof sym) return 2;
+        if (n > sizeof sym) return qlen + 1;
         isl_put(&t, sym, n);
-        if (used == 4) {
+        if (end == dot + 4) {
             isl_put_str(&t, "_");
-            KToken item = isl_tok(a, i + 4);
+            KToken item = isl_tok(a, dot + 3);
             isl_put(&t, item.ptr, item.len);
         }
     } else if (module->ast) {
@@ -1406,18 +1418,18 @@ size_t isl_qualified_name(Ctx *c, size_t i, const KModule *module) {
            from outside, `M.Set.VALUE` (spec §4.2, item 9) */
         if (isl_tag_of_some_set(module->ast, member)) {
             Text written = { .ok = true };
-            isl_put_glued(&written, a, i, i + 3);
+            isl_put_glued(&written, a, i, dot + 2);
             isl_diag3(c, K_DIAG_ENUM_CONSTANT_WITHOUT_TYPE, isl_tok(a, i), isl_keep(c, &written), member, (keel_slice_char){0});
-            return 2;
+            return qlen + 1;
         }
         isl_put_module_prefix(&t, module->ast);
         isl_put_str(&t, "_");
         isl_put(&t, member.ptr, member.len);
     } else {
-        return 2;
+        return qlen + 1;
     }
     isl_emit(c, K_ISLAND_NAME, i, &t);
-    return used;
+    return end - i - 1;
 }
 
 /* ---- declarations ------------------------------------------------------ */

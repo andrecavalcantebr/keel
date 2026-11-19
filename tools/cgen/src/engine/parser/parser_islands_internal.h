@@ -204,6 +204,12 @@ const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char nam
    closure of this file's own direct imports (spec §4.1 regra 8), *indirect
    is set true (the use is still resolved, not refused). */
 const KModule *isl_module_alias_ex(const KSymbolTable *symbols, keel_slice_char name, bool *indirect);
+/* isl_module_alias(_ex), but at a token position: tries the alias first, then
+   the module's own dotted name written out without `as` (spec §4.1 regra 5).
+   See parser_islands.c for the token-count convention of `*qlen`. */
+const KModule *isl_module_alias_at(const KSymbolTable *symbols, const KAst *a, size_t i, size_t *qlen);
+const KModule *isl_module_alias_at_ex(const KSymbolTable *symbols, const KAst *a, size_t i, size_t *qlen,
+                                       bool *indirect);
 const KModule *isl_module_by_name(const KSymbolTable *symbols, const char *name);
 bool isl_protocol_decl(const Ctx *c, const KAst *home, keel_slice_char name, KProtocolDecl *out, int depth);
 bool isl_satisfies(Ctx *c, const KAst *own, keel_slice_char receiver, const KProtocolDecl *pd, Text *missing, KToken at);
@@ -230,7 +236,7 @@ void isl_resolution_end(Ctx *c);
 bool isl_call_at(Ctx *c, size_t i);
 bool isl_tag_of_some_set(const KAst *where, keel_slice_char name);
 void isl_name_island(Ctx *c, size_t i);
-size_t isl_qualified_name(Ctx *c, size_t i, const KModule *module);
+size_t isl_qualified_name(Ctx *c, size_t i, size_t qlen, const KModule *module);
 bool isl_tag_qualified(Ctx *c, size_t i);
 bool isl_proto_param(Ctx *c, size_t i, size_t *next);
 bool isl_is_arena(const KAst *a, const KSpecifier *spec);

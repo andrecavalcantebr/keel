@@ -1,0 +1,25 @@
+O que este caso afirma
+=======================
+
+`import app.qty;` sem `as` (spec §4.1 regra 5, desde 0.3.0): o qualificador
+nos usos é o nome do módulo por inteiro, com os pontos do caminho —
+`app.qty.SEVEN` (uma constante) e `app.qty.triple(2)` (uma chamada), sem
+nenhum alias disponível. `app.qty` sozinho não é um qualificador válido aqui
+(só `app.qty` inteiro é o nome do módulo).
+
+Por que faltava
+================
+
+Achado em `../xprk`, junto com o 075 e o 076: a resolução de `alias.NOME` e
+`alias.verbo(` (`isl_qualified_name`, `callee_at`) só comparava o qualificador
+como um único token, contra o alias OU contra o nome do módulo — mas o nome
+de um módulo de mais de um segmento (`app.qty`) é vários tokens (`app`, `.`,
+`qty`), nunca um só, então nunca batia. Ao mesmo tempo, `import m.t;` sem
+alias E só o último segmento (`t.algo`) continua sem resolver: não há
+qualificador implícito mais curto que o nome inteiro.
+
+A tradução de um **tipo** por nome completo (`app.qty.Widget w;`) já
+funcionava antes deste conserto: a resolução de tipos (`k_symbol_resolve`)
+já normalizava um nome pontilhado de vários tokens. O gap era só no uso como
+valor (constante, tag) e como chamada — os dois caminhos corrigidos aqui
+(`isl_module_alias_at`, que tenta o qualificador mais longo primeiro).

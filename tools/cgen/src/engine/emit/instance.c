@@ -414,8 +414,14 @@ static void emit_constexpr(Emit *e, const KAstNode *n) {
 /* the declarations of the generic that name a parameter, and go to the .type.h of
  * the instance, in the order of the source (backend §4.3, rule 1): a constant, a
  * typedef or the modifier */
+/* a file-level `static_assert` of the generic module that names a binder: a check of the
+ * instance's own values (`W <= 8 * sizeof(T)`), written once and carried into every instance */
+static bool is_static_assert(const KAst *ast, const KAstNode *n) {
+    return n->kind == K_AST_OPAQUE && n->first < n->end && k_em_text_is(k_em_tok(ast, n->first), "static_assert");
+}
+
 static bool type_h_node(const KAst *ast, const KAstNode *n) {
-    return k_em_generic_out(ast, n) && (n->kind == K_AST_TYPE || n->kind == K_AST_CONSTEXPR);
+    return k_em_generic_out(ast, n) && (n->kind == K_AST_TYPE || n->kind == K_AST_CONSTEXPR || is_static_assert(ast, n));
 }
 
 /* whether an earlier node of the tree shares the span of `n` (the declarators of
@@ -463,7 +469,7 @@ static void emit_body(Emit *e, const KAstNode *n, bool vis_static) {
 
 /* whether the declaration is one the instance can carry */
 static bool carried(const Emit *e, const KAstNode *n) {
-    if (n->kind == K_AST_MODIFIER || n->kind == K_AST_TYPE || n->kind == K_AST_CONSTEXPR) return true;
+    if (n->kind == K_AST_MODIFIER || n->kind == K_AST_TYPE || n->kind == K_AST_CONSTEXPR || is_static_assert(e->ast, n)) return true;
     return is_function_with_body(e, n);
 }
 

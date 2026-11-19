@@ -192,6 +192,7 @@ bool isl_module_named(const KAst *a, const char *name);
 bool isl_module_in_base(const KAst *a);
 bool isl_binder(const KAst *a, keel_slice_char name);
 keel_slice_char isl_modifier_of(const KAst *a);
+bool isl_names_instance(const KAst *a, const KAstNode *fn);
 size_t isl_params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap);
 Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity);
 /* The suffix of verb `sig` on the container type k (backend §2.1.1): `_<N>` for

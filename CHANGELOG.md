@@ -40,6 +40,13 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 - `foreach` e `walk` sobre contêiner de módulo com `dim` (`bitbuffer(4) u8`,
   `m(4) u32`): o emissor lia o tipo pelo último `(` do detalhe da ilha e
   recusava. É o que faltava do A7 da `keel_coll`.
+- Função de um módulo genérico que não cita parâmetro nem modificador (regra 20
+  da §4.3): chamada qualificada de fora dava `from-without-target`, e de dentro
+  de uma instância saía com o nome cru. Agora é chamada como a de um módulo
+  comum.
+- `static_assert` de topo num módulo genérico que cita um parâmetro: o emissor
+  recusava (`implementation-limit`). Agora cada instância o leva no `.type.h`,
+  com os valores substituídos.
 - `x[a..b]` sobre modificador de módulo com `dim`: não era reconhecido e o `cc`
   recusava a expressão. O `range-index` usa uma dimensão (§4.5), e o acessor
   de posto completo, `x[i, j]`, continua à parte.

@@ -1141,7 +1141,7 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
 
 /* whether `fn` names one of the module's binders or its modifier: the share of
    an instance (the rule of k_em_generic_out, codegen design §7) */
-static bool names_instance(const KAst *a, const KAstNode *fn) {
+bool isl_names_instance(const KAst *a, const KAstNode *fn) {
     keel_slice_char mod = isl_modifier_of(a);
     for (size_t i = fn->first; i < fn->end; i++) {
         if (!isl_ident(a, i)) continue;
@@ -1201,7 +1201,7 @@ bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosti
        typedefs that name a binder or the modifier hold types of other modules */
     for (size_t i = 0; i < a->nodes.len && !ctx.failed && !inst->proto_fn.len; i++) {
         const KAstNode *n = isl_node_at(a, i);
-        if (n->kind != K_AST_MODIFIER && !(n->kind == K_AST_TYPE && names_instance(a, n))) continue;
+        if (n->kind != K_AST_MODIFIER && !(n->kind == K_AST_TYPE && isl_names_instance(a, n))) continue;
         isl_struct_fields(&ctx, n);
         if (n->kind == K_AST_TYPE) isl_typedef_specifier(&ctx, n);
     }
@@ -1213,7 +1213,7 @@ bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosti
             Param p[K_PARAMS_MAX];
             size_t np = isl_params_of(a, n, p, K_PARAMS_MAX);
             if (np == SIZE_MAX || !np || !p[0].is_protocol || !k_symtab_same_name(isl_tok(a, n->name_first), inst->proto_fn)) continue;
-        } else if (!names_instance(a, n)) continue;
+        } else if (!isl_names_instance(a, n)) continue;
         covered = n->end;
         isl_walk(&ctx, n);
     }

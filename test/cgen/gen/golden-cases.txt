@@ -93,3 +93,4 @@ test/cgen/gen/share|use.k|-
 077-import-without-alias|app/qty.k app/qty_use.k|-
 078-bitpack|app/packed.k|-
 079-bitpack-debug|app/chk.k|app.chk
+080-generic-fixed-part|app/gfp_use.k|-

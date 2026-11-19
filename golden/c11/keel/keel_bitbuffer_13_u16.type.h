@@ -4,7 +4,11 @@
 
 #include "keel.type.h"
 
-#line 27 "keel/bitbuffer.k"
+#line 21 "keel/bitbuffer.k"
+static_assert(13 >= 1 && 13 <= 8 * sizeof(u16), "bitbuffer-width-invalid: W must be in 1..bits of T");
+static_assert((u16)-1 > 0, "bitbuffer-width-invalid: T must be an unsigned integer or bool");
+static_assert(!((u16)2 == 1) || 13 == 1, "bitbuffer-width-invalid: a bool element holds one bit");
+#line 26 "keel/bitbuffer.k"
 typedef struct keel_bitbuffer_13_u16 { size_t cap, len; u8 *words; } keel_bitbuffer_13_u16;
 
 #endif /* KEEL_KEEL_BITBUFFER_13_U16_TYPE_H */

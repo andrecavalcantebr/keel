@@ -13,15 +13,14 @@ import keel.outcome  as outcome types;
 import keel.range    as range   types;
 import keel.arena    as arena   types;
 
-// the checks of `bitslice` (spec §5.8, rule 1), once more: each module is its
-// own expansion. They run wherever the instance is used, because the verb is
-// emitted with it. A file-level `static_assert` that names `W` has no home in
-// a generic module, hence the body (the device of keel_coll's `bstree`).
-pub inline void assert_instance(void) {
-    static_assert(W >= 1 && W <= 8 * sizeof(T), "bitbuffer-width-invalid: W must be in 1..bits of T");
-    static_assert((T)-1 > 0, "bitbuffer-width-invalid: T must be an unsigned integer or bool");
-    static_assert(!((T)2 == 1) || W == 1, "bitbuffer-width-invalid: a bool element holds one bit");
-}
+// the widths and the element type are checked once per instance (spec §5.8,
+// rule 1): W bits must fit in T, T is unsigned or `bool`, and a `bool` holds
+// one bit. `(T)-1 > 0` is false for a signed type and for a float. The module
+// writes the checks once, and every instance carries them with `W` and `T`
+// substituted, so they fail the translation unit that uses a bad instance.
+static_assert(W >= 1 && W <= 8 * sizeof(T), "bitbuffer-width-invalid: W must be in 1..bits of T");
+static_assert((T)-1 > 0, "bitbuffer-width-invalid: T must be an unsigned integer or bool");
+static_assert(!((T)2 == 1) || W == 1, "bitbuffer-width-invalid: a bool element holds one bit");
 
 // `byref`, like `buffer`: `cap` and `len` count elements, not bits or bytes.
 pub modifier bitbuffer byref { size_t cap, len; u8 *words; }

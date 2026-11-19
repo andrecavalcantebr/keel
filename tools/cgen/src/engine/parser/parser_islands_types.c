@@ -906,6 +906,9 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     Sig sig = isl_find_verb(home, redirected.len ? redirected : name, redirected.len ? redirect_arity : argc);
     keel_slice_char declared = redirected.len ? redirected : name;
     bool gen = module && isl_generic(home);
+    /* a function of a generic module that names no binder and no modifier belongs to the module,
+       not to an instance (spec §4.3, rule 20): it is called like the verb of a plain module */
+    if (gen && sig.found && sig.fn && !isl_names_instance(home, sig.fn)) gen = false;
     keel_slice_char modifier = gen ? isl_modifier_of(home) : none;
 
     /* which parameter takes the container, which one mentions the module's modifier

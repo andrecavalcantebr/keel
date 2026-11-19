@@ -1,0 +1,13 @@
+Notas do caso.
+
+Dois defeitos do cgen achados escrevendo `keel.bitslice` (achados/README.md):
+
+- Uma função da parte fixa de um módulo genérico (que não cita parâmetro nem
+  modificador, §4.3 regra 20) não era alcançável. De fora, `gfp.twice(21)` dava
+  `from-without-target`, porque o cgen a tomava por verbo de instância. De
+  dentro, `twice(W)` no corpo de `width2` saía com o nome cru, sem o prefixo do
+  módulo. As duas chamadas agora saem `app_gfp_twice(...)`.
+- Um `static_assert` no topo de um módulo genérico que cita `W` ou `T` era
+  recusado (`implementation-limit`, sem posição): o nó não era levado à
+  instância. Agora sai no `.type.h` de cada instância, com os valores
+  substituídos: `static_assert(7 >= 1 && 7 <= 8 * sizeof(u8), ...)`.

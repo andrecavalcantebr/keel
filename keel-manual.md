@@ -1102,7 +1102,7 @@ prelúdio. O contrato completo — regras, erros, casos especiais — está em
 [`keel-spec.md` capítulo 5](keel-spec.md#5-protocolos-e-módulos-da-base); esta
 referência resume e remete para lá. Para a fonte das funções, veja
 [`base/`](base/) ou, condensado,
-[`design/keel-llm-context.md`](design/keel-llm-context.md#3-a-api-da-base). O
+[`keel-llm-context.md`](keel-llm-context.md#3-a-api-da-base). O
 que vem depois da base (v1, v2+) está, sem valor normativo, em
 [`design/possibilidades.md`](design/possibilidades.md).
 
@@ -1352,7 +1352,7 @@ Os verbos têm os papéis abaixo; a tabela faz parte das assinaturas
 
 ## Ver também
 
-- [`design/keel-llm-context.md`](design/keel-llm-context.md) — a fonte das
+- [`keel-llm-context.md`](keel-llm-context.md) — a fonte das
   mesmas funções, mais a gramática completa; feito para alimentar uma IA,
   mas lê-se também.
 - [`README.md`](README.md#keel-por-exemplos) — sete pares keel/C comentados.

@@ -32,7 +32,7 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
 **Documentação** (não normativa)
 
-- `keel-manual.md` §3.11 e `design/keel-llm-context.md`: como escrever para o
+- `keel-manual.md` §3.11 e `keel-llm-context.md`: como escrever para o
   compilador C vetorizar e como conferir.
 
 **Ferramenta** (`tools/cgen`)

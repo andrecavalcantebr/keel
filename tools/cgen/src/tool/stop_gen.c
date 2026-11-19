@@ -314,9 +314,11 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
         for (int w = 0; w < 2; w++) {
             KEmitFile which = w == 0 ? K_EMIT_TYPE_H : K_EMIT_H;
             const char *ext = w == 0 ? ".type.h" : ".h";
+            KEmitRefusal site = {0};
+            opt.refusal = &site;
             size_t need = k_emit_instance(c->module->ast, &inst, src_path, which, opt, (keel_slice_char){0});
             if (K_EMIT_IS_FAILURE(need)) {
-                report_refused(need, (int)inst.symbol.len, inst.symbol.ptr, "this instance", NULL);
+                report_refused(need, (int)inst.symbol.len, inst.symbol.ptr, "this instance", &site);
                 return 2;
             }
             char *data = cgen_alloc(arena, need ? need : 1, 1, 1, false, "generated file");

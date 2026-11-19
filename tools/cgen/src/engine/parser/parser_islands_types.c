@@ -1295,6 +1295,8 @@ bool isl_call_at(Ctx *c, size_t i) {
 
 /* ---- names ------------------------------------------------------------- */
 
+static bool tags_has_item(const KAst *where, keel_slice_char set, keel_slice_char item);
+
 /* the tags item `name`, if some `tags` declaration of the file lists it: its symbol */
 static bool tag_value(const KAst *a, keel_slice_char name, Text *t) {
     for (size_t i = 0; i < a->nodes.len; i++) {
@@ -1326,7 +1328,10 @@ bool isl_tag_of_some_set(const KAst *where, keel_slice_char name) {
 }
 
 /* `Set.VALUE` where `Set` is a `tags` of this file and VALUE one of its items
-   (spec §4.9): the item's symbol replaces the three tokens. False for any other. */
+   (spec §4.9): the item's symbol replaces the three tokens. Also `Set.VALUE`
+   where `Set` is a tags set `types` injected from another module (spec §4.1
+   regra 6, since 0.3.0): the item's symbol, same as a qualified use would
+   write it. False for any other. */
 bool isl_tag_qualified(Ctx *c, size_t i) {
     KAst *a = c->ast;
     KToken set = isl_tok(a, i), item = isl_tok(a, i + 2);
@@ -1337,6 +1342,20 @@ bool isl_tag_qualified(Ctx *c, size_t i) {
         isl_put_glued(&t, a, i, i + 3);
         isl_put_str(&t, " \xe2\x86\x92 ");
         if (!tag_value(a, item, &t)) return false;
+        isl_emit(c, K_ISLAND_NAME, i, &t);
+        return true;
+    }
+    const KSymbol *s = a->symbols ? k_symbol_resolve(a->symbols, set) : NULL;
+    if (s && s->kind == K_SYM_TAGS && s->origin && s->origin->ast && tags_has_item(s->origin->ast, set, item)) {
+        char sym[K_DETAIL_MAX];
+        size_t n = k_mangle_symbol(s, (keel_slice_char){ sizeof sym, sym });
+        if (n > sizeof sym) return false;
+        Text t = { .ok = true };
+        isl_put_glued(&t, a, i, i + 3);
+        isl_put_str(&t, " \xe2\x86\x92 ");
+        isl_put(&t, sym, n);
+        isl_put_str(&t, "_");
+        isl_put(&t, item.ptr, item.len);
         isl_emit(c, K_ISLAND_NAME, i, &t);
         return true;
     }

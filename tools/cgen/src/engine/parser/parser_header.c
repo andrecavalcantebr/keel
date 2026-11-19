@@ -114,21 +114,25 @@ static keel_slice_char spelled(const KAst *a, size_t first, size_t end) {
     return (keel_slice_char){ (size_t)((last.ptr + last.len) - lead.ptr), lead.ptr };
 }
 
-/* `types` injects the module's type, modifier and protocol names without a
-   qualifier, and nothing else — keel-spec §4.1 item 6: "Não injeta
-   funções, variáveis nem constantes de enum." Arity travels with a
+/* `types` injects the module's type, modifier, protocol and tags-set names
+   without a qualifier, and nothing else — keel-spec §4.1 item 6: "Não injeta
+   funções, variáveis nem constantes de enum." (a tags set's own name is a
+   type name, spec §4.9; the rationale already said `types` injects it nu, and
+   the rule text catches up *(desde 0.3.0)*). Arity travels with a
    modifier, because that is what decides how many arguments its uses
    read. */
 static bool inject_types(KSymbolTable *symtab, const KModule *module, KDiagnosticSink *diag, keel_slice_char at,
                          bool *clash) {
     for (size_t i = 0; i < module->symbol_count; i++) {
         const KSymbol *sym = &module->symbols[i];
-        if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER && sym->kind != K_SYM_PROTOCOL) continue;
+        if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER && sym->kind != K_SYM_PROTOCOL &&
+            sym->kind != K_SYM_TAGS) continue;
         /* two imports with `types` inject the same bare name (keel-spec §4.1):
            one of them is written without `types`, and the name qualified */
         for (size_t j = 0; j < symtab->len; j++) {
             const KSymbol *old = keel_buffer_KSymbol_ptr(symtab, j);
-            if ((old->kind == K_SYM_TYPE || old->kind == K_SYM_MODIFIER || old->kind == K_SYM_PROTOCOL) &&
+            if ((old->kind == K_SYM_TYPE || old->kind == K_SYM_MODIFIER || old->kind == K_SYM_PROTOCOL ||
+                 old->kind == K_SYM_TAGS) &&
                 old->origin && old->origin != module && k_symtab_same_name(old->name, sym->name)) {
                 k_diag_emit(diag, K_DIAG_DUPLICATE_INJECTED_NAME, at,
                             (KDiagArgs){{ sym->name, module->name, old->origin->name }});
@@ -175,7 +179,8 @@ static bool resolve_one(KLoader *loader, KSymbolTable *symtab, KDiagnosticSink *
         size_t start = used;
         for (size_t i = 0; i < module->symbol_count; i++) {
             const KSymbol *sym = &module->symbols[i];
-            if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER && sym->kind != K_SYM_PROTOCOL) continue;
+            if (sym->kind != K_SYM_TYPE && sym->kind != K_SYM_MODIFIER && sym->kind != K_SYM_PROTOCOL &&
+                sym->kind != K_SYM_TAGS) continue;
             if (used + sym->name.len + 2 >= sizeof store) { used = start; break; }
             if (used > start) { store[used++] = ','; store[used++] = ' '; }
             memcpy(store + used, sym->name.ptr, sym->name.len);

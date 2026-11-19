@@ -630,7 +630,7 @@ Organizar declarações em módulos e integrar interfaces e implementações C.
 3. Declarações públicas compõem a interface; declarações privadas e corpos fora de linha compõem a implementação, conforme o backend.
 4. `priv` não muda por si só o linkage C. `static` conserva seu significado C.
 5. Um alias muda a escrita usada pelo importador e preserva a identidade de origem. Sem alias, o qualificador é o nome do módulo por inteiro, com os pontos do caminho *(desde 0.3.0)*.
-6. `types` disponibiliza sem qualificador os nomes de tipos, modificadores e protocolos do módulo importado. Não injeta funções, variáveis nem constantes de enum. A forma qualificada continua disponível, e a injeção não se propaga por imports.
+6. `types` disponibiliza sem qualificador os nomes de tipos, modificadores, protocolos e conjuntos de tags *(desde 0.3.0)* do módulo importado. Não injeta funções, variáveis nem constantes de enum. A forma qualificada continua disponível, e a injeção não se propaga por imports.
 7. O módulo e o modificador que ele declara têm identidades distintas. Em `import keel.outcome as outcome types;`, `outcome` é o alias do módulo e `outcome.outcome` é o modificador; `types` permite escrever o modificador como `outcome` em posição de tipo, e em `outcome.ok(r)` o prefixo qualifica um verbo do módulo.
 8. A resolução alcança símbolos públicos de imports transitivos. O uso sem import direto é `indirect-import`.
 9. Colisões são verificadas entre os símbolos exportados do módulo e os do fecho transitivo de seus imports, pelos nomes canônicos efetivos, inclusive tags, typedefs e constantes de enum (§4.2).

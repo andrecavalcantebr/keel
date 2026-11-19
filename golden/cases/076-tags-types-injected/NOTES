@@ -1,0 +1,23 @@
+O que este caso afirma
+=======================
+
+`import M types;` disponibiliza sem qualificador o nome de um conjunto `tags`
+de `M` (spec §4.1 regra 6, desde 0.3.0): `Mode` vira `app_hue2_Mode`, como tipo
+de parâmetro, de retorno e de declarador. O valor de uma tag ainda pede o
+nível do conjunto (spec §4.9) — `Mode.LOW`, não `LOW` — e esse acesso também
+resolve, porque `Mode` está disponível.
+
+Por que faltava
+================
+
+Achado em `../xprk` (catálogo de diagnósticos como módulo keel), junto com o
+075: o rationale já afirmava "nome de conjunto é nome de tipo, e `types` o
+injeta nu" (seção "Constantes nomeadas"), mas a regra 6 da spec listava só
+tipos, modificadores e protocolos, e o cgen (`inject_types`,
+`parser_header.c`) seguia a lista literal — não injetava o conjunto. Dois
+ajustes: a lista de `inject_types` (e as três checagens que espelham a mesma
+lista — colisão de nome injetado, `injected-names` e
+`shadowed-injected-name`) ganham `K_SYM_TAGS`; e `isl_tag_qualified`
+(`parser_islands_types.c`), que só procurava o conjunto nas declarações do
+próprio arquivo, passa a achar também um conjunto injetado de outro módulo,
+pelo símbolo que `inject_types` registrou.

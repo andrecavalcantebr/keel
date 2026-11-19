@@ -153,7 +153,8 @@ void isl_check_name(Ctx *c, KToken name, bool top, bool function) {
     keel_slice_char self = isl_range_text(a, (Range){ mod->name_first, mod->name_end });
     for (size_t k = 0; k < a->symbols->len; k++) {
         const KSymbol *s = keel_buffer_KSymbol_ptr(a->symbols, k);
-        if ((s->kind == K_SYM_TYPE || s->kind == K_SYM_MODIFIER || s->kind == K_SYM_PROTOCOL) && s->origin &&
+        if ((s->kind == K_SYM_TYPE || s->kind == K_SYM_MODIFIER || s->kind == K_SYM_PROTOCOL || s->kind == K_SYM_TAGS) &&
+            s->origin &&
             !k_symtab_same_name(s->origin->name, self) && k_symtab_same_name(s->name, name)) {
             isl_diag3(c, K_DIAG_SHADOWED_INJECTED_NAME, name, name, s->origin->name, none);
             break;

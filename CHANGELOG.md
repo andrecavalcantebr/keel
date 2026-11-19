@@ -20,6 +20,9 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 - §4.1, regra 5: sem alias, o qualificador de um import é o nome do módulo por
   inteiro (`import m.t;` então `m.t.algo`). A regra não estava escrita; o cgen
   não resolvia nem essa forma nem a de um só segmento.
+- §4.1, regra 6: `types` também injeta nu o nome de um conjunto de tags do
+  módulo importado, não só tipos, modificadores e protocolos — o rationale já
+  dizia isso (§4.1), mas a regra não estava na spec, e o cgen não injetava.
 
 **Rationale** (`keel-rationale.md`)
 
@@ -47,7 +50,7 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   outro módulo, resolvia só até o tipo do conjunto e deixava `.VALOR` para o
   compilador C recusar (golden 075); um import sem alias não resolvia nenhuma
   forma do nome do módulo nos usos qualificados, nem o próprio por inteiro
-  (regra 5).
+  (regra 5); `types` não injetava o nome de um conjunto de tags (regra 6).
 
 ## 0.2.0
 

@@ -1,7 +1,7 @@
 # Achados das bibliotecas
 
 Este documento não é normativo. É o canal dos achados que vêm das bibliotecas
-que usam keel (`../keel_libs`: `keel_coll`, `keel_maths`) e dos usos locais do
+que usam keel (`../keel_libs`: `coll`, `maths`) e dos usos locais do
 próprio André. Quem abre uma issue no GitHub é quem está fora do repositório;
 aqui ficam os casos locais, que não precisam passar por lá.
 
@@ -39,7 +39,7 @@ para que um relato local possa virar issue sem retrabalho:
 5. **Ambiente:** sistema e compilador C que compilou o gerado.
 
 O relato mora no repositório da biblioteca (um `.md` com o repro ao lado, como
-`keel_coll/docs/achados/` ou `keel_maths/BUG-CGEN-DIMENSOES.md`). Aqui só entra
+`coll/docs/achados/` ou `maths/BUG-CGEN-DIMENSOES.md`). Aqui só entra
 uma linha no registro abaixo, apontando para ele.
 
 ## O que acontece com um achado

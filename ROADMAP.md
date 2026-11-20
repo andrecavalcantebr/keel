@@ -29,13 +29,13 @@ publicada.
 ## 2. Em seguida: uso real alimenta o cgen
 
 Os achados mais valiosos vieram de usar keel em bibliotecas de verdade
-(`../keel_libs`, `../keel_maths`), não de teste sintético. A regra é a mesma de
+(`../keel_libs`: `coll`, `maths`), não de teste sintético. A regra é a mesma de
 sempre: cada achado vira um caso no `golden/` (ou um teste em `test/cgen/`)
 antes do conserto, e o que é fronteira da linguagem volta como prosa, sem
 mudar o normativo às pressas.
 
-- Coleções genéricas em `keel_libs/keel_coll` como carga de prova.
-- Matrizes e tensores em `keel_maths`.
+- Coleções genéricas em `keel_libs/coll` como carga de prova.
+- Matrizes e tensores em `keel_libs/maths`.
 - Lacunas de cobertura dos diagnósticos e novas auditorias externas.
 
 ## 3. v1: casos que depuram a linguagem
@@ -46,8 +46,8 @@ protocolos e papéis conferidos em todos os módulos, qualquer biblioteca pode
 ser "da stdlib", então o que se chamar de stdlib é só a escolha de um conjunto
 de casos de uso que servem para depurar keel e o cgen.
 
-As bibliotecas vivem em projetos independentes (`../keel_libs`: `keel_coll`,
-`keel_maths`). Os módulos de `base/` estão neste repositório porque as próprias
+As bibliotecas vivem em projetos independentes (`../keel_libs`, um repositório com `coll`,
+`maths`). Os módulos de `base/` estão neste repositório porque as próprias
 construções da keel dependem deles, e por nenhum outro motivo. O que as
 bibliotecas acham volta para cá como relatório de bug (`achados/README.md`),
 nunca como pedido de módulo novo.
@@ -59,10 +59,10 @@ linguagem:
 1. `pair` — sem dependências; o primeiro exercício.
 2. `buffer(N)` / `slice(N)` e `slice.from` — o que a `keel_coll` hoje resolve
    com `coll.span` e `coll.readspan`.
-3. Coleções (`stack`, `queue`, `ring`) — já em `keel_libs/keel_coll`.
+3. Coleções (`stack`, `queue`, `ring`) — já em `keel_libs/coll`.
 4. `string` / `strview`.
 5. `bitbuffer(W)` / `bitslice(W)`.
-6. `grid` (`box(N)`, `index(N)`) — em parte em `keel_libs/keel_maths`.
+6. `grid` (`box(N)`, `index(N)`) — em parte em `keel_libs/maths`.
 7. Cooperativo: `atomic`, `chan`, `barrier`.
 
 ## 4. v2+: extensões da linguagem

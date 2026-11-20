@@ -4,8 +4,8 @@ Documento **não normativo**, em rascunho (2026-11-20). Define o que a bibliotec
 padrão da keel é, o que cabe nela, o contrato que todo módulo dela segue e o
 catálogo, com o estado de cada item. Sai da §1 de
 [`possibilidades.md`](possibilidades.md), que passa a apontar para cá, e junta o
-que as duas bibliotecas de `../keel_libs` já provaram: `keel_coll` (coleções, módulos `coll`) e
-`keel_maths` (matrizes, e depois tensores, módulos `maths`).
+que as duas bibliotecas de `../keel_libs` já provaram: `coll` (coleções) e
+`maths` (matrizes, e depois tensores).
 
 Nada aqui altera a linguagem. Os módulos de uma biblioteca são módulos comuns
 (`module`/`modifier` com `dim`, `type` e `tags`, spec §4.3), e o que falta à
@@ -42,8 +42,8 @@ e `keel.<nome>` são a base (ferramenta §8), donos dos nomes `keel_`/`KEEL_`
 
 | Família | Projeto | Módulos hoje |
 | --- | --- | --- |
-| `coll` | `keel_libs/keel_coll` | `coll.stack`, `coll.queue`, `coll.set`, `coll.pairs`, `coll.pair`, `coll.map`, `coll.list`, `coll.bstree`, `coll.btree`; vistas `coll.segments`, `coll.chain`, `coll.treeview`, `coll.readspan` |
-| `maths` | `keel_libs/keel_maths` | `maths.matrix`, `maths.mview`, `maths.mpart`, `maths.storage`, `maths.layout`; de apoio: `scalar`, `floating`, `lu`, `direct`, `blocked`, `typed_matmul`, `matmul_policy`, `row_output` |
+| `coll` | `keel_libs/coll` | `coll.stack`, `coll.queue`, `coll.set`, `coll.pairs`, `coll.pair`, `coll.map`, `coll.list`, `coll.bstree`, `coll.btree`; vistas `coll.segments`, `coll.chain`, `coll.treeview`, `coll.readspan` |
+| `maths` | `keel_libs/maths` | `maths.matrix`, `maths.mview`, `maths.mpart`, `maths.storage`, `maths.layout`; de apoio: `scalar`, `floating`, `lu`, `direct`, `blocked`, `typed_matmul`, `matmul_policy`, `row_output` |
 
 - Imports qualificados. Cada módulo de coleção exporta um tipo `cursor`, então
   `types` em vários deles colide.
@@ -110,9 +110,9 @@ escolhendo. Se for regra, as demais coleções a seguem.
 
 ## 4. `coll`: coleções
 
-Estado: **implementado** na `keel_coll` 0.2.0, com 79 casos de execução, golden
+Estado: **implementado** na `coll` 0.2.0, com 79 casos de execução, golden
 e contrato de segurança, e benchmarks em `bench/`. A especificação detalhada,
-por coleção, está em `keel_libs/keel_coll/SPEC.md` e `docs/`.
+por coleção, está em `keel_libs/coll/SPEC.md` e `docs/`.
 
 ### Donas da memória (todas `byref`)
 
@@ -183,7 +183,7 @@ reutilizável nas operações aritméticas.
 ### 5.2 Planejado: `tensor` (sem API)
 
 `tensor(N) T`, com `N` o **posto** (`dim` como rank), é o passo seguinte da
-`keel_maths` (ROADMAP §2). É um problema estruturalmente igual ao de `matrix` e
+`maths` (ROADMAP §2). É um problema estruturalmente igual ao de `matrix` e
 semanticamente maior: pede eixo, stride por eixo, `reshape`, transposição e
 permutação de eixos, e uma indexação que não dependa do posto. Pontos já
 decididos pelo que `mview` provou:
@@ -222,9 +222,9 @@ núcleo, e só vira módulo quando uma biblioteca o pedir.
 
 | Candidato | O que é | Estado e pontos abertos |
 | --- | --- | --- |
-| `buffer(N)` / `slice(N)` | *soa* homogêneo: `N` colunas paralelas do mesmo `T` sob um `len`/`cap`; verbos de `buffer` com um índice a mais para a coluna | A `keel_coll` resolve o caso estreito com `pairs`. Abertos: `T *col[N]` (colunas separadas) × `T dados[N]` (bloco contíguo), porque o cursor, `ptr` e `partition` supõem memória contígua; uso como lote de tamanho fixo para gather/scatter sobre `extent`; regra memória/visão (`buffer(N)` produz `slice(N)`); alias seguido de `(`, a revisar com o nome `alias-with-argument` |
+| `buffer(N)` / `slice(N)` | *soa* homogêneo: `N` colunas paralelas do mesmo `T` sob um `len`/`cap`; verbos de `buffer` com um índice a mais para a coluna | A `coll` resolve o caso estreito com `pairs`. Abertos: `T *col[N]` (colunas separadas) × `T dados[N]` (bloco contíguo), porque o cursor, `ptr` e `partition` supõem memória contígua; uso como lote de tamanho fixo para gather/scatter sobre `extent`; regra memória/visão (`buffer(N)` produz `slice(N)`); alias seguido de `(`, a revisar com o nome `alias-with-argument` |
 | `string` / `strview` | `typedef buffer char string` e `typedef slice const char strview` | O trabalho real é o conjunto de funções (comparação, concatenação, formatação). `slice const char` só não está na base porque este par seria o nome dele; o golden 021 já o usa cru |
-| `grid` | `box(N)` e `index(N)`: a extensão de `range` a `N` dimensões | Em parte em `keel_maths`. Contável e particionável como `range`. Abertos: `box(N)` com `first`/`limit` ou como `range r[N]`; sem literal `[a,b]` (colide com designador e atributo C23): `(index(2)){a, b}` ou `index.of(a, b)` |
+| `grid` | `box(N)` e `index(N)`: a extensão de `range` a `N` dimensões | Em parte em `maths`. Contável e particionável como `range`. Abertos: `box(N)` com `first`/`limit` ou como `range r[N]`; sem literal `[a,b]` (colide com designador e atributo C23): `(index(2)){a, b}` ou `index.of(a, b)` |
 | `slice.from(T, p, range)` | `slice` sobre ponteiro cru descrito por `range` | Útil com coluna de `extent` |
 | `atomic`, `chan`, `barrier` | o conjunto cooperativo: `_Atomic T` com `init`/`load`/`store`/`swap`; `send`/`recv` como `corot` (cooperativo e SPSC); rendezvous sem busy-wait | Diagnóstico `atomics-unavailable` sob `__STDC_NO_ATOMICS__`, no molde de `specific-format-unavailable`. Abertos: `chan` ou `channel`; MPMC fica fora; um módulo para o contexto que sobrevive à suspensão |
 

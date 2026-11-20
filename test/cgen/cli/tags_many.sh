@@ -1,6 +1,6 @@
 #!/bin/sh
 # A tags set is not capped at 16 items (xprk finding 1): 25 items, with and without written values, in
-# a module that uses it from another, and one past the parser's limit still gets a refusal, not a crash.
+# a module that uses it from another, and past the limit of 128 the refusal is `tags-limit-exceeded`.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
 BIN=$PWD/tools/cgen/cgen
 K=$PWD/base
@@ -30,7 +30,8 @@ done
 
 d=$tmp/over; mkdir -p "$d"; mk 500 yes > "$d/t.k"
 "$BIN" --base-dir "$K" -I "$d" --dest-dir "$d/out" "$d/t.k" -c -o "$d/t.o" >"$d/log" 2>&1; rc=$?
-[ $rc -ne 0 ] && [ $rc -lt 128 ] || bad "500 items must be refused cleanly (rc=$rc)"
+[ $rc -ne 0 ] && [ $rc -lt 128 ] && grep -q 'more than 128 constants.*\[tags-limit-exceeded\]' "$d/log" \
+    || bad "500 items must fail with tags-limit-exceeded naming 128 (rc=$rc): $(head -3 "$d/log")"
 
 [ $fail -eq 0 ] && echo ok
 exit $fail

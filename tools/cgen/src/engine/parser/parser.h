@@ -163,6 +163,7 @@ bool k_scan_modifier_decl(KLexer *lexer, int module_arity,
  * production, or on more than K_TAGS_MAX_ITEMS items. Consumes through
  * the closing ';' and hands back the token after it. */
 #define K_TAGS_MAX_ITEMS 128
+#define K_TAGS_MAX_ITEMS_TEXT "128"   /* the same number, for the diagnostic */
 
 typedef struct {
     keel_slice_char name;
@@ -171,6 +172,7 @@ typedef struct {
     size_t item_count;
     bool has_values;   /* at least one item wrote '=' */
     bool all_values;   /* every item did */
+    bool over_limit;   /* the scan failed only because of K_TAGS_MAX_ITEMS */
 } KTagsDecl;
 
 bool k_scan_tags_decl(KLexer *lexer, KToken tags_kw, KSymbolTable *symtab,

@@ -119,6 +119,7 @@ static bool parse(KAst *a,
     a->module = 0;
     a->error_token = 0;
     a->error_is_capacity = false;
+    a->error_is_tags_limit = false;
     size_t i = 0, n = a->tokens.len;
     while (i < n && keel_buffer_KLexeme_ptr(&a->tokens, i)->directive) i++;
     if (i >= n || !named(a, i, "module")) return false;
@@ -252,7 +253,10 @@ static bool parse(KAst *a,
         } else if (named(a, i, "tags")) {
             KToken kw = reenter(a, i, &lexer, &pp);
             KTagsDecl tdef;
-            if (!k_scan_tags_decl(&lexer, kw, symtab, &tdef, &next, &next_pp)) return false;
+            if (!k_scan_tags_decl(&lexer, kw, symtab, &tdef, &next, &next_pp)) {
+                if (tdef.over_limit) { a->error_token = i + 1; a->error_is_tags_limit = true; }
+                return false;
+            }
             node.kind = K_AST_TAGS;
             node.name_first = index_at(a, i, tdef.name.ptr);
             node.name_end = index_at(a, node.name_first, tdef.name.ptr + tdef.name.len);

@@ -12,6 +12,7 @@
 #include "engine/instances.h"
 #include "engine/islands.h"
 #include "engine/names.h"
+#include "engine/parser/parser.h"
 #include "keel/keel_buffer_char.type.h"
 
 bool cgen_read_source(keel_arena *, const char *, keel_buffer_char *);
@@ -254,7 +255,14 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     for(size_t i=mod->type_first;i<mod->type_end;i++)
         if(k_token_is_ident(keel_buffer_KLexeme_ptr(&e->ast.tokens, i)->token))
             if(!k_symtab_insert(&e->symbols,keel_buffer_KLexeme_ptr(&e->ast.tokens, i)->token,K_SYM_TYPE,0))return failure(t,e,K_DIAG_CAPACITY,own);
-    if(!k_collect_ast(&e->ast,&e->symbols))return failure(t,e,K_DIAG_PARSE_FAILED,own);
+    if(!k_collect_ast(&e->ast,&e->symbols)) {
+        if(e->ast.error_is_tags_limit) {
+            keel_slice_char at=keel_buffer_KLexeme_ptr(&e->ast.tokens,e->ast.error_token)->token;
+            k_diag_emit(t->diag,K_DIAG_TAGS_LIMIT_EXCEEDED,at,(KDiagArgs){{at,k_diag_text(K_TAGS_MAX_ITEMS_TEXT)}});
+            return failure(t,e,K_DIAG_LOAD_FAILED,own);
+        }
+        return failure(t,e,K_DIAG_PARSE_FAILED,own);
+    }
     if(!exports(t,e))return failure(t,e,K_DIAG_CAPACITY,own);
     e->ast.instances=keel_buffer_KInstanceUse_from(CGEN_NEW(t->arena,KInstanceUse,count+1),count+1);
     if(!e->ast.instances.ptr||!k_collect_instances(&e->ast,t->diag))

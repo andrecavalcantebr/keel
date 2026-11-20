@@ -273,6 +273,7 @@ bool k_scan_tags_decl(KLexer *lexer, KToken tags_kw, KSymbolTable *symtab,
     out->item_count = 0;
     out->has_values = false;
     out->all_values = true;
+    out->over_limit = false;
 
     KToken tok = k_lexer_next(lexer, next_pp_kind_out);
     if (!k_token_is_punct(tok, "[")) return false;
@@ -280,7 +281,7 @@ bool k_scan_tags_decl(KLexer *lexer, KToken tags_kw, KSymbolTable *symtab,
 
     while (!k_token_is_punct(tok, "]")) {
         if (tok.len == 0 || !k_token_is_ident(tok)) return false;
-        if (out->item_count >= K_TAGS_MAX_ITEMS) return false;
+        if (out->item_count >= K_TAGS_MAX_ITEMS) { out->over_limit = true; return false; }
         size_t at = out->item_count++;
         out->items[at] = tok;
         out->values[at] = (keel_slice_char){ 0, NULL };

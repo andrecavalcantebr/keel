@@ -21,6 +21,7 @@ typedef struct KAst {
     KSymbolTable *symbols; /* caller-owned, retained collection environment */
     size_t error_token;
     bool error_is_capacity;    /* error_token's failure is a capacity, not a syntax error */
+    bool error_is_tags_limit;  /* error_token is a `tags` set with more than K_TAGS_MAX_ITEMS items */
     keel_buffer_KInstanceUse instances;
     keel_buffer_KIsland islands;   /* pass 3, sorted by anchor */
     keel_buffer_char island_text;  /* the islands' detail columns */

@@ -35,6 +35,10 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
 **Ferramenta**
 
+- Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
+  `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima
+  de 128, o diagnóstico novo `tags-limit-exceeded` diz o conjunto e o limite. É
+  do cgen, não da linguagem: está só no `diag-messages.md`.
 - A recusa de uma instância pelo emissor (`implementation-limit`) passa a dizer
   em que construção e em que linha.
 - `foreach` e `walk` sobre contêiner de módulo com `dim` (`bitbuffer(4) u8`,

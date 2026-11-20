@@ -231,3 +231,4 @@ O conteúdo das tabelas é em inglês, como o código.
 | --- | --- | --- |
 | `unexpected-token` | malformed or truncated declaration | A token that no form of the parser accepts at this point: a malformed or truncated declaration |
 | `module-load-failed` | cannot load module `%s` | A module of the import closure could not be loaded |
+| `tags-limit-exceeded` | `tags %s` has more than %s constants, the most the cgen holds in one set: split it into smaller sets | A `tags` set with more constants than the cgen's limit of 128 |

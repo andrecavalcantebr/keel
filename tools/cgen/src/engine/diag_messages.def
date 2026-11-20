@@ -149,4 +149,5 @@
     X(MODULE_NOT_FOUND, "module `%s` was not found in the source roots") \
     X(CAPACITY, "insufficient storage while collecting module `%s`") \
     X(PARSE_FAILED, "malformed or truncated declaration") \
-    X(LOAD_FAILED, "cannot load module `%s`")
+    X(LOAD_FAILED, "cannot load module `%s`") \
+    X(TAGS_LIMIT_EXCEEDED, "`tags %s` has more than %s constants, the most the cgen holds in one set: split it into smaller sets")

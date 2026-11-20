@@ -15,7 +15,9 @@ para cá.
   novos, 067-068, vêm de dois bugs achados avaliando um uso real em
   `../keel_libs`). Desde então o golden chegou a 69 casos (070 é o último) e a
   cópia ficou defasada: a memória local do Claude Code tem entradas mais
-  novas. O que diverge do repositório vale menos que o repositório.
+  novas (as três de 2026-11-20 foram copiadas: `keel_libs` como repositório
+  único, os dois bugs do cgen da 0.4.0-dev e os testes por área). O que diverge
+  do repositório vale menos que o repositório.
 - **Estado (2026-11-19): a 0.3.0 está publicada** (tag `v0.3.0`, `master`). Não
   há pendência de normativo em aberto. O que mudou nos normativos, por versão,
   está no [`CHANGELOG.md`](CHANGELOG.md), e o que fica depois está no

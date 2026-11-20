@@ -9,3 +9,6 @@
 - [ranges: meio-aberto basta](ranges-meio-aberto-basta.md) — 2026-10-07: `a..b` segue o padrão; `a..<b`/`a..=b` (marcador só no limite superior, lexer intacto) é solução pronta, a adotar só se o inclusivo valer a pena (`design/possibilidades.md`).
 - [Código em inglês](codigo-em-ingles.md) — docs pt-BR, código em inglês; as 4 etapas concluídas (commits 36ca188, 14c4d9a, 1c249c7, 1ae845d).
 - [cgen: emissor, estado em 2026-11-04](cgen-emissor-2026-10-28.md) — 59 dos 60 casos; g01/g02, 022 e 023 fechados (dois bugs reais corrigidos: diretiva de topo ia pro .type.h, extern_c branqueava comentário). 024 em andamento, bloqueado por lacuna real: campo de struct que cita tipo de outro módulo não é renomeado (isl_declaration não percorre corpo de struct). Guardado para retomar.
+- [keel_libs: reorganização (2026-11-20)](keel-libs-reorganizacao-2026-11-20.md) — um repositório (coll, maths); stdlib = base; libs-spec.md; só fonte; LIBS.md/CONTRIBUTING; http fora, discutir antes.
+- [cgen: ligação e tags (2026-11-20)](cgen-ligacao-e-tags-2026-11-20.md) — tags até 128 + tags-limit-exceeded; .a/-l depois dos .c gerados; 0.4.0-dev em ~/Apps.
+- [Testes por área + pre-push](testes-por-area-e-hook-pre-push.md) — test/run.sh AREA...; suíte inteira só no push (hook local).

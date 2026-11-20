@@ -6,6 +6,7 @@
 #   cases/<case>/expected/<profile>/ what the cgen must produce
 #   cases/<case>/proof.c             the harness — NOT transpiler output
 #   cases/<case>/VERIFY              asserts what is not "it compiles"; the script obeys it
+#   run.sh [WORD...]                 only the cases whose name contains a WORD (default: all)
 #   cases/<case>/XFAIL               expected NOT to compile
 #   cases/<case>/DEBUG               a run per line, `<arg> <id> <file.k>:<line>`: under
 #                                    KEEL_CHECKS=1 it must abort with that report (backend
@@ -93,6 +94,11 @@ fail=$((fail+structure))
 
 for case_dir in cases/*/; do
   name=$(basename "$case_dir")
+  # `golden/run.sh 070 tags`: only the cases whose name contains one of the words
+  if [ $# -gt 0 ]; then
+    hit=; for w in "$@"; do case $name in *"$w"*) hit=1 ;; esac; done
+    [ -n "$hit" ] || continue
+  fi
   # a case under construction: its source exists, its expected does not yet
   if [ -f "$case_dir/WIP" ]; then
     printf 'wip    %-24s      — %s\n' "$name" "$(head -1 "$case_dir/WIP")"; wip=$((wip+1)); continue

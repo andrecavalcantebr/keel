@@ -55,8 +55,12 @@ para cá.
 - `golden/run.sh` é o oráculo, e tem de ficar verde. Caso em construção leva
   `WIP` (ver `golden/README.md`).
 - Trabalho local vai na branch da versão seguinte (hoje `0.4.0`, ver
-  "Branches" acima), com um commit local depois de cada alteração. Os dois oráculos (`make -C tools/cgen check` e `golden/run.sh`,
-  juntos em `test/run.sh`) rodam antes de cada commit. Os testes do cgen
+  "Branches" acima), com um commit local depois de cada alteração. Durante o trabalho, `test/run.sh AREA...` roda só a
+  fatia afetada (`unit cli lex parse diag gen golden golden:<caso> docs`; o
+  cabeçalho do script diz o que rodar depois de mexer em quê). Os dois oráculos
+  inteiros (`make -C tools/cgen check` e `golden/run.sh`, juntos em
+  `test/run.sh` sem argumento) rodam antes de cada push, e o hook
+  `.git/hooks/pre-push` os dispara. Os testes do cgen
   moram em `test/cgen/`, ao lado do `golden/`.
 
 ## Fluxo de trabalho (desde 2026-10-22)

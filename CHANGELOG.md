@@ -35,6 +35,7 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
 **Ferramenta**
 
+- `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima
   de 128, o diagnóstico novo `tags-limit-exceeded` diz o conjunto e o limite. É

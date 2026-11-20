@@ -162,7 +162,7 @@ bool k_scan_modifier_decl(KLexer *lexer, int module_arity,
  * without touching `*next_out`, on anything that does not fit the
  * production, or on more than K_TAGS_MAX_ITEMS items. Consumes through
  * the closing ';' and hands back the token after it. */
-#define K_TAGS_MAX_ITEMS 16
+#define K_TAGS_MAX_ITEMS 128
 
 typedef struct {
     keel_slice_char name;

@@ -4,8 +4,8 @@ Documento **não normativo**, em rascunho (2026-11-20). Define o que a bibliotec
 padrão da keel é, o que cabe nela, o contrato que todo módulo dela segue e o
 catálogo, com o estado de cada item. Sai da §1 de
 [`possibilidades.md`](possibilidades.md), que passa a apontar para cá, e junta o
-que as duas bibliotecas de `../keel_libs` já provaram: `keel_coll` (coleções) e
-`keel_maths` (matrizes, e depois tensores).
+que as duas bibliotecas de `../keel_libs` já provaram: `keel_coll` (coleções, módulos `coll`) e
+`keel_maths` (matrizes, e depois tensores, módulos `maths`).
 
 Nada aqui altera a linguagem. Os módulos de uma biblioteca são módulos comuns
 (`module`/`modifier` com `dim`, `type` e `tags`, spec §4.3), e o que falta à
@@ -36,23 +36,25 @@ linguagem para eles volta ao repositório como relatório de bug
 
 ## 2. Nomes e distribuição
 
-As bibliotecas se chamam `keel.coll` e `keel.maths` neste documento, e hoje seus
-módulos são `coll.*` e `maths.*`. Os módulos `keel` e `keel.<nome>` são a base
-(ferramenta §8), donos dos nomes `keel_`/`KEEL_` (spec §4.2, `reserved-name`),
-então `keel.coll` e `keel.maths` ocupariam o espaço da base: a escolha do
-prefixo é a decisão D1.
+As bibliotecas se chamam `coll` e `maths`, sem prefixo `keel`: os módulos `keel`
+e `keel.<nome>` são a base (ferramenta §8), donos dos nomes `keel_`/`KEEL_`
+(spec §4.2, `reserved-name`), e a biblioteca padrão não os ocupa.
 
 | Família | Projeto | Módulos hoje |
 | --- | --- | --- |
-| `keel.coll` | `keel_libs/keel_coll` | `coll.stack`, `coll.queue`, `coll.set`, `coll.pairs`, `coll.pair`, `coll.map`, `coll.list`, `coll.bstree`, `coll.btree`; vistas `coll.segments`, `coll.chain`, `coll.treeview`, `coll.readspan` |
-| `keel.maths` | `keel_libs/keel_maths` | `maths.matrix`, `maths.mview`, `maths.mpart`, `maths.storage`, `maths.layout`; de apoio: `scalar`, `floating`, `lu`, `direct`, `blocked`, `typed_matmul`, `matmul_policy`, `row_output` |
+| `coll` | `keel_libs/keel_coll` | `coll.stack`, `coll.queue`, `coll.set`, `coll.pairs`, `coll.pair`, `coll.map`, `coll.list`, `coll.bstree`, `coll.btree`; vistas `coll.segments`, `coll.chain`, `coll.treeview`, `coll.readspan` |
+| `maths` | `keel_libs/keel_maths` | `maths.matrix`, `maths.mview`, `maths.mpart`, `maths.storage`, `maths.layout`; de apoio: `scalar`, `floating`, `lu`, `direct`, `blocked`, `typed_matmul`, `matmul_policy`, `row_output` |
 
 - Imports qualificados. Cada módulo de coleção exporta um tipo `cursor`, então
   `types` em vários deles colide.
-- Os módulos de apoio de `keel.maths` são `pub` só porque a keel não tem
+- Os módulos de apoio de `maths` são `pub` só porque a keel não tem
   visibilidade entre módulos além de `pub`/`priv`; **não são API**.
 - Todos os verbos genéricos são `inline`: nenhum módulo da biblioteca pede
   `instance`.
+
+**Distribuição.** Independente não quer dizer que a equipe não a construa e a
+disponibilize: a biblioteca padrão é mantida por nós, versionada à parte do cgen
+e publicada num lugar conhecido. O onde e o como estão na decisão D2.
 
 ## 3. Contrato comum
 
@@ -106,7 +108,7 @@ eixo de instanciação (struct, string) é decisão aberta (D5).
 (previsível, pequeno) e `has_cnt` (imprevisível, grande, em lote), com `has`
 escolhendo. Se for regra, as demais coleções a seguem.
 
-## 4. `keel.coll`: coleções
+## 4. `coll`: coleções
 
 Estado: **implementado** na `keel_coll` 0.2.0, com 79 casos de execução, golden
 e contrato de segurança, e benchmarks em `bench/`. A especificação detalhada,
@@ -139,7 +141,7 @@ por coleção, está em `keel_libs/keel_coll/SPEC.md` e `docs/`.
 - `bstree` é o conjunto ordenado; `set` é o conjunto pequeno em ordem de
   inserção; `map` é o dicionário grande.
 
-## 5. `keel.maths`: matrizes e tensores
+## 5. `maths`: matrizes e tensores
 
 ### 5.1 Estado: `matrix` e `mview` (implementados)
 
@@ -191,7 +193,7 @@ decididos pelo que `mview` provou:
 - `matrix`/`mview` são os casos de posto 2, e devem ser conversíveis, sem cópia,
   de e para `tensor(2)`.
 
-O que o tensor pede de `keel.grid` (§7): `index(N)` e `box(N)` para
+O que o tensor pede de `grid` (§7): `index(N)` e `box(N)` para
 coordenadas e extensões independentes do posto. O açúcar `v[I]` seria trabalho
 de núcleo e fica fora (spec §4.5). O gatilho para `source`/`pub import`
 (ROADMAP §4) é justamente a lista de imports de uma biblioteca grande como esta.
@@ -221,20 +223,25 @@ núcleo, e só vira módulo quando uma biblioteca o pedir.
 | Candidato | O que é | Estado e pontos abertos |
 | --- | --- | --- |
 | `buffer(N)` / `slice(N)` | *soa* homogêneo: `N` colunas paralelas do mesmo `T` sob um `len`/`cap`; verbos de `buffer` com um índice a mais para a coluna | A `keel_coll` resolve o caso estreito com `pairs`. Abertos: `T *col[N]` (colunas separadas) × `T dados[N]` (bloco contíguo), porque o cursor, `ptr` e `partition` supõem memória contígua; uso como lote de tamanho fixo para gather/scatter sobre `extent`; regra memória/visão (`buffer(N)` produz `slice(N)`); alias seguido de `(`, a revisar com o nome `alias-with-argument` |
-| `keel.string` / `keel.strview` | `typedef buffer char string` e `typedef slice const char strview` | O trabalho real é o conjunto de funções (comparação, concatenação, formatação). `slice const char` só não está na base porque este par seria o nome dele; o golden 021 já o usa cru |
-| `keel.grid` | `box(N)` e `index(N)`: a extensão de `range` a `N` dimensões | Em parte em `keel_maths`. Contável e particionável como `range`. Abertos: `box(N)` com `first`/`limit` ou como `range r[N]`; sem literal `[a,b]` (colide com designador e atributo C23): `(index(2)){a, b}` ou `index.of(a, b)` |
+| `string` / `strview` | `typedef buffer char string` e `typedef slice const char strview` | O trabalho real é o conjunto de funções (comparação, concatenação, formatação). `slice const char` só não está na base porque este par seria o nome dele; o golden 021 já o usa cru |
+| `grid` | `box(N)` e `index(N)`: a extensão de `range` a `N` dimensões | Em parte em `keel_maths`. Contável e particionável como `range`. Abertos: `box(N)` com `first`/`limit` ou como `range r[N]`; sem literal `[a,b]` (colide com designador e atributo C23): `(index(2)){a, b}` ou `index.of(a, b)` |
 | `slice.from(T, p, range)` | `slice` sobre ponteiro cru descrito por `range` | Útil com coluna de `extent` |
-| `keel.atomic`, `keel.chan`, `keel.barrier` | o conjunto cooperativo: `_Atomic T` com `init`/`load`/`store`/`swap`; `send`/`recv` como `corot` (cooperativo e SPSC); rendezvous sem busy-wait | Diagnóstico `atomics-unavailable` sob `__STDC_NO_ATOMICS__`, no molde de `specific-format-unavailable`. Abertos: `chan` ou `channel`; MPMC fica fora; um módulo para o contexto que sobrevive à suspensão |
+| `atomic`, `chan`, `barrier` | o conjunto cooperativo: `_Atomic T` com `init`/`load`/`store`/`swap`; `send`/`recv` como `corot` (cooperativo e SPSC); rendezvous sem busy-wait | Diagnóstico `atomics-unavailable` sob `__STDC_NO_ATOMICS__`, no molde de `specific-format-unavailable`. Abertos: `chan` ou `channel`; MPMC fica fora; um módulo para o contexto que sobrevive à suspensão |
 
-`keel.bitbuffer`, `keel.bitslice` e `keel.bits` **saíram da lista**: estão na
+| `file` | arquivo como `fd` mais `buffer`, não `FILE *`: abrir, ler e escrever em bloco, `size`, `seek`, `close`; leitura por linha ou bloco como `walk`/`foreach`; partição de arquivo em `parallel` | **Wrapper fino** de stdio/POSIX (D12): a convenção da biblioteca, não a reimplementação. Buffers na arena do chamador, capacidade fixa, falha em `outcome` com o `errno` preservado. Depende de `string`/`strview` |
+| `path` / `dir` | caminhos e listagem de diretório | Só quando um caso pedir |
+| `net` | TCP e UDP em nível de socket, mais `poll` | Wrapper fino, como `file`; bloqueante primeiro, cooperativo (`corot`, soquete não bloqueante, `chan`) depois. Casa com `atomic`/`chan` |
+| `time` | relógio monotônico e de parede, espera | `poll` e timeout pedem relógio; entra junto de `net` |
+
+`bitbuffer`, `bitslice` e `bits` **saíram da lista**: estão na
 base desde a 0.4.0 (spec §5.8).
 
 ## 8. Decisões abertas
 
 | # | Decisão | Inclinação |
 | --- | --- | --- |
-| D1 | Prefixo das bibliotecas: `coll.*`/`maths.*` (hoje), `keel.coll`/`keel.maths`, ou um prefixo próprio | Fora de `keel.*` (a base é dona dele, ferramenta §8): ficam `coll.*` e `maths.*`, ou um prefixo próprio como `std.*` |
-| D2 | Distribuição: pasta ao lado do cgen na dist (`lib/std/`), ou instalação separada | A decidir com a primeira release das bibliotecas |
+| D1 | ~~Prefixo das bibliotecas~~ | **Decidido (2026-11-20):** sem `keel.`; as famílias são `coll` e `maths` |
+| D2 | Onde publicar as bibliotecas e como instalá-las: um repositório com uma pasta por biblioteca, submódulos do git, ou um repositório por biblioteca; e se a dist do cgen as traz (`lib/std/`) ou é instalação separada | Um repositório só, com pastas, enquanto forem poucas; ver a discussão em andamento |
 | D3 | `list`: vetor denso com deslocamento, ou como está | Decidir com benchmark; sem investimento até lá |
 | D4 | `put_over` em `queue`; `void` como valor em `pairs` (`pairs K void` como conjunto); chave duplicada em `pairs` (recusa, sobrescreve ou aceita) | Só com caso real |
 | D5 | Igualdade inline para `T` escalar; comparador como eixo de instanciação para struct e string | Eixo de instanciação (ROADMAP §4, B3/B6) |
@@ -244,6 +251,8 @@ base desde a 0.4.0 (spec §5.8).
 | D9 | `buffer(N)`/`slice(N)`: núcleo, módulo da biblioteca ou depois | Depende do primeiro caso real (provável: o tensor) |
 | D10 | Ordem das chaves em `pairs` (busca binária e deslocamento das duas colunas) | Terceiro modificador, se pedido |
 | D11 | A stdlib "oficial" contra o ROADMAP §3, que diz que a v1 não é uma biblioteca canônica a construir | Este documento a torna uma especificação de bibliotecas independentes; o ROADMAP §3 e a spec §5.9 precisam do mesmo texto |
+| D12 | `file`, `net` e `time`: wrapper fino de C, ou implementação própria | **Decidido (2026-11-20):** wrapper fino, com a convenção da biblioteca (arena, `outcome`, `slice`/`buffer`, `walk`) em vez de buffer e ponteiro crus |
+| D13 | `string`, `strview`, `atomic`, `chan`, `barrier`: base (`keel.*`) ou biblioteca | A decidir: `string`/`strview` são pré-requisito de `file`, e `atomic`/`chan` o são do cooperativo |
 
 ## 9. Pendências de edição
 

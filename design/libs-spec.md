@@ -1,35 +1,43 @@
-# keel — Biblioteca padrão (v1): especificação
+# keel_libs — especificação das bibliotecas
 
-Documento **não normativo**, em rascunho (2026-11-20). Define o que a biblioteca
-padrão da keel é, o que cabe nela, o contrato que todo módulo dela segue e o
-catálogo, com o estado de cada item. Sai da §1 de
+Documento **normativo para as bibliotecas** de `keel_libs`, e **não normativo
+para a keel**: ele diz o que as bibliotecas mantidas por nós prometem, e não o
+que a linguagem exige. A linguagem é a dos quatro documentos normativos
+(`keel-spec.md`, `keel-rationale.md`, `keel-c-backend.md`, `cgen-tool-spec.md`),
+e este documento não os altera. Rascunho de 2026-11-20. Sai da §1 de
 [`possibilidades.md`](possibilidades.md), que passa a apontar para cá, e junta o
 que as duas bibliotecas de `../keel_libs` já provaram: `coll` (coleções) e
 `maths` (matrizes, e depois tensores).
 
-Nada aqui altera a linguagem. Os módulos de uma biblioteca são módulos comuns
-(`module`/`modifier` com `dim`, `type` e `tags`, spec §4.3), e o que falta à
-linguagem para eles volta ao repositório como relatório de bug
+Os módulos de uma biblioteca são módulos comuns (`module`/`modifier` com `dim`,
+`type` e `tags`, spec §4.3), e o que falta à linguagem para eles volta ao
+repositório da keel como relatório de bug
 ([`achados/README.md`](../achados/README.md)), não como texto neste documento.
 
 ## 1. Estatuto
 
-1. **Três camadas.**
+1. **A biblioteca padrão da keel é a base**, e mais nada: `base/` deste
+   repositório (`keel.k`, `keel/*.k`), normativa pela spec §5.2–§5.8 e pelo
+   backend §5, porque as construções do núcleo dependem dela. Todo o resto é
+   biblioteca, e este documento trata dele.
 
    | Camada | Onde mora | Quem manda |
    | --- | --- | --- |
-   | **Base** | `base/` deste repositório (`keel.k`, `keel/*.k`) | a spec §5.2–§5.8 e o backend §5: é normativa, porque as construções do núcleo dependem dela |
-   | **Biblioteca padrão** | projetos independentes em `../keel_libs` | este documento, e o `SPEC.md` de cada projeto |
+   | **Base** (a biblioteca padrão) | `base/` deste repositório | a spec e o backend |
+   | **Bibliotecas mantidas** | pastas de `keel_libs` (`coll`, `maths`, ...) | este documento e o `SPEC.md` de cada pasta |
+   | **Bibliotecas de terceiros** | repositório de cada autor | o autor; o índice e a conformidade estão na §2 |
    | **Candidatos** | só neste documento (§7) | nada: viram módulo quando um caso real o pedir |
 
-2. **A stdlib não entra no cgen nem na base.** Os módulos da base estão aqui
-   porque as construções da keel os exigem, e por nenhum outro motivo
-   (ROADMAP §3). A biblioteca padrão vive fora, é instalada ao lado do cgen e
-   consumida com `-I`. Uma instalação da keel pode não trazê-la.
-3. **Serve também de carga de prova.** Cada biblioteca é a maior usuária da
-   linguagem que existe, e por isso o melhor depurador do cgen. Um achado vale
-   se reproduzir como bug do cgen ou lacuna da spec, com repro mínimo.
-4. **O que "padrão" promete.** Nomes e verbos estáveis dentro de uma versão
+2. **As bibliotecas não entram no cgen nem na base.** Os módulos da base estão
+   aqui porque as construções da keel os exigem, e por nenhum outro motivo
+   (ROADMAP §3). Uma biblioteca vive fora, é distribuída **como código-fonte** e
+   consumida com `-I`: keel é uma linguagem de fonte, e um módulo genérico ou uma
+   instância só existem a partir do `.k`. Uma instalação da keel pode não trazer
+   nenhuma.
+3. **Servem também de carga de prova.** Cada biblioteca é uma usuária grande da
+   linguagem, e por isso depura o cgen. Um achado vale se reproduzir como bug do
+   cgen ou lacuna da spec, com repro mínimo.
+4. **O que "mantida" promete.** Nomes e verbos estáveis dentro de uma versão
    menor, o contrato comum da §3 cumprido por todos os módulos, e testes de
    execução, de contrato e de benchmark (§6). Não promete completude: um módulo
    só existe depois do caso real.
@@ -38,7 +46,7 @@ linguagem para eles volta ao repositório como relatório de bug
 
 As bibliotecas se chamam `coll` e `maths`, sem prefixo `keel`: os módulos `keel`
 e `keel.<nome>` são a base (ferramenta §8), donos dos nomes `keel_`/`KEEL_`
-(spec §4.2, `reserved-name`), e a biblioteca padrão não os ocupa.
+(spec §4.2, `reserved-name`), e as bibliotecas não os ocupam.
 
 | Família | Projeto | Módulos hoje |
 | --- | --- | --- |
@@ -53,8 +61,22 @@ e `keel.<nome>` são a base (ferramenta §8), donos dos nomes `keel_`/`KEEL_`
   `instance`.
 
 **Distribuição.** Independente não quer dizer que a equipe não a construa e a
-disponibilize: a biblioteca padrão é mantida por nós, versionada à parte do cgen
-e publicada num lugar conhecido. O onde e o como estão na decisão D2.
+disponibilize: as bibliotecas mantidas são versionadas à parte do cgen e
+publicadas num lugar conhecido, **como fonte**. O onde e o como estão na decisão D2.
+
+**Terceiros.** Uma biblioteca de terceiros (um aluno, um grupo, outra
+instituição) mora no repositório do autor, no ritmo e com a autoria dele. Não há
+gerenciador de pacotes, então a descoberta é por um **índice** (`LIBS.md`, a
+criar): nome, repositório, versão do cgen testada e o resultado da conferência
+da §6. Entra em `keel_libs`, por pull request, a biblioteca que cumpre os
+critérios da §6 e que alguém se dispõe a manter. As duas formas usam o mesmo
+molde: uma pasta com `README`, `Makefile`, `src/` e testes próprios.
+
+**Biblioteca compilada.** Um `.a` leva só os módulos não genéricos, e um módulo
+genérico ou uma instância não vêm de binário: o consumidor keel precisa dos
+`.k`. O binário serve a dois casos, e o manual (§7.6) os descreve: uma biblioteca
+C usada de dentro de um programa keel (`import_c` mais `-l`), e o que se exporta
+de keel para quem usa C (o `.h` e o `.a` gerados, com `instance` explícito).
 
 ## 3. Contrato comum
 
@@ -241,7 +263,7 @@ base desde a 0.4.0 (spec §5.8).
 | # | Decisão | Inclinação |
 | --- | --- | --- |
 | D1 | ~~Prefixo das bibliotecas~~ | **Decidido (2026-11-20):** sem `keel.`; as famílias são `coll` e `maths` |
-| D2 | Onde publicar as bibliotecas e como instalá-las: um repositório com uma pasta por biblioteca, submódulos do git, ou um repositório por biblioteca; e se a dist do cgen as traz (`lib/std/`) ou é instalação separada | Um repositório só, com pastas, enquanto forem poucas; ver a discussão em andamento |
+| D2 | Onde publicar `keel_libs` (um repositório, pasta por biblioteca) e como instalar | **Fonte, um repositório, pasta por biblioteca** (decidido em 2026-11-20); o nome do repositório, `keel_libs`. Falta: se a dist do cgen traz uma cópia (`lib/`) ou o usuário clona e passa `-I` |
 | D3 | `list`: vetor denso com deslocamento, ou como está | Decidir com benchmark; sem investimento até lá |
 | D4 | `put_over` em `queue`; `void` como valor em `pairs` (`pairs K void` como conjunto); chave duplicada em `pairs` (recusa, sobrescreve ou aceita) | Só com caso real |
 | D5 | Igualdade inline para `T` escalar; comparador como eixo de instanciação para struct e string | Eixo de instanciação (ROADMAP §4, B3/B6) |
@@ -250,17 +272,19 @@ base desde a 0.4.0 (spec §5.8).
 | D8 | Duas interfaces por operação (previsível/pequeno × imprevisível/grande) como regra de API | Regra, se o benchmark confirmar nas demais |
 | D9 | `buffer(N)`/`slice(N)`: núcleo, módulo da biblioteca ou depois | Depende do primeiro caso real (provável: o tensor) |
 | D10 | Ordem das chaves em `pairs` (busca binária e deslocamento das duas colunas) | Terceiro modificador, se pedido |
-| D11 | A stdlib "oficial" contra o ROADMAP §3, que diz que a v1 não é uma biblioteca canônica a construir | Este documento a torna uma especificação de bibliotecas independentes; o ROADMAP §3 e a spec §5.9 precisam do mesmo texto |
+| D11 | ~~A stdlib "oficial" contra o ROADMAP §3~~ | **Resolvida (2026-11-20):** a biblioteca padrão é a base; o resto é biblioteca. O ROADMAP §3 e a spec §5.9 já dizem isso |
 | D12 | `file`, `net` e `time`: wrapper fino de C, ou implementação própria | **Decidido (2026-11-20):** wrapper fino, com a convenção da biblioteca (arena, `outcome`, `slice`/`buffer`, `walk`) em vez de buffer e ponteiro crus |
 | D13 | `string`, `strview`, `atomic`, `chan`, `barrier`: base (`keel.*`) ou biblioteca | A decidir: `string`/`strview` são pré-requisito de `file`, e `atomic`/`chan` o são do cooperativo |
 
 ## 9. Pendências de edição
 
-Fora deste arquivo, que não altera normativo (regra do `AGENTS.md`):
+Fora deste arquivo, que não altera normativo da keel (regra do `AGENTS.md`):
 
-- spec §5.9 ("Biblioteca padrão"): hoje diz que ela não faz parte da versão e
-  aponta para `possibilidades.md`; apontaria para este documento. Pede texto
-  proposto e o "sim" do André.
-- ROADMAP §3: reescrever com D11.
-- `possibilidades.md`: a §1 deixa de existir; o que dela entrou aqui está nas
+- Criar o `LIBS.md` (índice das bibliotecas de terceiros) e o `CONTRIBUTING` de
+  `keel_libs`, com os critérios da §6.
+- `cgen-tool-spec.md` §4.3: dizer que as entradas de ligação do usuário (`.a`,
+  `.so`, `-l`, `-L`, `-Wl,`) seguem as unidades geradas na linha do compilador
+  C. Texto proposto, que pede o "sim" do André; o cgen já se comporta assim
+  desde a 0.4.0-dev.
+- `possibilidades.md`: a §1 deixou de existir; o que dela entrou aqui está nas
   §4, §5 e §7.

@@ -11,15 +11,15 @@ rationale ou o backend, e sai daqui.
 | Versão | Escopo |
 | --- | --- |
 | **v0** | o núcleo e a base: a spec como está (§§1–4, §§5.1–5.7, §6), o backend e a ferramenta. Nada deste documento. |
-| **v1** | a biblioteca padrão além da base — [`stdlib-spec.md`](stdlib-spec.md). |
+| **v1** | as bibliotecas além da base (a biblioteca padrão é a base) — [`libs-spec.md`](libs-spec.md). |
 | **v2+** | extensões da linguagem e estruturas a estudar — §2 abaixo. |
 
 ---
 
-## 1. Biblioteca padrão (v1)
+## 1. Bibliotecas (v1)
 
 A biblioteca padrão passou a ter documento próprio:
-[`stdlib-spec.md`](stdlib-spec.md), com o contrato comum, o catálogo de
+[`libs-spec.md`](libs-spec.md), com o contrato comum, o catálogo de
 `keel.coll` e `keel.maths` e os candidatos que ainda não têm módulo (`buffer(N)`/
 `slice(N)`, `string`/`strview`, `grid`, `slice.from`, cooperativo). Os
 pontos em aberto de cada candidato foram para lá. `pair`/`pairs`, `stack`,

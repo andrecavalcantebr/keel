@@ -1063,7 +1063,85 @@ clean:
   explícitos, para o depfile não colidir com o do alvo final.
 - **Chamar módulo importado:** `import net.util as util;` e `util.twice(…)`.
 
-### 7.6 Diagnósticos e código de saída
+### 7.6 Bibliotecas: fonte, C e exportar para C
+
+keel é uma linguagem de **código-fonte**: um módulo genérico, uma instância e
+os papéis dos verbos existem a partir do `.k`, e um binário não os carrega. Por
+isso há três situações, e cada uma tem o seu caminho.
+
+**1. Uma biblioteca keel: fonte e `-I`.** É o caso normal. A biblioteca é uma
+árvore de `.k`; quem a usa a põe numa raiz de busca e a importa.
+
+```sh
+cgen -I src -I ../keel_libs/coll/src app.k -o app      # (verificado)
+```
+
+```keel
+import coll.stack as stack types;      // `types` traz o tipo `stack`; os verbos ficam em `stack.…`
+```
+
+Não há nada a instalar nem a ligar: *importar não é compilar* (§7.1). Os
+módulos genéricos são `inline` e seguem no `.h` de quem os instancia; os não
+genéricos compilam junto com o programa, ou num `.o` à parte, como no §7.5. As
+bibliotecas mantidas pelo projeto estão em `keel_libs`, uma pasta por biblioteca
+(`coll`, `maths`, ...), e as de terceiros ficam no repositório de cada autor.
+
+**2. Uma biblioteca C dentro de um programa keel: `import_c` e `-l`.** O header
+entra por `import_c`, e a ligação é a do `cc`: o que o cgen não reconhece
+atravessa na linha, na ordem em que foi escrito.
+
+```keel
+import_c <math.h>;
+pub int main(void) { return sqrt(16.0) == 4.0 ? 0 : 1; }
+```
+
+```sh
+cgen -I src app.k -lm -o app                 # (verificado)
+cgen -I src app.k -L deps -l z -o app        # `-L dir` e `-l nome` com valor separado
+cgen -I src app.k deps/libgeom.a -o app      # um .a pelo caminho
+```
+
+Ao ligar, o cgen põe os `.c` que gerou **antes** dos `.a`, `.so`, `-l`, `-L` e
+`-Wl,` da linha, seja qual for a posição em que você os escreveu: o ligador só
+resolve um `.a` contra o que veio antes dele. *(Desde a 0.4.0. Na 0.3.0 a
+biblioteca ia antes dos `.c` gerados e a ligação falhava com `undefined
+reference`; os contornos eram passar o `.o` em vez do `.a`, ou escrever
+`-Wl,--whole-archive libx.a -Wl,--no-whole-archive`.)*
+
+Os `.o` não dependem da ordem. Dentro de um `Makefile`, as bibliotecas vão em
+`LDLIBS`, depois do `.k` de entrada, como no §7.5.
+
+**3. Exportar de keel para quem usa C.** O cgen escreve um `.h` e um `.type.h`
+para cada módulo, sob o `--dest-dir`, e um `.c` com `-c`. Um programa em C puro
+usa o resultado como qualquer biblioteca C:
+
+```sh
+cgen -I src --dest-dir build/gen -c src/geom/vec.k -o build/vec.o
+ar rcs libgeom.a build/vec.o
+```
+
+```c
+#include "geom/geom_vec.h"                 /* sob -Ibuild/gen */
+int main(void) { return geom_vec_twice(21) == 42 ? 0 : 1; }
+```
+
+```sh
+gcc -Ibuild/gen app.c libgeom.a -o app     # (verificado)
+```
+
+Para distribuir, entregue o `.a` e **toda** a árvore de headers do
+`--dest-dir` (a base de apoio, `keel.h` e `keel.type.h`, vai junto). O `.a` leva
+só os módulos não genéricos e as instâncias que você pediu por `instance` ou
+`--instance`; `--profile`, `--line` e `--parallel-lowering` mudam o C gerado,
+então a árvore de headers e o `.a` têm de sair da mesma invocação.
+
+**O que um `.a` não faz.** Um programa *keel* que importe um módulo (`import
+geom.vec as vec;`) precisa do `.k` do módulo: sem ele, `module-not-found`. O
+`.a` só entra na ligação. Quem escreve keel e quer usar a biblioteca com os
+verbos qualificados, os papéis e os protocolos usa o caminho 1; usá-la como C
+(`import_c "geom/geom_vec.h"`) funciona, mas só enxerga símbolos C.
+
+### 7.7 Diagnósticos e código de saída
 
 O formato é o do gcc, com a posição no `.k` (nunca no gerado) e o nome estável
 do diagnóstico entre colchetes:

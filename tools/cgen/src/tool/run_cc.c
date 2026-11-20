@@ -168,6 +168,21 @@ static int compile_entry(const char *cc, const char *const *pass, int pass_n, co
     return spawn(cc, argv);
 }
 
+/* A linker input that must follow the units that use it: a static library, a shared one, `-l`, `-L`,
+ * `-Wl,` and `-Xlinker`. The linker resolves an archive only against what came before it, so the
+ * generated `.c` have to precede these (cgen-tool-spec §4.3). The ones that take a separate value
+ * (`-l m`, `-L dir`, `-Xlinker opt`) bring it along: `*value` says the next argument is theirs. */
+static bool is_late_input(const char *a, bool *value) {
+    size_t n = strlen(a);
+    *value = false;
+    if (strcmp(a, "-l") == 0 || strcmp(a, "-L") == 0 || strcmp(a, "-Xlinker") == 0) { *value = true; return true; }
+    if (strncmp(a, "-l", 2) == 0 || strncmp(a, "-L", 2) == 0 || strncmp(a, "-Wl,", 4) == 0) return true;
+    if (a[0] == '-') return false;
+    if (n > 2 && strcmp(a + n - 2, ".a") == 0) return true;
+    if (n > 3 && strcmp(a + n - 3, ".so") == 0) return true;
+    return strstr(a, ".so.") != NULL;
+}
+
 int cgen_run_cc(const char *cc, const char *const *pass, int pass_n, const char *dest, bool checks_off, const CgenUnits *units) {
     char *argv[CGEN_CLI_ARGS_CAP + 8];
     int argc = 0;
@@ -177,7 +192,20 @@ int cgen_run_cc(const char *cc, const char *const *pass, int pass_n, const char 
         return 2;
     }
     argv[argc++] = (char *)cc;
-    for (int i = 0; i < pass_n; i++) argv[argc++] = (char *)pass[i];
+    /* the value of an option that takes one (`-o`, `-I`, `-include`, ...) is not an input, whatever it is
+     * called: only the arguments that stand where an input stands are candidates */
+    bool late[CGEN_CLI_ARGS_CAP + 8] = {0};
+    for (int i = 0; i < pass_n && i < CGEN_CLI_ARGS_CAP + 8; i++) {
+        bool value;
+        if (i > 0 && (strcmp(pass[i - 1], "-o") == 0 || strcmp(pass[i - 1], "-I") == 0 ||
+                      strcmp(pass[i - 1], "-include") == 0 || strcmp(pass[i - 1], "-MF") == 0 ||
+                      strcmp(pass[i - 1], "-MT") == 0 || strcmp(pass[i - 1], "-MQ") == 0 ||
+                      strcmp(pass[i - 1], "-isystem") == 0 || strcmp(pass[i - 1], "-D") == 0)) continue;
+        if (!is_late_input(pass[i], &value)) continue;
+        late[i] = true;
+        if (value && i + 1 < pass_n) late[++i] = true;
+    }
+    for (int i = 0; i < pass_n; i++) if (!late[i]) argv[argc++] = (char *)pass[i];
     argv[argc++] = dest_flag;
     if (checks_off) argv[argc++] = (char *)"-DKEEL_CHECKS=0";
     argv[argc++] = (char *)units->unit;
@@ -187,6 +215,7 @@ int cgen_run_cc(const char *cc, const char *const *pass, int pass_n, const char 
     for (int i = 0; i < pass_n; i++)
         if (strcmp(pass[i], "-c") == 0 || strcmp(pass[i], "-S") == 0 || strcmp(pass[i], "-E") == 0) one_unit = true;
     if (units->entry[0] && !one_unit) argv[argc++] = (char *)units->entry;
+    for (int i = 0; i < pass_n; i++) if (late[i]) argv[argc++] = (char *)pass[i];
     argv[argc] = NULL;
 
     int code = spawn(cc, argv);

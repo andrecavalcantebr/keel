@@ -35,6 +35,10 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
 **Ferramenta**
 
+- A ligação: os `.c` gerados passam a vir **antes** dos `.a`, `.so`, `-l`, `-L` e
+  `-Wl,` da linha, seja qual for a ordem em que o usuário os escreveu. Antes, um
+  `.a` ou um `-lfoo` dava `undefined reference` (o `.o` não dependia da ordem).
+  O manual ganha o §7.6 (bibliotecas: fonte, C e exportar para C).
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima

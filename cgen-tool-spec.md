@@ -95,7 +95,7 @@ A ferramenta processa o arquivo dado. Cada `import` encontrado dispara `carrega`
 
 O cgen possui um conjunto **fechado e pequeno** de opções próprias. Elas são **sempre consumidas e nunca repassadas** ao compilador C — uma opção do cgen que vazasse para o `cc` faria o build inteiro falhar com mensagem que não ajuda ninguém.
 
-Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apareceu.
+Tudo que não estiver nesse conjunto é repassado verbatim, na ordem em que apareceu, com uma exceção: as **entradas de ligação** *(desde 0.4.0)*. São os arquivos `.a` e `.so` (também `.so.N`), `-l`, `-L`, `-Wl,` e `-Xlinker`, e o valor separado de `-l`, `-L` e `-Xlinker` (`-l m`, `-L dir`). Quando a invocação liga, elas vão para o fim da linha do compilador C, **depois** das unidades que o cgen gerou, e conservam a ordem relativa que o usuário lhes deu (um `-Wl,--whole-archive x.a -Wl,--no-whole-archive` continua um par). O ligador resolve um arquivo `.a` só contra o que veio antes dele, e as unidades geradas, que o usuário não escreve nem nomeia, não podem ficar depois da biblioteca que usam. Os `.o` não dependem da ordem e ficam onde foram escritos. Sob `-c`, `-S` e `-E` não há ligação, e a linha é a do usuário.
 
 | Opção | Efeito | Padrão |
 | --- | --- | --- |
@@ -250,6 +250,8 @@ O link é transparente — sem `.k` na linha, o cgen repassa tudo:
 ```sh
 cgen -o prog main.o geom.o http.o
 ```
+
+Uma biblioteca na linha vale igual, em qualquer posição: `cgen app.k -L deps -l z -o prog` e `cgen app.k libgeom.a -o prog` ligam, porque o cgen põe as entradas de ligação depois das unidades geradas (§4.1).
 
 ### 4.5 Depfile
 

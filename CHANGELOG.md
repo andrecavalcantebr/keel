@@ -35,7 +35,7 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
 **Ferramenta**
 
-- A ligação: os `.c` gerados passam a vir **antes** dos `.a`, `.so`, `-l`, `-L` e
+- A ligação (cgen-tool-spec §4.1, *desde 0.4.0*): os `.c` gerados passam a vir **antes** dos `.a`, `.so`, `-l`, `-L` e
   `-Wl,` da linha, seja qual for a ordem em que o usuário os escreveu. Antes, um
   `.a` ou um `-lfoo` dava `undefined reference` (o `.o` não dependia da ordem).
   O manual ganha o §7.6 (bibliotecas: fonte, C e exportar para C).

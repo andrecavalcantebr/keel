@@ -66,8 +66,7 @@ publicadas num lugar conhecido, **como fonte**. O onde e o como estão na decis�
 
 **Terceiros.** Uma biblioteca de terceiros (um aluno, um grupo, outra
 instituição) mora no repositório do autor, no ritmo e com a autoria dele. Não há
-gerenciador de pacotes, então a descoberta é por um **índice** (`LIBS.md`, a
-criar): nome, repositório, versão do cgen testada e o resultado da conferência
+gerenciador de pacotes, então a descoberta é por um **índice** (`LIBS.md`): nome, repositório, versão do cgen testada e o resultado da conferência
 da §6. Entra em `keel_libs`, por pull request, a biblioteca que cumpre os
 critérios da §6 e que alguém se dispõe a manter. As duas formas usam o mesmo
 molde: uma pasta com `README`, `Makefile`, `src/` e testes próprios.
@@ -278,13 +277,9 @@ base desde a 0.4.0 (spec §5.8).
 
 ## 9. Pendências de edição
 
-Fora deste arquivo, que não altera normativo da keel (regra do `AGENTS.md`):
-
-- Criar o `LIBS.md` (índice das bibliotecas de terceiros) e o `CONTRIBUTING` de
-  `keel_libs`, com os critérios da §6.
-- `cgen-tool-spec.md` §4.3: dizer que as entradas de ligação do usuário (`.a`,
-  `.so`, `-l`, `-L`, `-Wl,`) seguem as unidades geradas na linha do compilador
-  C. Texto proposto, que pede o "sim" do André; o cgen já se comporta assim
-  desde a 0.4.0-dev.
+- `LIBS.md` e `CONTRIBUTING.md` de `keel_libs`: escritos (2026-11-20).
+- `cgen-tool-spec.md` §4.1: a exceção das entradas de ligação, *(desde 0.4.0)*:
+  escrita (2026-11-20).
+- A licença de `keel_libs` como um todo: a decidir.
 - `possibilidades.md`: a §1 deixou de existir; o que dela entrou aqui está nas
   §4, §5 e §7.

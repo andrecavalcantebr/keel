@@ -44,6 +44,14 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima
   de 128, o diagnóstico novo `tags-limit-exceeded` diz o conjunto e o limite. É
   do cgen, não da linguagem: está só no `diag-messages.md`.
+- O tamanho de uma declaração deixa de limitar a geração: uma tabela `pub array`
+  com 30 ou mais referências a `tags` dava `a source line needs more than
+  MAX_EDITS = 32 edits` (achado 2 do xprk). A causa estava no `.h`: o `extern`
+  calculava as edições da declaração inteira para descartar as do inicializador.
+  Agora só as de fora dos inicializadores são calculadas, e `MAX_EDITS` deriva
+  de `LINE_CAP` (512), de modo que o limite de edições não vem antes do de linha.
+  Caso 081 do golden. Resta o `LINE_CAP` (1024 bytes de C por linha física do
+  fonte).
 - A recusa de uma instância pelo emissor (`implementation-limit`) passa a dizer
   em que construção e em que linha.
 - `foreach` e `walk` sobre contêiner de módulo com `dim` (`bitbuffer(4) u8`,

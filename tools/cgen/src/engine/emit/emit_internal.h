@@ -12,7 +12,7 @@
 
 #define NAME_CAP 256            /* a generated file name, guard or symbol */
 #define LINE_CAP 1024           /* one changed source line, or one prototype */
-#define MAX_EDITS 32            /* the edits of one line */
+#define MAX_EDITS (LINE_CAP / 2)   /* the edits of one line: an edit takes at least 2 bytes of the source or puts 2 in the line (a TAG, a rename), so a line that fits LINE_CAP never has more */
 #define SCRATCH_CAP 2048        /* the text that the edits of a line point to */
 #define PAR_HEADER_CAP 1000     /* the header of a one-line or multi-line parallel block (parallel.c) */
 

@@ -1,0 +1,24 @@
+O que este caso afirma
+=======================
+
+O tamanho de uma declaração não limita a geração. Uma tabela `pub array` com 120
+linhas, cada uma citando uma tag do módulo, gera o `.h` com `extern` (sem o
+inicializador) e o `.c` com as 120 linhas e as tags renomeadas.
+
+Por que faltava
+================
+
+Achado em `../xprk` (`keel-achados.md`, §2): o cgen recusava a tabela a partir de
+30 linhas com `a source line needs more than MAX_EDITS = 32 edits
+[implementation-limit]`. A causa estava no `.h`: `k_em_emit_extern` calculava as
+edições da declaração inteira (uma por tag citada) para descartá-las em seguida,
+porque o inicializador não vai para o header. O `.c` já trabalhava por linha física
+e nunca teve o problema.
+
+O conserto tem duas partes (`decls.c`, `emit_internal.h`): as edições do `extern`
+passam a ser calculadas só fora dos inicializadores, e `MAX_EDITS` deixa de ser 32
+e passa a derivar de `LINE_CAP` (uma edição consome ao menos 2 bytes do fonte ou
+põe 2 na linha), de modo que o limite de edições não vem antes do de linha.
+
+Os valores dos enumeradores são os implícitos (0, 1, 2); o proof.c separa o item do
+índice ao alternar ADD, SUB e NOP.

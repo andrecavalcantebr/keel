@@ -84,6 +84,7 @@ do golden ou o commit, e a versão em que saiu.
 | 2026-11-19 | `keel` (a própria base) | `buffer.from(v, n)` e `bitbuffer.from(v, n)` com `v` um `array`: o cgen acrescenta `&` e o `cc` avisa de tipo de ponteiro | comportamento da spec (o primeiro argumento de um verbo de construção é lido como contêiner) | escrever `&v[0]`; a spec §5.3 diz `buffer.of(v)` para `array` |
 | 2026-11-20 | xprk | conjunto `tags` com 17 ou mais itens não parseia (`unexpected-token` no início da declaração) | bug | limite de 16 itens do parser, agora 128; acima disso, `tags-limit-exceeded` com o limite na mensagem; `test/cgen/cli/tags_many.sh`; 0.4.0 |
 | 2026-11-20 | `keel` (revisão da distribuição de bibliotecas) | `.a`, `.so`, `-l`, `-L` e `-Wl,` na linha iam antes dos `.c` gerados: `undefined reference` na ligação | bug | os `.c` gerados vêm antes das entradas de ligação do usuário; `test/cgen/cli/link_order.sh`; manual §7.6; 0.4.0 |
+| 2026-11-22 | xprk | declaração com 30 ou mais referências a `tags` (tabela `pub array`): `a source line needs more than MAX_EDITS = 32 edits` | bug (o limite vinha do tamanho da declaração, não da linha) | caso 081 do golden; `k_em_emit_extern` calcula as edições fora dos inicializadores e `MAX_EDITS` deriva de `LINE_CAP`; 0.4.0 |
 
 Os dois probes de `keel_maths` que esperavam falha (`symbolic_shape_use`,
 `matrix_partition_protocol_call_gap`) compilam na 0.2.0: são os achados dos

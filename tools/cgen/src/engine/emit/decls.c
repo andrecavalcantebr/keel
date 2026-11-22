@@ -204,12 +204,6 @@ void k_em_emit_extern(Emit *e, size_t i) {
     while (b > a && (ast->source.ptr[b - 1] == ' ' || ast->source.ptr[b - 1] == '\t')) b--;
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
-    for (size_t j = i; j < ast->nodes.len; j++) {
-        const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, j);
-        if (d->first != n->first) break;
-        k_em_node_edits(e, d, a, b, ed, &cnt);
-    }
-    k_em_comment_edits(e, a, b, ed, &cnt);
     /* the initializers: from the end of the declarator's name to the `,` or `;` after the INIT */
     size_t cut[MAX_EDITS][2], ncut = 0;
     for (size_t p = n->first, depth = 0; p < n->end; p++) {
@@ -231,14 +225,23 @@ void k_em_emit_extern(Emit *e, size_t i) {
             p = q;
         }
     }
-    /* an edit inside an initializer goes with it */
-    size_t kept = 0;
-    for (size_t k = 0; k < cnt; k++) {
-        bool inside = false;
-        for (size_t c = 0; c < ncut && !inside; c++) inside = ed[k].at >= cut[c][0] && ed[k].at < cut[c][1];
-        if (!inside) ed[kept++] = ed[k];
+    /* The edits are made outside the initializers only: an initializer is cut from
+     * the header, so its edits (a table of a thousand tags has a thousand) are never
+     * made. The declaration's size does not bound its edit list. */
+    size_t from = a;
+    for (size_t c = 0; c <= ncut && e->ok; c++) {
+        size_t to = c < ncut ? cut[c][0] : b;
+        if (to > b) to = b;
+        if (to > from) {
+            for (size_t j = i; j < ast->nodes.len; j++) {
+                const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, j);
+                if (d->first != n->first) break;
+                k_em_node_edits(e, d, from, to, ed, &cnt);
+            }
+            k_em_comment_edits(e, from, to, ed, &cnt);
+        }
+        if (c < ncut && cut[c][1] > from) from = cut[c][1];
     }
-    cnt = kept;
     for (size_t c = 0; c < ncut; c++) {
         if (cut[c][1] <= cut[c][0]) continue;
         k_em_push_edit(e, ed, &cnt, (Edit){ .kind = EDIT_DROP, .at = cut[c][0], .skip = cut[c][1] - cut[c][0], .name_tok = 0, .is_type = false });

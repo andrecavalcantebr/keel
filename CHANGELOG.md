@@ -51,7 +51,8 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   Agora só as de fora dos inicializadores são calculadas, e `MAX_EDITS` deriva
   de `LINE_CAP` (512), de modo que o limite de edições não vem antes do de linha.
   Caso 081 do golden. Resta o `LINE_CAP` (1024 bytes de C por linha física do
-  fonte).
+  fonte); o `implementation-limit` de capacidade passa a apontar a linha do `.k`
+  (`arq.k:4: error: ...`) e a dizer como sair: quebrar a linha de origem.
 - A recusa de uma instância pelo emissor (`implementation-limit`) passa a dizer
   em que construção e em que linha.
 - `foreach` e `walk` sobre contêiner de módulo com `dim` (`bitbuffer(4) u8`,

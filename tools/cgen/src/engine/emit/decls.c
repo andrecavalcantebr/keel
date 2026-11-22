@@ -183,6 +183,7 @@ void k_em_emit_proto(Emit *e, const KAstNode *n) {
     size_t b = k_em_tok_end(e->ast, n->body_first - 2);
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
+    e->at_line = k_em_line_at(e, a);
     k_em_node_edits(e, n, a, b, ed, &cnt);
     k_em_comment_edits(e, a, b, ed, &cnt);
     if (!e->ok) return;
@@ -204,6 +205,7 @@ void k_em_emit_extern(Emit *e, size_t i) {
     while (b > a && (ast->source.ptr[b - 1] == ' ' || ast->source.ptr[b - 1] == '\t')) b--;
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
+    e->at_line = k_em_line_at(e, a);
     /* the initializers: from the end of the declarator's name to the `,` or `;` after the INIT */
     size_t cut[MAX_EDITS][2], ncut = 0;
     for (size_t p = n->first, depth = 0; p < n->end; p++) {

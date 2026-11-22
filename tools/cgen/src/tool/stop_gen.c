@@ -79,6 +79,8 @@ static void report_refused(size_t need, int len, const char *what, const char *c
                 site->line, site->col, site->what, (int)site->tok_len, site->tok);
     else if (need == K_EMIT_UNSUPPORTED)
         fprintf(stderr, "cgen: error: %.*s: the emitter does not cover %s yet [implementation-limit]\n", len, what, cover);
+    else if (site && site->line)   /* a limit that knows its .k line points at it, like the other diagnostics */
+        fprintf(stderr, "%.*s:%zu: error: %s [implementation-limit]\n", len, what, site->line, k_emit_limit_text(need));
     else
         fprintf(stderr, "cgen: error: %.*s: %s [implementation-limit]\n", len, what, k_emit_limit_text(need));
 }

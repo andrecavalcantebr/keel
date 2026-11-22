@@ -47,7 +47,7 @@ size_t k_em_line_at(Emit *e, size_t off) {
 
 void k_em_limit(Emit *e, size_t code) {
     e->ok = false;
-    if (!e->limit) e->limit = code;
+    if (!e->limit) { e->limit = code; e->limit_line = e->at_line; }
 }
 
 void k_em_refuse(Emit *e, size_t tok, const char *what) {

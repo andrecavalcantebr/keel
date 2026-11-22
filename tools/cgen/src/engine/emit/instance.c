@@ -310,6 +310,7 @@ static void emit_modifier(Emit *e, const KAstNode *n) {
     for (size_t j = n->name_first + 1; j < open; j++)
         if (!k_em_text_is(k_em_tok(ast, j), "byref")) { e->ok = false; return; }
     size_t a = k_em_tok_off(ast, open), b = k_em_tok_end(ast, close - 1);
+    e->at_line = k_em_line_at(e, a);
     Edit ed[MAX_EDITS];
     size_t ned = 0;
     k_em_edits_uses(e, n, a, b, ed, &ned);

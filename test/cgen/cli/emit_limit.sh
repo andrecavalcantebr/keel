@@ -25,6 +25,8 @@ out=$("$BIN" --base-dir "$K" -I "$tmp" --stop-after=gen --dest-dir "$tmp/out" "$
 echo "$out" | grep -q 'LINE_CAP' || bad "the message names no limit [$out]"
 echo "$out" | grep -q '1024' || bad "the message gives no value [$out]"
 echo "$out" | grep -q '\[implementation-limit\]' || bad "no [implementation-limit] [$out]"
+echo "$out" | grep -q 'lc.k:3: error' || bad "the limit does not point at its .k line [$out]"
+echo "$out" | grep -q 'break that source line' || bad "the limit gives no hint [$out]"
 echo "$out" | grep -q 'does not cover' && bad "still the 'does not cover' message [$out]"
 
 # a short module still generates

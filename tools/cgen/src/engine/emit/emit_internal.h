@@ -59,6 +59,8 @@ typedef struct {
     size_t cache_off, cache_line;   /* line_at's last answer */
     bool ok;                   /* false: the call is refused (UNSUPPORTED, or the limit in `limit`) */
     size_t limit;              /* 0, or the K_EMIT_LIMIT_* code of the first capacity that ran out */
+    size_t at_line;            /* the .k line the emitter is writing (0: none yet); where a limit is reported */
+    size_t limit_line;         /* at_line when `limit` was set */
     size_t refuse_tok;         /* SIZE_MAX, or the first token of the first construction refused (k_em_refuse) */
     const char *refuse_what;   /* what is not covered there, or NULL for "this construction" */
     char buf[LINE_CAP];        /* the line being built */

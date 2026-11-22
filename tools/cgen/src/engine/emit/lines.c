@@ -145,6 +145,7 @@ void k_em_drop_nested(Edit *ed, size_t *cnt) {
 void k_em_emit_line(Emit *e, size_t ln, size_t a, size_t b) {
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
+    e->at_line = ln;
     spanned_end = 0;
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);

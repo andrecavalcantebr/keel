@@ -343,10 +343,10 @@ const char *k_emit_limit_text(size_t code) {
     switch (code) {
     case K_EMIT_LIMIT_LINE:
         return "a generated line needs more than LINE_CAP = " EM_STR(LINE_CAP)
-               " bytes (engine/emit/emit_internal.h); shorten the declaration";
+               " bytes (engine/emit/emit_internal.h); break that source line into several lines (the limit is per line, not per file)";
     case K_EMIT_LIMIT_EDITS:
         return "a source line needs more than MAX_EDITS = " EM_STR(MAX_EDITS)
-               " edits (engine/emit/emit_internal.h); split the line";
+               " edits (engine/emit/emit_internal.h); break that source line into several lines";
     case K_EMIT_LIMIT_SCRATCH:
         return "the text of a line's edits needs more than SCRATCH_CAP = " EM_STR(SCRATCH_CAP)
                " bytes (engine/emit/emit_internal.h); shorten the line";
@@ -389,6 +389,8 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     e.cache_line = 1;
     e.ok = true;
     e.limit = 0;
+    e.at_line = 0;
+    e.limit_line = 0;
     e.refuse_tok = SIZE_MAX;
     e.refuse_what = NULL;
     e.n = 0;
@@ -405,6 +407,7 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     }
     if (!e.ok) {
         if (!e.limit) say_refusal(&e, opt.refusal);
+        else if (opt.refusal) opt.refusal->line = e.limit_line;   /* the .k line of the limit, 0 when unknown */
         return e.limit ? e.limit : K_EMIT_UNSUPPORTED;
     }
     return k_writer_len(&e.w);

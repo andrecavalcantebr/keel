@@ -1167,6 +1167,32 @@ Erros de invocação, todos com código 2 e sem posição: `multiple-sources`,
 `source-outside-roots`, `module-not-found`, `missing-entry-point`,
 `invalid-option`, `write-failure`.
 
+### 7.8 Limites do cgen
+
+Toda implementação tem limites, e os do `cgen` não são da linguagem: a spec (§6.4) manda que o esgotamento de capacidade saia como `implementation-limit`, com o limite, o valor e a configuração a ajustar, nunca como erro de sintaxe. Medidos em 2026-11-23, na 0.4.0:
+
+| Limite | Valor | Quando passa |
+| --- | --- | --- |
+| Bytes de C por linha física do fonte | 1024 | `implementation-limit`, com a linha do `.k`: quebre a linha de origem |
+| Itens de um `tags` | 128 | `tags-limit-exceeded`. Numa linha só, o limite de bytes vem antes: cerca de 62 itens |
+| Binders por lista (`dim`, `tags`, `type`) | 8 em cada lista | `implementation-limit` (texto genérico, sem nomear a lista) |
+| Delimitadores aninhados (`( [ {`) | 255 níveis | `implementation-limit` no 256º |
+| Modificadores aninhados (`buffer buffer … i32`) | 9 níveis | `instance-depth` no 10º |
+| Nome gerado de instância | 255 caracteres | `name-too-long`; o arquivo gerado (256 bytes, com o caminho do módulo de uso) pode recusar antes, perto de 230, com `implementation-limit` |
+| Identificador escrito pelo usuário | sem teto próprio | o limite de 255 vale só para nomes gerados |
+| Argumentos repassados ao compilador C | 256 (cerca de 127 pares `-I`) | `implementation-limit`; ajuste `CGEN_CLI_ARGS_CAP` ao compilar o cgen |
+| Raízes de busca (`-I`) | 128 | `implementation-limit`; na prática o limite de argumentos vem antes |
+| Memória do cgen | 64 MiB | `implementation-limit`; um `pub array` passa com 50 000 elementos e estoura com 100 000. Ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
+| Entradas de `routine.mask` | 64 | `mask-above-64-slots` (em execução, em debug) |
+
+Valores lidos do código do cgen, ainda sem medição: `extent` com 4 dimensões, 4
+grupos e 8 colunas; `match` com 32 rótulos; `defer [now …]` com 8 entradas;
+`routine` com 16 campos; `parallel` com 16 capturas; `protocol` com 16 itens;
+32 `#include` gerados por arquivo; 1024 fontes `.k` e 1024 módulos importados por
+invocação. Todos dão `implementation-limit`, com o limite e a configuração a
+ajustar na mensagem. Os que são constantes de compilação não têm opção de linha
+de comando.
+
 > Referências: [cgen-tool-spec](cgen-tool-spec.md) ·
 > [backend](keel-c-backend.md) · [`tools/cgen/diag-messages.md`](tools/cgen/diag-messages.md).
 

@@ -2069,3 +2069,20 @@ Erros de invocação mais comuns, todos com código 2 e sem posição:
 resolve), `missing-entry-point` (`--main` sobre módulo sem entrada pública),
 `lowering-unavailable`, `invalid-option`, `output-with-gen`, `write-failure`
 e `implementation-limit`.
+
+Limites do `cgen` (0.4.0; todos saem como `implementation-limit`, salvo onde o id é dado):
+
+| Limite | Valor | Quando passa |
+| --- | --- | --- |
+| Bytes de C por linha física do fonte | 1024 | `implementation-limit`, com a linha do `.k`: quebre a linha de origem |
+| Itens de um `tags` | 128 | `tags-limit-exceeded`. Numa linha só, o limite de bytes vem antes: cerca de 62 itens |
+| Binders por lista (`dim`, `tags`, `type`) | 8 em cada lista | `implementation-limit` (texto genérico, sem nomear a lista) |
+| Delimitadores aninhados (`( [ {`) | 255 níveis | `implementation-limit` no 256º |
+| Modificadores aninhados (`buffer buffer … i32`) | 9 níveis | `instance-depth` no 10º |
+| Nome gerado de instância | 255 caracteres | `name-too-long`; o arquivo gerado (256 bytes, com o caminho do módulo de uso) pode recusar antes, perto de 230, com `implementation-limit` |
+| Identificador escrito pelo usuário | sem teto próprio | o limite de 255 vale só para nomes gerados |
+| Argumentos repassados ao compilador C | 256 (cerca de 127 pares `-I`) | `implementation-limit`; ajuste `CGEN_CLI_ARGS_CAP` ao compilar o cgen |
+| Raízes de busca (`-I`) | 128 | `implementation-limit`; na prática o limite de argumentos vem antes |
+| Memória do cgen | 64 MiB | `implementation-limit`; um `pub array` passa com 50 000 elementos e estoura com 100 000. Ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
+| Entradas de `routine.mask` | 64 | `mask-above-64-slots` (em execução, em debug) |
+

@@ -2070,19 +2070,37 @@ resolve), `missing-entry-point` (`--main` sobre módulo sem entrada pública),
 `lowering-unavailable`, `invalid-option`, `output-with-gen`, `write-failure`
 e `implementation-limit`.
 
-Limites do `cgen` (0.4.0; todos saem como `implementation-limit`, salvo onde o id é dado):
+Limites do `cgen` (0.4.0, medidos; todos saem como `implementation-limit`, salvo onde o id é dado). O tempo de geração cresce com o quadrado do número de linhas (10 000 funções: 42 s), então divida um arquivo grande em módulos:
 
-| Limite | Valor | Quando passa |
+| Limite | Passa até | Ao passar disso |
 | --- | --- | --- |
-| Bytes de C por linha física do fonte | 1024 | `implementation-limit`, com a linha do `.k`: quebre a linha de origem |
-| Itens de um `tags` | 128 | `tags-limit-exceeded`. Numa linha só, o limite de bytes vem antes: cerca de 62 itens |
+| Bytes de C por linha física do fonte | 1024 (uma linha com `defer` na mesma linha: 1014 de fonte) | `implementation-limit`, com a linha do `.k`: quebre a linha de origem |
+| Itens de um `tags` | 128 (numa linha só, cerca de 62) | `tags-limit-exceeded` |
 | Binders por lista (`dim`, `tags`, `type`) | 8 em cada lista | `implementation-limit` (texto genérico, sem nomear a lista) |
 | Delimitadores aninhados (`( [ {`) | 255 níveis | `implementation-limit` no 256º |
 | Modificadores aninhados (`buffer buffer … i32`) | 9 níveis | `instance-depth` no 10º |
-| Nome gerado de instância | 255 caracteres | `name-too-long`; o arquivo gerado (256 bytes, com o caminho do módulo de uso) pode recusar antes, perto de 230, com `implementation-limit` |
+| Nome gerado de instância | 214 a 255 caracteres, conforme o caminho | `write-failure`, `implementation-limit` ou `name-too-long`, nessa ordem de tamanho (estudo E01) |
 | Identificador escrito pelo usuário | sem teto próprio | o limite de 255 vale só para nomes gerados |
+| `extent`: grupos `[k, n]` | 4 | **o 5º sai sem diagnóstico (bug, E03)** |
+| `extent`: colunas `array` | 8 | `implementation-limit` |
+| `match`: rótulos | cerca de 14 com nomes curtos, 9 com nomes de 27 caracteres | `implementation-limit` ("shorten the line"): o teto é o texto das edições da linha do `match` (2048 bytes) |
+| `defer [now …]`: entradas | 8 | `implementation-limit` |
+| `parallel`: capturas | 16 | `implementation-limit` |
+| `protocol`: itens | 16 | `unexpected-token` no 17º |
+| `protocol`: parâmetros de um verbo, com o receptor | 8 | `unexpected-token` no 9º |
+| `x[i, j, …]`: índices | 8 | `implementation-limit` no 9º |
+| `#include` por arquivo gerado | 32 imports de tipos | `implementation-limit` no 33º |
+| Variáveis locais de uma função | 128 | `implementation-limit` |
+| Variáveis globais de um arquivo | 127 | `implementation-limit` (a posição aponta a primeira) |
+| Declaradores de um `array` no topo | 8 | `unexpected-token` no 9º |
+| Parâmetros de função | sem recusa até 18 (30 num módulo genérico) | — |
+| Nomes num `typedef`, dimensões de um `array`, estrelas de um declarador | sem recusa até 30, 11 e 300 | — |
+| Constante de texto numa linha sem construção keel | 10 000 bytes | — |
+| Módulos importados num programa | cerca de 400 (a arena acaba antes do teto de 1024) | `implementation-limit` (arena) |
+| Funções num módulo | cerca de 10 000 | `implementation-limit` (arena) |
+| Linhas de um fonte | 10 000 linhas (380 KB) em 42 s; 100 000 estouram a arena | `implementation-limit` (arena) |
 | Argumentos repassados ao compilador C | 256 (cerca de 127 pares `-I`) | `implementation-limit`; ajuste `CGEN_CLI_ARGS_CAP` ao compilar o cgen |
 | Raízes de busca (`-I`) | 128 | `implementation-limit`; na prática o limite de argumentos vem antes |
-| Memória do cgen | 64 MiB | `implementation-limit`; um `pub array` passa com 50 000 elementos e estoura com 100 000. Ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
+| Memória do cgen | 64 MiB (pico medido em `keel_libs/coll`: 12,8 MiB) | `implementation-limit`; ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
 | Entradas de `routine.mask` | 64 | `mask-above-64-slots` (em execução, em debug) |
 

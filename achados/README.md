@@ -87,6 +87,7 @@ do golden ou o commit, e a versão em que saiu.
 | 2026-11-22 | xprk | declaração com 30 ou mais referências a `tags` (tabela `pub array`): `a source line needs more than MAX_EDITS = 32 edits` | bug (o limite vinha do tamanho da declaração, não da linha) | caso 081 do golden; `k_em_emit_extern` calcula as edições fora dos inicializadores e `MAX_EDITS` deriva de `LINE_CAP`; 0.4.0 |
 | 2026-11-23 | auditoria de limites | o nome gerado tem três limites e três diagnósticos | estudo | [E01](E01-nome-gerado-tres-limites.md) |
 | 2026-11-23 | auditoria de limites | o `implementation-limit` fala sempre a mesma frase, sem valor nem configuração | estudo | [E02](E02-implementation-limit-generico.md) |
+| 2026-11-23 | auditoria de limites (medição) | `extent` com 5 grupos sai sem diagnóstico; mensagens enganosas; tempo quadrático; arena antes dos tetos | bug + estudo | [E03](E03-recusas-silenciosas-e-escala.md) |
 
 Os dois probes de `keel_maths` que esperavam falha (`symbolic_shape_use`,
 `matrix_partition_protocol_call_gap`) compilam na 0.2.0: são os achados dos

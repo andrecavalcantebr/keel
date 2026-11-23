@@ -68,6 +68,12 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 - `x[a..b]` sobre modificador de módulo com `dim`: não era reconhecido e o `cc`
   recusava a expressão. O `range-index` usa uma dimensão (§4.5), e o acessor
   de posto completo, `x[i, j]`, continua à parte.
+- `x[i, j]` sobre modificador de módulo com `dim` (spec §4.5, regra 1; backend
+  §5.3.1): o cgen deixava a forma passar como veio (operador vírgula de C) e o
+  `cc` recusava ou, pior, aceitava o que não devia. Agora sai
+  `*ptr_N(x, (size_t[N]){i, j})`, com `&` quando o contêiner é valor, e um número
+  de índices diferente de `N` dá `no-ptr-for-arity`. Caso 082 do golden, e
+  `index-rank` em `test/cgen/diag/`. Não havia caso do golden que cobrisse a forma.
 
 ## 0.3.0 (2026-11-19)
 

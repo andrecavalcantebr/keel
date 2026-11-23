@@ -95,3 +95,4 @@ test/cgen/gen/share|use.k|-
 079-bitpack-debug|app/chk.k|app.chk
 080-generic-fixed-part|app/gfp_use.k|-
 081-large-table|app/tbl.k|-
+082-modifier-multi-index|app/mi.k|app.mi

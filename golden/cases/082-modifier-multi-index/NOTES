@@ -1,0 +1,20 @@
+Notas do caso.
+
+`x[i, j]` sobre modificador com `dim` (spec §4.5, regra 1; backend §5.3.1).
+Até o caso 081 nenhum caso do golden cobria a forma: 039 e 033 a usam sobre
+`array` e sobre coluna de `extent`, e 006/066/070 chamam `ptr(x, (size_t[N]){…})`
+à mão. Sondado em 2026-11-23, o cgen deixava `g[i, j]` passar como veio
+(operador vírgula de C) e o `subscript.c` recusava a forma de propósito.
+
+O que o caso afirma:
+
+- `app_mi_cell`, `app_mi_put`: o contêiner é um ponteiro (`grid(2) i32 *g`), e o
+  acessor recebe `g`, sem `&`. Lido e escrito (lvalue).
+- `main`: o contêiner é um valor local (`grid(2) i32 g`), e o acessor recebe `&g`.
+- `g[r++, 2]`: cada índice é avaliado uma vez (regra 2 do §5.3.1), e `r` vale 1
+  depois.
+- O layout é por linha (`dims = {2, 3}`): `g[1, 2]` é o elemento 5.
+- Os índices saem como escritos, na ordem, no literal `(size_t[2]){…}`, com `, `
+  entre eles.
+
+Os dois perfis diferem só no cabeçalho de uma linha: o caso não tem `constexpr`.

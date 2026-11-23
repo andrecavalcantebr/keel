@@ -223,13 +223,38 @@ static size_t index_group(Ctx *c, size_t i, size_t open, bool *any) {
     if (k->kind != KT_MODIFIER || !k->module) return close + 1;
     const KAst *home = isl_ast_of(c, k->module);
     if (!home || close == open + 1) return close + 1;
-    /* full-rank accessor: §5.3.1. Only the index stands aside for it: a range-index has one
-       dimension whatever the module's `dim` (spec §4.5), and its verb is `as_slice` */
-    if (range == SIZE_MAX && isl_module_node(home)->dim_first != isl_module_node(home)->dim_end) return close + 1;
+    /* full-rank accessor: §5.3.1. A range-index has one dimension whatever the module's
+       `dim` (spec §4.5), and its verb is `as_slice`; an index over a `dim` module is the
+       full-rank accessor: `x[i, j]` is `*ptr_N(x, (size_t[N]){i, j})`, and a lone index
+       stays aside (its brackets are C's) */
+    const KAstNode *hm = isl_module_node(home);
+    size_t dims = 0;
+    for (size_t j = hm->dim_first; j < hm->dim_end; j++)
+        if (isl_ident(home, j) && !isl_word(home, j, "dim")) dims++;
+    if (range == SIZE_MAX && dims && !commas) return close + 1;
     keel_slice_char text = { (size_t)(isl_tok(a, close).ptr - isl_tok(a, open).ptr) + 1, isl_tok(a, open).ptr };
     bool adapt = false;
     isl_put(&tx, path.ptr, path.len);
-    if (range == SIZE_MAX) {
+    if (range == SIZE_MAX && dims) {
+        /* the vector accessor `ptr(x, size_t idx[static N])`, N the instance's `dim` and the
+           number of indices written (spec §4.5, item 1; the symbol takes the rank suffix) */
+        Sig sig = isl_find_verb(home, k_diag_text("ptr"), 2);
+        isl_put_str(&tx, " \xe2\x86\x92 ");
+        isl_put_str(&tx, k->symbol);
+        isl_put_str(&tx, "_ptr");
+        /* the suffix is `_<N>`, N the value of the instance's dimension that sizes the vector:
+           the indices written must be as many */
+        Text sfx = { .ok = true };
+        size_t rank = 0, digits = 0;
+        bool fits = sig.found && sig.rank_binder >= 0 && *k->symbol && isl_put_verb_suffix(c, k, &sig, 2, &sfx) && sfx.ok;
+        for (size_t d = 1; fits && d < sfx.n; d++, digits++) rank = rank * 10 + (size_t)(sfx.s[d] - '0');
+        if (!fits || !digits || rank != commas + 1) {
+            isl_diag3(c, K_DIAG_NO_PTR_FOR_ARITY, name, path, text, none);
+            return close + 1;
+        }
+        isl_put(&tx, sfx.s, sfx.n);
+        if (sig.n && sig.p[0].pointer && k->pointers == 0 && k->lvalue) adapt = true;
+    } else if (range == SIZE_MAX) {
         /* x[i] is *ptr(x, i); x[i, j] is *ptr(x, idx) with a vector of indices, and a
            module with no `dim` declares none (spec §4.5, item 1) */
         isl_put_str(&tx, " \xe2\x86\x92 ");

@@ -16,7 +16,7 @@
  * An array field is the same range over the container's name: `b->v[1..4]` is
  * `keel_array_i32_as_slice2(b->v, 5, 1, 4)`, the 5 the field's dimension 0.
  * Refused (k_em_handles_subscript answers false): a field that is not an array
- * (`s.f[i]`), a comma between indices (§5.3.1), a name preceded by
+ * (`s.f[i]`), a comma between the bounds of a range, a name preceded by
  * `&` (rule 2 collapses `&*`, not lowered yet), a bracket group over two lines,
  * an island outside a function body, and an array range whose dimension is not
  * known. */
@@ -36,6 +36,7 @@ typedef struct {
     size_t open, close;         /* the `[` (the name's next token, or the field's after `b->v`) and its `]` */
     size_t dots;                /* range-index: its `..`; NO_TOKEN for an index */
     bool low, high;             /* range-index: a bound before the `..`, and after it */
+    size_t indices;             /* an index: how many are written (more than one: the full-rank accessor, §5.3.1) */
     bool addr;                  /* the detail's `&1`: the container goes by address */
     bool dim;                   /* the detail's `dim:1`: an array, its dimension 0 goes after it */
     KArrayRef ref;              /* dim: the declaration of the array */
@@ -138,16 +139,19 @@ static bool read_sugar(const KAst *ast, const KIsland *is, Sugar *s) {
     size_t close = closing_of(ast, lb, fn->end);
     if (close == NO_TOKEN || !one_line(ast, k_em_tok_off(ast, t), k_em_tok_end(ast, close))) return false;
 
-    /* one index only (§5.3.1 is the comma form); the `..` of a range-index, and
-     * no `..` in an index */
-    size_t dots = NO_TOKEN, depth = 0;
+    /* the `..` of a range-index, and no `..` in an index; the commas of an index
+     * count its indices (the full-rank accessor, §5.3.1), and a range-index has none */
+    size_t dots = NO_TOKEN, depth = 0, commas = 0;
     for (size_t i = lb + 1; i < close; i++) {
         if (opens(ast, i)) depth++;
         else if (closes(ast, i)) depth--;
-        else if (depth == 0 && word(ast, i, ",")) return false;
+        else if (depth == 0 && word(ast, i, ",")) commas++;
         else if (depth == 0 && word(ast, i, "..") && dots == NO_TOKEN) dots = i;
     }
-    if (range != (dots != NO_TOKEN)) return false;
+    if (range != (dots != NO_TOKEN) || (range && commas)) return false;
+    s->indices = commas + 1;
+    /* the full-rank accessor over an array's field is not lowered here */
+    if (commas && field) return false;
 
     Word w[MAX_WORDS];
     size_t nw = detail_words(ast, is, w);
@@ -233,6 +237,25 @@ void k_em_edits_subscript(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit 
         size_t name = k_em_tok_off(ast, t);
         size_t open = k_em_tok_off(ast, s.open), close = k_em_tok_off(ast, s.close);
 
+        if (is->kind == K_ISLAND_INDEX && s.indices > 1) {
+            /* x[i, j] is *ptr_N(x, (size_t[N]){i, j}): the `[` opens the literal, the `]` closes it and the call;
+               the indices stay as written, the commas between them too (backend §5.3.1) */
+            char *lit = k_em_scratch(e, 20);
+            if (!lit) { e->ok = false; return; }
+            size_t ll = 0;
+            memcpy(lit, ", (size_t[", 10); ll = 10;
+            char tmp[8]; size_t n = 0, v = s.indices;
+            do { tmp[n++] = (char)('0' + v % 10); v /= 10; } while (v > 0 && n < sizeof tmp);
+            for (size_t q = 0; q < n; q++) lit[ll++] = tmp[n - 1 - q];
+            memcpy(lit + ll, "]){", 3); ll += 3;
+            put_text(e, ed, cnt, a, b, name, 0, "*", 1);
+            put_text(e, ed, cnt, a, b, name, 0, s.verb.p, s.verb.n);
+            put_text(e, ed, cnt, a, b, name, 0, "(", 1);
+            if (s.addr) put_text(e, ed, cnt, a, b, name, 0, "&", 1);
+            put_text(e, ed, cnt, a, b, open, 1, lit, ll);
+            put_text(e, ed, cnt, a, b, close, 1, "})", 2);
+            continue;
+        }
         if (is->kind == K_ISLAND_INDEX) {
             /* x[i] is *ptr(x, i): the call opens at the name, the `[` is the comma, the `]` the paren */
             put_text(e, ed, cnt, a, b, name, 0, "*", 1);

@@ -90,3 +90,5 @@ Os dois probes de `keel_maths` que esperavam falha (`symbolic_shape_use`,
 `matrix_partition_protocol_call_gap`) compilam na 0.2.0: são os achados dos
 casos 070 e da regra 8 fechados, e o `check_probes.py` da biblioteca deve
 deixar de esperar o erro.
+| 2026-11-23 | auditoria de limites | o nome gerado tem três limites e três diagnósticos | estudo | [E01](E01-nome-gerado-tres-limites.md) |
+| 2026-11-23 | auditoria de limites | o `implementation-limit` fala sempre a mesma frase, sem valor nem configuração | estudo | [E02](E02-implementation-limit-generico.md) |

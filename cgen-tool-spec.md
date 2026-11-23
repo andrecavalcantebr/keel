@@ -713,7 +713,7 @@ fonte. Restam os que dependem da invocação, e eles são da ferramenta:
 | `invalid-option` | opção do cgen com valor fora do enumerado |
 | `output-with-gen` | `-o` com `--stop-after=gen`: a fase escreve vários arquivos; a mensagem indica `--dest-dir` (§4.2) |
 | `write-failure` | E/S falhou ao escrever sob o `--dest-dir` (§6) |
-| `implementation-limit` | Capacidade configurada da implementação atingida; a mensagem informa qual limite, seu valor, a demanda quando conhecida e a configuração a ajustar. Não implica erro de sintaxe do programa. |
+| `implementation-limit` | Capacidade configurada da implementação atingida; a mensagem informa qual limite, seu valor, a demanda quando conhecida e a configuração a ajustar. Não implica erro de sintaxe do programa. *(desde 0.4.0)* Um deles: o cgen traduz até 1024 bytes de C por linha física do fonte; acima disso, a mensagem aponta a linha do `.k` e a saída é quebrar a linha de origem. |
 
 Quatro regras governam a tabela:
 

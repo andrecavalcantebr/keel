@@ -120,6 +120,7 @@ static bool parse(KAst *a,
     a->error_token = 0;
     a->error_is_capacity = false;
     a->error_is_tags_limit = false;
+    a->error_is_extent_limit = false;
     size_t i = 0, n = a->tokens.len;
     while (i < n && keel_buffer_KLexeme_ptr(&a->tokens, i)->directive) i++;
     if (i >= n || !named(a, i, "module")) return false;
@@ -332,6 +333,7 @@ static bool parse(KAst *a,
                                          edef.body.ptr + edef.body.len);
                 node.end = index_at(a, node.body_end, next.ptr);
             } else {
+                if (edef.over_limit) { a->error_token = i + 2; a->error_is_extent_limit = true; return false; }
                 node.end = declaration_end(a, i, &node.body_first, &node.body_end);
                 if (node.end <= start || node.end > n) return false;
                 node.kind = K_AST_OPAQUE;

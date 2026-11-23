@@ -350,7 +350,7 @@ bool k_scan_modifier_decl(KLexer *lexer, int module_arity,
 /* extent-dim ::= '[' IDENT ',' ( qualified-name | NUM ) ']'
    `open` is the already-read '['. Leaves *tok on the token after the ']'. */
 static bool scan_dim(KLexer *lexer, KExtentDecl *out, KToken *tok, TKPpKind *pp) {
-    if (out->dim_count >= K_EXTENT_MAX_DIMS) return false;
+    if (out->dim_count >= K_EXTENT_MAX_DIMS) { out->over_limit = true; return false; }
 
     *tok = k_lexer_next(lexer, pp);
     if (!k_token_is_ident(*tok)) return false;

@@ -150,4 +150,5 @@
     X(CAPACITY, "insufficient storage while collecting module `%s`") \
     X(PARSE_FAILED, "malformed or truncated declaration") \
     X(LOAD_FAILED, "cannot load module `%s`") \
-    X(TAGS_LIMIT_EXCEEDED, "`tags %s` has more than %s constants, the most the cgen holds in one set: split it into smaller sets")
+    X(TAGS_LIMIT_EXCEEDED, "`tags %s` has more than %s constants, the most the cgen holds in one set: split it into smaller sets") \
+    X(EXTENT_LIMIT_EXCEEDED, "`extent %s` has more than %s groups `[k, n]`, the most the cgen holds in one extent: split it into smaller extents")

@@ -74,6 +74,10 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   `*ptr_N(x, (size_t[N]){i, j})`, com `&` quando o contêiner é valor, e um número
   de índices diferente de `N` dá `no-ptr-for-arity`. Caso 082 do golden, e
   `index-rank` em `test/cgen/diag/`. Não havia caso do golden que cobrisse a forma.
+- `extent` com mais de 4 grupos `[k, n]` saía com código 0 e deixava o texto keel
+  no `.type.h`, para o compilador C recusar (E03 dos achados). Agora é
+  `extent-limit-exceeded` (do cgen, só no `diag-messages.md`), como o
+  `tags-limit-exceeded`. Teste `test/cgen/cli/extent_limit.sh`.
 
 ## 0.3.0 (2026-11-19)
 

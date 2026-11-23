@@ -261,6 +261,11 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
             k_diag_emit(t->diag,K_DIAG_TAGS_LIMIT_EXCEEDED,at,(KDiagArgs){{at,k_diag_text(K_TAGS_MAX_ITEMS_TEXT)}});
             return failure(t,e,K_DIAG_LOAD_FAILED,own);
         }
+        if(e->ast.error_is_extent_limit) {
+            keel_slice_char at=keel_buffer_KLexeme_ptr(&e->ast.tokens,e->ast.error_token)->token;
+            k_diag_emit(t->diag,K_DIAG_EXTENT_LIMIT_EXCEEDED,at,(KDiagArgs){{at,k_diag_text(K_EXTENT_MAX_DIMS_TEXT)}});
+            return failure(t,e,K_DIAG_LOAD_FAILED,own);
+        }
         return failure(t,e,K_DIAG_PARSE_FAILED,own);
     }
     if(!exports(t,e))return failure(t,e,K_DIAG_CAPACITY,own);

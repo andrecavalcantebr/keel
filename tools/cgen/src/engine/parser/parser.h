@@ -198,6 +198,7 @@ bool k_scan_tags_decl(KLexer *lexer, KToken tags_kw, KSymbolTable *symtab,
  *
  * Consumes through the ';' and hands back the token after it. */
 #define K_EXTENT_MAX_DIMS 4
+#define K_EXTENT_MAX_DIMS_TEXT "4"   /* the same number, for the diagnostic */
 
 typedef struct {
     keel_slice_char name;                         /* the IDENT after 'struct' */
@@ -205,6 +206,7 @@ typedef struct {
     keel_slice_char dim_caps[K_EXTENT_MAX_DIMS];  /* its capacity, as written */
     size_t dim_count;
     keel_slice_char body;                         /* between '{' and '}' */
+    bool over_limit;                              /* the scan failed only because of K_EXTENT_MAX_DIMS */
 } KExtentDecl;
 
 bool k_scan_extent_decl(KLexer *lexer, KToken extent_kw, KSymbolTable *symtab,

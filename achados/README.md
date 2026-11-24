@@ -88,9 +88,9 @@ do golden ou o commit, e a versão em que saiu.
 | 2026-11-23 | auditoria de limites | o nome gerado tem três limites e três diagnósticos | estudo | [E01](E01-nome-gerado-tres-limites.md) |
 | 2026-11-23 | auditoria de limites | o `implementation-limit` fala sempre a mesma frase, sem valor nem configuração | estudo | [E02](E02-implementation-limit-generico.md) |
 | 2026-11-23 | auditoria de limites (medição) | `extent` com 5 grupos sai sem diagnóstico; mensagens enganosas; tempo quadrático; arena antes dos tetos | bug + estudo | [E03](E03-recusas-silenciosas-e-escala.md) |
-| 2026-11-23 | `keel_libs/str` (`keel_achados.md` A1) | `outcome T`, com `T` um `typedef` de outro módulo, gera um `.type.h` sem o include do módulo de `T` (`unknown type name`) | bug reproduzido na 0.4.0-dev (`/tmp/ka2/r1`) | a fechar: caso do golden antes do conserto |
+| 2026-11-23 | `keel_libs/str` (`keel_achados.md` A1) | `outcome T`, com `T` um `typedef` de outro módulo, gera um `.type.h` sem o include do módulo de `T` (`unknown type name`) | bug reproduzido na 0.4.0-dev (`/tmp/ka2/r1`) | fechado: golden 083, 0.4.0 |
 | 2026-11-23 | `keel_libs/str` (A2) | `typedef buffer u8 text;` passa pelo cgen como C cru; o nome não é contêiner | reproduzido; a spec §4.2 reserva `byref` em `typedef`, então pode ser intencional: o cgen deveria recusar com diagnóstico de keel | a decidir (spec ou cgen) |
-| 2026-11-23 | `keel_libs/str` (A3) | verbo de módulo genérico com dois modificadores: `two.run(d, 0)` sai `two_run`, símbolo que não existe | bug reproduzido (`/tmp/ka2/r3`) | a fechar: caso do golden antes do conserto |
+| 2026-11-23 | `keel_libs/str` (A3) | verbo de módulo genérico com dois modificadores: `two.run(d, 0)` sai `two_run`, símbolo que não existe | bug reproduzido (`/tmp/ka2/r3`) | fechado: golden 084, 0.4.0 |
 
 Os dois probes de `keel_maths` que esperavam falha (`symbolic_shape_use`,
 `matrix_partition_protocol_call_gap`) compilam na 0.2.0: são os achados dos

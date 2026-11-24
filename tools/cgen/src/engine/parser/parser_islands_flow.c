@@ -978,8 +978,7 @@ static size_t inst_arg_end(Ctx *c, size_t i, int depth) {
     const KAst *a = c->ast;
     if (depth > 4 || !isl_ident(a, i)) return 0;
     KToken t = isl_tok(a, i);
-    keel_slice_char mod = isl_modifier_of(a);
-    if (mod.len && k_symtab_same_name(t, mod)) return i + 1;
+    if (isl_is_modifier(a, t)) return i + 1;
     if (depth > 0 && (isl_binder(a, t) || k_primitive_name(t))) return i + 1;
     const KSymbol *s = k_symbol_resolve(a->symbols, t);
     if (depth > 0 && s && (s->kind == K_SYM_TYPE || s->kind == K_SYM_TAGS)) return i + 1;
@@ -1006,7 +1005,7 @@ static size_t inst_arg_end(Ctx *c, size_t i, int depth) {
             (isl_ident(a, j) || isl_punct(a, j, "*") || isl_punct(a, j, ")"))) return i + 1;
         if (!e) return 0;
         for (size_t q = j; q < e; q++)
-            if (isl_binder(a, isl_tok(a, q)) || (mod.len && k_symtab_same_name(isl_tok(a, q), mod))) generic_arg = true;
+            if (isl_binder(a, isl_tok(a, q)) || isl_is_modifier(a, isl_tok(a, q))) generic_arg = true;
         j = e;
     }
     return depth > 0 || generic_arg ? j : 0;

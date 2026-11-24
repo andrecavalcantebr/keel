@@ -1,0 +1,11 @@
+Notas do caso.
+
+Módulo genérico com dois modificadores (`out` e `tgt`), com um verbo sobre cada
+um (achado A3 de `keel_libs`). O cgen reconhecia como "o modificador do módulo"
+só o primeiro declarado: o verbo sobre o segundo (`run(tgt d, ...)`) não achava
+o contêiner, e a chamada `twos.run(d, 3)` saía como `twos_run`, símbolo que não
+existe. Agora qualquer modificador do módulo vale (`isl_is_modifier`).
+
+O que o caso afirma: `twos.fill(o, 7)` sai `twos_out_i32_fill(&o, 7)` (`out` é
+`byref`) e `twos.run(d, 3)` sai `twos_tgt_i32_run(d, 3)` (`tgt`, por valor), cada
+um no `.h` da própria instância. Os dois perfis diferem só no cabeçalho.

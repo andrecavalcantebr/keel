@@ -192,6 +192,7 @@ bool isl_module_named(const KAst *a, const char *name);
 bool isl_module_in_base(const KAst *a);
 bool isl_binder(const KAst *a, keel_slice_char name);
 keel_slice_char isl_modifier_of(const KAst *a);
+bool isl_is_modifier(const KAst *a, KToken t);
 bool isl_names_instance(const KAst *a, const KAstNode *fn);
 size_t isl_params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap);
 Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity);

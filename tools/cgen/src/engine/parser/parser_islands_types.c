@@ -243,7 +243,7 @@ static int isl_kt_from_home_inner(Ctx *c, const KAst *home, keel_slice_char text
                 if (inst < 0 || p >= (size_t)isl_kt(c, inst)->argc) return -1;
                 return kt_copy(c, isl_kt(c, inst)->arg[p]);
             }
-        if (k_symtab_same_name(first, isl_modifier_of(home))) return kt_copy(c, inst);
+        if (isl_is_modifier(home, first)) return kt_copy(c, inst);
         /* the module's own type wins over one `types` injected (spec §4.1):
            `cursor` in keel.buffer is keel.buffer's, not keel.slice's */
         for (size_t i = 0; i < home->nodes.len; i++) {
@@ -727,9 +727,8 @@ static bool module_instance_prefix(Ctx *c, const KAst *home, int inst, Text *t) 
 }
 
 static bool mentions_own(const KAst *home, const Param *p) {
-    keel_slice_char own = isl_modifier_of(home);
-    for (size_t k = p->first; own.len && k < p->end; k++)
-        if (isl_ident(home, k) && k_symtab_same_name(isl_tok(home, k), own)) return true;
+    for (size_t k = p->first; k < p->end; k++)
+        if (isl_ident(home, k) && isl_is_modifier(home, isl_tok(home, k))) return true;
     return false;
 }
 
@@ -919,7 +918,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     for (size_t k = 0; sig.found && k < sig.n; k++) {
         if (sig.p[k].is_type) selection = selection || isl_binder(home, sig.p[k].base);
         else if (sig.p[k].is_array) { if (arr == SIZE_MAX) arr = k; }
-        else if (gen && recv == SIZE_MAX && k_symtab_same_name(sig.p[k].base, modifier)) recv = k;
+        else if (gen && recv == SIZE_MAX && isl_is_modifier(home, sig.p[k].base)) recv = k;
         else if (gen && nested == SIZE_MAX && mentions_own(home, &sig.p[k])) nested = k;
     }
     if (!sig.found && gen && argc) recv = 0;        /* the module declares no such verb: the object is first */

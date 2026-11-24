@@ -96,3 +96,5 @@ test/cgen/gen/share|use.k|-
 080-generic-fixed-part|app/gfp_use.k|-
 081-large-table|app/tbl.k|-
 082-modifier-multi-index|app/mi.k|app.mi
+083-outcome-foreign-typedef|app/ob.k boxes.k|app.ob
+084-verb-two-modifiers|app/tw.k|app.tw

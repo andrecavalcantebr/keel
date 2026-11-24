@@ -298,6 +298,14 @@ keel_slice_char isl_modifier_of(const KAst *a) {
     return (keel_slice_char){0};
 }
 
+/* whether `t` names any modifier of the module: a generic module may declare several */
+bool isl_is_modifier(const KAst *a, KToken t) {
+    for (size_t i = 0; i < a->nodes.len; i++)
+        if (isl_node_at(a, i)->kind == K_AST_MODIFIER && k_symtab_same_name(isl_tok(a, isl_node_at(a, i)->name_first), t))
+            return true;
+    return false;
+}
+
 /* The parameters of the function node `fn`, in `a`. SIZE_MAX if they do not fit. */
 size_t isl_params_of(const KAst *a, const KAstNode *fn, Param *out, size_t cap) {
     size_t open = fn->name_end, n = 0, depth = 0, start = open + 1;
@@ -352,9 +360,8 @@ Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity) {
             sig.n = n;
             sig.found = true;
             sig.fn = fn;
-            keel_slice_char own = isl_modifier_of(a);
-            for (size_t j = fn->first; own.len && j < fn->name_first; j++)
-                if (isl_ident(a, j) && k_symtab_same_name(isl_tok(a, j), own)) sig.producer = true;
+            for (size_t j = fn->first; j < fn->name_first; j++)
+                if (isl_ident(a, j) && isl_is_modifier(a, isl_tok(a, j))) sig.producer = true;
         }
     }
     sig.overloaded = (seen & (seen - 1)) != 0;
@@ -1142,11 +1149,10 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
 /* whether `fn` names one of the module's binders or its modifier: the share of
    an instance (the rule of k_em_generic_out, codegen design §7) */
 bool isl_names_instance(const KAst *a, const KAstNode *fn) {
-    keel_slice_char mod = isl_modifier_of(a);
     for (size_t i = fn->first; i < fn->end; i++) {
         if (!isl_ident(a, i)) continue;
         KToken t = isl_tok(a, i);
-        if (mod.len && k_symtab_same_name(t, mod)) return true;
+        if (isl_is_modifier(a, t)) return true;
         const KAstNode *m = isl_module_node(a);
         size_t first[3] = { m->dim_first, m->tags_first, m->type_first }, end[3] = { m->dim_end, m->tags_end, m->type_end };
         for (int r = 0; r < 3; r++)

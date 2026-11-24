@@ -574,7 +574,19 @@ static void emit_file(Emit *e, KEmitFile which) {
         bool ahead = false;
         for (int pass = 0; pass < 2; pass++)
             for (size_t k = 0; k < e->inst->argc && e->ok && !e->inst->unit_len; k++) {
-                if (!e->inst->arg_module[k].len) continue;
+                if (!e->inst->arg_module[k].len) {
+                    /* a plain type of another module (a `typedef` of `box`): its .type.h, when a field holds it by value */
+                    const KAstNode *mn = keel_buffer_KAstNode_ptr(&e->ast->nodes, e->ast->module);
+                    size_t pre = 0;   /* the `dim` and `tags` binders come before the `type` ones in the arguments */
+                    for (size_t j = mn->dim_first; j < mn->dim_end; j++) if (k_token_is_ident(k_em_tok(e->ast, j))) pre++;
+                    for (size_t j = mn->tags_first; j < mn->tags_end; j++) if (k_token_is_ident(k_em_tok(e->ast, j))) pre++;
+                    if (pass == 0 && e->inst->user && k >= pre && binder_use_in_fields(e, k - pre) == 2) {
+                        char path[NAME_CAP];
+                        size_t pl = k_em_header_of(e->inst->user, e->inst->arg[k].ptr, e->inst->arg[k].len, ".type.h", path, sizeof path);
+                        if (pl) { raw(e, "#include \""); raw_slice(e, (keel_slice_char){ pl, path }); raw(e, "\"\n"); }
+                    }
+                    continue;
+                }
                 int use = binder_use_in_fields(e, k);
                 if (use == 2 && pass == 0) {
                     char path[NAME_CAP];

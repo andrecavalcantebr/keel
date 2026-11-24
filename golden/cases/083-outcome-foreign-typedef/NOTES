@@ -1,0 +1,11 @@
+Notas do caso.
+
+`outcome T` com `T` um `typedef` de outro módulo (achado A1 de `keel_libs`,
+`keel_achados.md`). O `.type.h` da instância guarda o campo `T value` por valor,
+então precisa incluir o `.type.h` do módulo de `T` (backend §4.3.2, regra 2).
+Antes o cgen só incluía o de um argumento que fosse instância; `outcome item`
+saía com `box_item` desconhecido e quem recusava era o compilador C.
+
+O que o caso afirma: `keel_outcome_boxes_item.type.h` inclui `keel.type.h` e
+`boxes.type.h`, nessa ordem, e o programa compila e roda (`win`, `ok`, `value`).
+Os dois perfis diferem só no cabeçalho de uma linha.

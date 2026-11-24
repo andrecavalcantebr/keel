@@ -39,6 +39,11 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   `-Wl,` da linha, seja qual for a ordem em que o usuário os escreveu. Antes, um
   `.a` ou um `-lfoo` dava `undefined reference` (o `.o` não dependia da ordem).
   O manual ganha o §7.6 (bibliotecas: fonte, C e exportar para C).
+- Dois bugs do cgen (achados A1 e A3 de `keel_libs`, golden 083 e 084): o `.type.h`
+  de uma instância inclui o `.type.h` do módulo de um argumento que é `typedef`
+  de outro módulo e fica por valor num campo (`outcome item`); e um módulo
+  genérico com mais de um modificador resolve o verbo sobre qualquer um deles,
+  não só sobre o primeiro declarado.
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima

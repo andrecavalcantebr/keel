@@ -12,3 +12,5 @@
 - [keel_libs: reorganização (2026-11-20)](keel-libs-reorganizacao-2026-11-20.md) — um repositório (coll, maths); stdlib = base; libs-spec.md; só fonte; LIBS.md/CONTRIBUTING; http fora, discutir antes.
 - [cgen: ligação e tags (2026-11-20)](cgen-ligacao-e-tags-2026-11-20.md) — tags até 128 + tags-limit-exceeded; .a/-l depois dos .c gerados; 0.4.0-dev em ~/Apps.
 - [Testes por área + pre-push](testes-por-area-e-hook-pre-push.md) — test/run.sh AREA...; suíte inteira só no push (hook local).
+- [Decisões v1+ (2026-11-23)](decisoes-v1-mais-2026-11-23.md) — pub import como alias de fachada (source descartado), a..<b/a..=b aditivo, LINE_CAP no normativo + tabela de limites.
+- [Sessão 2026-11-23: estado e fila](sessao-2026-11-23-estado.md) — teto 215 commitado (ba9e195); fila: intervalos, pub import, handles, A1/A3, E02/E03, arena.

@@ -77,16 +77,24 @@ static void type_h_body(Emit *e) {
 
 static void raw(Emit *e, const char *s);
 
-/* A function of the .h: a `pub` one, and in an instance a `priv inline` one too,
- * which is `static inline` there under the instance's name (backend §4.3, rule 6) */
+/* A function of the .h: a `pub` one, or any `inline` one — `priv inline` is
+ * `static inline` too, under its own name, never exported (backend §4.3.2,
+ * rule 6: privacy is by name, not by linkage). In a generic module this
+ * reaches a `priv inline` that names neither `T` nor the modifier: it does
+ * not belong to any one instance (k_em_skip keeps it out of those), so it is
+ * the bare module's own .h that writes it once — the same file a `pub` one
+ * of these already shares, never replicated, so two instances in the same
+ * translation unit cannot redefine it. */
 static bool header_function(const Emit *e, const KAstNode *n) {
-    return n->kind == K_AST_FUNCTION && (n->is_public || (e->inst && n->is_inline));
+    (void)e;
+    return n->kind == K_AST_FUNCTION && (n->is_public || n->is_inline);
 }
 
-/* a `pub inline` function, or in an instance a `priv inline` one: its body is in the .h */
+/* a `pub inline` function, any other `inline` one (same note as above), or in
+ * an instance a function over a protocol: its body is in the .h */
 static bool header_body(const Emit *e, const KAstNode *n) {
     if (e->inst && e->inst->proto_fn.len) return true;
-    return k_em_is_pub_inline(e->ast, n) || (e->inst && n->kind == K_AST_FUNCTION && n->is_inline);
+    return k_em_is_pub_inline(e->ast, n) || (n->kind == K_AST_FUNCTION && n->is_inline);
 }
 
 static void h_body(Emit *e) {

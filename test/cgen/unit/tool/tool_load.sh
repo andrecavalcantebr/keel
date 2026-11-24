@@ -2,7 +2,7 @@
 # Hand-written oracle for tool/tool.c. Not model-generated. Run from the
 # repository root: it loads the repository's own base/ tree.
 set -u
-SRC="tools/cgen/src/tool/tool.c tools/cgen/src/tool/paths.c tools/cgen/src/tool/read_source.c tools/cgen/src/tool/report.c"
+SRC="tools/cgen/src/tool/tool.c tools/cgen/src/tool/paths.c tools/cgen/src/tool/read_source.c tools/cgen/src/tool/report.c tools/cgen/src/tool/memory.c"
 TESTMAIN=test/cgen/unit/tool/tool_load_main.c
 DEPS=$(find tools/cgen/src/engine -name '*.c')
 # O carregador não libera nada, de propósito: as fatias de nome dos

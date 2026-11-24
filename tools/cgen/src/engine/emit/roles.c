@@ -19,7 +19,8 @@ static void put(char *buf, size_t *w, const char *s, size_t n) { memcpy(buf + *w
 static keel_slice_char k_diag_text_len(const char *s, size_t n) { return (keel_slice_char){ n, (char *)s }; }
 
 static bool is_role(KToken t) {
-    return k_em_text_is(t, "child") || k_em_text_is(t, "parent") || k_em_text_is(t, "invalidates");
+    return k_em_text_is(t, "child") || k_em_text_is(t, "parent") || k_em_text_is(t, "invalidates") ||
+           k_em_text_is(t, "consumes");
 }
 
 static size_t blanks_after(const KAst *ast, size_t i) {

@@ -1,0 +1,55 @@
+Notas do caso.
+
+Primeiro caso de `keel.pool` e `keel.entity` (spec §5.9, backend §5.20): o
+desenho de índice geracional, não o handle com ponteiro (descartado,
+`design/possibilidades.md`).
+
+O que o caso afirma, no corpo de `app.pl.main`, por código de retorno:
+
+- `from_arena` numa arena com espaço dá capacidade fixa (`3`); sem espaço
+  (não exercitado aqui, mesma forma de `bitbuffer.make`) dá capacidade zero.
+  Não há `realloc`: o quarto `alloc` sobre um `pool` de capacidade 3 falha
+  (`NONE`), mesmo havendo espaço de sobra na arena.
+- `alloc` devolve `outcome entity`; `ptr` lê e escreve o slot. `from_arena`
+  não zera `T` — o `arena.alloc` que ele chama também não — por isso o caso
+  escreve os três slots antes de conferir, em vez de supor zero.
+- `free` consome o próprio `entity` (`consumes`, e não `invalidates`):
+  copiar para `stale0` antes de `pool.free(p, e0)` é o único jeito de ainda
+  ter como testar `at` depois — usar `e0` direto seria
+  `child-region-after-invalidation`, antes de chegar ao `cc`.
+- `at` verifica a geração em toda build (como `buffer.at`): `pool.at(p,
+  stale0)` depois do `free` dá `NONE`, sem precisar de `KEEL_CHECKS`.
+- Um `alloc` depois do `free` reaproveita o mesmo slot (`e3.index ==
+  stale0.index`) com a geração seguinte (`e3.gen == stale0.gen + 1`).
+- `reset` invalida todo `entity` distribuído antes dele — `e1`, nunca
+  liberado por `free`, também fica inválido depois do `reset` — e devolve a
+  capacidade original (um `alloc` depois dele funciona de novo).
+- `DEBUG`: `ptr` sobre `stale0` depois do `free` aborta com
+  `entity-generation-mismatch` (debug); em release, o `which == 1` só
+  descarta o ponteiro e retorna, sem checar nada — é por isso que o `(void)`
+  está lá, para o aviso de `[[nodiscard]]` (C23 só, backend §9.1, sobre o
+  `child T *` de `ptr`) não aparecer na build normal.
+
+`pool-generation-overflow` (geração de slot em `UINT32_MAX`) não tem caso
+aqui: alcançá-lo por `alloc`/`free` de verdade pede `UINT32_MAX` ciclos no
+mesmo slot, e não há verbo público para forçar a geração de um slot sem
+passar por eles. A revisão é por leitura: o incremento que satura, em
+`bump` (`keel/pool.k`, `priv inline`, compartilhado por toda instância —
+não menciona `T` nem `pool`), é o mesmo par `if` que `keel_inclusive` já
+usa para `inclusive-range-overflow` (golden 087), só que sobre `u32` em vez
+de `size_t`.
+
+`bump` também é o caso que achou um bug real do cgen nesta sessão: uma
+função `priv inline` de módulo genérico que não menciona `T` nem o
+modificador não ia para lugar nenhum (nem o `.h` da instância, nem o `.h`
+nu do módulo) — ficava só a chamada, renomeada, sem declaração nem corpo.
+Corrigido em `engine/emit/files.c` (`header_function`/`header_body`): esse
+caso compartilha o `.h` nu do módulo, como um `pub inline` não-paramétrico
+já fazia, e por isso não duplica quando duas instâncias do mesmo genérico
+aparecem na mesma unidade de tradução (testado à mão, fora deste caso: duas
+instâncias, `g i32` e `g f64`, de um módulo de prova).
+
+Os headers genéricos de `keel.entity` e `keel.pool` (sem `T`) são
+determinísticos e foram acrescentados a `c23/keel/` e `c11/keel/`, ao lado
+dos de `arena` e `outcome`; as instâncias por `T` (`..._app_pl_Particle`,
+`..._keel_entity`) ficam no `expected/` deste caso.

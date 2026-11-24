@@ -155,6 +155,8 @@ O conteúdo das tabelas é em inglês, como o código.
 | `bitbuffer-width-invalid` |  | An instance of `bitbuffer` or `bitslice` with `W` outside `1..8*sizeof(T)`, a signed or non-integer `T`, or a `bool` with `W` other than 1 |
 | `nonconstant-dim` | the dimension `%s` of `%s` is not known at translation time: write a decimal literal or a `constexpr` | An argument of `dim` that is not a decimal literal or a `constexpr` with a known decimal initializer |
 | `alloc-overflow` |  | `arena.alloc` whose `n * sz` does not fit in `size_t` |
+| `entity-generation-mismatch` |  | `pool.ptr(p, e)` whose `e` is out of `p`'s capacity, or whose generation does not match the slot's |
+| `pool-generation-overflow` |  | `pool.free` whose slot's generation is already `UINT32_MAX` |
 | `canonical-name-collision` | `%s` is the C name of both `%s` and `%s` in this module: rename one | Two declarations of the same module that produce the same canonical name |
 | `modifier-named-instance` | a modifier cannot be named `instance`: the word opens the declaration that places an instance's bodies | A modifier declared with the name `instance` |
 | `address-in-object-position` | `%s` takes its object without `&`: the object is written as itself and the address is inserted from the parameter (`%s`) | The address operator over the object in the first argument of a verb |

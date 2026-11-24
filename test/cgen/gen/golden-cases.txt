@@ -101,3 +101,4 @@ test/cgen/gen/share|use.k|-
 085-typedef-of-instance|app/ti.k strs.k|app.ti
 086-c-type-arguments|app/ca.k recs.k|app.ca
 087-inclusive-range|app/ir.k|app.ir
+088-pool-entity|app/pl.k|app.pl

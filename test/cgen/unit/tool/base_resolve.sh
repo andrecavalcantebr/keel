@@ -4,14 +4,14 @@
 # generated C file by loop.py.
 set -u
 
-SRC=tools/cgen/src/tool/base_resolve.c
+SRC="tools/cgen/src/tool/base_resolve.c tools/cgen/src/tool/memory.c"
 
 TESTMAIN=test/cgen/unit/tool/base_resolve_main.c
 BIN=$(mktemp)
 WORK=$(mktemp -d)
 trap 'rm -f "$BIN"; rm -rf "$WORK"' EXIT
 
-gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra -O0 -g "$SRC" "$TESTMAIN" -o "$BIN" || {
+gcc -std=c2x -I tools/cgen/src -I tools/cgen/gen -Wall -Wextra -O0 -g $SRC "$TESTMAIN" -o "$BIN" || {
     echo "FAIL: compile error"
     exit 1
 }

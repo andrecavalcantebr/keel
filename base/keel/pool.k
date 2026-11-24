@@ -13,8 +13,12 @@ import keel.outcome as outcome types;
 
 // `byref`, like `buffer` and `bitbuffer`: three arrays of `cap` slots each,
 // allocated together by `from_arena`. `top` counts the free indices still on
-// the stack `free`; `cap - top` is `length` (spec §5.9).
-pub modifier pool byref { T *data; u32 *gen, *free; size_t top, cap; }
+// the stack `free`; `cap - top` is `length` (spec §5.9). `owner` and `stamp`
+// are not about one slot: they are what lets every verb below tell, at
+// O(1), whether the arena this `pool` came from was reset, restored, or
+// reused for a new region since `from_arena` — the per-slot generation
+// catches reuse of one slot, never the whole region moving underneath it.
+pub modifier pool byref { T *data; u32 *gen, *free; size_t top, cap; arena *owner; size_t stamp; }
 
 // not exported: `free` and `reset` both move a slot's generation forward by
 // one, saturating at UINT32_MAX instead of wrapping to zero (spec §5.9, rule
@@ -28,10 +32,18 @@ priv inline void bump(u32 *gen, size_t i) {
     if (gen[i] != UINT32_MAX) gen[i]++;
 }
 
+// not exported either: every verb below that touches `p`'s own arena-backed
+// arrays opens with this. `arena.generation` is the only door to the
+// arena's own counter — reading the field directly would be
+// `instance-field-access` (backend §4.4).
+priv inline void check_region(const pool *p) {
+    KEEL_CHECK(p->stamp == arena.generation(p->owner), "pool-region-invalidated");
+}
+
 // reserves the three arrays from one arena; no room leaves `p` at capacity
 // zero, like `bitbuffer.make` (spec §5.9, "Casos especiais"). There is no
 // `realloc`: capacity is fixed from here on.
-pub inline bool from_arena(parent pool *p, parent arena *a, size_t cap) {
+pub inline bool from_arena(child pool *p, parent arena *a, size_t cap) {
     *p = (pool){0};
     T   *data  = arena.alloc(a, T,   cap);
     u32 *gen   = arena.alloc(a, u32, cap);
@@ -39,11 +51,13 @@ pub inline bool from_arena(parent pool *p, parent arena *a, size_t cap) {
     if (!data || !gen || !slots) return false;
     for (size_t i = 0; i < cap; ++i) { gen[i] = 0; slots[i] = (u32)(cap - 1 - i); }
     p->data = data; p->gen = gen; p->free = slots; p->top = cap; p->cap = cap;
+    p->owner = a; p->stamp = arena.generation(a);
     return true;
 }
 
 // takes a slot off the free stack; `NONE` with none left (spec §5.9).
 pub inline child outcome entity alloc(parent pool *p) {
+    check_region(p);
     outcome entity r = {0};
     if (p->top == 0) return outcome.none(r);
     u32 idx = p->free[--p->top];
@@ -55,11 +69,13 @@ pub inline child outcome entity alloc(parent pool *p) {
 // offer at all. `e` is `consumes`: the value itself goes invalid, not only
 // what derives from it (rule 4.12 vs. `invalidates`).
 pub inline void free(parent pool *p, consumes entity e) {
+    check_region(p);
     bump(p->gen, e.index);
     p->free[p->top++] = e.index;
 }
 
 pub inline void reset(invalidates pool *p) {
+    check_region(p);
     for (size_t i = 0; i < p->cap; ++i) { bump(p->gen, i); p->free[i] = (u32)(p->cap - 1 - i); }
     p->top = p->cap;
 }
@@ -68,17 +84,23 @@ pub inline void reset(invalidates pool *p) {
 // `cap`, or a generation that does not match the slot's, is `entity` that
 // never came from this `pool` or no longer does.
 pub inline child T *ptr(parent pool *p, entity e) {
+    check_region(p);
     KEEL_CHECK(e.index < p->cap && e.gen == p->gen[e.index], "entity-generation-mismatch");
     return &p->data[e.index];
 }
 
 // checked in every build, like `buffer.at`: a copy, or `NONE` instead of the
-// abort (spec §5.9, rule 4).
+// abort (spec §5.9, rule 4) — so the region check here cannot be the
+// `debug`-only `check_region`: `at` promises no UB in release either, and
+// folds both checks into the one condition, still O(1).
 pub inline outcome T at(parent pool *p, entity e) {
     outcome T r = {0};
-    if (e.index < p->cap && e.gen == p->gen[e.index]) return outcome.win(r, p->data[e.index]);
+    if (p->stamp == arena.generation(p->owner) && e.index < p->cap && e.gen == p->gen[e.index])
+        return outcome.win(r, p->data[e.index]);
     return outcome.none(r);
 }
 
+// plain fields of `p` itself, never arena-backed memory: no check, same as
+// `arena.length`/`arena.capacity`.
 pub inline size_t length  (const pool *p) { return p->cap - p->top; }
 pub inline size_t capacity(const pool *p) { return p->cap; }

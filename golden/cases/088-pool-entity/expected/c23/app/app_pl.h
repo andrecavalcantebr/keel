@@ -4,7 +4,7 @@
 
 #include "app/app_pl.type.h"
 
-#line 15 "app/pl.k"
+#line 16 "app/pl.k"
 int app_pl_main(int argc, char **argv);
 
 #endif /* APP_APP_PL_H */

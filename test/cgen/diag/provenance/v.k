@@ -2,9 +2,14 @@ module v;
 import keel.arena as arena types;
 import keel.buffer as buffer types;
 import keel.slice as slice;
+import keel.pool as pool types;
+import keel.entity as entity types;
+import keel.outcome as outcome types;
 import_c <stdio.h>;
 
 priv void use(i32 *p) { (void)p; }
+
+typedef struct { i32 x; } Particle;
 
 pub void spec_example(void) {
     array u8 storage[1024];
@@ -35,6 +40,19 @@ pub child i32 *kept_ok(parent arena *a) {
     arena.from_array(a, kept);
     i32 *p = arena.alloc(a, i32, 4);
     return p;
+}
+
+/* `pool` is `child` of the arena it comes from (spec §5.9): resetting the
+   arena invalidates the pool itself, same as any other child region. */
+pub void pool_after_reset(void) {
+    array u8 storage[4096];
+    arena a;
+    arena.from_array(a, storage);
+    pool struct Particle p;
+    pool.from_arena(p, a, 4);
+    arena.reset(a);
+    outcome entity r = pool.alloc(p);              /* DIAG: child-region-after-invalidation */
+    (void)r;
 }
 
 pub void views(buffer i32 *b) {

@@ -63,6 +63,7 @@ A divisão vale nos três documentos, e é um critério só:
   - [5.18 Binder de dimensão](#518-binder-de-dimensão)
   - [5.19 Função sobre protocolo](#519-função-sobre-protocolo)
   - [5.20 `bitbuffer` e `bitslice`](#520-bitbuffer-e-bitslice)
+  - [5.21 `pool` e `entity`](#521-pool-e-entity)
 - [6. Mapeamento de linhas](#6-mapeamento-de-linhas)
   - [6.1 Diagnóstico dentro de instância](#61-diagnóstico-dentro-de-instância)
 - [7. Propriedades exigidas do conteúdo gerado](#7-propriedades-exigidas-do-conteúdo-gerado)
@@ -983,6 +984,7 @@ t->ptr + idx0 * t->steps[0] + idx1 * t->steps[1] + idx2 * t->steps[2]
 typedef struct keel_arena {
     size_t  top;
     size_t  cap;
+    size_t  generation;
     u8     *ptr;
 } keel_arena;
 
@@ -1047,6 +1049,7 @@ keel_arena h = {0};  keel_arena_from_memory(&h, mem, cap);
 10. Não há `from_stack`: o armazenamento no frame é um `array u8` que o programa escreve e passa a `from_array` (linguagem §5.2). O tamanho é o do vetor declarado, e não há VLA.
 11. `from_parent` recorta a filha com `keel_arena_alloc2(parent, sizeof(u8), alignof(u8), n)`: alinhamento 1, porque a filha alinha as próprias alocações.
 12. `from_memory` toma ponteiro e tamanho crus e assume `max_align_t`, porque a origem é `malloc` ou `mmap`. Região com alinhamento menor é do programa (linguagem §4.4).
+13. *(desde 0.4.0)* `generation` sobe em `reset`, em `restore` e nos três construtores (linguagem §5.2, regra 12); os três construtores guardam o valor anterior antes do `= {0}` e o escrevem de volta somado a um, para a contagem não recomeçar em zero quando a variável é reusada para uma região nova. É leitura e escrita simples, sem `KEEL_CHECK`: não há condição que falhe aqui, só um contador. `keel.pool` é quem lê (§5.20).
 
 **Verificações:** `alloc-overflow` (§5.17).
 
@@ -1842,8 +1845,9 @@ static inline size_t keel_index(size_t i, size_t d) {
 | `set(x, i, v)` e `push(b, v)` de `bitbuffer` e `bitslice` | `v` cabe em `W` bits *(desde 0.4.0)* | `bit-value-out-of-width` |
 | `arena.alloc(a, n, sz, al)` | `sz == 0 \|\| n <= SIZE_MAX / sz` | `alloc-overflow` |
 | `a..=b` *(desde 0.4.0)*: `keel_inclusive(b)`, função em linha do prelúdio ao lado de `keel_index` | `b != SIZE_MAX` | `inclusive-range-overflow` |
-| `pool.ptr(p, e)` *(desde 0.4.0)* | `e.gen == slot[e.index].gen` | `entity-generation-mismatch` |
-| `pool.free(p, e)` *(desde 0.4.0)* | `slot[e.index].gen != UINT32_MAX` | `pool-generation-overflow` |
+| `pool.ptr(p, e)` *(desde 0.4.0)* | `e.index < p.cap && e.gen == p.gen[e.index]` | `entity-generation-mismatch` |
+| `pool.free(p, e)`, `pool.reset(p)` *(desde 0.4.0)*: por slot liberado | `p.gen[i] != UINT32_MAX` | `pool-generation-overflow` |
+| `pool.alloc(p)`, `pool.free(p, e)`, `pool.reset(p)`, `pool.ptr(p, e)` *(desde 0.4.0)*: `check_region(p)`, função em linha do módulo | `p.stamp == arena.generation(p.owner)` | `pool-region-invalidated` |
 | `routine.par(s, alvo)` | `alvo <= length(s)` | `par-target-above-total` |
 | `routine.mask(s)` | `length(s) <= 64` | `mask-above-64-slots` |
 
@@ -1959,6 +1963,60 @@ typedef struct keel_bitbuffer_3_u8 { size_t cap, len; u8 *words; } keel_bitbuffe
 6. `partition` calcula o passo sobre o miolo da vista, depois dos `bits.lead(bit, W)` elementos que precedem a primeira fronteira de byte, e o arredonda para múltiplo de `bits.group(W)`. A primeira parte começa em zero e leva esses elementos; as demais começam em `lead + w*passo`. O resultado é `as_slice` da faixa, e `bit` da parte sai de `(bit + lo*W) % 8`.
 
 **Verificações:** `index-out-of-length`, `set-out-of-length` e `bit-value-out-of-width` (§5.17); `bitbuffer-width-invalid` é do compilador C, pela guarda da regra 3. **Perfis:** iguais.
+
+### 5.21 `pool` e `entity` *(desde 0.4.0)*
+
+**Forma:** `pool T` e `entity` (linguagem §5.9).
+
+**Emissão**
+
+```keel
+//keel, em keel/pool.k
+pub modifier pool byref { T *data; u32 *gen, *free; size_t top, cap; arena *owner; size_t stamp; }
+
+priv inline void check_region(const pool *p) {
+    KEEL_CHECK(p->stamp == arena.generation(p->owner), "pool-region-invalidated");
+}
+
+pub inline void free(parent pool *p, consumes entity e) {
+    check_region(p);
+    bump(p->gen, e.index);
+    p->free[p->top++] = e.index;
+}
+```
+
+```c
+//C gerado, instância pool struct Particle, em keel/keel_pool_app_pl_Particle.{type.h,h}
+typedef struct keel_pool_app_pl_Particle {
+    struct app_pl_Particle *data;
+    u32 *gen, *free;
+    size_t top, cap;
+    keel_arena *owner;
+    size_t stamp;
+} keel_pool_app_pl_Particle;
+
+static inline void keel_pool_app_pl_Particle_check_region(const keel_pool_app_pl_Particle *p) {
+    KEEL_CHECK(p->stamp == keel_arena_generation(p->owner), "pool-region-invalidated");
+}
+
+static inline void keel_pool_app_pl_Particle_free(keel_pool_app_pl_Particle *p, keel_entity e) {
+    keel_pool_app_pl_Particle_check_region(p);
+    keel_pool_bump(p->gen, e.index);
+    p->free[p->top++] = e.index;
+}
+```
+
+**Regras**
+
+1. `entity` é o `.h`/`.type.h` de `keel.entity`, não genérico: um `typedef struct { u32 index, gen; } keel_entity;` só, compartilhado por qualquer instância de `pool`.
+2. `pool T` é a instância comum de modificador genérico `byref` (§5.2): um `.h`/`.type.h` por `T`, struct e corpos `static inline`.
+3. `check_region` e `bump` não mencionam `T` nem citam o modificador na própria assinatura (`check_region` cita `pool`, então é da instância; `bump` não cita nada, então é do módulo nu, `keel_pool_bump`, compartilhado por toda instância — regra geral de nome qualificado por instância, §4.3, regra 20, e o emissor segue a mesma partição de `header_function`/`header_body` que separa o `.h` da instância do `.h` nu do módulo).
+4. `check_region` confere `p->stamp` contra `arena.generation(p->owner)`, nunca contra o campo de `arena` direto: ler campo de instância de outro módulo é `instance-field-access` (§4.4), e o verbo é a única porta, como `arena.mark`/`length`/`capacity`.
+5. Todo verbo que lê ou escreve `data`/`gen`/`free` abre com `check_region(p)`: `alloc`, `free`, `reset` e `ptr`. `length` e `capacity` não chamam: leem só campos do próprio `p`, nunca memória da arena (linguagem §5.9, regra 9).
+6. `at` não usa `check_region`: ele promete nenhum comportamento indefinido em toda build, e `KEEL_CHECK` desliga sob `--checks=off` (§5.17, regra 2). A conferência da geração da arena entra na mesma condição que já conferia a do slot — `p->stamp == arena.generation(p->owner) && e.index < p->cap && e.gen == p->gen[e.index]` —, incondicional, O(1) como o resto.
+7. `from_arena` grava `p->owner = a; p->stamp = arena.generation(a);` depois de reservar os três arranjos, na mesma chamada que já falha (devolve `false`) se algum `arena.alloc` devolver `NULL`.
+
+**Verificações:** `entity-generation-mismatch`, `pool-generation-overflow` e `pool-region-invalidated` (§5.17). **Perfis:** `ptr` leva `[[nodiscard]]` em C23 (§5.2, regra 7), ausente em C11.
 
 ## 6. Mapeamento de linhas
 

@@ -20,6 +20,7 @@
 
 
 
+
 int app_pl_main(int argc, char **argv) {
     int which = argc > 1 ? atoi(argv[1]) : 0;
 
@@ -70,6 +71,18 @@ int app_pl_main(int argc, char **argv) {
 
     keel_outcome_keel_entity r4 = keel_pool_app_pl_Particle_alloc(&p);
     if (keel_outcome_keel_entity_failed(r4)) return 13;
+
+
+
+
+    keel_entity e5 = keel_outcome_keel_entity_value(keel_pool_app_pl_Particle_alloc(&p));
+    keel_pool_app_pl_Particle stale_p = p;
+    keel_arena_from_array(&a, storage, 4096);
+
+    keel_outcome_app_pl_Particle after_region = keel_pool_app_pl_Particle_at(&stale_p, e5);
+    if (!keel_outcome_app_pl_Particle_failed(after_region)) return 14;
+
+    if (which == 2) { keel_outcome_keel_entity r5 = keel_pool_app_pl_Particle_alloc(&stale_p); (void)r5; return 0; }
 
     return 0;
 }

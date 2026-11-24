@@ -136,6 +136,7 @@
  "partition-type-mismatch": "38149b6d2bf426c4",
  "pointer-binder-on-range": "07035175c15ca5a0",
  "pool-generation-overflow": "39736d745e5772ff",
+ "pool-region-invalidated": "c8e9f7bb2af16807",
  "private-main": "55224aabe5185418",
  "protocol-not-satisfied": "d357ad7dc465b6de",
  "protocol-on-parameter": "8a422f1a4d2a21d3",

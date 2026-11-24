@@ -1,2 +1,3 @@
 # <argument> <diagnostic id> <the .k position the abort reports> (backend §5.17, rule 4)
-1 entity-generation-mismatch keel/pool.k:71
+1 entity-generation-mismatch keel/pool.k:88
+2 pool-region-invalidated keel/pool.k:40

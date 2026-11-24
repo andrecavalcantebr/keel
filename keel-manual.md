@@ -1300,12 +1300,16 @@ por região inteira.
 | `arena.reset(a)` | — | volta ao topo zero |
 | `arena.length(a)` | `size_t` | bytes ocupados |
 | `arena.capacity(a)` | `size_t` | capacidade total |
+| `arena.generation(a)` *(desde 0.4.0)* | `size_t` | contador que sobe em `reset`, `restore` e cada construtor — nunca em `alloc`/`mark` |
 
 Essenciais: toda `arena` sem inicializador nasce `{0}` (vazia, capacidade
 zero); `reset`/`restore` não devolvem memória ao sistema nem limpam
 objetos; resetar o pai invalida as filhas e tudo que delas deriva,
 transitivamente; `arena` não sincroniza entre threads — recorte uma arena
-por worker antes de um `parallel`. Contrato completo, erros e casos
+por worker antes de um `parallel`. `generation` existe para outro módulo
+guardar uma cópia e, depois, perguntar a O(1) se esta arena já se moveu
+desde então — é o que `keel.pool` faz (§8.9); ler o campo direto, em vez do
+verbo, é `instance-field-access`. Contrato completo, erros e casos
 especiais: [spec §5.2](keel-spec.md#52-keelarena).
 
 ### 8.3 `keel.buffer`, `keel.slice`, `keel.range`, `keel.array`
@@ -1553,6 +1557,75 @@ distintas sem corrida de dados. `keel.bits` guarda o empacotamento
 `T` é inteiro sem sinal ou `bool`, e `W` cabe nos bits de `T`; fora disso, o
 compilador C recusa com `bitbuffer-width-invalid`. Contrato completo:
 [spec §5.8](keel-spec.md#58-keelbitbuffer-keelbitslice-e-keelbits-desde-040).
+
+### 8.9 `keel.pool`, `keel.entity` — índice geracional sobre um alocador de slots *(desde 0.4.0)*
+
+Um alocador de slots de **capacidade fixa**, com liberação **individual**
+verificada por geração — o que a arena não oferece: `arena.reset` só devolve
+tudo de uma vez. `entity` é a referência a um slot, por índice e geração, e
+não tem parâmetro de tipo: a mesma `entity` serve a qualquer `pool T`.
+
+```keel
+import keel.pool    as pool    types;
+import keel.entity  as entity  types;
+import keel.arena   as arena   types;
+import keel.outcome as outcome types;
+
+pool struct Particle p;
+pool.from_arena(p, a, 1024);        // 1024 slots, de uma vez; não há realloc
+outcome entity r = pool.alloc(p);
+if (outcome.ok(r)) {
+    entity e = outcome.value(r);
+    struct Particle *ref particle = pool.ptr(p, e);   // debug: confere a geração
+    particle->x = 0;
+    pool.free(p, e);                                  // devolve o slot; e, consumido, fica inválido
+}
+```
+
+| Chamada | Devolve | O que faz |
+| --- | --- | --- |
+| `pool.from_arena(p, a, cap)` | `bool` | reserva `cap` slots na arena `a`; `false` sem espaço, capacidade fica zero |
+| `pool.alloc(p)` | `outcome entity` | toma um slot livre; `NONE` se não há nenhum — o `pool` cheio não realoca |
+| `pool.free(p, e)` | — | devolve o slot de `e` à lista livre; `e` é `consumes` |
+| `pool.reset(p)` | — | invalida todo `entity` distribuído antes dele; devolve a capacidade inteira |
+| `pool.ptr(p, e)` | `T *` | endereço do slot; a geração é verificada em debug, como `buffer.ptr` |
+| `pool.at(p, e)` | `outcome T` | cópia do slot, verificada em toda build, como `buffer.at` |
+| `length(p)`, `capacity(p)` | `size_t` | slots em uso, slots reservados |
+
+Três coisas a ter em mente: **`free` consome o argumento** — usar a mesma
+variável depois, no mesmo escopo, é `child-region-after-invalidation`, antes
+mesmo de chegar ao compilador C; é por isso que o exemplo acima lê o campo
+antes de liberar. **Uma cópia escapa da verificação estática** — `entity e2 =
+e; pool.free(p, e2);` deixa `e` "válido" aos olhos da análise, mas `pool.ptr`
+e `pool.at` continuam conferindo a geração em execução, e pegam o uso depois
+do `free` mesmo assim (é a mesma defesa em duas camadas de toda a §4.12).
+**Nada verifica que o `entity` veio deste `pool`**: passar a `ptr`/`at`/`free`
+um `entity` de outro `pool` é o programa misturar identidades que a
+linguagem não distingue, como indexar um `buffer` com o índice de outro. A
+geração é `u32` e satura em `UINT32_MAX` — não volta a zero depois de
+`UINT32_MAX` liberações do mesmo slot sem um `reset` entre elas, o cenário
+que a verificação de debug existe para pegar.
+
+**A arena de onde o `pool` veio também pode se mover debaixo dele**, e isso
+não é a mesma coisa que liberar um slot: `arena.reset`, `arena.restore` ou
+reconstruir a mesma variável de arena (`arena.from_array` de novo, por
+exemplo) tornam o `pool` inteiro obsoleto, dados e geração dos slots
+inclusive. `from_arena` guarda uma cópia de `arena.generation(a)` — um
+contador que só sobe nessas três operações, nunca em `alloc` nem em `mark`
+— e todo verbo confere essa cópia contra a geração atual, a **O(1)**: um
+desvio de ponteiro e uma comparação, nunca um laço proporcional à
+capacidade do `pool`. Resetar a arena na mesma função onde o `pool` continua
+em uso já é pego em comptime (`child-region-after-invalidation`, porque
+`from_arena` faz do `pool` filho da arena); a conferência em execução é o
+que resta quando isso escapa da análise — mesma arena, função diferente, ou
+uma cópia do `pool` tirada antes. `alloc`, `free`, `reset` e `ptr` conferem
+em debug (`pool-region-invalidated`); `at`, que promete nenhum
+comportamento indefinido mesmo em release, dobra essa conferência na mesma
+condição que já decide `NONE`, sem precisar de `--checks`. Só alcança a
+arena **direta**: se ela for filha de outra e a avó for resetada, o `pool`
+não percebe — encadear por toda a ascendência deixaria de ser O(1).
+Contrato completo: [spec §5.9](keel-spec.md#59-keelpool-desde-040) e
+[§5.2](keel-spec.md#52-keelarena), regra 12.
 
 ---
 

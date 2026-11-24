@@ -9,7 +9,8 @@ typedef struct { i32 x; } Particle;
 
 /* The whole lifecycle of `pool`/`entity` (spec §5.9): fixed capacity, the
    outcome of a full pool, a slot's own generation reused after `free`, `at`
-   checked in every build, `reset` invalidating everything at once. `which`
+   checked in every build, `reset` invalidating everything at once, and the
+   arena a `pool` came from moving on underneath it (rule 9). `which`
    (golden DEBUG) takes the one check only the debug build verifies (backend
    §5.17); release only runs past it. */
 pub int main(int argc, char **argv) {
@@ -62,6 +63,18 @@ pub int main(int argc, char **argv) {
 
     outcome entity r4 = pool.alloc(p);
     if (outcome.failed(r4)) return 13;
+
+    /* a copy of `p`, taken before the arena moves on, is not followed by the
+       lexical analysis (spec §4.12, "Casos especiais") — the only way left
+       to reach the runtime side of rule 9, same idea as `stale0` above. */
+    entity e5 = outcome.value(pool.alloc(p));
+    pool struct Particle stale_p = p;
+    arena.from_array(a, storage);   // same memory, new generation (spec §5.2, rule 12)
+
+    outcome struct Particle after_region = pool.at(stale_p, e5);
+    if (!outcome.failed(after_region)) return 14;   // at() is safe in every build (rule 9)
+
+    if (which == 2) { outcome entity r5 = pool.alloc(stale_p); (void)r5; return 0; }   // DEBUG: pool-region-invalidated
 
     return 0;
 }

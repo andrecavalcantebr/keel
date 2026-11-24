@@ -570,10 +570,15 @@ um ponto; `reset` esvazia tudo. Não há `free` individual.
 ```keel
 module keel.arena;
 
-pub typedef struct { size_t top, cap; u8 *ptr; } arena;
+// `generation` goes up on every reset/restore/constructor, never on
+// alloc/mark; `keel.pool` reads it (by the verb below, never the field) to
+// tell at O(1) whether this arena moved on since it handed out memory.
+pub typedef struct { size_t top, cap, generation; u8 *ptr; } arena;
 
 pub inline bool from_array(child arena *a, parent array u8 storage[size_t n]) {
+    size_t prior = a->generation;   // not named `generation`: would shadow this module's own verb
     *a = (arena){0};
+    a->generation = prior + 1;      // kept monotonic across reuse, never reset by the `{0}` above
     if (storage && n > 0) {
         a->cap = n;
         a->ptr = storage;
@@ -582,7 +587,9 @@ pub inline bool from_array(child arena *a, parent array u8 storage[size_t n]) {
 }
 
 pub inline bool from_memory(arena *a, u8 *ptr, size_t len) {
+    size_t prior = a->generation;
     *a = (arena){0};
+    a->generation = prior + 1;
     if (ptr && len > 0) {
         a->cap = len;
         a->ptr = ptr;
@@ -591,7 +598,9 @@ pub inline bool from_memory(arena *a, u8 *ptr, size_t len) {
 }
 
 pub inline bool from_parent(child arena *a, parent arena *owner, size_t n) {
+    size_t prior = a->generation;
     *a = (arena){0};
+    a->generation = prior + 1;
     u8 *base = alloc(owner, u8, n);
     if (base) {
         a->cap = n;
@@ -619,10 +628,11 @@ pub inline child T *alloc(parent arena *a, type T, size_t n) {
 }
 
 pub inline size_t mark(const arena *a) { return a->top; }
-pub inline void   restore(invalidates arena *a, size_t m) { if (m <= a->top) a->top = m; }
-pub inline void   reset(invalidates arena *a) { a->top = 0; }
+pub inline void   restore(invalidates arena *a, size_t m) { if (m <= a->top) a->top = m; a->generation++; }
+pub inline void   reset(invalidates arena *a) { a->top = 0; a->generation++; }
 pub inline size_t length(const arena *a) { return a->top; }
 pub inline size_t capacity(const arena *a) { return a->cap; }
+pub inline size_t generation(const arena *a) { return a->generation; }
 ```
 
 ### `keel.array` — acesso ao vetor C simples
@@ -1279,6 +1289,139 @@ pub inline bool ok(control *c) {
                      : atomic_load_explicit(&c->fails, memory_order_relaxed) == 0;
 }
 ```
+
+### `keel.entity` — referência geracional a um slot de `pool` *(desde 0.4.0)*
+
+Sem parâmetro de tipo: a mesma `entity` identifica um slot em qualquer
+`pool T`.
+
+```keel
+module keel.entity;
+
+pub typedef struct { u32 index, gen; } entity;
+```
+
+### `keel.pool` — alocador de slots de capacidade fixa, liberação individual verificada *(desde 0.4.0)*
+
+Capacidade fixa como a arena, mas libera **um** slot por vez — o que a
+arena não faz: `arena.reset` só devolve tudo de uma vez. `free` e `reset`
+são por isso verbos diferentes, como aqui.
+
+```keel
+module keel.pool type T;
+
+import keel.entity  as entity  types;
+import keel.arena   as arena   types;
+import keel.outcome as outcome types;
+
+// `owner`/`stamp` are not about one slot: every verb below that touches
+// `data`/`gen`/`free` uses them to tell, at O(1), whether the arena this
+// `pool` came from moved on (reset, restore, reconstructed) since
+// `from_arena` — the per-slot generation only catches reuse of one slot.
+pub modifier pool byref { T *data; u32 *gen, *free; size_t top, cap; arena *owner; size_t stamp; }
+
+// mentions neither `T` nor `pool`: emitted once for the module — `keel_pool_bump`.
+// Saturates at UINT32_MAX instead of wrapping to zero, like `keel_inclusive` at SIZE_MAX.
+priv inline void bump(u32 *gen, size_t i) {
+    KEEL_CHECK(gen[i] != UINT32_MAX, "pool-generation-overflow");
+    if (gen[i] != UINT32_MAX) gen[i]++;
+}
+
+// mentions `pool`, so it is replicated per instance, not shared like `bump`.
+// `arena.generation` is the only door to the arena's own counter — reading
+// the field directly would be `instance-field-access`.
+priv inline void check_region(const pool *p) {
+    KEEL_CHECK(p->stamp == arena.generation(p->owner), "pool-region-invalidated");
+}
+
+// reserves the three arrays from one arena; no room leaves `p` at capacity zero.
+// There is no `realloc`: capacity is fixed from here on. `p` is `child` of
+// `a`: resetting `a` invalidates `p`, and transitively anything derived from
+// it, by the ordinary role propagation — no mechanism of its own.
+pub inline bool from_arena(child pool *p, parent arena *a, size_t cap) {
+    *p = (pool){0};
+    T   *data  = arena.alloc(a, T,   cap);
+    u32 *gen   = arena.alloc(a, u32, cap);
+    u32 *slots = arena.alloc(a, u32, cap);   // not named `free`: would shadow this module's own verb
+    if (!data || !gen || !slots) return false;
+    for (size_t i = 0; i < cap; ++i) { gen[i] = 0; slots[i] = (u32)(cap - 1 - i); }
+    p->data = data; p->gen = gen; p->free = slots; p->top = cap; p->cap = cap;
+    p->owner = a; p->stamp = arena.generation(a);
+    return true;
+}
+
+// takes a slot off the free stack; `NONE` with none left — a full pool never reallocates.
+pub inline child outcome entity alloc(parent pool *p) {
+    check_region(p);
+    outcome entity r = {0};
+    if (p->top == 0) return outcome.none(r);
+    u32 idx = p->free[--p->top];
+    return outcome.win(r, (entity){ idx, p->gen[idx] });
+}
+
+// `e` is `consumes`: the value itself goes invalid, not only what derives from it.
+pub inline void free(parent pool *p, consumes entity e) {
+    check_region(p);
+    bump(p->gen, e.index);
+    p->free[p->top++] = e.index;
+}
+
+pub inline void reset(invalidates pool *p) {
+    check_region(p);
+    for (size_t i = 0; i < p->cap; ++i) { bump(p->gen, i); p->free[i] = (u32)(p->cap - 1 - i); }
+    p->top = p->cap;
+}
+
+// checked in debug, like `buffer.ptr`: a bad index, or a generation that does
+// not match the slot's, is an `entity` that is stale or never was one.
+pub inline child T *ptr(parent pool *p, entity e) {
+    check_region(p);
+    KEEL_CHECK(e.index < p->cap && e.gen == p->gen[e.index], "entity-generation-mismatch");
+    return &p->data[e.index];
+}
+
+// checked in every build, like `buffer.at`: no `check_region` here, because
+// `at` promises no UB even in release — both checks fold into the one
+// condition that decides `NONE`, still O(1).
+pub inline outcome T at(parent pool *p, entity e) {
+    outcome T r = {0};
+    if (p->stamp == arena.generation(p->owner) && e.index < p->cap && e.gen == p->gen[e.index])
+        return outcome.win(r, p->data[e.index]);
+    return outcome.none(r);
+}
+
+// plain fields of `p` itself, never arena-backed memory: no check needed.
+pub inline size_t length  (const pool *p) { return p->cap - p->top; }
+pub inline size_t capacity(const pool *p) { return p->cap; }
+```
+
+Uso:
+
+```keel
+pool struct Particle p;
+pool.from_arena(p, a, 1024);
+outcome entity r = pool.alloc(p);
+if (outcome.ok(r)) {
+    entity e = outcome.value(r);
+    struct Particle *ref particle = pool.ptr(p, e);   // debug: confere a geração
+    particle->x = 0;
+    pool.free(p, e);                                  // devolve o slot; e, consumido, fica inválido
+}
+```
+
+Nada verifica que o `entity` passado a `ptr`/`at`/`free` veio deste `pool` —
+é o programa misturar identidades que a linguagem não distingue, como
+indexar um `buffer` com o índice de outro.
+
+A arena de onde o `pool` veio também pode se mover debaixo dele — não é a
+mesma coisa que liberar um slot. `from_arena` guarda uma cópia de
+`arena.generation(a)`; resetar/restaurar/reconstruir a arena sobe esse
+contador, e todo verbo confere a cópia contra o valor atual, a O(1). Na
+mesma função, isso já é pego em comptime (`child-region-after-invalidation`,
+porque `from_arena` faz do `pool` filho da arena); a conferência em
+execução pega o que escapa disso — função diferente, ou uma cópia do
+`pool` tirada antes do reset. Só alcança a arena direta: uma avó resetada
+não é vista.
 
 ---
 

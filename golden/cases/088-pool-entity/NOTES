@@ -1,6 +1,6 @@
 Notas do caso.
 
-Primeiro caso de `keel.pool` e `keel.entity` (spec §5.9, backend §5.20): o
+Primeiro caso de `keel.pool` e `keel.entity` (spec §5.9, backend §5.21): o
 desenho de índice geracional, não o handle com ponteiro (descartado,
 `design/possibilidades.md`).
 
@@ -24,11 +24,25 @@ O que o caso afirma, no corpo de `app.pl.main`, por código de retorno:
 - `reset` invalida todo `entity` distribuído antes dele — `e1`, nunca
   liberado por `free`, também fica inválido depois do `reset` — e devolve a
   capacidade original (um `alloc` depois dele funciona de novo).
-- `DEBUG`: `ptr` sobre `stale0` depois do `free` aborta com
-  `entity-generation-mismatch` (debug); em release, o `which == 1` só
-  descarta o ponteiro e retorna, sem checar nada — é por isso que o `(void)`
-  está lá, para o aviso de `[[nodiscard]]` (C23 só, backend §9.1, sobre o
-  `child T *` de `ptr`) não aparecer na build normal.
+- `DEBUG` (`which == 1`): `ptr` sobre `stale0` depois do `free` aborta com
+  `entity-generation-mismatch` (debug); em release, só descarta o ponteiro e
+  retorna, sem checar nada — é por isso que o `(void)` está lá, para o aviso
+  de `[[nodiscard]]` (C23 só, backend §9.1, sobre o `child T *` de `ptr`)
+  não aparecer na build normal.
+- A arena de onde o `pool` veio pode se mover debaixo dele (reset, restore,
+  ou reconstruída), e isso não é a mesma coisa que liberar um slot (regra 9
+  do §5.9, nova nesta rodada): `from_arena` guarda uma cópia de
+  `arena.generation(a)`, e todo verbo que toca os arranjos do `pool` confere
+  essa cópia contra a geração atual, a O(1). O caso usa `stale_p`, cópia de
+  `p` tirada antes de `arena.from_array(a, storage)` reconstruir a mesma
+  memória — a única forma de ainda ter como chamar `pool.alloc`/`at` depois:
+  usar `p` direto seria `child-region-after-invalidation` antes de chegar ao
+  `cc` (`from_arena` é `child` de `a`; ver `test/cgen/diag/provenance/v.k`
+  para o caso que afirma isso). `pool.at(stale_p, e5)` dá `NONE` em toda
+  build — a conferência da geração da arena está dentro da mesma condição
+  que já conferia a do slot, sem `KEEL_CHECK`, porque `at` não promete menos
+  que isso. `DEBUG` (`which == 2`): `pool.alloc(stale_p)` aborta com
+  `pool-region-invalidated`.
 
 `pool-generation-overflow` (geração de slot em `UINT32_MAX`) não tem caso
 aqui: alcançá-lo por `alloc`/`free` de verdade pede `UINT32_MAX` ciclos no

@@ -4,7 +4,7 @@
 
 #include "keel.type.h"
 
-#line 13 "keel/arena.k"
-typedef struct keel_arena { size_t top, cap; u8 *ptr; } keel_arena;
+#line 19 "keel/arena.k"
+typedef struct keel_arena { size_t top, cap, generation; u8 *ptr; } keel_arena;
 
 #endif /* KEEL_KEEL_ARENA_TYPE_H */

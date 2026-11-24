@@ -2086,6 +2086,7 @@ i32 *dados = arena.alloc(a, i32, n);
 | `arena.reset(a)` | — | volta ao topo zero |
 | `arena.length(a)` | `size_t` | bytes ocupados |
 | `arena.capacity(a)` | `size_t` | capacidade total, em bytes |
+| `arena.generation(a)` *(desde 0.4.0)* | `size_t` | contador que sobe a cada `reset`, `restore` e construtor — nunca em `alloc` nem em `mark` |
 
 - `arena` é tipo, e não modificador: `typedef struct { … } arena;`, emitido como `keel_arena`.
 - Os verbos recebem o descritor por referência (§4.4).
@@ -2102,6 +2103,7 @@ pub child void *alloc(parent arena *a, size_t n, size_t sz, size_t al);
 pub void reset(invalidates arena *a);
 pub void restore(invalidates arena *a, size_t mark);
 pub size_t mark(arena *a);
+pub size_t generation(const arena *a);
 ```
 
 `from_memory` não afirma procedência de ponteiro cru. `mark` só observa o topo.
@@ -2123,6 +2125,7 @@ Armazenamento por região, que delimita a validade dos dados derivados.
 9. `from_memory` não adquire nem libera a região externa.
 10. Procedência, escape de origem local e uso após invalidação seguem a §4.12. `restore` invalida conservadoramente todos os produtos conhecidos; a análise lexical não interpreta o valor da marca.
 11. keel não insere `defer` por reconhecer uma arena.
+12. *(desde 0.4.0)* `generation` sobe uma unidade a cada `reset`, a cada `restore` — inclusive quando `mark` recusa o `m` recebido, pela mesma conservadoragem da regra 10 — e a cada construtor, inclusive quando ele reusa a variável para uma região nova: o valor anterior nunca é descartado pelo `{0}` do construtor, só sucedido, para que uma marca antiga nunca coincida com uma geração futura. Não sobe em `alloc` nem em `mark`, que não invalidam nada já válido. Um módulo que guarda uma cópia de `generation(a)` no momento em que recebeu memória de `a` pode, depois, comparar essa cópia com `generation(a)` para saber, a O(1), se `a` foi resetada, restaurada ou reconstruída desde então — é o que `keel.pool` faz (§5.9). Ler o campo direto de outro módulo é `instance-field-access` (§4.4); o verbo é a única porta.
 
 Referências: [Rationale: memória por região](keel-rationale.md#memória-por-região); [Rationale: arena é um tipo](keel-rationale.md#arena-é-um-tipo); [Backend: arena](keel-c-backend.md#54-arena), inclusive o respaldo de tipo-caractere.
 
@@ -2876,20 +2879,24 @@ estável para um cursor percorrer. Não há `foreach` nem `walk` sobre `pool`
 nesta versão.
 
 ```keel
+pub bool from_arena(child pool *p, parent arena *a, size_t cap);
 pub child entity alloc(parent pool *p);
 pub void free(parent pool *p, consumes entity e);
 pub void reset(invalidates pool *p);
 pub child T *ptr(parent pool *p, entity e);
 ```
 
-`alloc` e `ptr` seguem o papel geral de produto derivado do receptor (§4.12,
-regra 2). `free` consome o próprio argumento `e`: usar essa variável depois,
-no mesmo escopo, é `child-region-after-invalidation`, como usar uma arena
-resetada — a diferença de `invalidates` (§4.12, regra 6) é que `free` também
-invalida o valor recebido, e não só o que dele deriva, porque não há nada que
-derive de `e` além do que `ptr` devolve na hora. `reset` segue o papel de
-`arena.reset`: invalida tudo o que já foi `child` do `pool`, e o `pool`
-continua válido.
+`from_arena` segue o mesmo papel de `arena.from_array`/`from_parent`: a arena
+é `parent`, o descritor que ela preenche é `child` — resetar ou restaurar a
+arena invalida o `pool`, e tudo que dele deriva, pela propagação transitiva
+da regra 4 do §4.12, sem mecanismo próprio. `alloc` e `ptr` seguem o papel geral de produto
+derivado do receptor (§4.12, regra 2). `free` consome o próprio argumento
+`e`: usar essa variável depois, no mesmo escopo, é
+`child-region-after-invalidation`, como usar uma arena resetada — a diferença
+de `invalidates` (§4.12, regra 6) é que `free` também invalida o valor
+recebido, e não só o que dele deriva, porque não há nada que derive de `e`
+além do que `ptr` devolve na hora. `reset` segue o papel de `arena.reset`:
+invalida tudo o que já foi `child` do `pool`, e o `pool` continua válido.
 
 #### 2. Regras
 
@@ -2928,6 +2935,27 @@ por geração.
    Cópias de `entity` não são seguidas pela análise lexical (§4.12, "Casos
    especiais"): copiar `e` para `e2` e usar `e` depois de `pool.free(p, e2)`
    não é diagnosticado — a defesa em execução de `ptr`/`at` continua valendo.
+9. *(desde 0.4.0)* A regra 8 cobre o `pool` liberado individualmente, mas não
+   cobre a arena de onde ele veio sair debaixo dele — `reset(a)` não torna
+   `p` sintaticamente diferente, e a análise lexical só alcança quando `a`
+   aparece na mesma função (regra 8 do §4.12, "Procedência e invalidação": o
+   uso depois do `reset(a)` já é `child-region-after-invalidation` ali, por
+   `from_arena` ser `child` de `a`). `from_arena` guarda, junto do `pool`,
+   uma cópia de `arena.generation(a)` tirada na hora; todo verbo que toca os
+   arranjos do `pool` confere essa cópia contra `arena.generation` da mesma
+   arena, a O(1) — um desvio de ponteiro e uma comparação, nunca um laço.
+   Diferente — resetou, restaurou ou foi reconstruída desde `from_arena` — é
+   `pool` cuja região já não é a que ele recebeu, igual a usar uma arena
+   resetada, só que visível mesmo quando a análise lexical, por alcançar só
+   uma função, não vê. `ptr`, como `at`, consulta: `ptr` dentro do mesmo
+   `KEEL_CHECK` que já confere a geração do slot, `pool-region-invalidated`
+   em debug; `at`, que promete nenhum comportamento indefinido em toda
+   build, dobra a mesma comparação dentro da condição que decide `NONE`, sem
+   `KEEL_CHECK` — a mesma divisão que a regra 4 já faz entre os dois.
+   `alloc`, `free` e `reset` conferem como `ptr`, só em debug: nenhum dos
+   três prometia mais que isso antes, e não é este o verbo que muda essa
+   promessa. `length` e `capacity` não conferem: leem campos do próprio
+   `pool`, nunca memória da arena.
 
 Referências: [Rationale: módulos e identidade](keel-rationale.md#módulos-e-identidade).
 
@@ -2948,7 +2976,8 @@ pool.ptr(p, e);                      // entity-generation-mismatch em debug
 
 De keel, na tradução; condições no [catálogo](#62-catálogo): `region-escape`,
 `child-region-after-invalidation`, `byref-param`. Do backend, em execução
-debug: `entity-generation-mismatch`, `pool-generation-overflow`.
+debug: `entity-generation-mismatch`, `pool-generation-overflow`,
+`pool-region-invalidated`.
 
 #### 5. Casos especiais
 
@@ -2968,6 +2997,14 @@ debug: `entity-generation-mismatch`, `pool-generation-overflow`.
   de cada slot — são do backend: a spec só fixa o efeito (regra 5), como já
   faz para `arena.alloc` (§5.2, "Casos especiais" não fixa o algoritmo do bump
   allocator).
+- A regra 9 alcança só a arena direta de `from_arena`. Se essa arena for
+  filha de outra (`arena.from_parent`) e a avó for resetada, a arena-filha
+  não muda de geração por conta disso — só `reset`/`restore`/um construtor
+  chamados nela mesma sobem `generation` (regra 12 do §5.2) —, e o `pool`
+  não percebe. Encadear a conferência por toda a ascendência da arena não é
+  mais O(1), porque a arena não tem teto de profundidade de aninhamento
+  (§4.2, "Modificadores se aninham sem teto próprio de profundidade" vale
+  pelo mesmo motivo); fica para quando houver caso real que o peça.
 
 ### 5.10 Biblioteca padrão
 
@@ -3120,6 +3157,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `alloc-overflow` | `arena.alloc` cujo `n * sz` não cabe em `size_t` | `debug` | Backend, em execução | §5.2 |
 | `entity-generation-mismatch` | `pool.ptr(p, e)` cuja geração não casa com a do slot — `entity` obsoleto *(desde 0.4.0)* | `debug` | Backend, em execução | §5.9 |
 | `pool-generation-overflow` | `pool.free` cuja geração de slot já está em `UINT32_MAX` *(desde 0.4.0)* | `debug` | Backend, em execução | §5.9 |
+| `pool-region-invalidated` | `pool.alloc`/`free`/`reset`/`ptr` cuja arena de origem foi resetada, restaurada ou reconstruída desde `from_arena` *(desde 0.4.0)* | `debug` | Backend, em execução | §5.9 |
 | `canonical-name-collision` | Duas declarações do mesmo módulo produzindo o mesmo nome canônico | `error` | keel | §4.2 |
 | `modifier-named-instance` | Modificador declarado com o nome `instance` | `error` | keel | §4.3 |
 | `address-in-object-position` | Operador de endereço sobre o objeto no primeiro argumento de um verbo | `error` | keel | §4.4 |

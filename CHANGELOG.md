@@ -64,6 +64,12 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   como dica. `c-type-as-argument` passa a valer só para o que não tem tipo keel (`long`,
   `unsigned long`, `long double`). O campo de um `struct` do módulo usa a etiqueta
   renomeada (`struct recs_Person`), e não a escrita.
+- O `implementation-limit` diz o que estourou (E02, E03): o catálogo passa a `implementation limit: %s`, e cada
+  ponto de emissão (binders, variáveis visíveis, delimitadores, tabelas de módulo, ilhas, fecho, raízes de busca)
+  dá a própria frase, com o valor e o caminho. O que antes saía como `unexpected-token` ou "does not cover" por
+  capacidade (`protocol` com mais de 16 itens, `array` com mais de 8 declaradores, `defer [now ...]` com mais de 8
+  entradas, `parallel` com mais de 16 capturas) nomeia o limite; o de `match` com muitos rótulos não manda mais
+  "encurtar a linha". Teste: `cli/limit_messages`.
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima

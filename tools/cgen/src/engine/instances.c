@@ -117,7 +117,7 @@ bool k_collect_instances(KAst *a,KDiagnosticSink *diag) {
         for(size_t j=0;j<a->instances.len;j++)
             if(keel_buffer_KInstanceUse_ptr(&a->instances, j)->symbol_len==use.symbol_len&&!memcmp(keel_buffer_KInstanceUse_ptr(&a->instances, j)->symbol,use.symbol,use.symbol_len)){exists=true;break;}
         if(exists)continue;
-        if(a->instances.len==a->instances.cap){k_diag_emit(diag,K_DIAG_CAPACITY,first,(KDiagArgs){{first}});return false;}
+        if(a->instances.len==a->instances.cap){k_diag_emit(diag,K_DIAG_CAPACITY,first,(KDiagArgs){{k_diag_text("this module writes more distinct instances than its instance table holds (one entry per token): split the module")}});return false;}
         (*keel_buffer_KInstanceUse_ptr(&a->instances, a->instances.len++))=use;
     }
     return true;

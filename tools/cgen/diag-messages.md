@@ -224,7 +224,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `invalid-option` |  | A cgen option with a value outside its enumeration |
 | `output-with-gen` |  | `-o` with `--stop-after=gen`: the phase writes several files; the message points to `--dest-dir` |
 | `write-failure` |  | I/O failed while writing under `--dest-dir` |
-| `implementation-limit` | insufficient storage while collecting module `%s` | A configured capacity of the implementation was reached; the message gives the limit, its value, the demand when known and the setting to adjust |
+| `implementation-limit` | implementation limit: %s | A configured capacity of the implementation was reached; the message gives the limit, its value, the demand when known and the setting to adjust |
 
 ## cgen
 

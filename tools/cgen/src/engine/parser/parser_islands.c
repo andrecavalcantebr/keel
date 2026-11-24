@@ -133,7 +133,7 @@ bool isl_emit(Ctx *c, KIslandKind kind, size_t anchor, const Text *t) {
     if (!t->ok || a->islands.len == a->islands.cap || t->n > a->island_text.cap - a->island_text.len) {
         if (!c->failed) {
             KToken at = isl_tok(a, anchor);
-            k_diag_emit(c->diag, K_DIAG_CAPACITY, at, (KDiagArgs){{at}});
+            k_diag_emit(c->diag, K_DIAG_CAPACITY, at, (KDiagArgs){{ k_diag_text("this module has more islands than the cgen holds (one per token, with 32 bytes of detail per token): split the module") }});
             c->failed = true;
         }
         return false;
@@ -215,7 +215,7 @@ size_t isl_dims_of(const Ctx *c, keel_slice_char text, long out[8]) {
 void isl_add_local(Ctx *c, Local local) {
     if (c->local_count == K_LOCALS_MAX) {
         if (!c->failed) {
-            k_diag_emit(c->diag, K_DIAG_CAPACITY, local.name, (KDiagArgs){{local.name}});
+            k_diag_emit(c->diag, K_DIAG_CAPACITY, local.name, (KDiagArgs){{ k_diag_text("more than 128 variables visible at once (locals and the file's own): the cgen holds 128; split the function or the module") }});
             c->failed = true;
         }
         return;
@@ -774,7 +774,7 @@ static bool pool(Ctx *c, const char *p, size_t n, size_t *at) {
     if (n > a->closure_text.cap - a->closure_text.len) {
         if (!c->failed) {
             KToken t = isl_tok(a, a->module);
-            k_diag_emit(c->diag, K_DIAG_CAPACITY, t, (KDiagArgs){{ t }});
+            k_diag_emit(c->diag, K_DIAG_CAPACITY, t, (KDiagArgs){{ k_diag_text("the closure of instances of this module needs more text than the cgen holds (65536 bytes): split the module") }});
             c->failed = true;
         }
         return false;
@@ -899,7 +899,7 @@ static void close_instances(Ctx *c) {
         const KType *k = isl_kt(c, inst[q]);
         if (a->closure.len == a->closure.cap) {
             KToken t = isl_tok(a, a->module);
-            k_diag_emit(c->diag, K_DIAG_CAPACITY, t, (KDiagArgs){{ t }});
+            k_diag_emit(c->diag, K_DIAG_CAPACITY, t, (KDiagArgs){{ k_diag_text("the closure of this module has more than 128 instances (CGEN_CLOSURE_MAX): split the module") }});
             c->failed = true;
             break;
         }

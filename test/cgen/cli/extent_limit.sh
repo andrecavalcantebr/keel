@@ -1,7 +1,7 @@
 #!/bin/sh
 # An `extent` past the cgen's capacity is refused with a diagnostic, never left as text in the .type.h
 # (E03): 4 groups `[k, n]` pass and the 5th is `extent-limit-exceeded`; 8 `array` columns pass and the
-# 9th is an `implementation-limit` (its message is still the generic one: E03).
+# 9th is an `implementation-limit`.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
 BIN=$PWD/tools/cgen/cgen
 K=$PWD/base

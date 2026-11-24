@@ -1,5 +1,7 @@
 # E03 — recusas silenciosas, mensagens enganosas e escala (medição de 2026-11-23)
 
+**Situação (2026-11-23).** Fechados: o `extent` silencioso (`extent-limit-exceeded`, 0bd6f3c) e as mensagens enganosas de `match` (SCRATCH), `protocol` (17 itens), `array` (9 declaradores), `defer [now]` (9) e `parallel` (17 capturas), com `test/cgen/cli/limit_messages.sh`. Abertos: o tempo quadrático, a arena e a cobertura de `pub struct S {…} s0;` e do protótipo sem corpo.
+
 Estudo aberto a partir de `tools/agents/reports/limites-medicao.md` (Haiku; os
 achados 1 e 14 reproduzidos por mim, cgen 0.4.0-dev, build de desenvolvimento
 `-O0`).

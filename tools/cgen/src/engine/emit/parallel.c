@@ -154,7 +154,8 @@ static bool analyze(const KAst *ast, const KIsland *is, const KAstNode *fn, Par 
         if (!word(ast, j + 1, "(")) return false;
         j += 2;
         while (!word(ast, j, ")")) {
-            if (!ident(ast, j) || p->ncaps == MAX_CAPS) return false;
+            if (p->ncaps == MAX_CAPS) { k_em_note_cap("!a `parallel` capture list with more than 16 names: the emitter holds 16 (MAX_CAPS in engine/emit/parallel.c); capture fewer names, or one struct"); return false; }
+            if (!ident(ast, j)) return false;
             p->caps[p->ncaps++] = j++;
             if (word(ast, j, ",")) j++;
             else if (!word(ast, j, ")")) return false;

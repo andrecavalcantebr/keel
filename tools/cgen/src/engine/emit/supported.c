@@ -17,7 +17,7 @@ static bool island_out(const KAst *ast, const KIsland *is) {
 
 /* the refusal of island `is`: its anchor is the site */
 static bool refuse_island(Emit *e, const KIsland *is) {
-    k_em_refuse(e, is->anchor, NULL);
+    k_em_refuse(e, is->anchor, k_em_take_cap());
     return false;
 }
 
@@ -73,6 +73,7 @@ static bool refuse_node(Emit *e, const KAstNode *n) {
 
 /* Whether the slice of emit.h covers every node of the module. */
 bool k_em_supported(Emit *e) {
+    (void)k_em_take_cap();
     const KAst *ast = e->ast;
     if (!islands_supported(e)) return false;
     if (k_em_places_instances(ast)) return k_em_supported_placement(ast);

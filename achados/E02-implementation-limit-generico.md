@@ -1,5 +1,7 @@
 # E02 — o `implementation-limit` fala sempre a mesma frase
 
+**Fechado em 2026-11-23 (0.4.0).** A mensagem do catálogo é `implementation limit: %s`, e cada ponto passa a própria frase (o que passou, o valor, o caminho). Teste: `test/cgen/cli/limit_messages.sh`. O texto abaixo é o estudo, como estava.
+
 Estudo aberto em 2026-11-23, cgen 0.4.0-dev. Origem: auditoria de limites
 (dúvidas 2 e 10).
 

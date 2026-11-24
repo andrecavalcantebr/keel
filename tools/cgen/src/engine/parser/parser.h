@@ -574,6 +574,7 @@ bool k_scan_decl_constexpr(KLexer *lexer, KSymbolTable *symtab,
  * items or K_PROTOCOL_MAX_PARAMS parameters. Consumes through the closing
  * '}' (and a ';' after it, when written) or the ';' of the composition form,
  * and hands back the token after it. */
+const char *k_scan_limit_hit(void);   /* the limit the last failed scan ran into (a phrase), or NULL; clears it */
 #define K_PROTOCOL_MAX_ITEMS 16
 #define K_PROTOCOL_MAX_PARAMS 8
 

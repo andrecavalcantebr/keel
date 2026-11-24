@@ -84,6 +84,13 @@ bool k_scan_decl_constexpr(KLexer *lexer, KSymbolTable *symtab,
     }
 }
 
+/* the capacity a scanner ran into, for the diagnostic: a scan that fails on a cap refuses the declaration, and the
+   caller says which limit (implementation-limit) instead of a syntax error. Read once, then cleared. */
+static const char *scan_limit;
+static bool limit_hit(const char *what) { scan_limit = what; return false; }
+const char *k_scan_limit_hit(void) { const char *w = scan_limit; scan_limit = NULL; return w; }
+#define PROTOCOL_ITEMS "a `protocol` with more than 16 verbs, associated types or composed protocols (16 of each kind): the cgen holds 16; split the protocol"
+
 /* ---- k_scan_decl_typedef ---- */
 
 /* decl-typedef (keel-spec §2.2):
@@ -174,7 +181,7 @@ bool k_scan_decl_array(KLexer *lexer, KToken array_kw, KSymbolTable *symtab,
     out->name_count = 0;
 
     for (;;) {
-        if (out->name_count >= K_ARRAY_MAX_NAMES) return false;
+        if (out->name_count >= K_ARRAY_MAX_NAMES) return limit_hit("more than 8 declarators in one `array` declaration: the cgen holds 8; split the declaration");
         size_t at = out->name_count;
 
         /* decl-array-1 ::= { '*' } IDENT dimensions [ '=' <opaque> ]
@@ -462,7 +469,7 @@ static bool scan_verb(KLexer *lexer, KToken tok, keel_slice_char implementer,
         for (;;) {
             if (tok.len == 0) return false;
             if (lead) {
-                if (v->arity >= K_PROTOCOL_MAX_PARAMS) return false;
+                if (v->arity >= K_PROTOCOL_MAX_PARAMS) return limit_hit("a `protocol` verb with more than 8 parameters: the cgen holds 8; split the verb");
                 KRole role = k_token_role(tok);
                 v->roles[v->arity] = role;
                 if (role != K_ROLE_NONE) tok = k_lexer_next(lexer, pp);
@@ -500,7 +507,7 @@ bool k_scan_decl_protocol(KLexer *lexer, KToken protocol_kw, KSymbolTable *symta
     if (k_token_is_punct(tok, "[")) {
         tok = k_lexer_next(lexer, next_pp_kind_out);
         while (!k_token_is_punct(tok, "]")) {
-            if (!k_token_is_ident(tok) || out->component_count >= K_PROTOCOL_MAX_ITEMS) return false;
+            if (!k_token_is_ident(tok) || out->component_count >= K_PROTOCOL_MAX_ITEMS) return limit_hit(PROTOCOL_ITEMS);
             out->components[out->component_count++] =
                 k_scan_qualified_name(lexer, tok, &tok, next_pp_kind_out);
             if (k_token_is_punct(tok, ",")) tok = k_lexer_next(lexer, next_pp_kind_out);
@@ -522,12 +529,12 @@ bool k_scan_decl_protocol(KLexer *lexer, KToken protocol_kw, KSymbolTable *symta
         if (tok.len == 0) return false;
         if (k_token_spelled(tok, "type")) {
             KToken name = k_lexer_next(lexer, next_pp_kind_out);
-            if (!k_token_is_ident(name) || out->assoc_count >= K_PROTOCOL_MAX_ITEMS) return false;
+            if (!k_token_is_ident(name) || out->assoc_count >= K_PROTOCOL_MAX_ITEMS) return limit_hit(PROTOCOL_ITEMS);
             out->assoc[out->assoc_count++] = name;
             tok = k_lexer_next(lexer, next_pp_kind_out);
             if (!k_token_is_punct(tok, ";")) return false;
         } else {
-            if (out->verb_count >= K_PROTOCOL_MAX_ITEMS) return false;
+            if (out->verb_count >= K_PROTOCOL_MAX_ITEMS) return limit_hit(PROTOCOL_ITEMS);
             if (!scan_verb(lexer, tok, out->implementer, &out->verbs[out->verb_count++], next_pp_kind_out))
                 return false;
         }

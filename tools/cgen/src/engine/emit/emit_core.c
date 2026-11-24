@@ -50,6 +50,12 @@ void k_em_limit(Emit *e, size_t code) {
     if (!e->limit) { e->limit = code; e->limit_line = e->at_line; }
 }
 
+/* A scan that has no Emit (the analyzers of defer and parallel) says here that it refused on a capacity: the text
+ * (begins with `!`, a whole message) is taken by the refusal that follows, and the message names the limit. */
+static const char *pending_cap;
+void k_em_note_cap(const char *text) { pending_cap = text; }
+const char *k_em_take_cap(void) { const char *t = pending_cap; pending_cap = NULL; return t; }
+
 void k_em_refuse(Emit *e, size_t tok, const char *what) {
     e->ok = false;
     if (e->refuse_tok == SIZE_MAX) { e->refuse_tok = tok; e->refuse_what = what; }

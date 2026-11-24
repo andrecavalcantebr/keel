@@ -127,6 +127,8 @@ size_t k_em_line_at(Emit *e, size_t off);
  * names the limit. The first one recorded is kept: a site that fails later, by
  * consequence, must not replace it. */
 void k_em_limit(Emit *e, size_t code);
+void k_em_note_cap(const char *text);
+const char *k_em_take_cap(void);
 
 /* the line builder: bytes and mangled names are written at the end of buf */
 void k_em_put_bytes(Emit *e, const char *p, size_t len);

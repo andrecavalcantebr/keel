@@ -349,7 +349,7 @@ const char *k_emit_limit_text(size_t code) {
                " edits (engine/emit/emit_internal.h); break that source line into several lines";
     case K_EMIT_LIMIT_SCRATCH:
         return "the text of a line's edits needs more than SCRATCH_CAP = " EM_STR(SCRATCH_CAP)
-               " bytes (engine/emit/emit_internal.h); shorten the line";
+               " bytes (engine/emit/emit_internal.h); break that source line into several lines, or use fewer or shorter names (a `match` with many labels is one line)";
     case K_EMIT_LIMIT_NAME:
         return "a generated name or path needs more than NAME_CAP = " EM_STR(NAME_CAP)
                " bytes (engine/emit/emit_internal.h); shorten the name";

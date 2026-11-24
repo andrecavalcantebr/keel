@@ -74,7 +74,9 @@ static int write_failed(const char *path) {
  * itself and its value (cgen-tool-spec §7.1); a construction the emitter does not cover
  * keeps its site's text, `cover`. */
 static void report_refused(size_t need, int len, const char *what, const char *cover, const KEmitRefusal *site) {
-    if (need == K_EMIT_UNSUPPORTED && site && site->what)
+    if (need == K_EMIT_UNSUPPORTED && site && site->what && site->what[0] == '!')   /* a capacity of an analyzer: a whole message */
+        fprintf(stderr, "%.*s:%zu:%zu: error: %s [implementation-limit]\n", len, what, site->line, site->col, site->what + 1);
+    else if (need == K_EMIT_UNSUPPORTED && site && site->what)
         fprintf(stderr, "%.*s:%zu:%zu: error: the emitter does not cover %s yet (at `%.*s`) [implementation-limit]\n", len, what,
                 site->line, site->col, site->what, (int)site->tok_len, site->tok);
     else if (need == K_EMIT_UNSUPPORTED)

@@ -85,7 +85,7 @@ bool k_check_delimiters(const KAst *a, KDiagnosticSink *diag) {
         if (k_token_is_punct(l->token, "(") || k_token_is_punct(l->token, "[") || k_token_is_punct(l->token, "{")) {
             if (n == K_OPEN_MAX) {
                 /* dropping the opening would make its closing look unpaired: say the limit instead, once */
-                k_diag_emit(diag, K_DIAG_CAPACITY, l->token, (KDiagArgs){{ k_diag_text("delimiters nested deeper than 256") }});
+                k_diag_emit(diag, K_DIAG_CAPACITY, l->token, (KDiagArgs){{ k_diag_text("delimiters nested deeper than 256: the cgen holds 256 open delimiters at once; flatten the nesting") }});
                 return false;
             }
             open[n++] = i;

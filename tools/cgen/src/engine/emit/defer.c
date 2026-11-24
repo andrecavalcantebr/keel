@@ -159,7 +159,7 @@ static bool analyze(const KAst *ast, size_t kw, Defer *d) {
                 } else if (j == close || (depth == 0 && word(ast, j, ","))) {
                     /* an entry is a type (one or more tokens) and a name, the last token */
                     if (j < st + 2 || !k_em_word_like(ast, j - 1)) return false;
-                    if (d->ncap == MAX_CAP) return false;
+                    if (d->ncap == MAX_CAP) { k_em_note_cap("!a `defer [now ...]` with more than 8 entries: the emitter holds 8 (MAX_CAP in engine/emit/defer.c); capture fewer names, or one struct"); return false; }
                     d->cap[d->ncap++] = (Cap){ st, j - 1, j - 1 };
                     st = j + 1;
                 }

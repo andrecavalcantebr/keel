@@ -32,3 +32,5 @@ Suíte completa isolada: 164 ok, 0 fail; docs 45 ok. Push da 0.4.0 feito em segu
 
 ## Fim da sessão (2026-11-24)
 `0.4.0` enviada até `4e83e05`; `~/Apps/keel-0.4.0-dev` atualizado. Feitos: teto 215, A1-A3, `typedef` de instância, tipos C como argumento (golden 083-086), E02 e mensagens do E03. Fila: intervalos, `pub import`, handles, E03 (tempo, arena, cobertura, typedef/struct >8 declaradores), corte da 0.4.0.
+
+**2026-11-24:** intervalos `..<`/`..=` feitos e commitados (golden 087); resta no desenho: nada. Fila: `pub import`, handles, E03 restante, arena, corte da 0.4.0.

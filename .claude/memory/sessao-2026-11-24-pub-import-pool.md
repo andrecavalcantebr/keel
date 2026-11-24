@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 1451d4d2-0852-4fbf-9ab0-bb54be16a69e
-  modified: 2026-11-24T21:38:42.237Z
+  modified: 2026-11-24T22:34:26.535Z
 ---
 
 Branch `0.4.0`. Continuação de [[sessao-2026-11-23-estado]] e
@@ -97,6 +97,33 @@ spec — inválido, `ref` só vale em declarador local com inicializador).
   a definição.
 - De passagem: 4 scripts de teste unitário não linkavam `tool/memory.c`
   (novo na sessão anterior) — corrigido.
+
+## Geração na arena-mãe: feita (2026-11-24, commit 371b3c0)
+
+O André apontou o ponto certo: comptime-only não bastava — faltava saber em
+*runtime* se a arena de um `pool` moveu debaixo dele (não é o mesmo que
+liberar um slot). Pediu custo controlado, O(1).
+
+Desenho: `arena` ganha `generation` (sobe em `reset`/`restore`/cada
+construtor, nunca em `alloc`/`mark`); verbo só-leitura `arena.generation(a)`
+(não pode ler o campo direto — `instance-field-access`, já previsto no
+estudo do handle). `pool` ganha `owner`/`stamp`; `check_region` confere os
+dois a O(1) em `alloc`/`free`/`reset`/`ptr` (debug); `at` dobra a mesma
+conferência na condição que já decide `NONE`, sem `KEEL_CHECK`, porque `at`
+promete nenhum UB em release. Só alcança a arena **direta** — uma avó
+(`from_parent`) resetada não é vista; encadear deixaria de ser O(1).
+
+**Bug achado no caminho** (não só lacuna): `pool.from_arena` estava com
+`parent pool *p, parent arena *a` — os dois `parent`, nenhum `child`, então
+`p` nunca ficava ligado a `a` na análise estática. Corrigido para `child
+pool *p, parent arena *a` (molde de `arena.from_array`); a propagação
+transitiva da regra 4 do §4.12 resolve o resto sem mecanismo próprio (`reset(a)`
+invalida `p` invalida qualquer `entity`). Caso novo em
+`test/cgen/diag/provenance/v.k`.
+
+golden 088 ganhou o `DEBUG` 2 (`pool-region-invalidated`); golden 026 teve
+uma linha de `DEBUG` deslocada (`arena.k` cresceu) e precisou de ajuste.
+Manual e `keel-llm-context` atualizados com o mecanismo novo.
 
 ## `pub import`: não implementado nesta sessão
 

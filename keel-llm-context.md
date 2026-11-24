@@ -1423,6 +1423,18 @@ execução pega o que escapa disso — função diferente, ou uma cópia do
 `pool` tirada antes do reset. Só alcança a arena direta: uma avó resetada
 não é vista.
 
+**Garante:** índice fora da capacidade, reuso do mesmo slot depois de
+`free`, a arena de origem ter movido (reset/restore/reconstrução) mesmo
+fora do alcance da análise estática — tudo a O(1), por `ptr`/`alloc`/
+`free`/`reset` em debug e por `at` em toda build; e, dentro da mesma
+função, usar `p`/`e` depois de uma invalidação reconhecida já não compila.
+**Não garante:** a arena-avó (só a direta é vista); nada em `alloc`/`free`/
+`reset`/`ptr` sob `--checks=off` — só `at` é seguro em toda build; que um
+`entity` veio do `pool` que o recebeu; `T` zerado por `from_arena`;
+sincronização entre threads; overflow do contador da *arena* (nunca
+verificado); o ponteiro de `ptr` copiado para fora sem `ref`; escrita por
+C que não passa pelo `pool`.
+
 ---
 
 ## 4. Pares keel/C

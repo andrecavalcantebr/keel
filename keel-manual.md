@@ -1627,6 +1627,17 @@ não percebe — encadear por toda a ascendência deixaria de ser O(1).
 Contrato completo: [spec §5.9](keel-spec.md#59-keelpool-desde-040) e
 [§5.2](keel-spec.md#52-keelarena), regra 12.
 
+**O que isso garante, e o que não garante** — para não ler mais segurança
+do que existe:
+
+| Garante (O(1), a camada que alcançar) | Não garante |
+| --- | --- |
+| Índice de `entity` fora da capacidade (`ptr` debug, `at` toda build) | `entity` de outro `pool` — misturar os dois não é visto |
+| Reuso do mesmo slot depois de `free` (geração do slot) | `alloc`/`free`/`reset`/`ptr` em release (`--checks=off`): só `at` é seguro em toda build |
+| A arena de origem ter sido resetada, restaurada ou reconstruída (geração da arena), mesmo fora do alcance do comptime | A arena-avó, se a arena de origem for filha de outra |
+| Uso de `p`/`e` depois de uma invalidação reconhecida, **na mesma função**: erro de compilação, antes de rodar | `T` zero-inicializado por `from_arena` |
+| A geração de um slot nunca dá a volta de forma perigosa (satura em `UINT32_MAX`) | Sincronização entre threads; overflow do contador da *arena* (`size_t`, nunca verificado); o ponteiro de `ptr` copiado sem `ref`; escrita por C que não passa pelo `pool` |
+
 ---
 
 ## Ver também

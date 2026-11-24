@@ -3006,6 +3006,48 @@ debug: `entity-generation-mismatch`, `pool-generation-overflow`,
   (§4.2, "Modificadores se aninham sem teto próprio de profundidade" vale
   pelo mesmo motivo); fica para quando houver caso real que o peça.
 
+**O que `pool`/`entity` garantem, juntando as regras acima, e o que não
+garantem** — para não vender mais segurança do que a implementação entrega:
+
+*Garante, sempre a O(1), independente de onde a análise lexical alcança:*
+
+- `from_arena` sem espaço não aloca nada e devolve `false` (regra 1).
+- Índice de `entity` fora da capacidade do `pool` é detectado por `ptr`
+  (debug) e por `at` (toda build) — regra 4.
+- Reuso do mesmo slot depois de `free` é detectado por `ptr` (debug) e por
+  `at` (toda build), pela geração do slot — regra 4.
+- A arena de origem ter sido resetada, restaurada ou reconstruída desde
+  `from_arena` é detectado por `alloc`, `free`, `reset` e `ptr` (debug) e
+  por `at` (toda build), pela geração da arena (regra 9) — mesmo quando a
+  análise lexical não alcança: função diferente da que chamou
+  `from_arena`, ou uma cópia do `pool` tirada antes.
+- Dentro da mesma função, usar `p` ou `e` depois de uma chamada reconhecida
+  que os invalida é erro de compilação (`child-region-after-invalidation`),
+  antes de qualquer execução.
+- A geração de um slot nunca dá a volta de forma perigosa: satura em
+  `UINT32_MAX` (regra 6).
+
+*Não garante:*
+
+- A cadeia de arenas além da direta: uma arena-avó resetada (caso especial
+  acima).
+- Nada em `alloc`, `free`, `reset` nem `ptr` sob `--checks=off`: as quatro
+  confiam no programa em release, como `buffer.ptr`/`arena.alloc` sempre
+  confiaram. Só `at` continua seguro em toda build.
+- Que um `entity` passado a `ptr`/`at`/`free` veio do `pool` que o recebe
+  (caso especial acima).
+- `T` zerado por `from_arena` (`arena.alloc`, por quem ele chama, também
+  não zera).
+- Sincronização entre threads: `pool` não é mais seguro que `arena` aqui.
+- Overflow do contador de geração da *arena* (`size_t`): não é verificado,
+  nunca satura — exigiria 2⁶⁴ chamadas de `reset`/`restore`, e é o programa
+  quem garante que isso não ocorre, como o alinhamento em `arena.alloc`.
+- O ponteiro devolvido por `ptr`, se escapar para um `T *` cru sem `ref`
+  (caso especial acima): nenhuma análise, estática ou em execução, continua
+  depois disso.
+- Escrita por C que não passa pelo `pool` — um ponteiro cru alheio na mesma
+  região — não é vista por nenhuma das duas camadas.
+
 ### 5.10 Biblioteca padrão
 
 A biblioteca padrão além da base (§§5.2–5.9) não faz parte desta versão. Os

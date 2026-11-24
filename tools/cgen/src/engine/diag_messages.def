@@ -20,7 +20,7 @@
     X(PUB_STATIC, "`pub static` without `inline`: a public symbol cannot have internal linkage; drop `static` or make it `priv`") \
     X(INLINE_WITHOUT_VISIBILITY, "`static inline` at module level needs `pub` or `priv`: say whether it belongs to the interface") \
     X(STATIC_ON_TYPE, "`static` does not apply to a type") \
-    X(NAME_TOO_LONG, "generated name exceeds the backend limit of 255 characters") \
+    X(NAME_TOO_LONG, "generated name exceeds the backend limit of 215 characters") \
     X(NOT_A_CONTAINER_EXPRESSION, "`%s` takes a container as its object, and `%s` is not one: name a symbol declared with a keel type (or an index, field or verb over one)") \
     X(C_TYPE_AS_ARGUMENT, "`%s` takes keel types as arguments, and `%s` is a C keyword: write the keel spelling (`i32`, `u8`, `f64`, ...) or a named type") \
     X(RESERVED_NAME, "`%s` is in the space of the generated C: names starting with `keel_` or `KEEL_` are reserved") \

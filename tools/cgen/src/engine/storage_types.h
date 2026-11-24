@@ -58,7 +58,8 @@ typedef struct {
     bool is_inline;
 } KAstNode;
 
-#define K_INSTANCE_NAME_CAP 256 /* 255 characters plus terminating zero */
+#define K_INSTANCE_NAME_CAP 256 /* the buffer: K_GENERATED_NAME_MAX plus room for what the checks need, and the zero */
+#define K_GENERATED_NAME_MAX 215 /* the longest generated name (backend §2.4): it is also a file name, and the file systems take 255 */
 /* Direct, concrete uses only; transitive generic instantiation is a later pass. */
 typedef struct KInstanceUse {
     size_t first, end;

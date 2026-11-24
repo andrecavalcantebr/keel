@@ -223,10 +223,10 @@ int main(int argc, char *argv[]) {
                 }
             } else if (strcmp(w, "--pedantic-names") == 0) {
                 /* withdrawn (backend D22): recognized only so that a real need is seen, not lost to the cc's "unknown option" */
-                fprintf(stderr, "cgen: hint: if your C toolchain needs a name limit below 255, please report it to the keel developers "
+                fprintf(stderr, "cgen: hint: if your C toolchain needs a name limit below 215, please report it to the keel developers "
                                 "(https://github.com/andrecavalcantebr/keel/issues), with the toolchain and its limit\n");
                 fatal("implementation-limit",
-                      "--pedantic-names is not implemented: generated names are limited to 255 characters (keel-c-backend §2.4, D22)");
+                      "--pedantic-names is not implemented: generated names are limited to 215 characters (keel-c-backend §2.4, D22)");
             } else if (strcmp(w, "-f") == 0) {
                 f_flag = true;
             } else if (w[0] == '-' && w[1] != '\0') {

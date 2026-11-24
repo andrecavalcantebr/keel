@@ -61,7 +61,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `pub-static` | `pub static` without `inline`: a public symbol cannot have internal linkage; drop `static` or make it `priv` | `pub static` without `inline` at file scope |
 | `inline-without-visibility` | `static inline` at module level needs `pub` or `priv`: say whether it belongs to the interface | `static inline` without `pub`/`priv` at module level |
 | `static-on-type` | `static` does not apply to a type | `static` applied to a type |
-| `name-too-long` | generated name exceeds the backend limit of 255 characters | A generated name above the length ceiling of the target |
+| `name-too-long` | generated name exceeds the backend limit of 215 characters | A generated name above the length ceiling of the target |
 | `not-a-container-expression` | `%s` takes a container as its object, and `%s` is not one: name a symbol declared with a keel type (or an index, field or verb over one) | An expression outside the container grammar in container position |
 | `c-type-as-argument` | `%s` takes keel types as arguments, and `%s` is a C keyword: write the keel spelling (`i32`, `u8`, `f64`, ...) or a named type | A C arithmetic type keyword as an argument of a modifier, except `char` and `bool`, instead of the keel spelling or a named type |
 | `reserved-name` | `%s` is in the space of the generated C: names starting with `keel_` or `KEEL_` are reserved | An identifier declared by the program in the reserved spaces `keel_` and `KEEL_` |

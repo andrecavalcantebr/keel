@@ -78,6 +78,15 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   no `.type.h`, para o compilador C recusar (E03 dos achados). Agora é
   `extent-limit-exceeded` (do cgen, só no `diag-messages.md`), como o
   `tags-limit-exceeded`. Teste `test/cgen/cli/extent_limit.sh`.
+- O teto de nome gerado passa de 255 a **215** caracteres (backend §2.4, regra 1
+  e nova regra 5; D21; rationale "Por que o teto de nome é 215"). O símbolo de
+  uma instância é também o nome dos seus arquivos, e o sistema de arquivos limita
+  o componente a 255 antes dos sufixos. Medido na 0.4.0-dev, o teto de 255 era
+  inalcançável: `write-failure` vinha desde 216 caracteres, `implementation-limit`
+  desde 224, e `name-too-long` só aos 233 (E01 dos achados, opção A). Agora é um
+  diagnóstico só, `name-too-long`, no 216º. O arquivo temporário da escrita tem
+  nome curto e fixo (`.keel.<pid>.tmp`), e `NAME_CAP` sobe a 1024 para o caminho
+  com a pasta não disparar antes. Testes `cli/name_limit.sh` e `cli/imports.py`.
 
 ## 0.3.0 (2026-11-19)
 

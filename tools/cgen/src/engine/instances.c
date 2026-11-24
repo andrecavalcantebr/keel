@@ -93,7 +93,7 @@ bool k_collect_instances(KAst *a,KDiagnosticSink *diag) {
             continue;
         }
         KInstanceUse use={.first=i};
-        Name name={use.symbol,0,sizeof use.symbol-1,true};
+        Name name={use.symbol,0,K_GENERATED_NAME_MAX,true};
         if(!type_name(spec.text,a->symbols,&name,0)) {
             if(!name.ok){k_diag_emit(diag,K_DIAG_NAME_TOO_LONG,first,(KDiagArgs){{first}});return false;}
             continue;

@@ -2174,7 +2174,7 @@ emissor e um segundo teto para testar, em troca de uma garantia que nenhum cc
 do mercado pede. Ela só apertava o teto, e nunca o subia, então a escolha de 255
 já era o topo do que se pode prometer sem saber qual é o linker.
 
-O que ficou: o teto de 255 e o diagnóstico `name-too-long`, sem opção. O cgen
+O que ficou: o teto e o diagnóstico `name-too-long`, sem opção. O teto era 255 e passou a 215 na 0.4.0, por outra razão (ver "Por que o teto de nome é 215"). O cgen
 **reconhece** `--pedantic-names` e a recusa com `[implementation-limit]`,
 nomeando o limite e remetendo a esta seção. Isso é de propósito: sem o
 reconhecimento, a opção iria ao `cc`, que diria só "unknown option", e um caso
@@ -2185,6 +2185,26 @@ linker de 31 caracteres recebe uma mensagem que pode reportar, e uma linha `hint
 abaixo de 255. Aí a decisão volta com o caso na mesa, e a tabela de ligação
 (31 para função `pub` fora de linha e variável `pub`; 63 para `static inline`,
 tipos, tags, constantes de enum e nomes `keel__`) é o ponto de partida.
+
+### Por que o teto de nome é 215
+
+O 255 do levantamento do Anexo é o piso de **significância** dos compiladores:
+abaixo dele, dois nomes que diferem tarde não colidem. Mas o nome de uma
+instância é também o nome dos seus arquivos (`<nome>.type.h`, `<nome>.h`), e aí
+quem manda é o sistema de arquivos: ext4, NTFS e APFS aceitam 255 por
+componente (em bytes, unidades UTF-16 e caracteres UTF-8, que coincidem para um
+nome ASCII), e o nome ganha sufixos depois (`.type.h`, o arquivo temporário da
+escrita, `.gch`, `.o`, `.d`). Medido na 0.4.0-dev, o teto de 255 do símbolo era
+inalcançável: o `write-failure` (arquivo temporário de mais de 255 bytes)
+vinha a partir de nomes de 216 a 220 caracteres, e o `implementation-limit` do
+caminho, a partir de 224, ambos antes do `name-too-long`, que só chegava aos 233.
+Três diagnósticos para o mesmo nome, e dois deles não diziam que o nome era longo.
+
+O teto passou a 215: um só, categórico e informável, com 40 de folga para os
+sufixos. Nomes de 215 mal aparecem na prática (`mat_matrix_keel_buffer_geom_Point`
+tem 33), e o que isso cobra de um programa é um tipo de nome absurdo. O caminho
+inteiro não entra: no Windows ele é de 260 caracteres por padrão, e depende da
+pasta de destino, que é do usuário. Cabe ao manual avisar.
 
 ### Por que `--cgen-version` diz o commit, a data e o compilador
 

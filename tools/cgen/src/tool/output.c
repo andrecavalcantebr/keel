@@ -38,10 +38,13 @@ int cgen_write_output(const char *path, const char *data, size_t n) {
         return 0;
     }
     if (!force_write && same_content(path, data, n)) return 0;
-    size_t len = strlen(path);
-    char *tmp = malloc(len + 32);
+    /* a short name in the same directory, so that it never adds to the length of the file's own name
+       (the file systems take 255 bytes per component, E01) */
+    const char *slash = strrchr(path, '/');
+    size_t dir = slash ? (size_t)(slash - path) + 1 : 0;
+    char *tmp = malloc(dir + 40);
     if (!tmp) goto failed;
-    snprintf(tmp, len + 32, "%s.tmp.%ld", path, (long)getpid());
+    snprintf(tmp, dir + 40, "%.*s.keel.%ld.tmp", (int)dir, path, (long)getpid());
     /* O_EXCL: never follow a symlink or reuse a file planted under the
        predictable temporary name. */
     int fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL, 0666);

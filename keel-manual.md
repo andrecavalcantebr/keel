@@ -1182,8 +1182,8 @@ valor aceito, e o seguinte é recusado.
 | Binders por lista (`dim`, `tags`, `type`) | 8 em cada lista | `implementation-limit` (texto genérico, sem nomear a lista) |
 | Delimitadores aninhados (`( [ {`) | 255 níveis | `implementation-limit` no 256º |
 | Modificadores aninhados (`buffer buffer … i32`) | 9 níveis | `instance-depth` no 10º |
-| Nome gerado de instância | 214 a 255 caracteres, conforme o caminho | `write-failure`, `implementation-limit` ou `name-too-long`, nessa ordem de tamanho (estudo E01) |
-| Identificador escrito pelo usuário | sem teto próprio | o limite de 255 vale só para nomes gerados |
+| Nome gerado de instância | 215 caracteres | `name-too-long` no 216º (era 255 até a 0.3.0; o nome é também o do arquivo) |
+| Identificador escrito pelo usuário | sem teto próprio | o limite de 215 vale só para nomes gerados |
 | `extent`: grupos `[k, n]` | 4 | **o 5º sai sem diagnóstico (bug, E03)** |
 | `extent`: colunas `array` | 8 | `implementation-limit` |
 | `match`: rótulos | cerca de 14 com nomes curtos, 9 com nomes de 27 caracteres | `implementation-limit` ("shorten the line"): o teto é o texto das edições da linha do `match` (2048 bytes) |
@@ -1206,6 +1206,8 @@ valor aceito, e o seguinte é recusado.
 | Raízes de busca (`-I`) | 128 | `implementation-limit`; na prática o limite de argumentos vem antes |
 | Memória do cgen | 64 MiB (pico medido em `keel_libs/coll`: 12,8 MiB) | `implementation-limit`; ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
 | Entradas de `routine.mask` | 64 | `mask-above-64-slots` (em execução, em debug) |
+
+No Windows o caminho inteiro de um arquivo gerado tem 260 caracteres por padrão (salvo com `LongPathsEnabled`), então um `--dest-dir` profundo pode estourar antes do teto de 215 do nome: prefira um destino curto.
 
 O tempo de geração cresce com o quadrado do número de linhas: 1 000 funções em
 0,5 s, 4 000 em 7 s, 10 000 em 42 s. Um arquivo gerado por máquina deve ser

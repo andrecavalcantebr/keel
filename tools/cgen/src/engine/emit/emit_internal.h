@@ -10,7 +10,7 @@
 #include "engine/emit/mangle.h"
 #include "engine/emit/writer.h"
 
-#define NAME_CAP 256            /* a generated file name, guard or symbol */
+#define NAME_CAP 1024           /* a generated file name or path, guard or symbol: the name itself stops at 215 (K_GENERATED_NAME_MAX), the rest is the directory */
 #define LINE_CAP 1024           /* one changed source line, or one prototype */
 #define MAX_EDITS (LINE_CAP / 2)   /* the edits of one line: an edit takes at least 2 bytes of the source or puts 2 in the line (a TAG, a rename), so a line that fits LINE_CAP never has more */
 #define SCRATCH_CAP 2048        /* the text that the edits of a line point to */

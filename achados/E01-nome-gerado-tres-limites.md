@@ -1,6 +1,6 @@
 # E01 — o nome gerado tem três limites e três diagnósticos
 
-Estudo aberto em 2026-11-23, cgen 0.4.0-dev. Origem: auditoria de limites
+Estudo aberto em 2026-11-23 (RESOLVIDO na 0.4.0 pela opção A: teto 215, temporário curto, `NAME_CAP` 1024), cgen 0.4.0-dev. Origem: auditoria de limites
 (`tools/agents/reports/limites-auditoria.md`, dúvida 3), reproduzida à mão.
 
 ## O que a spec promete

@@ -234,10 +234,11 @@ buffer _Atomic u32 →  keel_buffer_atomic_u32
 
 **Regras**
 
-1. Nome gerado acima de 255 caracteres é erro: `name-too-long`. [D21](#10-decisões-de-emissão)
-2. *(retirada na 0.2.0: o teto é um só, 255; ver [D22](#10-decisões-de-emissão))*
+1. Nome gerado acima de 215 caracteres é erro: `name-too-long`. *(desde 0.4.0; antes, 255)* O teto vale para todo nome gerado, porque o nome do símbolo de uma instância é também o nome dos seus arquivos. [D21](#10-decisões-de-emissão)
+2. *(retirada na 0.2.0: o teto é um só; ver [D22](#10-decisões-de-emissão))*
 3. Não há truncamento nem hash: o nome gerado é sempre o nome inteiro.
-4. É esse teto, e nenhuma regra própria, que limita o aninhamento de modificadores. A 255 ele não é sentido: `mat_matrix_keel_buffer_geom_Point` tem 33 caracteres.
+4. É esse teto, e nenhuma regra própria, que limita o aninhamento de modificadores. A 215 ele não é sentido: `mat_matrix_keel_buffer_geom_Point` tem 33 caracteres.
+5. *(desde 0.4.0)* O teto de um arquivo é o do sistema de arquivos menos o que se acrescenta ao nome. Linux (ext4), Windows (NTFS) e macOS (APFS) aceitam 255 por componente, em bytes, unidades UTF-16 e caracteres UTF-8, que coincidem para um nome ASCII. O cgen acrescenta `.type.h` (7), e o compilador e o cgen, `.tmp`, `.gch`, `.o` e `.d`: 215 deixa 40 de folga. O caminho inteiro não entra nessa conta: no Windows ele é de 260 caracteres, salvo com `LongPathsEnabled`, e depende do `--dest-dir`.
 
 O levantamento dos limites do padrão e dos compiladores está no [Anexo](#anexo--levantamento-de-significância-de-identificador).
 
@@ -2163,8 +2164,8 @@ alternativa em aberto.
 | 18 | O acessor de vários índices é um só, de vetor, e leva o sufixo de rank `_N` | §2.1.1. Um módulo não declara `ptr` em N aridades (linguagem §4.3, regra 10), então o acessor de vários índices recebe o vetor, e o nome passa a dizer o rank. O sublinhado separa o rank da aridade: `ptr2` e `ptr_2` não colidem quando o `dim` da instância coincide com uma aridade declarada. O rank vem do contêiner, então a indexação e as chamadas explícitas, com literal ou com vetor em variável, chegam ao mesmo símbolo |
 | 19 | O argumento de `dim` entra no nome pelo valor, e não pela grafia | §2.2. Com a grafia, dois módulos que declarassem `DIM` com valores diferentes pediriam o mesmo arquivo com conteúdos diferentes, e o header de instância deixaria de ser função das entradas (§7.1) |
 | 20 | O C gerado usa `i32`, e não `int32_t` | §2.2. O corpo do usuário é copiado como escrito, então `i32` chega ao `.c` de qualquer forma e o `typedef` do prelúdio é necessário. Emitir `int32_t` nas structs criaria duas grafias para o mesmo tipo, e a mensagem do compilador C deve citar o nome que o usuário escreveu: `expected i32 *` lê direto contra o fonte |
-| 21 | Nome gerado acima de 255 caracteres é erro | §2.4. Onde o linker só considera os primeiros *N* caracteres, duas instâncias que só diferem depois do corte colidem em silêncio no link, com um símbolo vencendo o outro; o teto transforma isso em diagnóstico. Truncar com hash mataria a legibilidade. O mínimo do padrão para nome externo é 31, que tornaria a composição de modificadores inutilizável (`keel_buffer_geom_Point` já tem 22), e não descreve compilador real: o pior caso prático é 255, do IAR (Anexo). Uma edição anterior deste documento dava 63, que é o mínimo do padrão para nome **interno** |
-| 22 | *(retirada na 0.2.0)* `--pedantic-names` não existe: o teto é 255, sem opção para baixá-lo | §2.4. A opção chegou a ser especificada (31 para nome externo, 63 para os demais) e foi retirada em 2026-11-11 sem ter sido implementada. A razão e o gatilho de reabertura estão no rationale, em "Por que não há `--pedantic-names`". O número 22 não é reaproveitado |
+| 21 | Nome gerado acima de 215 caracteres é erro *(255 até a 0.3.0)* | §2.4. O teto passou de 255 a 215 na 0.4.0: o símbolo de uma instância é também o nome do arquivo, e o sistema de arquivos limita o componente a 255, antes dos sufixos (E01 dos achados); 215 é o teto único e categórico que o diagnóstico informa. Onde o linker só considera os primeiros *N* caracteres, duas instâncias que só diferem depois do corte colidem em silêncio no link, com um símbolo vencendo o outro; o teto transforma isso em diagnóstico. Truncar com hash mataria a legibilidade. O mínimo do padrão para nome externo é 31, que tornaria a composição de modificadores inutilizável (`keel_buffer_geom_Point` já tem 22), e não descreve compilador real: o pior caso prático é 255, do IAR (Anexo). Uma edição anterior deste documento dava 63, que é o mínimo do padrão para nome **interno** |
+| 22 | *(retirada na 0.2.0)* `--pedantic-names` não existe: o teto é 215, sem opção para baixá-lo | §2.4. A opção chegou a ser especificada (31 para nome externo, 63 para os demais) e foi retirada em 2026-11-11 sem ter sido implementada. A razão e o gatilho de reabertura estão no rationale, em "Por que não há `--pedantic-names`". O número 22 não é reaproveitado |
 | 23 | A definição dos primitivos é da linguagem, e a materialização, do backend | §3. `f32` **é** binary32; `typedef float f32;` é como este backend entrega isso. Sem a separação, trocar de backend obrigaria a reescrever a definição dos primitivos, que não deve se mover porque a saída mudou |
 | 24 | `f32` e `f64` são `float` e `double`, e não `_Float32` e `_Float64` | §3.1. O C define `_FloatN` como tipos distintos de `float` e `double`, mesmo com representação idêntica. Ponteiro é o caso fatal: não há conversão implícita entre `_Float64 *` e `double *`, e todo `ptr(x)` entregue a biblioteca C exigiria cast. E `_Float32` não sofre a promoção variádica para `double`: `printf("%f", x)` seria UB silencioso. O ganho teórico de `_Float32` some onde seria necessário: onde `float` não é binary32, `_Float32` quase certamente também não existe |
 | 25 | O `typedef` de primitivo é incondicional | §3.1. Com `typedef` condicional, `f32` teria identidade diferente conforme a plataforma, e o mesmo fonte compilaria num alvo e falharia noutro por incompatibilidade de ponteiro — pior que qualquer das duas escolhas fixas |
@@ -2234,7 +2235,7 @@ Nenhuma edição posterior a C99 alterou estes números; C23 os mantém.
 | Microchip XC8 | C99: sem limite. C90 em PIC: 31 por padrão, extensível | modo C90 não se aplica: o keel gera C23 |
 | **IAR Embedded Workbench** | **255** | **é o piso do levantamento** |
 
-**Conclusão.** Entre toolchains capazes de C23, o pior caso é 255. O único número menor encontrado — 31, do XC8 — só existe em modo C90, que este backend nunca produz.
+**Conclusão.** Entre toolchains capazes de C23, o pior caso é 255, e o teto de 215 do §2.4 (desde 0.4.0) fica abaixo dele. O único número menor encontrado — 31, do XC8 — só existe em modo C90, que este backend nunca produz.
 
 ### Fontes
 

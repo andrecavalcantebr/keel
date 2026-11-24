@@ -172,7 +172,7 @@ Uma região sem análise semântica de C ainda pode conter construções keel. E
 | Espaços e comentários | Separam tokens e não participam das produções. São reconhecidos comentários de múltiplas linhas: `/* … */` e comentários de uma linha: `//` até o fim da linha lógica. Seguem as regras de comentários de C. Seu conteúdo é ignorado, mesmo contendo construções keel ou construções C. |
 | Identificadores | Seguem a forma lexical de identificador C. A classificação como palavra C usa a lista fechada abaixo; o reconhecimento de tipos e palavras contextuais cabe ao parser. |
 | Literais | Strings e caracteres são reconhecidos com escapes e com os prefixos `L`, `u8`, `u` e `U`. O conteúdo é indivisível para o reconhecimento de keel. Um newline não emendado dentro do literal produz o diagnóstico `literal-with-newline`. |
-| Números e pontos | Seguem a tokenização numérica de C, com a separação adicional da pontuação `..`: `2..7` produz `NUM`, `'..'`, `NUM`. Entre as pontuações iniciadas por ponto, a prioridade é `'...'`, depois `'..='` e `'..<'` *(desde 0.4.0)*, depois `'..'`, depois `'.'`. `..<=` é `'..'` seguido de `'<='`, e não `'..<'` seguido de `=`. |
+| Números e pontos | Seguem a tokenização numérica de C, com a separação adicional da pontuação `..`: `2..7` produz `NUM`, `'..'`, `NUM`. Entre as pontuações iniciadas por ponto, a prioridade é `'...'`, depois `'..='` e `'..<'` *(desde 0.4.0)*, depois `'..'`, depois `'.'`. `..<=` é `'..'` seguido de `'<='`, e não `'..<'` seguido de `=`; o lexer o recusa com `invalid-range-marker`. |
 | Delimitadores | `()`, `[]` e `{}` são emparelhados sobre os tokens, respeitando as alternativas de pré-processamento (§2.4). Delimitadores dentro de comentários, literais e diretivas não entram no balanceamento. |
 | Diretivas | A diretiva iniciada por `#` em posição de diretiva C estende-se até o newline não emendado. Sua linha lógica forma uma unidade preservada na saída. |
 
@@ -2929,6 +2929,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `inverted-range-index` | Índice por intervalo com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
 | `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
 | `array-index-above-dimension` | Índice de `array` decimal conhecido acima da dimensão declarada | `error` | keel | §4.5 |
+| `invalid-range-marker` | `..<=`, que não é marcador de intervalo — a mensagem indica `..<` ou `..=` *(desde 0.4.0)* | `error` | keel | §4.5 |
 | `inclusive-range-overflow` | Limite superior de `a..=b` igual a `SIZE_MAX`, que não tem sucessor *(desde 0.4.0)* | `debug` | Backend, em execução | §4.5 |
 | `array-index-out-of-bounds` | Índice de `array` fora da dimensão declarada ou, em parâmetro com binder, da recebida | `debug` | Backend, em execução | §4.5 |
 | `foreach-two-binders-on-literal` | `foreach` de dois binders sobre literal de intervalo — a mensagem indica nomear o intervalo | `error` | keel | §4.7 |

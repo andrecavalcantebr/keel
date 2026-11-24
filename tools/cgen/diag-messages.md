@@ -132,6 +132,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `inverted-range-index` | the range `[%s]` starts above where it ends; the empty range is `[a..a]` | A range index with known decimal bounds whose start is above its end |
 | `range-index-out-of-bounds` |  | A range whose bounds break `a <= b <= length(x)` |
 | `array-index-above-dimension` | index `%s` is at or above its dimension in %s | A known decimal `array` index above the declared dimension |
+| `invalid-range-marker` | `..<=` is not a range marker; write `..<` to exclude the upper bound or `..=` to include it | The text `..<=` |
 | `inclusive-range-overflow` |  | The upper bound of `a..=b` is `SIZE_MAX`, which has no successor |
 | `array-index-out-of-bounds` |  | An `array` index outside the declared dimension or, in a parameter with a binder, the received one |
 | `foreach-two-binders-on-literal` | `foreach` over the literal `%s` takes one binder: name the range to have the position | Two-binder `foreach` over a range literal: the message says to name the range |

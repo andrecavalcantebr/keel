@@ -86,6 +86,7 @@
     X(INDEX_NOT_SIZE_T, "the index binder `%s` must be `size_t`") \
     X(INVERTED_RANGE_INDEX, "the range `[%s]` starts above where it ends; the empty range is `[a..a]`") \
     X(ARRAY_INDEX_ABOVE_DIMENSION, "index `%s` is at or above its dimension in %s") \
+    X(INVALID_RANGE_MARKER, "`..<=` is not a range marker; write `..<` to exclude the upper bound or `..=` to include it") \
     X(FOREACH_TWO_BINDERS_ON_LITERAL, "`foreach` over the literal `%s` takes one binder: name the range to have the position") \
     X(POINTER_BINDER_ON_RANGE, "`%s` is a pointer, and a range binder is the counter itself: write it by value") \
     X(OPEN_RANGE_OUTSIDE_INDEX, "a range with an open end stands only in an index (`x[a..]`): write both ends here") \

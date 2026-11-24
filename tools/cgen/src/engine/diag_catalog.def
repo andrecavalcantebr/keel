@@ -86,6 +86,7 @@
     X(INDEX_NOT_SIZE_T, "index-not-size-t", K_ERROR) \
     X(INVERTED_RANGE_INDEX, "inverted-range-index", K_ERROR) \
     X(ARRAY_INDEX_ABOVE_DIMENSION, "array-index-above-dimension", K_ERROR) \
+    X(INVALID_RANGE_MARKER, "invalid-range-marker", K_ERROR) \
     X(FOREACH_TWO_BINDERS_ON_LITERAL, "foreach-two-binders-on-literal", K_ERROR) \
     X(POINTER_BINDER_ON_RANGE, "pointer-binder-on-range", K_ERROR) \
     X(OPEN_RANGE_OUTSIDE_INDEX, "open-range-outside-index", K_ERROR) \

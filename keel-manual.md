@@ -297,7 +297,7 @@ slice i32 u = s[4..=];              // de 4 até o último (igual a s[4..] e s[4
 O C que sai usa `keel_inclusive(b)`, que é `b + 1`; se `b` for `SIZE_MAX` o
 programa em debug aborta com `inclusive-range-overflow`, e em release o
 intervalo vai até o fim do contêiner. Sem limite superior os três marcadores
-são a mesma coisa. `a..<=b` não é uma forma: dá erro no compilador C.
+são a mesma coisa. `a..<=b` não é uma forma: o cgen recusa com `invalid-range-marker`.
 
 ### 3.6 Resultado: `outcome` e a cauda `else`
 

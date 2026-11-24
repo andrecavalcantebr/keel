@@ -168,6 +168,13 @@ KToken k_lexer_next(KLexer *lexer, TKPpKind *pp_kind) {
             end = k_lexer_scan_number(src, pos);
         } else {
             end = k_lexer_scan_punct(src, pos);
+            /* `..<=` is no marker (spec §4.5): the lexer leaves `..` and `<=`, and says so here */
+            if (end - pos == 2 && k_lexer_peek_at(src, pos, NULL) == '.' && k_lexer_peek_at(src, pos + 1, NULL) == '.' &&
+                k_lexer_peek_at(src, end, NULL) == '<' && k_lexer_peek_at(src, end + 1, NULL) == '=') {
+                KToken bad = { end + 2 - first, src.ptr + first };
+                KDiagArgs args = {0};
+                k_diag_emit(lexer->diagnostics, K_DIAG_INVALID_RANGE_MARKER, bad, args);
+            }
         }
     }
 

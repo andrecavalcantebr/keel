@@ -1,5 +1,5 @@
 #!/bin/sh
-# The marker of an interval's upper bound (spec §4.5, 0.4.0): `a..<b` is `a..b`, `a..=b` includes `b`, `..<=` is no form,
+# The marker of an interval's upper bound (spec §4.5, 0.4.0): `a..<b` is `a..b`, `a..=b` includes `b`, `..<=` is invalid-range-marker,
 # and the spaces around the marker do not matter. The debug abort of `keel_inclusive` is in golden 087.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
 BIN=$PWD/tools/cgen/cgen
@@ -28,10 +28,10 @@ gen loop '    size_t n = 0;
     foreach (size_t i : 0..=4) n += i;';        has loop 'i < keel_inclusive(4)'
 gen lit '    range r = 2..=4;';                   has lit 'keel_range_of(2, keel_inclusive(4))'
 
-# `..<=` is `..` and `<=`: the interval has no bound, and the C compiler refuses what is left
+# `..<=` is `..` and `<=`, and the lexer says so
 gen bad '    slice i32 a = s[1..<=3];'
 d=$tmp/bad
-cc -fsyntax-only -I"$d/out" -I"$K" "$d/out/t.c" >/dev/null 2>&1 && bad "..<= must not be a form"
+grep -q 'invalid-range-marker' "$d/log" && [ "$(cat $d/rc)" != 0 ] || bad "..<= must be invalid-range-marker: $(head -2 $d/log)"
 # an inclusive range inverted by its decimals: [5, 4+1) is empty, and [5, 3+1) is inverted
 gen inv_ok '    slice i32 a = s[5..=4];'
 [ "$(cat $tmp/inv_ok/rc)" = 0 ] || bad "s[5..=4] is empty, not inverted: $(grep -v info: $tmp/inv_ok/log | head -2)"

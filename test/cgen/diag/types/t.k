@@ -2,7 +2,9 @@ module t;
 import keel.buffer as buffer types;
 
 pub i32 f(void) {
-    buffer int x;                                /* DIAG: c-type-as-argument */
+    buffer int x;                                /* DIAG: c-type-spelling */
+    buffer unsigned char z;                      /* DIAG: c-type-spelling */
+    buffer long w;                               /* DIAG: c-type-as-argument */
     buffer unsigned long y;                      /* DIAG: c-type-as-argument */
     restrict buffer i32 *p;                      /* DIAG: restrict-on-container */
     buffer buffer i32 grid;

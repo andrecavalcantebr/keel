@@ -23,6 +23,7 @@
     X(NAME_TOO_LONG, "name-too-long", K_ERROR) \
     X(NOT_A_CONTAINER_EXPRESSION, "not-a-container-expression", K_ERROR) \
     X(C_TYPE_AS_ARGUMENT, "c-type-as-argument", K_ERROR) \
+    X(C_TYPE_SPELLING, "c-type-spelling", K_WARNING) \
     X(RESERVED_NAME, "reserved-name", K_ERROR) \
     X(SYMBOL_REDECLARATION, "symbol-redeclaration", K_ERROR) \
     X(BUFFER_OVER_CONST, "buffer-over-const", K_ERROR) \

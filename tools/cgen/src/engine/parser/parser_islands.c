@@ -919,7 +919,7 @@ static void close_instances(Ctx *c) {
             /* a qualified named type or instance (`const t_use_record`): its symbol carries the qualifiers as the
                prefixes `const_`, `volatile_`, `atomic_` (instances.c, type_name), which C does not know */
             char qspell[K_SYMBOL_MAX];
-            if (ka->kind != KT_PRIM) {
+            if (ka->kind != KT_PRIM || !ka->spell.len) {
                 size_t qn = 0, skip = 0;
                 for (;;) {
                     const char *w = sym + skip;
@@ -929,9 +929,11 @@ static void close_instances(Ctx *c) {
                     else break;
                 }
                 size_t rest = strlen(sym + skip);
-                if (skip && sym[skip] && qn + rest < sizeof qspell) {
-                    memcpy(qspell + qn, sym + skip, rest);
-                    sp = (keel_slice_char){ qn + rest, qspell };
+                size_t kw = ka->tag ? strlen(ka->tag) + 1 : 0;      /* `struct ` before the symbol */
+                if ((skip || kw) && sym[skip] && qn + kw + rest < sizeof qspell) {
+                    if (kw) { memcpy(qspell + qn, ka->tag, kw - 1); qspell[qn + kw - 1] = ' '; }
+                    memcpy(qspell + qn + kw, sym + skip, rest);
+                    sp = (keel_slice_char){ qn + kw + rest, qspell };
                 }
             }
             if (!pool(c, sp.ptr, sp.len, &e.arg_spell[e.argc])) break;

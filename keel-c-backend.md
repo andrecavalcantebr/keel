@@ -103,6 +103,8 @@ A linguagem fixa o **nome canônico** de cada tipo no ponto de declaração (lin
 | Nome canônico | Símbolo C |
 | --- | --- |
 | tipo da camada zero (`i32`, `char`, `const char`) | mesma grafia; qualificador prefixa com `_` — `const_char` |
+| palavras C de um tipo aritmético (`unsigned char`, `long long`) *(desde 0.4.0)* | o tipo keel que elas designam (`u8`, `i64`), pela regra 3 da linguagem §4.2; o campo e o parâmetro do C emitido usam o nome keel |
+| `struct S`, `union S`, `enum S` de um módulo *(desde 0.4.0)* | o símbolo do tipo (`M_S`); o C emitido escreve a etiqueta renomeada, `struct M_S` |
 | `M.nome` | `M_nome` |
 | Tipo `arena` do módulo `keel.arena` | `keel_arena`, pelo encurtamento da regra 2 |
 | `M.mod` aplicado a `A` | `M_mod_<A canônico>` |
@@ -117,6 +119,8 @@ buffer slice char       →  keel_buffer_keel_slice_char
 coll.stack i32          →  coll_stack_i32
 kv.map i32 geom.Point   →  kv_map_i32_geom_Point
 buffer const char       →  keel_buffer_const_char
+buffer unsigned char    →  keel_buffer_u8
+slice struct Person     →  keel_slice_geom_Person
 buffer _Atomic u32      →  keel_buffer_atomic_u32
 ```
 

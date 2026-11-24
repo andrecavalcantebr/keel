@@ -1669,6 +1669,21 @@ Os parâmetros pertencem às declarações do módulo genérico que descrevem
 essa substituição. Chamar um tipo comum de “tipo sem parâmetros” mistura
 o tipo com o mecanismo usado para produzir outras declarações.
 
+**Tipos C como argumento *(desde 0.4.0)*.** O idioma é `u8`, e `unsigned char` é
+só a grafia do mesmo tipo em C. Código C existente ou em migração escreve a
+segunda, e recusá-la obrigaria a trocar cada ocorrência antes de a primeira
+compilação passar. Por isso as palavras C de um tipo aritmético são aceitas como
+argumento de modificador e lidas como o tipo keel que designam, como a regra 3
+da §4.2 já fazia com `uint8_t`. O nome canônico é o do tipo keel, e as
+grafias `unsigned char`, `char unsigned` e `u8` dão uma instância só. A
+normalização não é só do nome: o C emitido usa `u8`, `i64`, porque `long long`
+e `int64_t` são tipos distintos em LP64, e dois ponteiros para eles não se
+convertem. `long` fica de fora porque a largura depende do alvo (32 bits no
+Windows, 64 no Linux), e escolher uma esconderia um defeito de portabilidade.
+A aceitação vem com um `warning` (`c-type-spelling`) que nomeia o tipo keel:
+a migração compila, e a saída diz o que escrever. O aviso é do uso, não do
+tipo, e `-Wno-c-type-spelling` o cala durante uma migração em andamento.
+
 A leitura de `long int` fornece a analogia: um especificador modifica o sentido
 do tipo com que se combina. Em `buffer struct Person people;`, `buffer`
 modifica `struct Person` para produzir a representação de uma sequência de

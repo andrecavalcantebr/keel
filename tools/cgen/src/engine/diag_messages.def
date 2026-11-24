@@ -23,6 +23,7 @@
     X(NAME_TOO_LONG, "generated name exceeds the backend limit of 215 characters") \
     X(NOT_A_CONTAINER_EXPRESSION, "`%s` takes a container as its object, and `%s` is not one: name a symbol declared with a keel type (or an index, field or verb over one)") \
     X(C_TYPE_AS_ARGUMENT, "`%s` takes keel types as arguments, and `%s` is a C keyword: write the keel spelling (`i32`, `u8`, `f64`, ...) or a named type") \
+    X(C_TYPE_SPELLING, "`%s` as a modifier argument is the keel type `%s`: write `%s`, the idiom (the C spelling is accepted only to ease migration)") \
     X(RESERVED_NAME, "`%s` is in the space of the generated C: names starting with `keel_` or `KEEL_` are reserved") \
     X(SYMBOL_REDECLARATION, "`%s` is already a keel symbol, and here it may be declared again (`%s %s`): keel does not decide which, and refuses; use another name") \
     X(BUFFER_OVER_CONST, "`%s` cannot make a `buffer` over the const elements `%s`: use `slice.of`, which gives a `slice const T`") \

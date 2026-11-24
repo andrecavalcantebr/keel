@@ -28,6 +28,35 @@ const char *k_primitive_name(keel_slice_char name) {
         if(k_symtab_same_name(name,k_diag_text(c_names[i])))return names[i];
     return NULL;
 }
+bool k_c_arith_word(KToken t) {
+    static const char *const words[]={"signed","unsigned","short","long","int","float","double"};
+    for(size_t i=0;i<sizeof words/sizeof *words;i++)if(k_token_is_c_word_named(t,words[i]))return true;
+    return false;
+}
+/* `unsigned char`, `long long`, ... as the keel type they stand for (spec §4.2, rule 3). `long`, alone or
+   with `double`, is target-dependent and has none: NULL. */
+const char *k_c_words_primitive(const KToken *w,size_t n) {
+    int sg=0,un=0,sh=0,lg=0,in=0,ch=0,fl=0,db=0;
+    for(size_t i=0;i<n;i++) {
+        if(k_token_is_c_word_named(w[i],"signed"))sg++;
+        else if(k_token_is_c_word_named(w[i],"unsigned"))un++;
+        else if(k_token_is_c_word_named(w[i],"short"))sh++;
+        else if(k_token_is_c_word_named(w[i],"long"))lg++;
+        else if(k_token_is_c_word_named(w[i],"int"))in++;
+        else if(k_token_is_c_word_named(w[i],"char"))ch++;
+        else if(k_token_is_c_word_named(w[i],"float"))fl++;
+        else if(k_token_is_c_word_named(w[i],"double"))db++;
+        else return NULL;
+    }
+    if(n==1&&ch)return "char";
+    if(n==1&&fl)return "f32";
+    if(n==1&&db)return "f64";
+    if(fl||db||sg+un>1||in>1)return NULL;
+    if(ch)return n==2&&sg?"i8":n==2&&un?"u8":NULL;
+    if(sh)return lg?NULL:un?"u16":"i16";
+    if(lg)return lg==2?(un?"u64":"i64"):NULL;
+    return un?"u32":"i32";
+}
 const KSymbol *k_symbol_resolve(const KSymbolTable *table,keel_slice_char name) {
     char compact[4096];
     size_t n=k_name_normalize(name,(keel_slice_char){sizeof compact,compact});

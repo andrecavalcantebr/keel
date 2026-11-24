@@ -212,7 +212,8 @@ argument    ::= { qual-arg } ( known-type | tagged-type | base-type | 'void' )
                 { qual-arg }
 tagged-type ::= ( 'struct' | 'union' | 'enum' ) qualified-name
 qual-arg    ::= 'const' | 'volatile' | '_Atomic'
-base-type   ::= 'char' | 'bool'
+base-type   ::= 'char' | 'bool' | c-word { c-word }   (* since 0.4.0 *)
+c-word      ::= 'signed' | 'unsigned' | 'short' | 'long' | 'int' | 'char' | 'float' | 'double'
 qualified-name ::= IDENT { '.' IDENT }
 
 declarator   ::= { '*' { qual-c } } direct-declarator
@@ -330,6 +331,13 @@ A forma por si só não decide se um programa é aceito. O essencial:
 
 - **Visibilidade.** Sem `pub` nem `priv`, a declaração é `pub`. `priv` tira
   da interface (do `.h`), não muda por si só o *linkage* C.
+- **Tipo C como argumento de modificador** *(desde 0.4.0)*: `slice const unsigned
+  char` é aceito e lido como `slice const u8`, com o `warning` `c-type-spelling`
+  que dá o nome keel (escreva `u8`). `signed/unsigned char` são `i8/u8`, `short`
+  `i16/u16`, `int`/`signed`/`unsigned` `i32/u32`, `long long` `i64/u64`,
+  `float`/`double` `f32/f64`, em qualquer ordem. `long` não tem tipo keel
+  (`c-type-as-argument`). `struct Person` vale como argumento. Fora de argumento
+  de modificador, `unsigned char` segue C opaco.
 - **Protocolo é estrutural, não declarado.** `foreach`, `walk`, `match`,
   `else`, indexação, `range-index` e `at` resolvem olhando se o **tipo tem os
   verbos certos** no módulo que o declarou — não existe `implements`. Os

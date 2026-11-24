@@ -77,6 +77,18 @@ static int isl_kt_from_text_depth(Ctx *c, const KSymbolTable *symbols, keel_slic
         first = k_lexer_next(&lexer, &pp);
     KSpecifier spec;
     KToken next = {0};
+    /* `unsigned char` is the keel type `u8` (spec §4.2, rule 3): C writes it as the symbol says, not as written */
+    if (n != SIZE_MAX && first.len) {
+        KLexer peek = lexer;
+        TKPpKind peek_pp = pp;
+        KToken after = k_lexer_next(&peek, &peek_pp);
+        if (k_c_arith_word(first) || (k_token_is_c_word_named(first, "char") && k_c_arith_word(after)))
+            isl_kt(c, t)->spell = (keel_slice_char){0};
+        /* a `struct` the module declares has its tag renamed (`struct recs_Person`): the instance spells it by its symbol */
+        const char *kw = k_token_is_c_word_named(first, "struct") ? "struct" : k_token_is_c_word_named(first, "union") ? "union"
+                       : k_token_is_c_word_named(first, "enum") ? "enum" : NULL;
+        if (kw) { isl_kt(c, t)->spell = (keel_slice_char){0}; isl_kt(c, t)->tag = kw; }
+    }
     if (!first.len || !k_token_is_ident(first) ||
         !k_scan_known_type(&lexer, first, symbols, &spec, &next, &pp) || spec.kind == K_SPEC_NONE) {
         isl_kt(c, t)->kind = n != SIZE_MAX ? KT_PRIM : KT_NONE;       /* `char`, `struct S`, ... */

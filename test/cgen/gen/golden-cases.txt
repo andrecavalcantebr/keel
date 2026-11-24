@@ -99,3 +99,4 @@ test/cgen/gen/share|use.k|-
 083-outcome-foreign-typedef|app/ob.k boxes.k|app.ob
 084-verb-two-modifiers|app/tw.k|app.tw
 085-typedef-of-instance|app/ti.k strs.k|app.ti
+086-c-type-arguments|app/ca.k recs.k|app.ca

@@ -64,6 +64,7 @@ typedef struct {
     keel_slice_char dims;
     int elem;                   /* KT_ARRAY: the element */
     char symbol[K_SYMBOL_MAX];  /* the C symbol of the type; empty when it cannot be named */
+    const char *tag;            /* KT_PRIM: `struct`, `union` or `enum` when the argument is a tag the module declares (its C tag is the symbol) */
     keel_slice_char spell;      /* KT_PRIM: the type as C writes it (`const char`); the symbol is `const_char` */
     char qspell[K_SYMBOL_MAX];  /* backs `spell` when isl_kt_from_home prefixes a qualifier
                                     it can't point at source text for (keel-spec §4.4 regra 3) */

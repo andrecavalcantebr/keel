@@ -173,7 +173,7 @@ static bool scan_known_type(KLexer *lexer, KToken first, const KSymbolTable *sym
      argument    ::= { qual-arg } ( known-type | tagged-type | base-type
                                   | 'void' ) { qual-arg }
      tagged-type ::= ( 'struct' | 'union' | 'enum' ) qualified-name
-     base-type   ::= 'char' | 'bool'
+     base-type   ::= c-word { c-word }   (* 'char' | 'bool' | the words of one C arithmetic type *)
    An argument is several tokens far more often than one — `const char`,
    `struct Person`, and a whole nested `known-type` are all one argument.
    `*tok` is the argument's first token, already read, and is left on the
@@ -211,8 +211,19 @@ static bool scan_argument(KLexer *lexer, const KSymbolTable *symtab, int depth,
         if (!k_token_is_ident(*tok)) return false;
         keel_slice_char name = k_scan_qualified_name(lexer, *tok, tok, pp);
         to = name.ptr + name.len;
-    } else if (k_token_is_c_word_named(*tok, "char") ||
-               k_token_is_c_word_named(*tok, "bool") ||
+    } else if (k_c_arith_word(*tok) || k_token_is_c_word_named(*tok, "char")) {
+        /* base-type: the C words that make one type, `unsigned char`, `long long` (a run with no keel type,
+           like `long`, is no argument) */
+        KToken run[8];
+        size_t n = 0;
+        to = tok->ptr;
+        while (n < 8 && (k_c_arith_word(*tok) || k_token_is_c_word_named(*tok, "char"))) {
+            run[n++] = *tok;
+            to = tok->ptr + tok->len;
+            *tok = k_lexer_next(lexer, pp);
+        }
+        if (!k_c_words_primitive(run, n)) return false;
+    } else if (k_token_is_c_word_named(*tok, "bool") ||
                k_token_is_c_word_named(*tok, "void")) {
         to = tok->ptr + tok->len;
         *tok = k_lexer_next(lexer, pp);

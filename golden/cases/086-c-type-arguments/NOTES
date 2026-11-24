@@ -1,0 +1,18 @@
+Notas do caso.
+
+Tipos C como argumento de modificador (spec §4.2, regra 3 e `base-type`,
+*desde 0.4.0*). Código C em migração escreve `unsigned char`, `long long`,
+`struct Person`; o idioma keel é `u8`, `i64`. O cgen aceita a grafia C, lê como
+o tipo keel que ela designa e avisa (`c-type-spelling`) com o nome idiomático.
+
+O que o caso afirma:
+
+- `slice const unsigned char` é `keel_slice_const_u8`: o símbolo e o campo `const u8 *ptr`
+  do `.type.h` são os do tipo keel, qualquer que seja a grafia ou a ordem das palavras;
+- `buffer.buffer long long` é `keel_buffer_i64`, com `i64 *ptr` (e não `long long *`:
+  em LP64, `int64_t` é `long`, e os dois ponteiros não são compatíveis);
+- `slice struct Person` é `keel_slice_recs_Person`, com `struct recs_Person *ptr`: o campo
+  usa a etiqueta que o cgen deu ao `struct` do módulo, não a escrita.
+
+Fora do caso, em `test/cgen/diag/types`: `buffer long` segue `c-type-as-argument`,
+porque a largura de `long` depende do alvo. Os dois perfis diferem só no cabeçalho.

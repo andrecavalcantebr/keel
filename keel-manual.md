@@ -205,6 +205,34 @@ pode crescer; o outro descreve um trecho e não possui nada. Um modificador
 `byref` (como `buffer`) é sempre passado por ponteiro; os demais passam por
 valor.
 
+**Tipos C como argumento (migração) *(desde 0.4.0)*.** O idioma é escrever o tipo
+keel, `slice const u8`. Código C que já existe escreve `unsigned char`, e o
+`cgen` aceita: lê como `u8`, gera a mesma instância e avisa com a grafia
+idiomática.
+
+```keel
+typedef slice const unsigned char bytes;     // aceito
+```
+
+```text
+a.k:1:9: warning: `unsigned char` as a modifier argument is the keel type `u8`: write `u8`, ... [c-type-spelling]
+```
+
+| C | keel |
+| --- | --- |
+| `signed char`, `unsigned char` | `i8`, `u8` |
+| `short`, `unsigned short` | `i16`, `u16` |
+| `int`, `signed`, `unsigned` | `i32`, `u32` |
+| `long long`, `unsigned long long` | `i64`, `u64` |
+| `float`, `double` | `f32`, `f64` |
+
+A ordem das palavras e o `int` opcional não importam (`long long unsigned int` é
+`u64`). `char` e `bool` ficam como são. `long` não tem tipo keel, porque a largura
+muda com o alvo: escreva `i32` ou `i64` (`c-type-as-argument`). `struct Person`,
+`union` e `enum` valem como argumento, e o C emitido usa a etiqueta do módulo. A
+tabela vale só para argumento de modificador; `unsigned char x;` solto continua
+sendo C. `-Wno-c-type-spelling` cala o aviso durante a migração.
+
 ### 3.4 `defer`: limpeza que acompanha o escopo
 
 ```keel
@@ -1152,7 +1180,8 @@ src/app/bad.k:11:13: error: `p` is used after `reset` invalidated the storage it
 
 `-Wno-<nome>` silencia um `warning` ou `info` da linguagem (`error` não se
 desliga); `-Werror` torna `warning` em parada. É assim que se cala o `info`
-`injected-names`, que lista o que `types` injetou. `-W…` com nome que não é de
+`injected-names`, que lista o que `types` injetou, e o `warning`
+`c-type-spelling`, que diz o tipo keel de um `unsigned char` escrito como argumento. `-W…` com nome que não é de
 keel passa ao compilador C.
 
 | Código | Situação |

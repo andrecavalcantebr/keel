@@ -18,16 +18,22 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   compartilham. Diagnósticos novos: `bitbuffer-width-invalid` (erro, pelo
   compilador C) e `bit-value-out-of-width` (debug). A §5.8 "Biblioteca padrão"
   passou a §5.9.
+- §4.2, regra 3 e `base-type`: as palavras C de um tipo aritmético (`unsigned char`, `long long`)
+  são argumento de modificador e normalizam para o tipo keel. Diagnóstico novo: `c-type-spelling`
+  (`warning`); `c-type-as-argument` fica para o que não tem tipo keel (`long`).
 
 **Backend** (`keel-c-backend.md`)
 
 - §5.20, novo: a emissão de `bitbuffer` e `bitslice`; §5.17 ganha as três
   verificações dos verbos novos.
+- §2.1: a tabela de nomes ganha as palavras C aritméticas e `struct S`; o C emitido usa o nome
+  keel e a etiqueta renomeada.
 
 **Rationale** (`keel-rationale.md`)
 
 - Seção nova, "`bitbuffer` e `bitslice`": por que não há `ptr`, o layout por
   byte, o alinhamento de `partition`, `make` e `bytes`, e o módulo `keel.bits`.
+- Nota nova em "Modificador e tipo modificado": por que `unsigned char` é aceito, normalizado, e por que `long` não.
 
 **Base** (`base/keel/`)
 
@@ -50,6 +56,14 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   nome vale como a instância: o `typedef` sai com o símbolo canônico, a instância
   entra no fecho e os verbos do módulo aceitam o nome como contêiner, também em
   quem o importa.
+- Tipos C como argumento de modificador (spec §4.2, regra 3 e `base-type`; backend §2.1;
+  golden 086, achado de `keel_libs`): `slice const unsigned char`, `buffer long long`
+  e `slice struct Person` são aceitos. As palavras C de um tipo aritmético são lidas
+  como o tipo keel que designam (`u8`, `i64`, ...), em qualquer ordem, e o C emitido usa
+  o nome keel. O uso emite o `warning` novo `c-type-spelling`, com o nome idiomático
+  como dica. `c-type-as-argument` passa a valer só para o que não tem tipo keel (`long`,
+  `unsigned long`, `long double`). O campo de um `struct` do módulo usa a etiqueta
+  renomeada (`struct recs_Person`), e não a escrita.
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima

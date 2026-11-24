@@ -189,6 +189,35 @@ void isl_check_arguments(Ctx *c, const KSpecifier *spec, KToken at) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
     if (spec->kind != K_SPEC_MODIFIER) return;
+    /* a C arithmetic type written as an argument is accepted as the keel type it stands for (spec §4.2, rule 3):
+       say so, with the idiom as the hint */
+    {
+        KLexer lx;
+        TKPpKind pp;
+        k_lexer_init(&lx, spec->text, NULL);
+        KToken t = k_lexer_next(&lx, &pp);
+        while (t.len) {
+            if (k_token_is_c_word_named(t, "struct") || k_token_is_c_word_named(t, "union") || k_token_is_c_word_named(t, "enum")) {
+                t = k_lexer_next(&lx, &pp);
+                if (t.len) t = k_lexer_next(&lx, &pp);
+                continue;
+            }
+            if (!k_c_arith_word(t) && !k_token_is_c_word_named(t, "char")) { t = k_lexer_next(&lx, &pp); continue; }
+            KToken run[8];
+            size_t n = 0;
+            bool arith = false;
+            while (t.len && n < 8 && (k_c_arith_word(t) || k_token_is_c_word_named(t, "char"))) {
+                arith = arith || k_c_arith_word(t);
+                run[n++] = t;
+                t = k_lexer_next(&lx, &pp);
+            }
+            const char *keel = arith ? k_c_words_primitive(run, n) : NULL;
+            if (keel) {
+                keel_slice_char written = { (size_t)(run[n - 1].ptr + run[n - 1].len - run[0].ptr), (char *)run[0].ptr };
+                isl_diag3(c, K_DIAG_C_TYPE_SPELLING, at, written, k_diag_text(keel), k_diag_text(keel));
+            }
+        }
+    }
     for (size_t d = 0; d < spec->dim_count; d++) {
         keel_slice_char t = spec->dims[d];
         while (t.len && t.ptr[0] == ' ') { t.ptr++; t.len--; }

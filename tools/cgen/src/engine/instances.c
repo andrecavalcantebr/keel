@@ -33,13 +33,25 @@ static bool type_name(keel_slice_char source,const KSymbolTable *symbols,Name *n
     bool tag=k_token_spelled(first,"struct")||k_token_spelled(first,"union")||k_token_spelled(first,"enum");
     if(tag)first=k_lexer_next(&lexer,&pp);
     KLexer look=lexer;KToken next;
-    keel_slice_char qualified=k_scan_qualified_name(&look,first,&next,&pp);
-    const KSymbol *sym=k_symbol_resolve(symbols,qualified);
-    const char *primitive=k_primitive_name(qualified);
+    keel_slice_char qualified={0};
+    const KSymbol *sym=NULL;
+    const char *primitive=NULL;
     KSpecifier spec={0};
+    if(!tag&&(k_c_arith_word(first)||k_token_spelled(first,"char"))) {
+        /* the C words of one arithmetic type name the keel type (spec §4.2, rule 3) */
+        KToken run[8];size_t n=0;
+        while(n<8&&(k_c_arith_word(first)||k_token_spelled(first,"char"))){run[n++]=first;first=k_lexer_next(&look,&pp);}
+        primitive=k_c_words_primitive(run,n);
+        if(!primitive)return false;
+        next=first;lexer=look;
+    } else {
+    qualified=k_scan_qualified_name(&look,first,&next,&pp);
+    sym=k_symbol_resolve(symbols,qualified);
+    primitive=k_primitive_name(qualified);
     if(sym&&sym->kind==K_SYM_MODIFIER) {
         if(!k_scan_known_type(&lexer,first,symbols,&spec,&next,&pp))return false;
     } else lexer=look;
+    }
     while(qualifier(next)){quals|=qualifier(next);next=k_lexer_next(&lexer,&pp);}
     if(next.len)return false;
     if(quals&1)text(name,"const_");

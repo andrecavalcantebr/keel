@@ -390,7 +390,8 @@ argument    ::= { qual-arg } ( known-type | tagged-type | base-type | 'void' )
                 { qual-arg }
 tagged-type ::= ( 'struct' | 'union' | 'enum' ) qualified-name
 qual-arg    ::= 'const' | 'volatile' | '_Atomic'
-base-type   ::= 'char' | 'bool'
+base-type   ::= 'char' | 'bool' | c-word { c-word }
+c-word      ::= 'signed' | 'unsigned' | 'short' | 'long' | 'int' | 'char' | 'float' | 'double'
 qualified-name ::= IDENT { '.' IDENT }
 
 declarator   ::= { '*' { qual-c } } direct-declarator
@@ -406,6 +407,8 @@ decl-array-1 ::= { '*' } IDENT dimensions [ '=' <opaque> ]
 dimensions    ::= '[' [ <opaque> { ',' <opaque> } ] ']'
                | '[' [ <opaque> ] ']' { '[' <opaque> ']' }
 ```
+
+`base-type` aceita também as palavras C de um tipo aritmético, em qualquer ordem, como argumento de modificador *(desde 0.4.0)*: `slice const unsigned char` é `slice` aplicado a `const u8`. Cada combinação é lida como o tipo keel que ela designa, segundo a regra 3 da §4.2, e a identidade canônica é a do tipo keel. Uma combinação sem tipo keel, como `long`, não é argumento (`c-type-as-argument`).
 
 `void` em posição de argumento de modificador segue o protocolo de omissão de campos parametrizados; não declara um objeto C de tipo `void`. `outcome void` representa um resultado sem valor associado (§5.5).
 
@@ -712,7 +715,7 @@ Declarar tipos e símbolos e registrar as propriedades usadas pelas construçõe
 
 1. `i8`, `i16`, `i32` e `i64` têm a largura indicada e representação com sinal em complemento de dois; `u8`, `u16`, `u32` e `u64` são os correspondentes sem sinal.
 2. `f16`, `f32` e `f64` são os formatos binários IEEE de 16, 32 e 64 bits; `bf16` tem um bit de sinal, oito de expoente e sete de fração. Disponibilidade e representação C pertencem ao backend.
-3. `bool`, `char`, `size_t`, `ptrdiff_t` e `uintptr_t` conservam seus contratos C. As grafias `int8_t` a `int64_t` e `uint8_t` a `uint64_t` normalizam para os nomes keel correspondentes, sem consultar headers.
+3. `bool`, `char`, `size_t`, `ptrdiff_t` e `uintptr_t` conservam seus contratos C. As grafias `int8_t` a `int64_t` e `uint8_t` a `uint64_t` normalizam para os nomes keel correspondentes, sem consultar headers. *(desde 0.4.0)* Como argumento de modificador, as palavras C de um tipo aritmético também normalizam, em qualquer ordem e com `int` opcional onde a linguagem C o admite: `signed char` e `unsigned char` dão `i8` e `u8`; `short` e `unsigned short`, `i16` e `u16`; `int`, `signed` e `unsigned`, `i32` e `u32`; `long long` e `unsigned long long`, `i64` e `u64`; `float` e `double`, `f32` e `f64`. `char` e `bool` ficam como são, e `char` é distinto de `signed char` e de `unsigned char`. `long`, `unsigned long` e `long double` não têm tipo keel, porque a largura de `long` depende do alvo: são `c-type-as-argument`. A normalização vale para o argumento de modificador; fora dele, `unsigned char` segue como C opaco. Cada uso de uma grafia C normalizada emite `c-type-spelling`, com o nome keel como dica.
 4. A identidade nominal inclui o módulo de origem e os argumentos canônicos. Alias e `types` não criam outra identidade; tipos de módulos distintos são distintos mesmo com campos iguais.
 5. Vários declaradores na mesma declaração registram símbolos separados, salvo a restrição de `else` (§4.10).
 6. Ponteiro como argumento de modificador exige tipo nomeado: `typedef i32 *pint; buffer pint b;` é buffer de ponteiros; `buffer i32 *b;` é ponteiro para buffer.
@@ -752,7 +755,7 @@ i32 *p = origin;
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `c-type-as-argument`, `array-1d-as-parameter`, `array-parameter-without-dimension`, `array-argument-wrong-dimension`, `binder-argument-not-array`, `binder-as-dimension`, `partial-array-index`, `flat-view-of-n-dim-array`, `nonconstant-dim-index`, `ref-without-initializer`, `ref-arithmetic`, `enum-constant-without-type`, `restrict-on-container`, `hidden-declarator`, `nonscalar-constexpr`, `constexpr-as-lvalue`, `constexpr-name-missing`, `canonical-name-collision`, `reserved-name`, `name-too-long`. `specific-format-unavailable` é do backend ou do compilador C.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `c-type-as-argument`, `c-type-spelling`, `array-1d-as-parameter`, `array-parameter-without-dimension`, `array-argument-wrong-dimension`, `binder-argument-not-array`, `binder-as-dimension`, `partial-array-index`, `flat-view-of-n-dim-array`, `nonconstant-dim-index`, `ref-without-initializer`, `ref-arithmetic`, `enum-constant-without-type`, `restrict-on-container`, `hidden-declarator`, `nonscalar-constexpr`, `constexpr-as-lvalue`, `constexpr-name-missing`, `canonical-name-collision`, `reserved-name`, `name-too-long`. `specific-format-unavailable` é do backend ou do compilador C.
 Referências: [Rationale: por que f16 e bf16 delegam o erro de disponibilidade ao C](keel-rationale.md#por-que-f16-e-bf16-delegam-o-erro-de-disponibilidade-ao-c).
 
 Conflitos de nomes seguem a §2.5.
@@ -2853,7 +2856,8 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `static-on-type` | `static` aplicada a tipo | `error` | keel | §4.1 |
 | `name-too-long` | Nome gerado acima do teto de comprimento do alvo | `error` | Backend / compilador C | §4.2 |
 | `not-a-container-expression` | Expressão fora da gramática de contêiner em posição de contêiner | `error` | keel | §4.4 |
-| `c-type-as-argument` | Palavra-chave de tipo aritmético C como argumento de modificador, exceto `char` e `bool`, em vez da grafia keel ou de um tipo nomeado | `error` | keel | §4.2 |
+| `c-type-as-argument` | Palavra-chave de tipo aritmético C como argumento de modificador sem tipo keel correspondente (`long`, `unsigned long`, `long double`), em vez da grafia keel ou de um tipo nomeado *(desde 0.4.0: os demais normalizam, `c-type-spelling`)* | `error` | keel | §4.2 |
+| `c-type-spelling` | Tipo aritmético C escrito como argumento de modificador (`unsigned char`, `long long`, `int`…): aceito e normalizado para o tipo keel (`u8`, `i64`, `i32`…), que é a grafia idiomática *(desde 0.4.0)* | `warning` | keel | §4.2 |
 | `reserved-name` | Identificador declarado pelo programa nos espaços reservados `keel_` e `KEEL_` | `error` | Backend / compilador C | §4.2 |
 | `symbol-redeclaration` | Padrão local de possível redeclaração de símbolo conhecido, conforme §2.5 | `error` | keel | §2.5 |
 | `buffer-over-const` | `buffer` sobre vetor C `const` — a mensagem indica `slice const T` | `error` | keel | §5.3 |

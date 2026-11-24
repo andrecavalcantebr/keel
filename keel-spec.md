@@ -2856,7 +2856,7 @@ este último sem parâmetro.
 | `pool.alloc(p)` | [`outcome entity`](#55-keeloutcome-e-keelcorot) | toma um slot livre; `NONE` se não há nenhum |
 | `pool.free(p, e)` | — | devolve o slot de `e` à lista livre |
 | `pool.reset(p)` | — | invalida todo `entity` já distribuído, e devolve todos os slots |
-| `pool.ptr(p, e)` | `T *ref` | endereço do slot; a geração é verificada em debug, como `buffer.ptr` (backend §5.17) |
+| `pool.ptr(p, e)` | `T *` | endereço do slot; a geração é verificada em debug, como `buffer.ptr` (backend §5.17) |
 | `pool.at(p, e)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | cópia do slot, ou `NONE` se a geração não casa, em toda build — como `buffer.at` |
 | `pool.length(p)` | `size_t` | slots em uso |
 | `pool.capacity(p)` | `size_t` | slots reservados |
@@ -2866,7 +2866,7 @@ este último sem parâmetro.
 - `pool T` segue a §4.3 como qualquer modificador genérico `byref`, sem `dim`.
 - `entity` não tem parâmetro de tipo: a mesma `entity` identifica um slot em
   qualquer `pool`, e nada verifica que o `pool` passado a `ptr`, `free` ou
-  `valid` é o que produziu aquele `entity` (§5, "Casos especiais").
+  `at` é o que produziu aquele `entity` (§5, "Casos especiais").
 
 #### Conformidade e procedência
 
@@ -2879,7 +2879,7 @@ nesta versão.
 pub child entity alloc(parent pool *p);
 pub void free(parent pool *p, consumes entity e);
 pub void reset(invalidates pool *p);
-pub T *ref ptr(parent pool *p, entity e);
+pub child T *ptr(parent pool *p, entity e);
 ```
 
 `alloc` e `ptr` seguem o papel geral de produto derivado do receptor (§4.12,
@@ -2902,8 +2902,9 @@ por geração.
 3. Cada slot guarda sua própria geração. `alloc` devolve um `entity` com a
    geração atual do slot tomado; `free` soma um à geração do slot liberado, e
    o devolve à lista livre.
-4. `ptr` e `at` conferem a geração de `e` contra a do slot em `e.index`:
-   diferentes, o `entity` é obsoleto. `ptr` verifica em debug
+4. `ptr` e `at` conferem `e.index < capacity(p)` e a geração de `e` contra a
+   do slot em `e.index`: fora da capacidade, ou geração diferente, o
+   `entity` é obsoleto ou nunca pertenceu a este `pool`. `ptr` verifica em debug
    (`entity-generation-mismatch`), como `buffer.ptr` (backend §5.17); `at`
    verifica em toda build e devolve `NONE`, como `buffer.at`. Em release,
    `ptr` sobre geração obsoleta é o programa usar um `entity` liberado, que a
@@ -2951,15 +2952,16 @@ debug: `entity-generation-mismatch`, `pool-generation-overflow`.
 
 #### 5. Casos especiais
 
-- Nada verifica que o `entity` passado a `ptr`, `free` ou `valid` veio do
+- Nada verifica que o `entity` passado a `ptr`, `free` ou `at` veio do
   `pool` que o recebe: usar o `entity` de um `pool` com outro é o programa
   misturar identidades que a linguagem não distingue, como indexar um
   `buffer` com um índice de outro.
 - `pool.from_arena` numa arena sem espaço devolve falso, e `p` fica com
   capacidade zero: toda chamada a `alloc` depois falha pelo canal normal.
-- O ponteiro devolvido por `ptr` escapa como qualquer `T *ref`: copiá-lo para
-  um `T *` cru sai da análise lexical, como o `T *` devolvido por
-  `arena.alloc` (§5.2).
+- O ponteiro devolvido por `ptr` escapa como o `T *` devolvido por
+  `arena.alloc` (§5.2): quem o recebe pode ligá-lo com `ref` (§4.2), como no
+  exemplo, e nesse caso o uso depois de `free` é seguido pela análise
+  lexical; copiado para um `T *` cru sem `ref`, sai dela.
 - `pool` não sincroniza o acesso entre threads. Antes de um `parallel`, o
   programa particiona o uso do `pool` por fora, como já faz com a arena.
 - O custo e a técnica de `reset` — por época do `pool`, ou subindo a geração

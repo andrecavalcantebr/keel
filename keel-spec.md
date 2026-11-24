@@ -301,7 +301,7 @@ type-binder  ::= 'type' IDENT { ',' IDENT }
 
 top-item    ::= import | import-c | extern-c | top-decl
 
-import       ::= 'import' module-name [ 'as' IDENT ] [ 'types' ] ';'
+import       ::= [ 'pub' ] 'import' module-name [ 'as' IDENT ] [ 'types' ] ';'
 import-c     ::= 'import_c' ( system-header | STRING ) ';'
 extern-c     ::= [ 'pub' | 'priv' ] 'extern_c' [ '[' 'type_h' ']' ] '{' <opaque> '}'
 
@@ -609,6 +609,7 @@ diagnóstico citados em cada contrato.
 module geom;
 import util;
 import shapes as f types;
+pub import matrix.linalg as linalg;
 import_c <stdio.h>;
 extern_c [type_h] { struct point { double x, y; }; }
 extern_c { int external_op(int); }
@@ -617,7 +618,7 @@ pub i32 counter;
 priv i32 helper(i32 x) { return x; }
 ```
 
-`module`, `import`, `import_c` e `extern_c` ocupam o nível de arquivo. `module` é a primeira construção significativa, antes de diretivas C; seu nome é um caminho de identificadores separados por ponto, e a forma genérica acrescenta os parâmetros da §4.3. `import M [as A] [types];` admite alias antes de `types`. `import_c` recebe um nome de header entre `<` e `>`, ou entre aspas. `pub` e `priv` antecedem uma declaração de módulo.
+`module`, `import`, `import_c` e `extern_c` ocupam o nível de arquivo. `module` é a primeira construção significativa, antes de diretivas C; seu nome é um caminho de identificadores separados por ponto, e a forma genérica acrescenta os parâmetros da §4.3. `import M [as A] [types];` admite alias antes de `types`; `pub` antes de `import` publica o alias na interface de quem o escreve *(desde 0.4.0, regra 7a)*. `import_c` recebe um nome de header entre `<` e `>`, ou entre aspas. `pub` e `priv` antecedem uma declaração de módulo.
 
 **Reconhecimento**
 
@@ -637,7 +638,8 @@ Organizar declarações em módulos e integrar interfaces e implementações C.
 5. Um alias muda a escrita usada pelo importador e preserva a identidade de origem. Sem alias, o qualificador é o nome do módulo por inteiro, com os pontos do caminho *(desde 0.3.0)*.
 6. `types` disponibiliza sem qualificador os nomes de tipos, modificadores, protocolos e conjuntos de tags *(desde 0.3.0)* do módulo importado. Não injeta funções, variáveis nem constantes de enum. A forma qualificada continua disponível, e a injeção não se propaga por imports.
 7. O módulo e o modificador que ele declara têm identidades distintas. Em `import keel.outcome as outcome types;`, `outcome` é o alias do módulo e `outcome.outcome` é o modificador; `types` permite escrever o modificador como `outcome` em posição de tipo, e em `outcome.ok(r)` o prefixo qualifica um verbo do módulo.
-8. A resolução alcança símbolos públicos de imports transitivos. O uso sem import direto é `indirect-import`.
+7a. *(desde 0.4.0)* `pub import M [as A] [types];` publica `A` — ou, sem alias, o nome completo de `M` — como alias da interface de quem o escreve. Um alias publicado é transparente: denota o módulo `M` em si, nunca uma cópia de seus símbolos. Quem alcança o módulo que o publicou, por import direto ou por uma cadeia de outros alias publicados, pode escrever esse alias e, a partir dele, qualquer nome que `M` publique do mesmo jeito; o alcance não tem profundidade fixa, mas cada elo da cadeia só se estende além de um módulo que o publicou com `pub`. Sem `pub`, o alias vale somente dentro de quem importou. `types` não se propaga por nenhum import, publicado ou não (regra 6). A reexportação não torna pública nenhuma declaração privada do módulo de origem. Um pacote é, nesse sentido, só uma estrutura de pastas com um ou mais módulos de fachada que publicam, por `pub import`, os módulos internos que querem oferecer; não há manifesto nem configuração além disso. [R: módulos e identidade](keel-rationale.md#módulos-e-identidade)
+8. A resolução alcança símbolos públicos de imports transitivos. O uso sem import direto é `indirect-import`; o alcance por um alias publicado (regra 7a) é uso direto, e não produz esse diagnóstico.
 9. Colisões são verificadas entre os símbolos exportados do módulo e os do fecho transitivo de seus imports, pelos nomes canônicos efetivos, inclusive tags, typedefs e constantes de enum (§4.2).
 10. `import_c` emite a inclusão na interface.
 11. `extern_c` preserva o conteúdo, sem mangling dos símbolos ali declarados. keel não inspeciona esse conteúdo.
@@ -652,6 +654,23 @@ Referências: [Rationale: módulos e identidade](keel-rationale.md#módulos-e-id
 #### 3. Exemplo
 
 O [exemplo 1 do README](README.md#1-módulo-completo-e-chamada-c) mostra `module`, `import_c` e o wrapper de entrada.
+
+*(desde 0.4.0)* `pub import` (regra 7a), com nomes de `keel_libs/matrix`:
+
+```keel
+// matrix/matrix.k — a fachada do pacote
+module matrix.matrix dim ROWS, COLS type T;
+pub import matrix.linalg as linalg;
+pub import matrix.product as product;
+```
+
+```keel
+// um consumidor, em outro pacote
+import matrix.matrix as m;
+// m.linalg e m.product são alcançados sem importar matrix.linalg nem
+// matrix.product diretamente — o alias é publicado pela fachada.
+m.linalg.transpose(a);
+```
 
 #### 4. Erros
 

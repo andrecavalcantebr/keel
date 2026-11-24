@@ -1422,6 +1422,45 @@ um header ao compilador C; o segundo permite escrever declarações externas no
 próprio fonte. Conhecer seus nomes explícitos ajuda a evitar conflitos, mas não
 fornece informação suficiente para inferir tipos C.
 
+**Por que `pub import` publica um alias, e não uma cópia de símbolos.** A
+alternativa — reunir os símbolos do módulo importado na interface de quem o
+publica — exigiria decidir, para cada símbolo, se ele se funde com algum já
+existente, com que nome, e o que acontece quando dois módulos publicados
+trazem o mesmo nome por caminhos diferentes. Nada disso é necessário se o que
+se publica é só uma referência ao módulo: resolver `m.linalg.transpose` é
+seguir `m` até `matrix.matrix`, depois `linalg` até `matrix.linalg` — que
+`matrix.matrix` publicou —, e então `transpose` dentro dele, exatamente como
+se o import fosse direto. A identidade, o mangling e os artefatos de
+`matrix.linalg` não mudam; só a forma de alcançá-lo mudou.
+
+**Por que o alcance por um alias publicado tem profundidade livre.** Um
+alias publicado é transparente: ele não é uma lista de nomes copiados, e sim
+uma referência válida ao módulo. Continuar a cadeia — `m.linalg` seguido de
+mais um `pub import` dentro de `matrix.linalg` — não exige nenhum mecanismo
+novo, porque cada passo da cadeia resolve do mesmo jeito que o primeiro: olha
+o que o módulo alcançado publica. O limite não é de profundidade, é de
+publicação — cada elo só se estende além de um módulo que escreveu `pub`, e
+um elo que não publicou interrompe a cadeia ali, com a falta de resolução
+comum a qualquer nome não encontrado.
+
+**Por que não existe `priv import`.** Sem `pub`, o import já não publica
+nada: escrever `priv import` diria o mesmo que `import` sozinho, pela mesma
+razão que `pub` antes de uma função cujo módulo já a declara pública não
+muda nada (spec §4.1, regra 2) — só que o padrão, aqui, está invertido. Uma
+palavra que nunca muda o programa não paga seu custo de leitura.
+
+**Por que um pacote não é um conceito novo.** Uma vez que a fachada é só um
+módulo cujo papel é publicar outros, "pacote" deixa de precisar de qualquer
+mecanismo que o compilador reconheça: é uma estrutura de pastas com um ou
+mais módulos de fachada, e nada além disso — sem manifesto, sem metadado de
+pacote, sem configuração que a ferramenta precise ler. `keel_libs/matrix` já
+tem essa forma: `matrix.matrix` é a fachada, e `matrix.linalg`,
+`matrix.product`, `matrix.span` e os demais são os módulos internos que ela
+publica. Mover ou renomear um módulo interno do pacote não muda a interface
+que `pub import` oferece, enquanto a fachada continuar publicando o mesmo
+alias — o mesmo argumento que já valia para a identidade do módulo (acima) e
+para a recusa de um conceito de projeto na ferramenta [cgen-tool-spec §9](cgen-tool-spec.md#9-fora-de-escopo).
+
 Referência: [spec §4.1](keel-spec.md#41-módulos-e-interoperabilidade).
 
 ## Marcadores e declarações

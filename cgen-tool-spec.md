@@ -282,6 +282,8 @@ O fonte também tem que estar sob exatamente uma raiz; sob nenhuma ou sob mais d
 
 A forma normalizada resultante é a mesma usada no `#line`, o que resolve de saída a diferença entre `./src/a.k` e `src/a.k`.
 
+**Busca de todo import, direto ou relativo** *(desde 0.4.0)*. Para achar o arquivo de um `import` (publicado ou não, keel-spec.md §4.1 regra 7a), o cgen tenta, nesta ordem: primeiro, o caminho do módulo relativo ao diretório do arquivo que faz o import; não achando, cada raiz `-I`, na ordem dada. O arquivo achado por qualquer um dos dois caminhos segue sujeito às mesmas regras desta seção — está sob exatamente uma raiz, e seu caminho relativo a ela concorda com o nome que ele mesmo declara. A busca relativa não cria uma segunda noção de identidade: só evita que quem importa um módulo precise de um `-I` para cada módulo interno de um pacote que já alcançou pela fachada. Com `-I ./lib`, e `matrix/linalg.k` sob `./lib/matrix/`, importar `matrix.linalg` de dentro de `matrix/matrix.k` acha o arquivo pela busca relativa antes de olhar `-I`, e o resultado é o mesmo arquivo que `-I` também alcançaria — a busca relativa é um atalho, não uma exceção à regra de identidade.
+
 ### 4.7 Ponto de entrada
 
 A linguagem não fixa qual módulo é a entrada do programa: todo módulo pode ter a sua função de entrada, e ela é símbolo manglado como qualquer outro (`keel-spec.md` §4.1). Escolher qual delas vira o `main` do C é decisão de build, e é `--main <módulo>` que a expressa.

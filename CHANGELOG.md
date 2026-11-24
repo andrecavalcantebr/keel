@@ -75,6 +75,11 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   entradas, `parallel` com mais de 16 capturas) nomeia o limite; o de `match` com muitos rótulos não manda mais
   "encurtar a linha". Teste: `cli/limit_messages`.
 - `..<` e `..=` (golden 087, `cli/range_marker`): o lexer junta o marcador às pontos (`..<`, `..=`, e `..<=` continua `..` e `<=`, com o diagnóstico `invalid-range-marker`); `isl_punct` e o emissor leem `..` como as pontos com ou sem marcador; `subscript.c`, `foreach.c`, `rangelit.c` e `parallel.c` (`0..=3` são quatro workers) tratam o `..=`; `base/keel.k` ganha `keel_inclusive`; `inverted-range-index` conta `a..=b` como `[a, b+1)`.
+- `pub import` (texto, ainda sem implementação): `pub import M [as A] [types];` publica `A` como alias de quem o
+  escreve (regra 7a do §4.1); o alcance segue qualquer cadeia de alias publicados, cada elo até onde foi publicado
+  com `pub`, sem flatten de símbolos. `indirect-import` não dispara por esse alcance. Não há `priv import`. A
+  ferramenta busca todo import, publicado ou não, relativo ao diretório de quem importa antes de olhar as raízes
+  `-I` (cgen-tool-spec §4.6), e um pacote passa a ser só uma pasta com um ou mais módulos de fachada.
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima

@@ -1,0 +1,20 @@
+Notas do caso.
+
+`typedef buffer u8 text;` (achado A2 de `keel_libs`). A spec já aceita a forma:
+`decl-typedef` toma um `specifier`, e `known-type ::= modifier argument {
+argument }` (§4.2). O cgen a tratava como C opaco: o `.type.h` saía com
+`typedef buffer s_text;` (`unknown type name`), e o nome `text` não era
+contêiner, então `buffer.length(t)` dava `not-a-container-expression`.
+
+O que o caso afirma:
+
+- o `typedef` do módulo vira `typedef keel_buffer_u8 strs_text;`, e o `.type.h`
+  inclui o `.type.h` da instância (a instância entra no fecho);
+- o nome do `typedef` vale como a instância, em quem o importa: `buffer.length(t)`
+  e `slice.length(v)` resolvem para os verbos de `keel_buffer_u8` e
+  `keel_slice_const_u8`, e o corpo `pub inline` do próprio módulo também;
+- a forma qualificada (`slice.slice const u8`) vale como a simples.
+
+Fora do caso: o argumento `unsigned char` (palavras C de mais de uma palavra)
+não é argumento de modificador; o que a spec escreve é `u8`.
+Os dois perfis diferem só no cabeçalho.

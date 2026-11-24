@@ -99,7 +99,7 @@ static bool exports(CgenTool *t, CgenModuleEntry *e) {
         bool found=false;
         for(size_t j=0;j<e->symbols.len;j++) {
             KSymbol *s=keel_buffer_KSymbol_ptr(&e->symbols, j);
-            if(!s->origin && k_symtab_same_name(s->name,sym.name)) {*s=sym;found=true;break;}
+            if(!s->origin && k_symtab_same_name(s->name,sym.name)) {sym.alias=s->alias;*s=sym;found=true;break;}
         }
         if(!found) {
             if(e->symbols.len==e->symbols.cap)return false;

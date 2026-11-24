@@ -98,3 +98,4 @@ test/cgen/gen/share|use.k|-
 082-modifier-multi-index|app/mi.k|app.mi
 083-outcome-foreign-typedef|app/ob.k boxes.k|app.ob
 084-verb-two-modifiers|app/tw.k|app.tw
+085-typedef-of-instance|app/ti.k strs.k|app.ti

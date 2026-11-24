@@ -55,8 +55,14 @@ static void kt_compose(Ctx *c, int t, const KSymbol *modifier) {
     isl_kt_set_symbol(k, buf, n);
 }
 
+static int isl_kt_from_text_depth(Ctx *c, const KSymbolTable *symbols, keel_slice_char text, int depth);
+
 /* A type written in `symbols`' scope. */
 int isl_kt_from_text(Ctx *c, const KSymbolTable *symbols, keel_slice_char text) {
+    return isl_kt_from_text_depth(c, symbols, text, 0);
+}
+
+static int isl_kt_from_text_depth(Ctx *c, const KSymbolTable *symbols, keel_slice_char text, int depth) {
     int t = isl_kt_new(c);
     if (t < 0) return -1;
     char sym[K_SYMBOL_MAX];
@@ -78,6 +84,12 @@ int isl_kt_from_text(Ctx *c, const KSymbolTable *symbols, keel_slice_char text) 
     }
     if (spec.kind == K_SPEC_NAMED_TYPE) {
         const KSymbol *s = k_symbol_resolve(symbols, spec.type_name);
+        /* `typedef buffer u8 text;`: the name stands for that instance, written in the module that declares it */
+        if (s && s->kind == K_SYM_TYPE && s->alias.len && depth < 4) {
+            const KSymbolTable *home = s->origin && s->origin->ast ? s->origin->ast->symbols : symbols;
+            int al = isl_kt_from_text_depth(c, home, s->alias, depth + 1);
+            if (al >= 0 && isl_kt(c, al)->kind == KT_MODIFIER) return al;
+        }
         isl_kt(c, t)->kind = k_primitive_name(spec.type_name) ? KT_PRIM : KT_NAMED;
         if (s) { isl_kt(c, t)->module = s->origin; isl_kt(c, t)->name = s->name; }
         return t;

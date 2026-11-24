@@ -44,6 +44,12 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   de outro módulo e fica por valor num campo (`outcome item`); e um módulo
   genérico com mais de um modificador resolve o verbo sobre qualquer um deles,
   não só sobre o primeiro declarado.
+- `typedef` de uma instância de modificador (achado A2 de `keel_libs`, golden 085):
+  `typedef buffer u8 text;` e `typedef slice.slice const u8 view;` eram tratados
+  como C opaco, embora `decl-typedef` aceite um `specifier` (spec §4.2). Agora o
+  nome vale como a instância: o `typedef` sai com o símbolo canônico, a instância
+  entra no fecho e os verbos do módulo aceitam o nome como contêiner, também em
+  quem o importa.
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima

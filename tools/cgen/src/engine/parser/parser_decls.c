@@ -103,6 +103,7 @@ bool k_scan_decl_typedef(KLexer *lexer, KToken typedef_kw, KSymbolTable *symtab,
     out->name_count = 0;
 
     KToken tok = k_lexer_next(lexer, next_pp_kind_out);
+    KToken spec_first = tok;
 
     KToken start = k_find_declarator_start(lexer, tok, NULL);
     if (start.len == 0) return false;
@@ -113,6 +114,15 @@ bool k_scan_decl_typedef(KLexer *lexer, KToken typedef_kw, KSymbolTable *symtab,
     while (tok.len != 0 && tok.ptr < start.ptr) tok = k_lexer_next(lexer, next_pp_kind_out);
     if (tok.len == 0) return false;
 
+    /* the specifier as written, kept when it opens with a modifier and has an argument: `buffer u8` */
+    keel_slice_char alias = {0};
+    if (spec_first.len && spec_first.ptr + spec_first.len < start.ptr && k_token_is_ident(spec_first)) {
+        const KSymbol *m = k_symtab_lookup(symtab, spec_first);
+        const char *end = start.ptr;
+        while (end > spec_first.ptr && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\n' || end[-1] == '\r')) end--;
+        if (m && (m->kind == K_SYM_MODIFIER || m->kind == K_SYM_MODULE)) alias = (keel_slice_char){ (size_t)(end - spec_first.ptr), (char *)spec_first.ptr };
+    }
+
     for (;;) {
         KDeclarator declarator;
         KToken after;
@@ -121,6 +131,9 @@ bool k_scan_decl_typedef(KLexer *lexer, KToken typedef_kw, KSymbolTable *symtab,
         if (out->name_count >= K_TYPEDEF_MAX_NAMES) return false;
         out->names[out->name_count++] = declarator.name;
         if (!k_symtab_insert(symtab, declarator.name, K_SYM_TYPE, 0)) return false;
+        if (alias.len && out->name_count == 1 && !k_token_is_punct(after, ",") && !declarator.pointer_depth &&
+            !declarator.parenthesized && !declarator.has_array_suffix && !declarator.has_function_suffix)
+            keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)->alias = alias;
 
         if (k_token_is_punct(after, ",")) {
             /* the specifier is shared, so the next declarator starts at

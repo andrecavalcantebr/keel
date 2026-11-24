@@ -1126,6 +1126,7 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
             memcpy(ctx.locals, ctx.globals, ctx.global_count * sizeof *ctx.globals);
             isl_extent_island(&ctx, isl_node_at(a, i));
             isl_struct_fields(&ctx, isl_node_at(a, i));
+            isl_typedef_specifier(&ctx, isl_node_at(a, i));
         }
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = isl_node_at(a, i);

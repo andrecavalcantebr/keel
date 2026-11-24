@@ -14,3 +14,5 @@ Fechados na branch `0.4.0` em 2026-11-20 (achados do xprk e da revisão de distr
 
 **Why:** xprk (../xprk) e as libs usam o cgen instalado; o `cgen` no PATH é o de ~/Apps, não o de `tools/cgen/cgen` (cuidado ao testar um conserto: usar o binário do repo com `--base-dir base`).
 **How to apply:** ao testar correção no cgen, rodar `tools/cgen/cgen`, não `cgen`. Ver [[oraculo-isolado-e-exit-code-real]].
+
+**2026-11-24:** `~/Apps/keel-0.4.0-dev` refeito de `4e83e05` (`make release VERSION=0.4.0-dev`, tar extraído em ~/Apps, `install.sh`); traz A1-A3, tipos C como argumento e as mensagens do implementation-limit.

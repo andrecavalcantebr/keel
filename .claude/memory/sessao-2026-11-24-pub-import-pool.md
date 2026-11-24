@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 1451d4d2-0852-4fbf-9ab0-bb54be16a69e
-  modified: 2026-11-24T18:25:11.161Z
+  modified: 2026-11-24T21:38:42.237Z
 ---
 
 Branch `0.4.0`. Continuação de [[sessao-2026-11-23-estado]] e
@@ -76,14 +76,48 @@ medir primeiro com a tabela nova, decidir o número depois.
 `pub struct S {...} s0;`/protótipo sem corpo (lacuna da spec ou do emissor,
 a decidir por leitura) ficam para depois da implementação abaixo.
 
-## Ordem de trabalho (pedida pelo André, nesta ordem)
+## Implementação do `keel.pool` — feita (2026-11-24, commits a621fbe..7f96a20)
 
-1. Golden dos dois (`pub import`, `keel.pool`) primeiro.
-2. Implementação — pode delegar aos Haiku.
-3. Suíte inteira ao final.
-4. Commit e push.
+`base/keel/entity.k` e `base/keel/pool.k`, golden 088 (feliz caminho +
+`entity-generation-mismatch` em debug), suíte inteira verde (176 ok golden,
+0 fail em tudo, docs 45 ok). Escrevi eu mesmo (não delegado a Haiku): a
+implementação estava presa demais ao desenho ainda sendo fechado (ex.: achei
+e corrigi, no meio do caminho, que `pool.ptr` tinha `T *ref` no protótipo da
+spec — inválido, `ref` só vale em declarador local com inicializador).
 
-Depois disso, volta para o E03.
+**Dois bugs reais do cgen achados e corrigidos**, nenhum exercitado antes:
+- `consumes` vazava para o C gerado (`engine/emit/roles.c`: lista de papéis
+  a apagar esquecia `consumes`).
+- `priv inline` de módulo genérico que não menciona `T` nem o modificador
+  não ia para lugar nenhum (nem `.h` de instância, nem `.h` nu do módulo) —
+  `engine/emit/files.c`, `header_function`/`header_body` só admitiam
+  inline-sem-pub dentro de uma instância. Corrigido para compartilhar o
+  `.h` nu do módulo (como um `pub inline` não-paramétrico já fazia); testei
+  à mão que duas instâncias do mesmo genérico na mesma unidade não duplicam
+  a definição.
+- De passagem: 4 scripts de teste unitário não linkavam `tool/memory.c`
+  (novo na sessão anterior) — corrigido.
+
+## `pub import`: não implementado nesta sessão
+
+Descoberta ao tentar: `pub`/`priv` antes de `import` **já faz parse hoje**
+(zero trabalho de gramática), mas o resolvedor **não encadeia dois pontos**
+— testei (`b.c.value()` produz `bb_c.value()`, lixo). A regra 8 do §4.1
+(`indirect-import`, já testada pelo golden 069) só alcança um nível de
+indireção, e não distingue import publicado de não publicado. Implementar a
+cadeia de alias de profundidade livre que o texto da spec promete é cirurgia
+no núcleo do resolvedor (`isl_module_alias_ex`), não um ajuste pequeno.
+Decisão pendente com o André: reduzir o alcance da spec para um nível só
+(perto do que a regra 8 quase já faz) ou implementar a cadeia completa com
+mais tempo dedicado. Fica para a próxima sessão.
+
+## Ordem de trabalho (pedida pelo André)
+
+1. Golden primeiro, 2. implementação (Haiku quando possível — aqui não deu),
+3. suíte inteira, 4. commit e push. Feito para `keel.pool`; falta para
+`pub import`.
+
+Depois de `pub import`, volta para o E03.
 
 **Why:** o André quer o "fio" da sessão escrito à parte, para não se perder
 entre a decisão de design e a implementação.

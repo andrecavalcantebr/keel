@@ -14,3 +14,4 @@
 - [Testes por área + pre-push](testes-por-area-e-hook-pre-push.md) — test/run.sh AREA...; suíte inteira só no push (hook local).
 - [Decisões v1+ (2026-11-23)](decisoes-v1-mais-2026-11-23.md) — pub import como alias de fachada (source descartado), a..<b/a..=b aditivo, LINE_CAP no normativo + tabela de limites.
 - [Sessão 2026-11-23: estado e fila](sessao-2026-11-23-estado.md) — teto 215 commitado (ba9e195); fila: intervalos, pub import, handles, A1/A3, E02/E03, arena.
+- [Tipos C como argumento (2026-11-23)](tipos-c-como-argumento-2026-11-23.md) — unsigned char/long long normalizam p/ u8/i64 com warning c-type-spelling; long recusado; golden 086; A1-A3 fechados.

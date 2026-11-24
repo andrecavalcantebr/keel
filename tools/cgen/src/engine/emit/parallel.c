@@ -135,6 +135,7 @@ static bool analyze(const KAst *ast, const KIsland *is, const KAstNode *fn, Par 
     } else if (!ident(ast, p->count) || !k_em_constexpr_value(ast, fn, p->kw, p->count, &k) || k < 0) {
         return false;   /* the workers are a decimal, or a constexpr whose initializer is one */
     }
+    if (k_token_is_inclusive_dots(k_em_tok(ast, p->dots))) k++;   /* `0..=3` is four workers (spec §4.5) */
     p->workers = (size_t)k;
 
     /* `T part : C` */

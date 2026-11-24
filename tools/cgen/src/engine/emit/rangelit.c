@@ -87,7 +87,9 @@ void k_em_edits_rangelit(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *
         size_t l, r;
         if (!read_literal(ast, fn, i, &l, &r)) continue;
         put_text(e, ed, cnt, a, b, k_em_tok_off(ast, l), 0, "keel_range_of(", 14);
-        put_text(e, ed, cnt, a, b, k_em_tok_off(ast, i), 2, ", ", 2);
-        put_text(e, ed, cnt, a, b, k_em_tok_end(ast, r), 0, ")", 1);
+        /* the dots are one token with the marker of the bound: `a..=b` is `range.of(a, keel_inclusive(b))` */
+        bool inclusive = k_token_is_inclusive_dots(k_em_tok(ast, i));
+        put_text(e, ed, cnt, a, b, k_em_tok_off(ast, i), k_em_tok(ast, i).len, inclusive ? ", keel_inclusive(" : ", ", inclusive ? 17 : 2);
+        put_text(e, ed, cnt, a, b, k_em_tok_end(ast, r), 0, inclusive ? "))" : ")", inclusive ? 2 : 1);
     }
 }

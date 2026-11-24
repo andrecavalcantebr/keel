@@ -307,8 +307,9 @@ container    ::= IDENT
                | '*' container | '&' container | '(' container ')'
 
 countable    ::= interval | container
-interval     ::= <opaque> '..' <opaque>
-range-index  ::= [ <opaque> ] '..' [ <opaque> ]
+interval     ::= <opaque> dots <opaque>
+range-index  ::= [ <opaque> ] dots [ <opaque> ]
+dots         ::= '..' | '..<' | '..='   (* since 0.4.0 *)
 verb         ::= module-name '.' IDENT
 
 call         ::= ( verb | IDENT ) '(' [ call-arg { ',' call-arg } ] ')'
@@ -331,6 +332,10 @@ A forma por si só não decide se um programa é aceito. O essencial:
 
 - **Visibilidade.** Sem `pub` nem `priv`, a declaração é `pub`. `priv` tira
   da interface (do `.h`), não muda por si só o *linkage* C.
+- **Intervalo com marcador** *(desde 0.4.0)*: `a..b` e `a..<b` são `[a, b)`; `a..=b` inclui
+  `b` (`[a, b+1)`, via `keel_inclusive`, que aborta em debug se `b == SIZE_MAX`). `a..`,
+  `a..<` e `a..=` (sem limite superior) são a mesma forma, até o fim. Vale em `x[...]`,
+  `foreach (i : a..=b)` e no literal `range r = a..=b;`.
 - **Tipo C como argumento de modificador** *(desde 0.4.0)*: `slice const unsigned
   char` é aceito e lido como `slice const u8`, com o `warning` `c-type-spelling`
   que dá o nome keel (escreva `u8`). `signed/unsigned char` são `i8/u8`, `short`

@@ -55,3 +55,10 @@ bool k_token_is_punct(KToken t, const char *spelling) {
     }
     return k_lexer_peek_at(t, pos, NULL) < 0;
 }
+
+/* `..`, `..<` and `..=`: the dots of a range, with the marker of its upper bound (spec §4.5) */
+bool k_token_is_dots(KToken t) {
+    return k_token_is_punct(t, "..") || k_token_is_punct(t, "..<") || k_token_is_punct(t, "..=");
+}
+/* `..=`: the upper bound is included */
+bool k_token_is_inclusive_dots(KToken t) { return k_token_is_punct(t, "..="); }

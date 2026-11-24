@@ -56,6 +56,8 @@ bool k_token_is_number(KToken t);
 bool k_token_is_string(KToken t);
 bool k_token_is_char(KToken t);
 bool k_token_is_punct(KToken t, const char *spelling);
+bool k_token_is_dots(KToken t);
+bool k_token_is_inclusive_dots(KToken t);
 /* a directive token that is `#else`, however it is spaced (`#  else`), and not `#elif...` */
 bool k_token_is_plain_else(KToken t);
 

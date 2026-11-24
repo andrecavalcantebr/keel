@@ -172,11 +172,11 @@ Uma região sem análise semântica de C ainda pode conter construções keel. E
 | Espaços e comentários | Separam tokens e não participam das produções. São reconhecidos comentários de múltiplas linhas: `/* … */` e comentários de uma linha: `//` até o fim da linha lógica. Seguem as regras de comentários de C. Seu conteúdo é ignorado, mesmo contendo construções keel ou construções C. |
 | Identificadores | Seguem a forma lexical de identificador C. A classificação como palavra C usa a lista fechada abaixo; o reconhecimento de tipos e palavras contextuais cabe ao parser. |
 | Literais | Strings e caracteres são reconhecidos com escapes e com os prefixos `L`, `u8`, `u` e `U`. O conteúdo é indivisível para o reconhecimento de keel. Um newline não emendado dentro do literal produz o diagnóstico `literal-with-newline`. |
-| Números e pontos | Seguem a tokenização numérica de C, com a separação adicional da pontuação `..`: `2..7` produz `NUM`, `'..'`, `NUM`. Entre as pontuações iniciadas por ponto, a prioridade é `'...'`, depois `'..'`, depois `'.'`. |
+| Números e pontos | Seguem a tokenização numérica de C, com a separação adicional da pontuação `..`: `2..7` produz `NUM`, `'..'`, `NUM`. Entre as pontuações iniciadas por ponto, a prioridade é `'...'`, depois `'..='` e `'..<'` *(desde 0.4.0)*, depois `'..'`, depois `'.'`. `..<=` é `'..'` seguido de `'<='`, e não `'..<'` seguido de `=`. |
 | Delimitadores | `()`, `[]` e `{}` são emparelhados sobre os tokens, respeitando as alternativas de pré-processamento (§2.4). Delimitadores dentro de comentários, literais e diretivas não entram no balanceamento. |
 | Diretivas | A diretiva iniciada por `#` em posição de diretiva C estende-se até o newline não emendado. Sua linha lógica forma uma unidade preservada na saída. |
 
-`..` é pontuação, não um token que englobe o intervalo. Seus operandos são reconhecidos pelo parser: `xs[(a + 1)..(b * 2)]` contém expressões e delimitadores próprios. `...` permanece uma pontuação distinta. [Justificativa: pontuação e intervalo](keel-rationale.md#por-que--não-é-um-token).
+`..`, `..<` e `..=` são pontuação, não um token que englobe o intervalo: o marcador de limite (`<` ou `=`, §4.5) fica no mesmo token das pontos, e `a..<b`, `a ..< b` e `a..<(b)` são a mesma coisa. Seus operandos são reconhecidos pelo parser: `xs[(a + 1)..(b * 2)]` contém expressões e delimitadores próprios. `...` permanece uma pontuação distinta. [Justificativa: pontuação e intervalo](keel-rationale.md#por-que--não-é-um-token).
 
 As classes de diretiva usadas no reconhecimento estrutural são:
 
@@ -484,8 +484,9 @@ container    ::= IDENT
                | '*' container | '&' container | '(' container ')'
 
 countable    ::= interval | container
-interval     ::= <opaque> '..' <opaque>
-range-index  ::= [ <opaque> ] '..' [ <opaque> ]
+interval     ::= <opaque> dots <opaque>
+range-index  ::= [ <opaque> ] dots [ <opaque> ]
+dots         ::= '..' | '..<' | '..='     (* o marcador, desde 0.4.0, §4.5 *)
 verb         ::= module-name '.' IDENT
 
 call         ::= ( verb | IDENT ) '(' [ call-arg { ',' call-arg } ] ')'
@@ -1025,6 +1026,7 @@ x[a..b]
 x[a..]
 x[..b]
 x[..]
+x[a..<b]   x[a..=b]   x[..<b]   x[..=b]   x[a..<]   x[a..=]
 ```
 
 São formas de expressão sobre `container`. Índices e limites são regiões C opacas. Cada forma é uma sobrecarga de operador ligada a um protocolo (§5.1): o núcleo escreve a chamada, e o módulo do tipo de `x` declara o verbo. O `range-index` usa uma dimensão; índices por intervalo multidimensionais são operações dos módulos que os implementam.
@@ -1044,6 +1046,7 @@ Acessar elementos e delimitar fatias a partir de contêineres conhecidos.
 3. Sobre coluna de `extent`, a indexação segue a §4.11.
 4. Cada índice é avaliado uma vez. A tradução não impõe ordem adicional entre expressões que o C não ordena.
 5. `x[a..b]` chama o verbo `as_slice(x,a,b)` do módulo do tipo de `x` e produz um descritor `slice` por valor. O nome é o do protocolo (§5.1); o módulo o declara, e é o lado **memória** que importa o lado visão para devolvê-lo, e nunca o contrário. Sobre a base, é `buffer.as_slice(x,a,b)` quando `x` é `buffer`, `slice.as_slice(x,a,b)` quando `x` é `slice` e `array.as_slice(x,a,b)`, de `keel.array`, quando `x` é `array`, caso em que o módulo precisa estar importado.
+5a. *(desde 0.4.0)* O limite superior leva um marcador. `x[a..<b]` é `x[a..b]`: `..` sem marcador é o meio-aberto `[a, b)`, e segue válido. `x[a..=b]` inclui `b`: é `[a, b+1)`, e chama `as_slice(x,a,b+1)`, com `b+1` calculado de modo que `b` igual a `SIZE_MAX` seja verificado em debug (`inclusive-range-overflow`) e sature em release, onde o intervalo vai até o fim. Sem limite superior, `x[a..]`, `x[a..<]` e `x[a..=]` são a mesma forma: vão até o último elemento, inclusive. As regras 6 a 15 valem para as formas com marcador, sobre o intervalo `[a, b+1)`.
 6. `x[..b]` fornece início zero; `x[a..]` fornece `length(x)` como fim; `x[..]` fornece as duas pontas: `as_slice(x,0,length(x))`. O protocolo pede só a forma de três parâmetros.
 7. Os parâmetros do verbo de `range-index` são `(x, a, b)`, nessa ordem, e o resultado é um `slice` do mesmo elemento de `x`. Sobre `array`, ele só existe para vetor unidimensional (`array T v[size_t N]`); o multidimensional é `flat-view-of-n-dim-array`.
 8. O `range-index` é rvalue. Um elemento da vista segue o contrato do elemento.
@@ -1077,7 +1080,7 @@ O incremento ocorre uma vez e a escrita alcança o armazenamento original.
 
 #### 4. Erros
 
-Condições no [catálogo](#62-catálogo). De keel, na tradução: `partial-array-index`, `array-index-above-dimension`, `no-ptr-for-arity`, `protocol-not-satisfied`, `inverted-range-index`, `open-range-index-on-complex-path`. Do backend, em execução debug: `array-index-out-of-bounds`, `range-index-out-of-bounds` e, pelo `ptr` de `buffer` e `slice`, `index-out-of-length`.
+Condições no [catálogo](#62-catálogo). De keel, na tradução: `partial-array-index`, `array-index-above-dimension`, `no-ptr-for-arity`, `protocol-not-satisfied`, `inverted-range-index`, `open-range-index-on-complex-path`. Do backend, em execução debug: `array-index-out-of-bounds`, `range-index-out-of-bounds`, `inclusive-range-overflow` e, pelo `ptr` de `buffer` e `slice`, `index-out-of-length`.
 
 #### 5. Casos especiais
 
@@ -1150,7 +1153,7 @@ São statements de corpo de função. Em `foreach`, dois binders antes de `:` pe
 **Reconhecimento**
 
 - A quantidade de binders distingue as formas de `foreach`, sem consultar tipos C.
-- Dois binders exigem `IndexGet` ou `IndexPtr` para valor, e `IndexPtr` para ponteiro (§5.1). Um binder exige `first` e `limit`, ou um literal `a..b`.
+- Dois binders exigem `IndexGet` ou `IndexPtr` para valor, e `IndexPtr` para ponteiro (§5.1). Um binder exige `first` e `limit`, ou um literal `a..b`, `a..<b` ou `a..=b` (§4.5); `foreach (i : 1..=3)` percorre 1, 2 e 3.
 - `walk` tem uma forma só, de dois binders. A forma de um binder é reconhecida e recusada por `walk-without-cursor`.
 - `walk` exige `begin`, `has_next` e `next`. O tipo do cursor escrito é o produto declarado de `begin`; o tipo do elemento é o produto declarado de `next`. A compatibilidade final é verificada pelo compilador C.
 - IndexPtr/IndexGet e Traversable são capacidades independentes (§5.1): `foreach` e `walk` pedem cada um a sua.
@@ -2209,7 +2212,8 @@ outcome i32 r = array.at(v, 9);
 | Chamada | Devolve | O que faz |
 | --- | --- | --- |
 | `range.of(a, b)` | `range` | o intervalo `[a, b)`; com `b < a`, o vazio `[a, a)` |
-| `a..b` | `range` | `range.of(a, b)` |
+| `a..b`, `a..<b` | `range` | `range.of(a, b)` |
+| `a..=b` *(desde 0.4.0)* | `range` | `range.of(a, b+1)`; `b` igual a `SIZE_MAX` é verificado em debug (`inclusive-range-overflow`) e satura em release |
 | `range.first(r)`, `range.limit(r)` | `size_t` | os limites |
 | `range.length(r)` | `size_t` | `limit - first` |
 | `range.get(r, i)` | `size_t` | `first + i` |
@@ -2233,7 +2237,7 @@ O programa não chama `begin`, `has_next`, `next` nem `partition`: quem os chama
 
 - A instância vem das declarações ou da origem indicada na §4.4.
 - `buffer.of(v)` exige `array` unidimensional conhecido. `slice.of(x, …)` é função sobre protocolo de `keel.slice` (§4.14): `C.view of(Sliceable C x)`, nas três aridades, chama o `length` e o `as_slice` do tipo de `x`.
-- `a..b` constrói um `range`. Os limites são expressões C; `..` é reconhecido fora de literais, comentários e diretivas.
+- `a..b` constrói um `range`; `a..<b` é o mesmo, e `a..=b` inclui `b` *(desde 0.4.0)*. Os limites são expressões C; `..` é reconhecido fora de literais, comentários e diretivas. Sem limite superior, o literal só existe dentro de um índice (`open-range-outside-index`).
 - Os verbos de `keel.array` recebem `array` unidimensional, pelo parâmetro `array T v[size_t N]`: a instância vem do tipo do elemento (§4.4), e a extensão, do binder (§4.2).
 
 #### Conformidade e procedência
@@ -2925,6 +2929,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `inverted-range-index` | Índice por intervalo com limites decimais conhecidos e início maior que fim | `error` | keel | §4.5 |
 | `range-index-out-of-bounds` | Intervalo cujos limites violam `a <= b <= length(x)` | `debug` | Backend, em execução | §4.5 |
 | `array-index-above-dimension` | Índice de `array` decimal conhecido acima da dimensão declarada | `error` | keel | §4.5 |
+| `inclusive-range-overflow` | Limite superior de `a..=b` igual a `SIZE_MAX`, que não tem sucessor *(desde 0.4.0)* | `debug` | Backend, em execução | §4.5 |
 | `array-index-out-of-bounds` | Índice de `array` fora da dimensão declarada ou, em parâmetro com binder, da recebida | `debug` | Backend, em execução | §4.5 |
 | `foreach-two-binders-on-literal` | `foreach` de dois binders sobre literal de intervalo — a mensagem indica nomear o intervalo | `error` | keel | §4.7 |
 | `pointer-binder-on-range` | Binder por ponteiro na forma de intervalo | `error` | keel | §4.7 |

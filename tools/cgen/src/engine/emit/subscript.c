@@ -285,7 +285,11 @@ void k_em_edits_subscript(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit 
         } else if (s.low) put_text(e, ed, cnt, a, b, open, 1, ", ", 2);
         else put_text(e, ed, cnt, a, b, open, 1, ", 0", 3);
         size_t dots = k_em_tok_off(ast, s.dots), dots_end = k_em_tok_end(ast, s.dots);
-        put_text(e, ed, cnt, a, b, dots, 2, ", ", 2);
+        /* the dots may carry the marker of the bound (`..<`, `..=`): the token is what is replaced; `..=` with an
+           upper bound closes the bound with `keel_inclusive(...)` (spec §4.5), and with an open end is `..` */
+        bool inclusive = s.high && k_token_is_inclusive_dots(k_em_tok(ast, s.dots));
+        put_text(e, ed, cnt, a, b, dots, dots_end - dots, ", ", 2);
+        if (inclusive) put_text(e, ed, cnt, a, b, dots_end, 0, "keel_inclusive(", 15);
         if (!s.high) {
             /* the open end: `length(x)`, with the container's name copied as written */
             if (s.dim) {
@@ -312,7 +316,7 @@ void k_em_edits_subscript(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit 
             }
             put_text(e, ed, cnt, a, b, close, 1, "))", 2);
         } else {
-            put_text(e, ed, cnt, a, b, close, 1, ")", 1);
+            put_text(e, ed, cnt, a, b, close, 1, inclusive ? "))" : ")", inclusive ? 2 : 1);
         }
     }
 }

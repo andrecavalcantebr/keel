@@ -284,6 +284,21 @@ Qual contêiner serve em cada forma é assunto do capítulo 4: **protocolos**.
 Fatiar usa a mesma ideia: `b[0..3]` chama `as_slice`, e `x[a..]`, `x[..b]` e
 `x[..]` completam a forma.
 
+**Intervalo inclusivo *(desde 0.4.0)*.** `a..b` é meio-aberto, `[a, b)`; `a..<b`
+diz o mesmo com o marcador, e `a..=b` inclui o limite:
+
+```keel
+foreach (size_t i : 1..=3) { /* 1, 2 e 3 */ }
+range r = 2..=4;                    // [2, 5)
+slice i32 t = s[1..=3];             // os elementos 1, 2 e 3
+slice i32 u = s[4..=];              // de 4 até o último (igual a s[4..] e s[4..<])
+```
+
+O C que sai usa `keel_inclusive(b)`, que é `b + 1`; se `b` for `SIZE_MAX` o
+programa em debug aborta com `inclusive-range-overflow`, e em release o
+intervalo vai até o fim do contêiner. Sem limite superior os três marcadores
+são a mesma coisa. `a..<=b` não é uma forma: dá erro no compilador C.
+
 ### 3.6 Resultado: `outcome` e a cauda `else`
 
 `outcome T` é um resultado **final**, de dois estados, com um valor associado.

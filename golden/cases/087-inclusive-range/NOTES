@@ -1,0 +1,18 @@
+Notas do caso.
+
+Intervalo com marcador de limite (spec §4.5, *desde 0.4.0*): `a..<b` é meio-aberto,
+`a..=b` inclui `b`, e `a..b` continua sendo `a..<b`. `a..`, `a..<` e `a..=` são o
+mesmo fim aberto (até o último elemento); sem `a`, o início é zero.
+
+O que o caso afirma, nas quatro construções que o `..` serve:
+
+- `foreach (size_t i : 1..=3)` é `for (…; i < keel_inclusive(3); …)`; `..<` e `..` não mudam o limite;
+- o literal `2..=4` é `keel_range_of(2, keel_inclusive(4))`, um `range` `[2, 5)`;
+- `x[a..=b]` é `as_slice(x, a, keel_inclusive(b))`, também sobre `array`
+  (`keel_array_i32_as_slice2(v, 6, 1, keel_inclusive(2))`); `x[..=b]` idem com início zero;
+- `x[a..=]`, `x[a..<]` e `x[a..]` dão o mesmo `as_slice(x, a, length(x))`.
+
+`keel_inclusive(b)` é uma função em linha do prelúdio (`keel.k`, ao lado de `keel_index`).
+`b == SIZE_MAX` não tem sucessor: em debug aborta com `inclusive-range-overflow` (a 1ª
+linha do `DEBUG`, rodada com um argumento); em release satura, e o `as_slice` do
+intervalo aplica o seu próprio limite. Os dois perfis diferem só no cabeçalho.

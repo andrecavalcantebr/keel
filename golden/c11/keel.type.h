@@ -36,5 +36,11 @@ static inline size_t keel_index(size_t i, size_t d) {
     KEEL_CHECK(i < d, "array-index-out-of-bounds");
     return i;
 }
+// the exclusive limit of `a..=b` (spec §4.5): b + 1. `b == SIZE_MAX` has no successor: debug aborts,
+// release saturates (nobody indexes element SIZE_MAX, so the range runs to the end).
+static inline size_t keel_inclusive(size_t b) {
+    KEEL_CHECK(b != SIZE_MAX, "inclusive-range-overflow");
+    return b + (b != SIZE_MAX);
+}
 
 #endif /* KEEL_TYPE_H */

@@ -21,6 +21,7 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 - §4.2, regra 3 e `base-type`: as palavras C de um tipo aritmético (`unsigned char`, `long long`)
   são argumento de modificador e normalizam para o tipo keel. Diagnóstico novo: `c-type-spelling`
   (`warning`); `c-type-as-argument` fica para o que não tem tipo keel (`long`).
+- §4.5, `..<` e `..=`: o limite superior de um intervalo leva um marcador; `a..<b` é `a..b`, e `a..=b` inclui `b`. Fim aberto (`a..`, `a..<`, `a..=`) é uma forma só. Vale em `x[...]`, `foreach` e no literal `range`. Debug novo: `inclusive-range-overflow`. Léxico e gramática (`dots`) ajustados.
 
 **Backend** (`keel-c-backend.md`)
 
@@ -28,16 +29,19 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   verificações dos verbos novos.
 - §2.1: a tabela de nomes ganha as palavras C aritméticas e `struct S`; o C emitido usa o nome
   keel e a etiqueta renomeada.
+- §5.17: `keel_inclusive(b)`, o limite exclusivo de `a..=b`, com `inclusive-range-overflow`; §5.2 regra 9, §5.3 regra 7 e §5.7 regra 2a dizem como cada construção o escreve.
 
 **Rationale** (`keel-rationale.md`)
 
 - Seção nova, "`bitbuffer` e `bitslice`": por que não há `ptr`, o layout por
   byte, o alinhamento de `partition`, `make` e `bytes`, e o módulo `keel.bits`.
 - Nota nova em "Modificador e tipo modificado": por que `unsigned char` é aceito, normalizado, e por que `long` não.
+- Seção nova, "Intervalos: o marcador do limite superior": por que `a..b` não é depreciado, o fim aberto, o `b + 1` e o `SIZE_MAX`.
 
 **Base** (`base/keel/`)
 
 - `bitbuffer.k`, `bitslice.k` e `bits.k`.
+- `keel.k`: `keel_inclusive`, ao lado de `keel_index`.
 
 **Ferramenta**
 
@@ -70,6 +74,7 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   capacidade (`protocol` com mais de 16 itens, `array` com mais de 8 declaradores, `defer [now ...]` com mais de 8
   entradas, `parallel` com mais de 16 capturas) nomeia o limite; o de `match` com muitos rótulos não manda mais
   "encurtar a linha". Teste: `cli/limit_messages`.
+- `..<` e `..=` (golden 087, `cli/range_marker`): o lexer junta o marcador às pontos (`..<`, `..=`, e `..<=` continua `..` e `<=`); `isl_punct` e o emissor leem `..` como as pontos com ou sem marcador; `subscript.c`, `foreach.c`, `rangelit.c` e `parallel.c` (`0..=3` são quatro workers) tratam o `..=`; `base/keel.k` ganha `keel_inclusive`; `inverted-range-index` conta `a..=b` como `[a, b+1)`.
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima

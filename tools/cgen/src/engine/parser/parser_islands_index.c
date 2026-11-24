@@ -75,7 +75,7 @@ static void check_inverted(Ctx *c, KToken name, size_t open, size_t range, size_
     long low, high;
     if (range > open + 1 && range + 1 < close &&
         isl_decimal_of(c, (Range){ open + 1, range }, &low) && isl_decimal_of(c, (Range){ range + 1, close }, &high) &&
-        low > high)
+        low > high + (k_token_is_inclusive_dots(isl_tok(a, range)) ? 1 : 0))   /* `a..=b` is [a, b+1) */
         isl_diag3(c, K_DIAG_INVERTED_RANGE_INDEX, name,
               (keel_slice_char){ (size_t)(isl_tok(a, close).ptr - isl_tok(a, open).ptr) - 1, isl_tok(a, open).ptr + 1 },
               (keel_slice_char){0}, (keel_slice_char){0});

@@ -893,16 +893,22 @@ void k_em_edits_foreach(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *e
         KToken name = k_em_tok(ast, f.binder);
         size_t nlen = name.len;
         /* `; i < ` and `; i++)`: the binder's name, in the scratch of this line */
-        char *s = k_em_scratch(e, nlen + 5);
+        /* `a..=b`: the bound is `keel_inclusive(b)` (spec §4.5), which `..<` and `..` do not have */
+        bool inclusive = k_token_is_inclusive_dots(k_em_tok(ast, f.dots));
+        size_t slen = nlen + 5 + (inclusive ? 15 : 0), tlen = nlen + 5 + (inclusive ? 1 : 0);
+        char *s = k_em_scratch(e, slen);
         if (!s) return;
         s[0] = ';'; s[1] = ' ';
         memcpy(s + 2, name.ptr, nlen);
         memcpy(s + 2 + nlen, " < ", 3);
-        char *t = k_em_scratch(e, nlen + 5);
+        if (inclusive) memcpy(s + 5 + nlen, "keel_inclusive(", 15);
+        char *t = k_em_scratch(e, tlen);
         if (!t) return;
-        t[0] = ';'; t[1] = ' ';
-        memcpy(t + 2, name.ptr, nlen);
-        memcpy(t + 2 + nlen, "++)", 3);
+        size_t tp = 0;
+        if (inclusive) t[tp++] = ')';
+        t[tp++] = ';'; t[tp++] = ' ';
+        memcpy(t + tp, name.ptr, nlen);
+        memcpy(t + tp + nlen, "++)", 3);
 
         /* foreach -> `{ for` */
         push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, kw),
@@ -916,10 +922,10 @@ void k_em_edits_foreach(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *e
             .skip = 1, .text = "=", .text_len = 1 });
         /* `..` -> `; i < ` */
         push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, f.dots),
-            .skip = 2, .text = s, .text_len = nlen + 5 });
+            .skip = k_em_tok(ast, f.dots).len, .text = s, .text_len = slen });
         /* the `)` of the header -> `; i++)` */
         push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_off(ast, f.close),
-            .skip = 1, .text = t, .text_len = nlen + 5 });
+            .skip = 1, .text = t, .text_len = tlen });
         if (f.braced) {
             /* the block's `}` closes the `for` as well */
             push_in_line(e, ed, cnt, a, b, (Edit){ .kind = EDIT_TEXT, .at = k_em_tok_end(ast, f.last),

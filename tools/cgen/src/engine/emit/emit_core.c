@@ -16,6 +16,9 @@ size_t k_em_last_end(const Emit *e, const KAstNode *n) { return k_em_tok_end(e->
 
 bool k_em_text_is(KToken t, const char *s) {
     size_t n = strlen(s);
+    /* `..` asks for the dots of a range, with or without the marker of its bound (`..<`, `..=`; spec §4.5);
+       a site that treats the marker differently asks k_token_is_inclusive_dots */
+    if (n == 2 && s[0] == '.' && s[1] == '.') return k_token_is_dots(t);
     return t.len == n && memcmp(t.ptr, s, n) == 0;
 }
 bool k_em_is_visibility(KToken t) { return k_em_text_is(t, "pub") || k_em_text_is(t, "priv"); }

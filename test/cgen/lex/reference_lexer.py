@@ -146,7 +146,10 @@ def main():
                         break
             else:
                 t3 = bytes(L[k:k+3]).decode("latin-1")
-                if t3 in P3: k += 3
+                t4 = bytes(L[k:k+4]).decode("latin-1")
+                # the marker of a range bound (spec §4.5): `..=`, and `..<` unless it is the start of `..<=`
+                if t3 == "..=" or (t3 == "..<" and t4[3:4] != "="): k += 3
+                elif t3 in P3: k += 3
                 elif t3[:2] in P2: k += 2
                 else: k += 1
         spell_phys = src[start_phys:physical_end(s, k)]

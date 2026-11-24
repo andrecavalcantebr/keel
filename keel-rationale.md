@@ -1655,6 +1655,37 @@ escreve somente o valor, e não serviria sozinho para estabelecer sucesso.
 Referências: [spec §5.5](keel-spec.md#55-keeloutcome-e-keelcorot) e
 [§4.10](keel-spec.md#410-tratamento-de-resultado).
 
+## Intervalos: o marcador do limite superior *(desde 0.4.0)*
+
+`a..b` é meio-aberto, `[a, b)`, como o laço `for (i = a; i < b; i++)` que
+o C escreve, e como o `range` guarda `first` e `limit`. É o que se quer na
+maioria dos usos, e continua sendo a forma sem marcador. O inclusivo aparece
+quando o limite é um valor, e não uma contagem (`0..=last`, o último índice, um
+código de 1 a 12): escrevê-lo como `a..b+1` exige lembrar do `+1` e, pior,
+repeti-lo em cada leitor. Por isso `a..=b` inclui `b`, e `a..<b` diz em voz alta
+o que `a..b` já dizia, para quem alterna entre as duas formas no mesmo trecho.
+`a..b` **não é depreciado**: a decisão fica para a 1.0.0, com o uso à vista.
+
+O marcador é parte do token (`..<`, `..=`) e não precisa de espaço, porque o
+`..` já era pontuação separada do número (`0..<N` não vira `pp-number`), e a
+ferramenta atua antes do preprocessador: `N` chega como região C opaca e sai
+como está. `a..<=b` é `..` seguido de `<=` (o maior casamento do lexer não o
+junta), que o C recusa, e é o que se quer: não há leitura silenciosa.
+
+**Fim aberto.** Sem limite superior não há o que incluir ou excluir: `a..`,
+`a..<` e `a..=` são a mesma forma, até o último elemento. Uma leitura em que
+`a..<` deixasse de fora o último não tem uso, e duas formas com o mesmo nome
+e comportamentos diferentes seriam armadilha.
+
+**O `b + 1` e o `SIZE_MAX`.** O limite exclusivo de `a..=b` é `b + 1`, e
+`SIZE_MAX` não tem sucessor. Em debug a função em linha `keel_inclusive`
+aborta com `inclusive-range-overflow`, como o `keel_index` faz com o índice;
+em release satura (`b + 1` fica `SIZE_MAX`), porque ninguém indexa o elemento
+`SIZE_MAX`, e o intervalo, limitado pelo comprimento do contêiner, vai até o
+fim. A função fica no prelúdio e não é escrita inline em cada ponto, para que
+o código gerado seja o mesmo com e sem `--checks=off`, como nas demais
+verificações (backend §5.17).
+
 ## Modificador e tipo modificado
 
 O módulo reúne as declarações; o modificador dá sentido à aplicação ao tipo.

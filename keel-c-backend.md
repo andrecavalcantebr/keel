@@ -857,7 +857,7 @@ i32 x = keel_array_i32_get(v, 8, 3);
 6. A verificação de limites de `get`, `set` e `ptr(x, i)` está no corpo do verbo, ligada por `KEEL_CHECKS` (§5.17).
 7. Sobre `array`, `keel.length` e `keel.capacity` saem `sizeof(v)/sizeof(<elem>)`, com o tipo do elemento vindo da tabela, e não de `*(v)`; `keel.dim(v, k)` sai literal. Em parâmetro multidimensional, onde `sizeof` não serve, `length` sai o produto literal das dimensões, com o binder no lugar da dimensão 0 quando há (§5.18).
 8. `keel.array` é genérico sem modificador (linguagem §5.3): a instância é a família de verbos de um tipo de elemento, `keel_array_<T>_<verbo>`, em `keel/keel_array_<T>.h`. O `.type.h` da instância não define tipo nenhum e só inclui `keel.type.h`: existe porque toda instância gera os dois headers (§4.3.2). O binder de cada verbo recebe a dimensão do argumento (§5.18), e o índice do corpo passa por `keel_index` contra ele (§5.3).
-9. `a..b` fora de travessia é `range.of(a, b)`: `range r = 2..5;` sai `keel_range r = keel_range_of(2, 5);`. Em `foreach`, o literal não constrói `range`, e os limites entram direto no laço (§5.7).
+9. `a..b` fora de travessia é `range.of(a, b)`: `range r = 2..5;` sai `keel_range r = keel_range_of(2, 5);`. `a..<b` sai igual, e `a..=b` *(desde 0.4.0)* leva o limite pela função do prelúdio: `range r = 2..=4;` sai `keel_range r = keel_range_of(2, keel_inclusive(4));` (§5.17). Em `foreach`, o literal não constrói `range`, e os limites entram direto no laço (§5.7).
 10. `clone` aloca no destino pelo comprimento da origem, copia, e devolve `outcome`, porque devolve descritor, e descritor não tem sentinela (linguagem §4.4). Não refaz a checagem de transbordamento: o comprimento da origem já coube na memória uma vez.
 
 ```keel
@@ -897,7 +897,7 @@ Os `static_assert` que provam propriedades obrigatórias do alvo, como os format
 
 ### 5.3 Açúcar de indexação
 
-**Forma:** `x[i]`, `x[i,j]` e `x[a..b]` com suas formas abertas (linguagem §4.5).
+**Forma:** `x[i]`, `x[i,j]` e `x[a..b]` com suas formas abertas e com o marcador de limite, `..<` e `..=` (linguagem §4.5).
 
 **Emissão**
 
@@ -931,9 +931,9 @@ v[1][2][3] = 0;
 4. Cada índice sobre `array` passa por `keel_index(i, d)`, contra a dimensão declarada correspondente, e é avaliado uma vez: `v[i][j]` sai `v[keel_index(i, 2)][keel_index(j, 3)]`. O número vem da tabela, e não de `sizeof`, que não serve em parâmetro multidimensional.
 5. Na dimensão 0 de parâmetro sem binder, a verificação afirma o contrato declarado, e não a extensão recebida: nunca acusa falso, mas não alcança o chamador que entregou menos, que a tradução pega com `array-argument-wrong-dimension` (linguagem §4.2). Com binder, a verificação alcança a extensão recebida (§5.18). [D3](#10-decisões-de-emissão)
 6. Com índice e dimensão decimais conhecidos, sai o colchete simples: a tradução já conferiu (`array-index-above-dimension`, linguagem §4.5).
-7. `range-index` sai pelo `as_slice` do módulo do tipo do objeto (§5.2): `x[a..b]` é `as_slice(x, a, b)`, `x[..b]` passa 0, `x[a..]` passa `length(x)`, e `x[..]` passa as duas pontas. A verificação em debug é injetada pelo backend no início do verbo (§5.17); a saturação em release está no corpo do verbo, e não no emissor.
+7. `range-index` sai pelo `as_slice` do módulo do tipo do objeto (§5.2): `x[a..b]` e `x[a..<b]` são `as_slice(x, a, b)`, `x[a..=b]` *(desde 0.4.0)* é `as_slice(x, a, keel_inclusive(b))`, com `keel_inclusive` do prelúdio (§5.17), e `x[a..<]` e `x[a..=]` são `x[a..]`, `x[..b]` passa 0, `x[a..]` passa `length(x)`, e `x[..]` passa as duas pontas. A verificação em debug é injetada pelo backend no início do verbo (§5.17); a saturação em release está no corpo do verbo, e não no emissor.
 
-**Verificações:** `array-index-out-of-bounds`, `index-out-of-length` e `range-index-out-of-bounds` (§5.17).
+**Verificações:** `array-index-out-of-bounds`, `index-out-of-length`, `range-index-out-of-bounds` e, em `a..=b`, `inclusive-range-overflow` (§5.17).
 
 **Perfis:** iguais.
 
@@ -1297,6 +1297,7 @@ foreach (routine.slot i16 *sl, size_t i : steps) {
 
 1. Na forma de dois binders, o contêiner vai para um temporário `keel__c<N>` e o comprimento para um `size_t` `keel__n<N>`, ambos antes do `for`: é a avaliação única da linguagem §4.7. O temporário tem o tipo do primeiro parâmetro dos verbos que o laço chama: ponteiro (`keel_buffer_i32 *keel__c0 = &xs;`) quando eles recebem `T *`, e cópia (`keel_range keel__c1 = r;`, §5.2, regra 2) quando recebem `T` por valor: a cópia já é a variável que recebe o valor, e não há o que apontar.
 2. O binder de índice é a própria variável do laço, com o nome que o usuário escolheu.
+2a. *(desde 0.4.0)* Sobre o literal `a..b`, o laço é `for (T i = a; i < b; i++)`; `a..<b` sai igual. `a..=b` leva o limite por `keel_inclusive(b)` (§5.17): `foreach (size_t i : 1..=3)` sai `for (size_t i = 1; i < keel_inclusive(3); i++)`. A forma de limite aberto não é de `foreach`.
 3. Binder por valor gera `get`; binder por ponteiro gera `ptr` de um índice.
 4. Um bloco em volta faz os temporários morrerem no fim, e permite `foreach` aninhado sem colisão de nome.
 5. Tudo até a abertura do corpo cabe numa linha, e o corpo mapeia 1:1, sem `#line` (§6, regra 2). Quando a `{` do corpo está em linha própria (estilo Allman), o cabeçalho sai na sua linha sem a chave do corpo (a do `for`), e a linha da `{` abre o corpo e leva a declaração do binder (`{ i32 x = keel_slice_i32_get(keel__c0, i);`); a `}` do corpo fecha também o bloco do `foreach` (`} }`). Cada linha do fonte continua com a sua no C.
@@ -1840,6 +1841,7 @@ static inline size_t keel_index(size_t i, size_t d) {
 | `set(x, i, v)` de `bitbuffer` e `bitslice` | `i < len` | `set-out-of-length` |
 | `set(x, i, v)` e `push(b, v)` de `bitbuffer` e `bitslice` | `v` cabe em `W` bits *(desde 0.4.0)* | `bit-value-out-of-width` |
 | `arena.alloc(a, n, sz, al)` | `sz == 0 \|\| n <= SIZE_MAX / sz` | `alloc-overflow` |
+| `a..=b` *(desde 0.4.0)*: `keel_inclusive(b)`, função em linha do prelúdio ao lado de `keel_index` | `b != SIZE_MAX` | `inclusive-range-overflow` |
 | `routine.par(s, alvo)` | `alvo <= length(s)` | `par-target-above-total` |
 | `routine.mask(s)` | `length(s) <= 64` | `mask-above-64-slots` |
 
@@ -2061,7 +2063,7 @@ está no [catálogo da spec](keel-spec.md#62-catálogo), que é a fonte única.
 | --- | --- |
 | `error` | `name-too-long` (§2.4), `reserved-name` (§2.3), `specific-format-unavailable` (§3.2), `bitbuffer-width-invalid` (§5.20), `layout-cycle` (§4.3.1) |
 | `warning` | `instance-field-access` (§4.5) |
-| `debug` (§5.17) | `index-out-of-length`, `set-out-of-length`, `array-index-out-of-bounds`, `range-index-out-of-bounds`, `extent-index-out-of-bounds`, `tag-out-of-range`, `alloc-overflow`, `par-target-above-total`, `mask-above-64-slots`, `bit-value-out-of-width` |
+| `debug` (§5.17) | `index-out-of-length`, `set-out-of-length`, `array-index-out-of-bounds`, `range-index-out-of-bounds`, `extent-index-out-of-bounds`, `tag-out-of-range`, `alloc-overflow`, `par-target-above-total`, `mask-above-64-slots`, `bit-value-out-of-width`, `inclusive-range-overflow` |
 
 ---
 

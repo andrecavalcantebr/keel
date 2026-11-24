@@ -51,6 +51,13 @@ size_t k_lexer_scan_punct(keel_slice_char source, size_t pos) {
     }
 
     // Three bytes available
+    /* the bound markers of a range (spec §4.5): `..<` and `..=` are one token with the `..`, so that the
+       parser reads `a..<b` as `a`, the dots and `b`. `..<=` stays `..` and `<=`, which the parser refuses. */
+    if (b1 == '.' && b2 == '.' && (b3 == '=' || b3 == '<')) {
+        size_t after = pos + p2 + width_out;
+        int b4 = k_lexer_peek_at(source, after, &width_out);
+        if (b3 == '=' || b4 != '=') return after;
+    }
     for (size_t i = 0; i < sizeof(k_punct_3)/sizeof(*k_punct_3); ++i) {
         if (k_punct_3[i][0] == b1 && k_punct_3[i][1] == b2 && k_punct_3[i][2] == b3) {
             return pos + p2 + width_out;

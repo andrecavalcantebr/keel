@@ -1393,10 +1393,12 @@ compilador.
 
 ### Intervalo inclusivo: `a..<b` e `a..=b` (2026-10-07)
 
-**Estado: a decidir se vale a pena.** Hoje `a..b` é meio-aberto, `[a, b)`, e
-continua sendo o padrão (spec §4.5, §5.3). O que segue é uma solução pronta, para
-o caso de o intervalo inclusivo se justificar; nada disso altera a spec, o
-backend nem o cgen.
+**Estado: adotado na 0.4.0 (2026-11-24), com uma diferença do desenho abaixo:** `a..b`
+sem marcador **continua válido** e é `a..<b` (não há `range-bound-unmarked`; a
+depreciação fica para a 1.0.0). O fim aberto (`a..`, `a..<`, `a..=`) é uma forma só, e
+`..<`/`..=` são um token com as pontos. A emissão é por `keel_inclusive(b)`, do prelúdio
+(`inclusive-range-overflow` em debug). Vale em `x[...]`, `foreach` e no literal. O
+texto original segue, como histórico.
 
 **Origem.** Outra abordagem de keel usa `a..<b` e `a..=b`, porque lá a
 ferramenta atua depois do preprocessador e `0..N`, com `N` macro, não expande.

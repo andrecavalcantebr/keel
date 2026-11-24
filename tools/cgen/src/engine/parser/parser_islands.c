@@ -23,7 +23,12 @@ KToken isl_tok(const KAst *a, size_t i) { return keel_buffer_KLexeme_ptr(&a->tok
 bool isl_live(const KAst *a, size_t i) {
     return i < a->tokens.len && !keel_buffer_KLexeme_ptr(&a->tokens, i)->directive;
 }
-bool isl_punct(const KAst *a, size_t i, const char *s) { return isl_live(a, i) && k_token_is_punct(isl_tok(a, i), s); }
+bool isl_punct(const KAst *a, size_t i, const char *s) {
+    if (!isl_live(a, i)) return false;
+    /* `..` is the dots of a range with or without the marker of its bound (`..<`, `..=`; spec §4.5) */
+    if (s[0] == '.' && s[1] == '.' && !s[2]) return k_token_is_dots(isl_tok(a, i));
+    return k_token_is_punct(isl_tok(a, i), s);
+}
 bool isl_word(const KAst *a, size_t i, const char *s) { return isl_live(a, i) && k_token_spelled(isl_tok(a, i), s); }
 bool isl_ident(const KAst *a, size_t i) { return isl_live(a, i) && k_token_is_ident(isl_tok(a, i)); }
 

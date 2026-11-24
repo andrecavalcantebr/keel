@@ -1,17 +1,40 @@
 - [Discutir antes de editar as specs](discutir-antes-de-editar-spec.md) — propor texto e argumento; só escrever após o "sim".
+- [Normativo: só especificação](normativo-so-especificacao.md) — justificativa no rationale; caso específico em regra separada, e a evitar.
 - [keel: quatro documentos](keel-quatro-documentos.md) — divisão de propriedade entre spec, rationale, backend e ferramenta.
 - [golden: perfis são autorais](golden-perfis-autorais.md) — c11 e c23 escritos à mão, nunca derivados um do outro.
-- [/base e a P15](base-real-keel-em-progresso.md) — os 11 arquivos; golden re-derivado dela, "a emissão segue o .k sempre".
-- [protocolos estruturais](protocolos-estruturais-2026-10-02.md) — 2026-10-02: sem `implement`, papéis herdados, diagnósticos unificados, §4.14 na v0, `slice.of` sobre `Sliceable`, `from_stack` fora; e as decisões de nomes de 10-02/03 (cursor, `types`, `keel-name-shadowed`, §2.3).
-- [ideias pendentes: soa e cooperativo](ideias-pendentes-soa-e-cooperativo.md) — soa struct concreto (linha mais madura), buffer(N)/slice(N), strbuf/string, bitbuffer/bitslice, atomic/chan/barrier.; traits sobre o `T` opaco (v2); protocolos nomeados já existem.
+- [/base e a P15](base-real-keel-em-progresso.md) — os 9 módulos; golden re-derivado dela, "a emissão segue o .k sempre".
+- [ideias pendentes: soa e cooperativo](ideias-pendentes-soa-e-cooperativo.md) — soa virou `extent` em 2026-09-24 (spec §4.11); buffer(N)/slice(N), strbuf/string, bitbuffer/bitslice, atomic/chan/barrier.; protocolo nominal/traits (v2).
 - [biblioteca padrão: catálogo](biblioteca-padrao-planejamento.md) — histórico; a fonte agora é design/possibilidades.md (v0 núcleo+base, v1 stdlib, v2+ protocolos).
-- [cgen: os 5 designs](cgen-implementacao.md) — fechados em 2026-09-20; histórico até M3 (M0, M1 e o parser fechados); o estado atual está na linha do emissor, abaixo; tool/ e engine/ com `make boundary`.
-- [ranges: meio-aberto basta](ranges-meio-aberto-basta.md) — 2026-10-07: `a..b` segue o padrão; `a..<b`/`a..=b` (marcador só no limite superior, lexer intacto) é solução pronta, a adotar só se o inclusivo valer a pena (`design/possibilidades.md`).
+- [cgen: designs e estado](cgen-implementacao.md) — histórico até M3; estado atual (2026-10-31: 25 de 31 casos pelo cgen; routine, match, parallel, walk feitos) em tools/agents/passagem-2026-10-28.md do repo.
+- [cgen: pendências](cgen-pendencias.md) — 2026-11-11: duas auditorias externas (Gemini/GLM) com achados corrigidos; antes, 2026-11-07 (instance-depth, const em genérico aninhado, parallel por valor, indirect-import) e T40-T44 (2026-11-06).
+- [keel_maths: projeto separado](keel-maths-projeto.md) — ../keel_maths, biblioteca de matrizes; tabela das 4 formas de construtor testadas (3 ok, 1 sem cartão); probes lá ficam limpos, achados voltam como prosa.
+- [keel_libs: análise do GPT Sol 6.1](keel-libs-analise-gpt.md) — repo irmão (coleções genéricas); achou e eu reproduzi 3 gaps reais do cgen em foreach/protocolo, v0.
+- [Não delegar código de integração](nao-delegar-codigo-de-integracao.md) — refactor/integração cirúrgica no cgen: escrever direto, sem subagente.
 - [Código em inglês](codigo-em-ingles.md) — docs pt-BR, código em inglês; as 4 etapas concluídas (commits 36ca188, 14c4d9a, 1c249c7, 1ae845d).
-- [cgen: emissor, estado em 2026-11-04](cgen-emissor-2026-10-28.md) — 59 dos 60 casos; g01/g02, 022 e 023 fechados (dois bugs reais corrigidos: diretiva de topo ia pro .type.h, extern_c branqueava comentário). 024 em andamento, bloqueado por lacuna real: campo de struct que cita tipo de outro módulo não é renomeado (isl_declaration não percorre corpo de struct). Guardado para retomar.
+- [Fluxo: Opus orquestra, Haiku implementa](harness-sonnet-opus-verificador.md) — desde 2026-10-22; tools/agents/ + skill haiku-task; o qwen local saiu.
+- [harness qwen: lições e custo (histórico)](harness-licoes-e-custo-real.md) — o harness local saiu em 2026-10-22; o que vale ainda está na skill haiku-task.
+- [Branches: 0.3.0 de longa duração (2026-11-14)](branch-das-sessoes-remotas.md) — master fica na versão publicada (0.2.0); trabalho rotineiro vai na `0.3.0`; documental da versão corrente entra no master; push pede confirmação.
+- [Modo remoto: enviar o arquivo](modo-remoto-enviar-arquivo.md) — ao pedir revisão/decisão, mandar o arquivo alterado via SendUserFile.
+- [Delegar varreduras ao Haiku](delegar-varreduras-ao-haiku.md) — Opus orquestra; varredura e edição mecânica vão por cartão ao Haiku (limite de 5h).
+- [README literal do golden](readme-literal-do-golden.md) — todos os pares marcados (31 casos); decisões do André e o que está aberto (.state = {0}, foreach sobre array).
+- [Molde (keel_code): revisão 2026-11-07](mold-keel-code-revisao-2026-11-07.md) — continua engavetado; caso real (ordered set) apontou pra Rota A (comparador como eixo de instanciação) antes de cogitar código arbitrário.
+- [keel_libs: indexed-views 2026-11-07](keel-libs-indexed-views-2026-11-07.md) — achou 2 bugs reais (const perdido em genérico aninhado, parallel por valor), ambos fechados; o resto era fronteira já documentada ou lado da biblioteca.
+- [specific-format-unavailable: engavetado 2026-11-07](specific-format-unavailable-engavetado-2026-11-07.md) — o `#error` de f16/bf16 já resolve; sondar o cc seria mecanismo novo sem caso real.
+- [Oráculo isolado e exit code real](oraculo-isolado-e-exit-code-real.md) — `cmd | tail; echo $?` mede o tail, não o cmd; rodar test/run.sh inteiro e isolado após tocar código central.
+- [dim-generates-declaration removido](dim-generates-declaration-removido-2026-11-07.md) — caso original (tensor N-dim) já resolvido por laço em runtime; gramática nunca permitiu o erro que o diagnóstico temia.
+- [keel-manual: retomada (2026-11-10)](keel-manual-retomada-2026-11-10.md) — manual na 0.2.0; pendências: exemplos soltos 3.5/3.8/3.9, conferir contra a spec, aviso de versão, gap de função sobre protocolo.
+- [Auditoria externa do cgen: Gemini + GLM (2026-11-11)](analise-qualidade-cgen-gemini-glm-2026-11-11.md) — 6 bugs reais corrigidos (symlink, mensagem de limite do emissor, delimitadores >256, source-outside-roots, binders >8); o resto fica registrado, não agido.
+- [--pedantic-names retirada (D22, 2026-11-11)](pedantic-names-retirado-2026-11-11.md) — nenhum cc do levantamento pede teto <255; opção reconhecida e recusada com hint de report; gatilho de reabertura no rationale.
+- [Papéis × protocolo estrutural: ambiguidade (2026-11-12→13)](papeis-protocolo-estrutural-ambiguidade-2026-11-12.md) — RESOLVIDO (9d84819): regra `|S|`, união por eixo, `protocol-role-ambiguous`; release da 0.2.0 saiu em 2026-11-14.
+- [GitHub: canal de reporte (2026-11-11)](github-canal-de-reporte-2026-11-11.md) — 3 formulários de issue (bug, necessidade, funcionalidade) + rótulos, antes dos alunos começarem a relatar.
+- [stdlib = casos para depurar a keel (2026-11-14)](stdlib-e-keel-libs-independentes.md) — linguagem fechada; keel_libs independentes; achados voltam como bug report.
+- [0.2.0 publicada (2026-11-14)](release-0-2-0-publicada-2026-11-14.md) — tag v0.2.0, normativos versionados, --cgen-version com commit, só master+0.3.0, ~/Apps/keel-0.2.0; como cortar release e pendências.
+- [keel_coll: comparador B5/B6 (2026-11-15)](keel-coll-comparador-b5-b6-2026-11-15.md) — B5 é do gcc; inline forçado recusado; B6 adiado; A+B na biblioteca; bugs A1, A4-A9 fechados e publicados na 0.3.0.
+- [0.3.0 publicada; bitbuffer na base (2026-11-19)](release-0-3-0-e-bitbuffer-2026-11-19.md) — tag v0.3.0, branch 0.4.0 em 77ab247 (160 ok); bugs do cgen fechados; próximo: tensor em keel_maths e inferência, só com o go dele.
 - [keel_libs: reorganização (2026-11-20)](keel-libs-reorganizacao-2026-11-20.md) — um repositório (coll, maths); stdlib = base; libs-spec.md; só fonte; LIBS.md/CONTRIBUTING; http fora, discutir antes.
 - [cgen: ligação e tags (2026-11-20)](cgen-ligacao-e-tags-2026-11-20.md) — tags até 128 + tags-limit-exceeded; .a/-l depois dos .c gerados; 0.4.0-dev em ~/Apps.
 - [Testes por área + pre-push](testes-por-area-e-hook-pre-push.md) — test/run.sh AREA...; suíte inteira só no push (hook local).
 - [Decisões v1+ (2026-11-23)](decisoes-v1-mais-2026-11-23.md) — pub import como alias de fachada (source descartado), a..<b/a..=b aditivo, LINE_CAP no normativo + tabela de limites.
-- [Sessão 2026-11-23: estado e fila](sessao-2026-11-23-estado.md) — teto 215 commitado (ba9e195); fila: intervalos, pub import, handles, A1/A3, E02/E03, arena.
+- [Sessão 2026-11-23: estado e fila](sessao-2026-11-23-estado.md) — 215 aplicado mas NÃO commitado (suíte completa não vista); pendências: intervalos, pub import, handles, A1/A3, E02/E03, arena.
 - [Tipos C como argumento (2026-11-23)](tipos-c-como-argumento-2026-11-23.md) — unsigned char/long long normalizam p/ u8/i64 com warning c-type-spelling; long recusado; golden 086; A1-A3 fechados.
+- [Sessão 2026-11-24: pub import + keel.pool](sessao-2026-11-24-pub-import-pool.md) — texto normativo fechado (regra 7a, §5.9); medição da arena por categoria (memory.c); E03 pausado; fila: golden → implementação (Haiku) → suíte → push.

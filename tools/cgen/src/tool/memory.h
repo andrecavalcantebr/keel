@@ -28,14 +28,48 @@ static inline string str_dup(keel_arena *a, string orig) {
     p[orig.len] = '\0';
     return (string){.len=orig.len, .cap=orig.len+1, .ptr=p};
 }
+/* Dev-only accounting, not part of the tool's interface: every allocation
+   goes through cgen_alloc, so this tags each by its "what" and totals the
+   bytes. Not a diagnostic, not documented anywhere a user reads; it exists so
+   that measuring where CGEN_ARENA_CAPACITY actually goes doesn't need a
+   profiler. CGEN_STAT_CAP distinct labels fit; more collapse into "other". */
+#define CGEN_STAT_CAP 64
+typedef struct { const char *what; size_t bytes; size_t calls; } CgenStat;
+/* Defined once, in memory.c: a `static` here would give each including .c
+   its own copy, and this must be the one table every TU adds to. */
+extern CgenStat cgen_stats[CGEN_STAT_CAP];
+extern size_t cgen_stats_n;
+
+static inline void cgen_stat_add(const char *what, size_t bytes) {
+    for (size_t i = 0; i < cgen_stats_n; ++i)
+        if (strcmp(cgen_stats[i].what, what) == 0) { cgen_stats[i].bytes += bytes; cgen_stats[i].calls++; return; }
+    if (cgen_stats_n == CGEN_STAT_CAP) what = "other (CGEN_STAT_CAP reached)";
+    for (size_t i = 0; i < cgen_stats_n; ++i)
+        if (strcmp(cgen_stats[i].what, what) == 0) { cgen_stats[i].bytes += bytes; cgen_stats[i].calls++; return; }
+    cgen_stats[cgen_stats_n++] = (CgenStat){ what, bytes, 1 };
+}
+/* Sorted by bytes, descending; O(n^2) over at most CGEN_STAT_CAP entries. */
+static inline void cgen_memory_report(FILE *f) {
+    CgenStat sorted[CGEN_STAT_CAP];
+    memcpy(sorted, cgen_stats, cgen_stats_n * sizeof(CgenStat));
+    for (size_t i = 0; i < cgen_stats_n; ++i)
+        for (size_t j = i + 1; j < cgen_stats_n; ++j)
+            if (sorted[j].bytes > sorted[i].bytes) { CgenStat t = sorted[i]; sorted[i] = sorted[j]; sorted[j] = t; }
+    fprintf(f, "cgen: arena usage by label (bytes, calls):\n");
+    for (size_t i = 0; i < cgen_stats_n; ++i)
+        fprintf(f, "  %10zu  %8zu  %s\n", sorted[i].bytes, sorted[i].calls, sorted[i].what);
+}
 static inline void cgen_memory_error(const keel_arena *a, const char *what) {
     fprintf(stderr, "cgen: error: arena capacity exhausted allocating %s; used %zu, configured limit %zu bytes; adjust CGEN_ARENA_CAPACITY [implementation-limit]\n",
             what, a->top, a->cap);
+    cgen_memory_report(stderr);
 }
 static inline void *cgen_alloc(keel_arena *a, size_t n, size_t size,
                                size_t alignment, bool zero, const char *what) {
+    size_t before = a->top;
     void *p = keel_arena_alloc_(a, size, alignment, n);
     if (!p) { cgen_memory_error(a, what); return NULL; }
+    cgen_stat_add(what, a->top - before);
     if (zero) memset(p, 0, n*size);
     return p;
 }
@@ -54,6 +88,7 @@ static inline bool cgen_memory_init(keel_arena *a) {
     return keel_arena_from_memory(a,p,CGEN_ARENA_CAPACITY);
 }
 static inline void cgen_memory_destroy(keel_arena *a) {
+    if (getenv("CGEN_ARENA_STATS")) cgen_memory_report(stderr);
     free(a->ptr); *a=(keel_arena){0};
 }
 #endif

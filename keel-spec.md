@@ -633,7 +633,7 @@ priv i32 helper(i32 x) { return x; }
 Organizar declarações em módulos e integrar interfaces e implementações C.
 
 1. O nome do módulo corresponde ao caminho do `.k` relativo à raiz de fontes. Cada componente forma um identificador admitido para esse caminho.
-2. Sem `pub` nem `priv`, a declaração é `pub`. Em módulo genérico, o default também é `inline` (§4.3).
+2. Sem `pub` nem `priv`, a declaração é `pub`. Em módulo genérico, o default também é `inline` (§4.3). Esta regra não cobre `import`: sem `pub`, um import não publica nada (regra 7a) — ali o padrão é o oposto.
 3. Declarações públicas compõem a interface; declarações privadas e corpos fora de linha compõem a implementação, conforme o backend.
 4. `priv` não muda por si só o linkage C. `static` conserva seu significado C.
 5. Um alias muda a escrita usada pelo importador e preserva a identidade de origem. Sem alias, o qualificador é o nome do módulo por inteiro, com os pontos do caminho *(desde 0.3.0)*.
@@ -647,7 +647,7 @@ Organizar declarações em módulos e integrar interfaces e implementações C.
 12. Sem `priv`, o conteúdo de `extern_c` compõe a interface: com `[type_h]`, a camada de tipos (`.type.h`); sem `[type_h]`, o `.h`. Com `priv`, compõe a implementação (`.c`). `priv extern_c [type_h]` é recusado.
 13. Diretivas de pré-processamento no nível de arquivo vão para a camada de tipos (`.type.h`), na ordem em que aparecem, junto com os tipos que elas precedem; dentro de um construto, acompanham o destino dele.
 14. `main` é uma função pública do módulo e recebe seu prefixo. A seleção do módulo de entrada pela ferramenta gera o wrapper C `main`, que chama essa função. Cada módulo pode declarar a sua `main`.
-15. O único import implícito é `import keel types;`, que traz também os protocolos da base (§5.1). Os módulos da base — `keel.arena` (§5.2), `keel.buffer`, `keel.slice` e `keel.range` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6) e `keel.parallel` (§5.7) — exigem import explícito. [R: prelúdio e base mínima](keel-rationale.md#prelúdio-e-base-mínima)
+15. O único import implícito é `import keel types;`, que traz também os protocolos da base (§5.1). Os módulos da base — `keel.arena` (§5.2), `keel.buffer`, `keel.slice`, `keel.range` e `keel.array` (§5.3), `keel.tagged` (§5.4), `keel.outcome` e `keel.corot` (§5.5), `keel.routine` (§5.6), `keel.parallel` (§5.7), `keel.bitbuffer`, `keel.bitslice` e `keel.bits` (§5.8) e `keel.pool` e `keel.entity` (§5.9) — exigem import explícito. Isso vale mesmo para um módulo com `pub import` disponível por outro caminho (regra 7a): a base não publica um módulo seu por dentro de outro — cada um se importa por si, facultativamente. [R: prelúdio e base mínima](keel-rationale.md#prelúdio-e-base-mínima)
 16. Macros não pertencem ao namespace de módulos: não levam prefixo e são globais, como em C. Duas macros de mesmo nome em módulos diferentes colidem, e a escolha dos nomes é do autor. keel não vê diretivas, e por isso não vê macros: um corpo `inline` que use uma macro de um módulo importado precisa trazer o header dele (backend §4.3.2, regra 11). [R: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos)
 
 Referências: [Rationale: módulos e identidade](keel-rationale.md#módulos-e-identidade); [Rationale: fronteira com C](keel-rationale.md#fronteira-com-c-e-conflitos-léxicos); [Backend: artefatos](keel-c-backend.md#4-artefatos) e [ponto de entrada](keel-c-backend.md#58-ponto-de-entrada).

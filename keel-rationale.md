@@ -1443,11 +1443,13 @@ publicação — cada elo só se estende além de um módulo que escreveu `pub`,
 um elo que não publicou interrompe a cadeia ali, com a falta de resolução
 comum a qualquer nome não encontrado.
 
-**Por que não existe `priv import`.** Sem `pub`, o import já não publica
-nada: escrever `priv import` diria o mesmo que `import` sozinho, pela mesma
-razão que `pub` antes de uma função cujo módulo já a declara pública não
-muda nada (spec §4.1, regra 2) — só que o padrão, aqui, está invertido. Uma
-palavra que nunca muda o programa não paga seu custo de leitura.
+**Por que não existe `priv import`.** Declarações comuns são `pub` por
+padrão (spec §4.1, regra 2): escrever `pub` antes de uma função cujo módulo
+já a declara pública não muda nada. `import` segue o padrão oposto: sem
+`pub`, o alias não publica nada (regra 7a), que é exatamente o que `priv`
+diria. `priv import` repetiria o padrão por extenso, e uma palavra que nunca
+muda o programa não paga seu custo de leitura — a mesma razão pela qual
+escrever `pub` antes de uma função já pública, embora aceito, é incomum.
 
 **Por que um pacote não é um conceito novo.** Uma vez que a fachada é só um
 módulo cujo papel é publicar outros, "pacote" deixa de precisar de qualquer
@@ -1460,6 +1462,19 @@ publica. Mover ou renomear um módulo interno do pacote não muda a interface
 que `pub import` oferece, enquanto a fachada continuar publicando o mesmo
 alias — o mesmo argumento que já valia para a identidade do módulo (acima) e
 para a recusa de um conceito de projeto na ferramenta [cgen-tool-spec §9](cgen-tool-spec.md#9-fora-de-escopo).
+
+**Por que a base não publica um módulo seu por dentro de outro.** Dava para
+fazer `keel.pool`, `keel.bitbuffer` e os demais entrarem juntos: um `pub
+import` de cada um dentro de algum módulo guarda-chuva, e um só import do
+programa traria tudo. A spec recusa isso (§4.1, regra 15): cada módulo da
+base pede o próprio import, sempre. A diferença para `matrix` ou `tensor` é
+a motivação do `pub import`: uma biblioteca de domínio precisa de módulos
+internos para funcionar, e só alguns fazem sentido para quem a usa de fora —
+é esse recorte entre o que é interno e o que é interface que o alias
+publicado resolve. A base não tem recorte desse tipo: não há como saber de
+antemão o que um programa vai usar dela, e trazer tudo por padrão custaria a
+quem só queria `arena` também ganhar `pool`. Fica facultativo, módulo por
+módulo, como sempre foi.
 
 Referência: [spec §4.1](keel-spec.md#41-módulos-e-interoperabilidade).
 

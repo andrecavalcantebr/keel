@@ -75,7 +75,8 @@ protocolo (§5.1) pertencem à v0.
   - [5.6 `keel.routine`](#56-keelroutine)
   - [5.7 `keel.parallel`](#57-keelparallel)
   - [5.8 `keel.bitbuffer`, `keel.bitslice` e `keel.bits`](#58-keelbitbuffer-keelbitslice-e-keelbits-desde-040)
-  - [5.9 Biblioteca padrão](#59-biblioteca-padrão)
+  - [5.9 `keel.pool`](#59-keelpool-desde-040)
+  - [5.10 Biblioteca padrão](#510-biblioteca-padrão)
 - [6. Diagnósticos e conformidade](#6-diagnósticos-e-conformidade)
   - [6.1 Emissão e responsabilidade](#61-emissão-e-responsabilidade)
   - [6.2 Catálogo](#62-catálogo)
@@ -1846,7 +1847,7 @@ instância cuja assinatura C recebe esse buffer por ponteiro, conforme `byref`.
 Os módulos deste capítulo acompanham a distribuição de keel e são módulos
 comuns: declaram tipos, modificadores e verbos pelas regras dos §§4.1–4.4, e
 são importados explicitamente quando seus nomes são escritos. As construções
-consultam os protocolos do prelúdio `keel` (§5.1). Os contratos das §§5.2 a 5.8 seguem o formato
+consultam os protocolos do prelúdio `keel` (§5.1). Os contratos das §§5.2 a 5.9 seguem o formato
 de cinco itens do capítulo 4.
 
 ### 5.1 Protocolos
@@ -2058,6 +2059,8 @@ A convenção abaixo é a da base; um módulo do programa pode segui-la ou não.
 | `keel.outcome`, `keel.corot` | o modificador de resultado final, de dois estados, e o tipo de estado cooperativo, de três | §5.5 |
 | `keel.routine` | a tabela de participantes e as composições `seq` e `par` | §5.6 |
 | `keel.parallel` | o tipo do símbolo de controle e suas consultas | §5.7 |
+| `keel.bitbuffer`, `keel.bitslice`, `keel.bits` | a sequência e o trecho de elementos de `W` bits, e o empacotamento que os dois compartilham | §5.8 |
+| `keel.pool`, `keel.entity` | o alocador de slots de capacidade fixa e a referência por índice e geração | §5.9 |
 
 ### 5.2 `keel.arena`
 
@@ -2822,9 +2825,151 @@ De keel, na tradução; condições no [catálogo](#62-catálogo): `protocol-not
 - Os bits de preenchimento do último byte têm valor indefinido: não são lidos por nenhum verbo.
 - `make` numa arena sem espaço devolve capacidade zero, e nada é alocado.
 
-### 5.9 Biblioteca padrão
+### 5.9 `keel.pool` *(desde 0.4.0)*
 
-A biblioteca padrão além da base (§§5.2–5.8) não faz parte desta versão. Os
+#### 1. Sintaxe
+
+```keel
+import keel.pool as pool types;
+import keel.arena as arena types;
+
+pool struct Particle p;
+pool.from_arena(p, a, 1024);
+outcome entity r = pool.alloc(p);
+if (outcome.ok(r)) {
+    entity e = outcome.value(r);
+    struct Particle *ref particle = pool.ptr(p, e);
+    particle->x = 0;
+    pool.free(p, e);
+}
+```
+
+`pool T` é um alocador de slots de capacidade fixa; `entity` é a referência a um
+slot, por índice e geração. Os módulos são `keel.pool type T` e `keel.entity`,
+este último sem parâmetro.
+
+**`pool`** (`byref`)
+
+| Chamada | Devolve | O que faz |
+| --- | --- | --- |
+| `pool.from_arena(p, a, cap)` | `bool` | reserva `cap` slots na [`arena`](#52-keelarena) `a`; `false` sem espaço, e `p` fica com capacidade zero |
+| `pool.alloc(p)` | [`outcome entity`](#55-keeloutcome-e-keelcorot) | toma um slot livre; `NONE` se não há nenhum |
+| `pool.free(p, e)` | — | devolve o slot de `e` à lista livre |
+| `pool.reset(p)` | — | invalida todo `entity` já distribuído, e devolve todos os slots |
+| `pool.ptr(p, e)` | `T *ref` | endereço do slot; a geração é verificada em debug, como `buffer.ptr` (backend §5.17) |
+| `pool.at(p, e)` | [`outcome T`](#55-keeloutcome-e-keelcorot) | cópia do slot, ou `NONE` se a geração não casa, em toda build — como `buffer.at` |
+| `pool.length(p)` | `size_t` | slots em uso |
+| `pool.capacity(p)` | `size_t` | slots reservados |
+
+**Reconhecimento**
+
+- `pool T` segue a §4.3 como qualquer modificador genérico `byref`, sem `dim`.
+- `entity` não tem parâmetro de tipo: a mesma `entity` identifica um slot em
+  qualquer `pool`, e nada verifica que o `pool` passado a `ptr`, `free` ou
+  `valid` é o que produziu aquele `entity` (§5, "Casos especiais").
+
+#### Conformidade e procedência
+
+`pool` não atende `IndexPtr`, `IndexGet`, `Sliceable` nem `Traversable`: o
+acesso é só por `entity`, que não é `size_t`, e um slot livre não tem posição
+estável para um cursor percorrer. Não há `foreach` nem `walk` sobre `pool`
+nesta versão.
+
+```keel
+pub child entity alloc(parent pool *p);
+pub void free(parent pool *p, consumes entity e);
+pub void reset(invalidates pool *p);
+pub T *ref ptr(parent pool *p, entity e);
+```
+
+`alloc` e `ptr` seguem o papel geral de produto derivado do receptor (§4.12,
+regra 2). `free` consome o próprio argumento `e`: usar essa variável depois,
+no mesmo escopo, é `child-region-after-invalidation`, como usar uma arena
+resetada — a diferença de `invalidates` (§4.12, regra 6) é que `free` também
+invalida o valor recebido, e não só o que dele deriva, porque não há nada que
+derive de `e` além do que `ptr` devolve na hora. `reset` segue o papel de
+`arena.reset`: invalida tudo o que já foi `child` do `pool`, e o `pool`
+continua válido.
+
+#### 2. Regras
+
+Um alocador de slots de capacidade fixa, com liberação individual verificada
+por geração.
+
+1. A capacidade de `pool` é fixa desde `from_arena`. Não há `realloc`.
+2. `entity` é `{u32 index; u32 gen;}`, sem ponteiro: 8 bytes, copiável por
+   valor como qualquer modificador comum.
+3. Cada slot guarda sua própria geração. `alloc` devolve um `entity` com a
+   geração atual do slot tomado; `free` soma um à geração do slot liberado, e
+   o devolve à lista livre.
+4. `ptr` e `at` conferem a geração de `e` contra a do slot em `e.index`:
+   diferentes, o `entity` é obsoleto. `ptr` verifica em debug
+   (`entity-generation-mismatch`), como `buffer.ptr` (backend §5.17); `at`
+   verifica em toda build e devolve `NONE`, como `buffer.at`. Em release,
+   `ptr` sobre geração obsoleta é o programa usar um `entity` liberado, que a
+   regra de papéis já cobre estaticamente quando alcança a análise lexical, e
+   que `at` cobre em execução quando não alcança.
+5. `reset` invalida todo `entity` distribuído antes dele, e o `pool` continua
+   válido com a capacidade original livre.
+6. A geração de um slot é `u32`. Depois de `UINT32_MAX` liberações do mesmo
+   slot sem um `reset` do `pool` inteiro entre elas, a geração atinge o
+   máximo: em debug, a próxima liberação desse slot é
+   `pool-generation-overflow`; em release, a geração satura em `UINT32_MAX` e
+   não volta a zero — o slot continua distinguindo `entity` antigos dos mais
+   recentes, exceto entre dois que ambos tenham saturado, o que exige a volta
+   completa já descrita. É o mesmo tratamento de `a..=SIZE_MAX` (§4.5): a
+   verificação existe para o caso que não deveria ocorrer, e release não
+   trava o programa por ele.
+7. `free` e `reset` são verbos diferentes: o mesmo nome para os dois raios de
+   invalidação esconderia o custo, e keel escolheu o lote para `reset`, como
+   em `arena`.
+8. Procedência, escape de origem local e uso após invalidação seguem a §4.12.
+   Cópias de `entity` não são seguidas pela análise lexical (§4.12, "Casos
+   especiais"): copiar `e` para `e2` e usar `e` depois de `pool.free(p, e2)`
+   não é diagnosticado — a defesa em execução de `ptr`/`at` continua valendo.
+
+Referências: [Rationale: módulos e identidade](keel-rationale.md#módulos-e-identidade).
+
+#### 3. Exemplo
+
+```keel
+//keel
+pool struct Particle p;
+pool.from_arena(p, a, 1024);
+outcome entity r = pool.alloc(p);
+entity e = outcome.value(r);
+struct Particle *ref particle = pool.ptr(p, e);
+pool.free(p, e);
+pool.ptr(p, e);                      // entity-generation-mismatch em debug
+```
+
+#### 4. Erros
+
+De keel, na tradução; condições no [catálogo](#62-catálogo): `region-escape`,
+`child-region-after-invalidation`, `byref-param`. Do backend, em execução
+debug: `entity-generation-mismatch`, `pool-generation-overflow`.
+
+#### 5. Casos especiais
+
+- Nada verifica que o `entity` passado a `ptr`, `free` ou `valid` veio do
+  `pool` que o recebe: usar o `entity` de um `pool` com outro é o programa
+  misturar identidades que a linguagem não distingue, como indexar um
+  `buffer` com um índice de outro.
+- `pool.from_arena` numa arena sem espaço devolve falso, e `p` fica com
+  capacidade zero: toda chamada a `alloc` depois falha pelo canal normal.
+- O ponteiro devolvido por `ptr` escapa como qualquer `T *ref`: copiá-lo para
+  um `T *` cru sai da análise lexical, como o `T *` devolvido por
+  `arena.alloc` (§5.2).
+- `pool` não sincroniza o acesso entre threads. Antes de um `parallel`, o
+  programa particiona o uso do `pool` por fora, como já faz com a arena.
+- O custo e a técnica de `reset` — por época do `pool`, ou subindo a geração
+  de cada slot — são do backend: a spec só fixa o efeito (regra 5), como já
+  faz para `arena.alloc` (§5.2, "Casos especiais" não fixa o algoritmo do bump
+  allocator).
+
+### 5.10 Biblioteca padrão
+
+A biblioteca padrão além da base (§§5.2–5.9) não faz parte desta versão. Os
 candidatos estão registrados, sem valor normativo, em
 [design/possibilidades.md](design/possibilidades.md).
 
@@ -2971,6 +3116,8 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `bitbuffer-width-invalid` | Instância de `bitbuffer` ou `bitslice` com `W` fora de `1..8*sizeof(T)`, `T` com sinal ou não inteiro, ou `bool` com `W` diferente de 1 *(desde 0.4.0)* | `error` | Backend / compilador C | §5.8 |
 | `nonconstant-dim` | Argumento de `dim` sem literal decimal ou `constexpr` de inicializador decimal conhecido | `error` | keel | §4.3 |
 | `alloc-overflow` | `arena.alloc` cujo `n * sz` não cabe em `size_t` | `debug` | Backend, em execução | §5.2 |
+| `entity-generation-mismatch` | `pool.ptr(p, e)` cuja geração não casa com a do slot — `entity` obsoleto *(desde 0.4.0)* | `debug` | Backend, em execução | §5.9 |
+| `pool-generation-overflow` | `pool.free` cuja geração de slot já está em `UINT32_MAX` *(desde 0.4.0)* | `debug` | Backend, em execução | §5.9 |
 | `canonical-name-collision` | Duas declarações do mesmo módulo produzindo o mesmo nome canônico | `error` | keel | §4.2 |
 | `modifier-named-instance` | Modificador declarado com o nome `instance` | `error` | keel | §4.3 |
 | `address-in-object-position` | Operador de endereço sobre o objeto no primeiro argumento de um verbo | `error` | keel | §4.4 |

@@ -858,7 +858,10 @@ a política de `restore` em execução.
 
 #### Handle: ponteiro com geração (2026-09-30)
 
-**Status: ideia a estudar, não normativa. Não está decidido que valha o esforço.**
+**Status (2026-11-24): a versão com ponteiro sobre arena, abaixo, foi
+descartada. O "desenho preferido" ao final desta entrada — índice geracional
+sobre `pool` — foi adotado na 0.4.0, com o texto em `keel-spec.md` §5.9; esta
+entrada fica como registro do estudo que levou até lá.**
 Fecha a lacuna que a verificação em execução deixava: o `T *` devolvido por
 `alloc` é ponteiro cru, e nenhum descritor o cobre. Um modificador `handle`
 encapsula **um ponteiro mais a geração em que ele nasceu**, e é **filho** da arena

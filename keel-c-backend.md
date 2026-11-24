@@ -1842,6 +1842,8 @@ static inline size_t keel_index(size_t i, size_t d) {
 | `set(x, i, v)` e `push(b, v)` de `bitbuffer` e `bitslice` | `v` cabe em `W` bits *(desde 0.4.0)* | `bit-value-out-of-width` |
 | `arena.alloc(a, n, sz, al)` | `sz == 0 \|\| n <= SIZE_MAX / sz` | `alloc-overflow` |
 | `a..=b` *(desde 0.4.0)*: `keel_inclusive(b)`, função em linha do prelúdio ao lado de `keel_index` | `b != SIZE_MAX` | `inclusive-range-overflow` |
+| `pool.ptr(p, e)` *(desde 0.4.0)* | `e.gen == slot[e.index].gen` | `entity-generation-mismatch` |
+| `pool.free(p, e)` *(desde 0.4.0)* | `slot[e.index].gen != UINT32_MAX` | `pool-generation-overflow` |
 | `routine.par(s, alvo)` | `alvo <= length(s)` | `par-target-above-total` |
 | `routine.mask(s)` | `length(s) <= 64` | `mask-above-64-slots` |
 

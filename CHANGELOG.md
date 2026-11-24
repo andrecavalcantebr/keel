@@ -80,6 +80,14 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   com `pub`, sem flatten de símbolos. `indirect-import` não dispara por esse alcance. Não há `priv import`. A
   ferramenta busca todo import, publicado ou não, relativo ao diretório de quem importa antes de olhar as raízes
   `-I` (cgen-tool-spec §4.6), e um pacote passa a ser só uma pasta com um ou mais módulos de fachada.
+- `keel.pool` (§5.9, texto, ainda sem implementação): módulo novo da base, o desenho de índice geracional de
+  `design/possibilidades.md` ("Handle: ponteiro com geração"), e não a versão com ponteiro sobre arena, descartada.
+  `pool T` é `byref`, capacidade fixa, sem `realloc`; `entity {u32 index, u32 gen}`, 8 bytes, sem ponteiro.
+  `alloc`/`free`/`reset` são verbos distintos; `free` é `consumes` sobre `e` (e não `invalidates`: o próprio valor
+  fica inválido, não só o que dele deriva); `alloc` devolve `outcome entity`. `ptr` verifica a geração em debug
+  (`entity-generation-mismatch`, como `buffer.ptr`); `at` verifica em toda build (como `buffer.at`). A geração é
+  `u32` e satura em `UINT32_MAX` em release; em debug, a liberação que a levaria além disso é
+  `pool-generation-overflow`.
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima

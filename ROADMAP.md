@@ -70,13 +70,20 @@ linguagem:
 Cada uma tem seu gatilho de reabertura em `possibilidades.md`; nenhuma entra
 sem caso real que o dispare.
 
+`pub import` e `keel.pool` (índice geracional) saíram desta lista em
+2026-11-24: os gatilhos dispararam, e o texto está na 0.4.0 (`em andamento`,
+`CHANGELOG.md`). O "Handle (ponteiro com geração)" sobre arena, que antes
+nomeava esse gatilho, foi descartado em favor do `pool`/`entity` — ver
+design/possibilidades.md.
+
 | Item | Gatilho |
 | --- | --- |
-| Protocolo nominal | verbo de protocolo sobre `T` no corpo de um genérico (hoje `T` é opaco) |
-| `source` / `pub import` | listas de imports longas e repetidas em tarefas comuns (ex.: Tensor) |
+| Protocolo nominal | verbo de protocolo sobre `T` no corpo de um genérico (hoje `T` é opaco); ainda por estudar a fundo |
 | Moldes (`keel_code`) | engavetado; o caso real (conjunto ordenado) apontou antes para o comparador como eixo de instanciação |
 | Comparador como eixo de instanciação (`instance ... by cmp`) | chave que `==`/`<` direto e a coluna-índice não cobrem (string, ordem do usuário); medido em 2026-11-15: 5× sobre o ponteiro guardado (`achados/`, B3/B6) |
-| Handle (ponteiro com geração), regiões e arena na base | decisão de incorporar o texto candidato da §2 de `possibilidades.md` |
+
+Esta tabela está defasada e vai ser reestruturada: vários itens antigos já
+foram descartados ou implementados. Até lá, só o que está acima é atual.
 
 ## Fora do escopo
 

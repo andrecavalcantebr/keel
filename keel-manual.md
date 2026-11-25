@@ -1265,7 +1265,7 @@ desenvolvimento. Os testes de escala originais usaram uma arena de 64 MiB.
 | Módulos importados num programa | depende da memória usada por módulo | `implementation-limit` (arena) |
 | Argumentos repassados ao compilador C | 256 (cerca de 127 pares `-I`) | `implementation-limit`; ajuste `CGEN_CLI_ARGS_CAP` ao compilar o cgen |
 | Raízes de busca (`-I`) | 128 | `implementation-limit`; na prática o limite de argumentos vem antes |
-| Memória do cgen | 128 MiB por invocação | `implementation-limit`; ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
+| Memória do cgen | 256 MiB por invocação | `implementation-limit`; ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
 | Entradas de `routine.mask` | 64 | `mask-above-64-slots` (em execução, em debug) |
 
 No Windows o caminho inteiro de um arquivo gerado tem 260 caracteres por padrão (salvo com `LongPathsEnabled`), então um `--dest-dir` profundo pode estourar antes do teto de 215 do nome: prefira um destino curto.

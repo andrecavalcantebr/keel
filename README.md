@@ -246,7 +246,7 @@ em `cgen -o app.parse --stop-after=parse app.k`.
 O `.type.h` define os tipos, o `.h` traz a interface e o `.c` contém os
 corpos e as definições dos objetos. Por exemplo, uma declaração como
 `pub struct S { int x; } s0;` põe a tag no `.type.h`, o `extern` no `.h`
-e a definição de `s0` no `.c`. A arena do cgen tem 128 MiB por invocação.
+e a definição de `s0` no `.c`. A arena do cgen tem 256 MiB por invocação.
 
 ## keel por exemplos
 

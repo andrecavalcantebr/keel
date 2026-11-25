@@ -26,6 +26,14 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   pub;`), seguida de uma função cuja visibilidade usa a mesma palavra, gerava
   um C que lia além do fim da fonte, contido só por acaso pelo `LINE_CAP`; sem
   mudança normativa, só a emissão.
+- A6, A3, A4b, A4 e A5 (achados 2026-11-25): protótipo multilinha deixa de ser
+  recusado por `LINE_CAP` falso; os tempos quadráticos de splices numa linha
+  lógica, de função longa e de muitas declarações caem (índice de nomes, laços
+  por linha limitados, analisadores ociosos pulados); a tabela de instâncias
+  não reserva mais 280 bytes por token. A arena padrão passou de 128 para
+  256 MiB por invocação: com a reserva menor, o `implementation-limit` passa de
+  cerca de 250 mil tokens para cerca de 900 mil (uns 3,5 MB de fonte); sem
+  mudança normativa.
 
 ## 0.4.0 (2026-11-24)
 

@@ -18,7 +18,7 @@ para cá.
   novas (as três de 2026-11-20 foram copiadas: `keel_libs` como repositório
   único, os dois bugs do cgen da 0.4.0-dev e os testes por área). O que diverge
   do repositório vale menos que o repositório.
-- **Estado (2026-11-19): a 0.3.0 está publicada** (tag `v0.3.0`, `master`). Não
+- **Estado (2026-11-25): a 0.4.0 está publicada** (tag `v0.4.0`, `master`). Não
   há pendência de normativo em aberto. O que mudou nos normativos, por versão,
   está no [`CHANGELOG.md`](CHANGELOG.md), e o que fica depois está no
   [`ROADMAP.md`](ROADMAP.md). Os achados das bibliotecas entram por
@@ -30,7 +30,7 @@ para cá.
 - **Branches.** `master` é o que a última release prometeu: só recebe
   documentação não normativa que valha para a versão corrente e o merge da
   próxima release. O trabalho rotineiro vai na branch de longa duração da
-  versão seguinte, hoje a `0.4.0`. Antes de commitar, `git status -sb`.
+  versão seguinte, hoje a `0.4.1`. Antes de commitar, `git status -sb`.
 
 ## Regras de trabalho
 
@@ -56,7 +56,7 @@ para cá.
   outro. "A emissão segue o `.k` sempre."
 - `golden/run.sh` é o oráculo, e tem de ficar verde. Caso em construção leva
   `WIP` (ver `golden/README.md`).
-- Trabalho local vai na branch da versão seguinte (hoje `0.4.0`, ver
+- Trabalho local vai na branch da versão seguinte (hoje `0.4.1`, ver
   "Branches" acima), com um commit local depois de cada alteração. Durante o trabalho, `test/run.sh AREA...` roda só a
   fatia afetada (`unit cli lex parse diag gen golden golden:<caso> docs`; o
   cabeçalho do script diz o que rodar depois de mexer em quê). Os dois oráculos

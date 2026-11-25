@@ -11,6 +11,43 @@
 #include "engine/symtab.h"
 
 
+/* The analyzers of a function body (backend §5), in the order their edits are wanted. Each one
+ * scans the whole body for its own construction and keeps the edits that fall in [a, b), so a
+ * function of L lines costs L scans per analyzer. Most functions hold no construction of most
+ * kinds: the first time a function is asked for, each analyzer is run once over the whole
+ * source (a throwaway Edit array; the Emit state it may touch is put back), and one that finds
+ * nothing is skipped for every line of that function (achados 2026-11-25, A4b). An analyzer
+ * only clips what it finds to [a, b), so what it finds in a part it also finds in the whole;
+ * a build with -DCGEN_CHECK_IDLE refuses where that fails, and the suite is run with it. */
+typedef void (*Analyzer)(Emit *, const KAstNode *, size_t, size_t, Edit *, size_t *);
+static const Analyzer fn_analyzers[] = {
+    k_em_edits_roles, k_em_edits_range_check, k_em_edits_array, k_em_edits_foreach,
+    k_em_edits_constblock, k_em_edits_defer, k_em_edits_index, k_em_edits_else, k_em_edits_match,
+    k_em_edits_parallel, k_em_edits_worker_exit, k_em_edits_subscript, k_em_edits_rangelit,
+    k_em_edits_routine, k_em_edits_column, k_em_edits_core,
+};
+enum { N_ANALYZERS = sizeof fn_analyzers / sizeof fn_analyzers[0] };
+
+static bool analyzer_is_idle(Emit *e, const KAstNode *fn, unsigned j) {
+    if (e->idle_fn != fn) { e->idle_fn = fn; e->idle_probed = 0; e->idle_mask = 0; }
+    if (!((e->idle_probed >> j) & 1u)) {
+        Edit probe[MAX_EDITS];
+        size_t cnt = 0;
+        bool ok = e->ok;
+        size_t limit = e->limit, limit_line = e->limit_line, refuse_tok = e->refuse_tok, n = e->n, scratch_n = e->scratch_n;
+        const char *refuse_what = e->refuse_what;
+        const char *cap = k_em_take_cap();
+        fn_analyzers[j](e, fn, 0, e->ast->source.len, probe, &cnt);
+        bool idle = cnt == 0 && e->ok == ok && e->limit == limit && e->refuse_tok == refuse_tok;
+        e->ok = ok; e->limit = limit; e->limit_line = limit_line; e->refuse_tok = refuse_tok;
+        e->refuse_what = refuse_what; e->n = n; e->scratch_n = scratch_n;
+        k_em_note_cap(cap);
+        e->idle_probed |= 1u << j;
+        if (idle) e->idle_mask |= 1u << j;
+    }
+    return (e->idle_mask >> j) & 1u;
+}
+
 void k_em_node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
     if (n->is_draft) {
@@ -27,22 +64,18 @@ void k_em_node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
      * in [a, b); the new ones are sorted in among the rename edits of this node */
     if (n->kind == K_AST_FUNCTION) {
         size_t before = *cnt;
-        k_em_edits_roles(e, n, a, b, ed, cnt);
-        k_em_edits_range_check(e, n, a, b, ed, cnt);
-        k_em_edits_array(e, n, a, b, ed, cnt);
-        k_em_edits_foreach(e, n, a, b, ed, cnt);
-        k_em_edits_constblock(e, n, a, b, ed, cnt);
-        k_em_edits_defer(e, n, a, b, ed, cnt);
-        k_em_edits_index(e, n, a, b, ed, cnt);
-        k_em_edits_else(e, n, a, b, ed, cnt);
-        k_em_edits_match(e, n, a, b, ed, cnt);
-        k_em_edits_parallel(e, n, a, b, ed, cnt);
-        k_em_edits_worker_exit(e, n, a, b, ed, cnt);
-        k_em_edits_subscript(e, n, a, b, ed, cnt);
-        k_em_edits_rangelit(e, n, a, b, ed, cnt);
-        k_em_edits_routine(e, n, a, b, ed, cnt);
-        k_em_edits_column(e, n, a, b, ed, cnt);
-        k_em_edits_core(e, n, a, b, ed, cnt);
+        for (unsigned j = 0; j < N_ANALYZERS; j++) {
+            if (analyzer_is_idle(e, n, j)) {
+#ifdef CGEN_CHECK_IDLE   /* a build that proves the probe: an idle analyzer must stay idle on every line */
+                Edit probe[MAX_EDITS];
+                size_t pc = 0;
+                fn_analyzers[j](e, n, a, b, probe, &pc);
+                if (pc != 0) k_em_refuse(e, n->first, "an analyzer judged idle made edits (CGEN_CHECK_IDLE)");
+#endif
+                continue;
+            }
+            fn_analyzers[j](e, n, a, b, ed, cnt);
+        }
         k_em_sort_edits(ed, before, *cnt);
     }
     /* an `array` variable at file scope (array.c) */

@@ -544,10 +544,10 @@ void k_em_edits_uses(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
     }
     /* C11 spells the C23 keywords of alignment with an underscore (backend §9.1) */
     if (!e->opt.c23)
-        for (size_t i = n->first; i < n->end && e->ok; i++) {
+        for (size_t i = k_em_first_tok_from(ast, n->first, n->end, a); i < n->end && e->ok; i++) {
             KToken t = k_em_tok(ast, i);
             size_t at = k_em_tok_off(ast, i);
-            if (at < a || at >= b) continue;
+            if (at >= b) break;
             bool taken = false;   /* already rewritten whole (an erased `alignof(T)`) */
             for (size_t k = 0; k < *cnt; k++) if (ed[k].at == at && ed[k].skip > t.len) taken = true;
             if (taken) continue;

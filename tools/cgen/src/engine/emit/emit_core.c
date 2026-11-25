@@ -11,6 +11,15 @@ KToken k_em_tok(const KAst *ast, size_t i) {
 }
 size_t k_em_tok_off(const KAst *ast, size_t i) { return off_of(ast, k_em_tok(ast, i).ptr); }
 size_t k_em_tok_end(const KAst *ast, size_t i) { return k_em_tok_off(ast, i) + k_em_tok(ast, i).len; }
+/* the first token in [lo, hi) that starts at or after offset `off` (hi when none): the tokens are in
+ * source order, so a line's loop over a long span starts here and not at the span's first token */
+size_t k_em_first_tok_from(const KAst *ast, size_t lo, size_t hi, size_t off) {
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (k_em_tok_off(ast, mid) >= off) hi = mid; else lo = mid + 1;
+    }
+    return lo;
+}
 size_t k_em_first_off(const Emit *e, const KAstNode *n) { return k_em_tok_off(e->ast, n->first); }
 size_t k_em_last_end(const Emit *e, const KAstNode *n) { return k_em_tok_end(e->ast, n->end - 1); }
 

@@ -766,6 +766,7 @@ size_t k_emit_instance(const KAst *generic, const KEmitInstance *inst, keel_slic
     e.done = 0;
     e.cache_off = 0;
     e.cmt_gap = SIZE_MAX;
+    e.idle_fn = NULL;
     e.cache_line = 1;
     e.ok = true;
     e.limit = 0;

@@ -86,21 +86,23 @@ bool k_em_decl_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
                 if (at >= a && at < b)
                     k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TAG, .at = at, .skip = 0, .name_tok = n->name_first, .is_type = true });
             }
-            for (size_t i = n->first; i < n->end; i++) {
+            for (size_t i = k_em_first_tok_from(ast, n->first, n->end, a); i < n->end; i++) {
                 /* the declarator, and the module types the members use; a member
                  * or a value of the module is not renamed here */
                 if (i == n->first && k_em_is_visibility(k_em_tok(ast, n->first))) continue;   /* the keyword, not a reference, even when its spelling also names a declaration */
                 size_t at = k_em_tok_off(ast, i);
-                if (at < a || at >= b) continue;
+                if (at < a) continue;
+                if (at >= b) break;
                 const KAstNode *d = k_em_declared_at(e, i);
                 if (d && (i == n->name_first || d->kind == K_AST_TYPE || d->kind == K_AST_TAGS))
                     k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_RENAME, .at = at, .skip = k_em_tok(ast, i).len, .name_tok = d->name_first, .is_type = true });
             }
         } else if (value) {
-            for (size_t i = n->first; i < n->end; i++) {
+            for (size_t i = k_em_first_tok_from(ast, n->first, n->end, a); i < n->end; i++) {
                 if (i == n->first && k_em_is_visibility(k_em_tok(ast, n->first))) continue;   /* the keyword, not a reference, even when its spelling also names a declaration */
                 size_t at = k_em_tok_off(ast, i);
-                if (at < a || at >= b) continue;
+                if (at < a) continue;
+                if (at >= b) break;
                 const KAstNode *d = k_em_declared_at(e, i);
                 if (e->inst && k_em_generic_out(ast, n)) {
                     KToken t = k_em_tok(ast, i);

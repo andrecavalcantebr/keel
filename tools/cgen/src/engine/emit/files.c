@@ -412,6 +412,7 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     e.done = 0;
     e.cache_off = 0;
     e.cmt_gap = SIZE_MAX;
+    e.idle_fn = NULL;
     e.cache_line = 1;
     e.ok = true;
     e.limit = 0;

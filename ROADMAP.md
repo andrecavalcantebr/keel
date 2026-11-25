@@ -8,9 +8,11 @@ só a sequência e os gatilhos.
 
 ## Onde estamos
 
-A versão publicada é a 0.4.0 em `master`. O `cgen` emite C11 e C23
-para os 89 casos do `golden/`. Os normativos são versionados e o
-`CHANGELOG.md` registra as mudanças.
+A versão publicada é a 0.4.0 em `master`; a `0.4.1` está em andamento (os
+achados da terceira revisão de código, sem mudança normativa). O `cgen` emite C11
+e C23 para os 90 casos do `golden/`. Os normativos são versionados e o
+`CHANGELOG.md` registra as mudanças. O que vem depois da 0.4.1 está na §5: uma
+0.5.0 só de estabilidade e, em seguida, o `cgen` escrito em keel.
 
 ## 1. Agora: documentação e bibliotecas
 
@@ -77,6 +79,81 @@ O desenho anterior, com ponteiro e geração sobre arena, está arquivado em
 
 Esta tabela está defasada e vai ser reestruturada: vários itens antigos já
 foram descartados ou implementados. Até lá, só o que está acima é atual.
+
+## 5. A 0.5.0 e o cgen em keel
+
+Plano de 2026-11-25, ainda sem datas. Duas etapas, nesta ordem.
+
+### 5.1 A 0.5.0: estável, sem funcionalidade nova
+
+A 0.5.0 não traz construção nova: fecha o que a revisão e o uso real acharam e
+deixa o `cgen` em C num estado que valha como ponto de partida. O que entra:
+
+- **O `transform` endurecido** (achados 2026-11-25, X1): limite em `load_file`
+  (T1), valor ausente e `else` no laço de opções (T2), cabeçalho que não cabe em
+  `head` recusado em vez de descartado (T3), retorno de `fwrite` e `fclose`
+  verificado. Ele continua sendo o bootstrap da base do compilador (`gen/`);
+  só deixa de errar em silêncio. Fica até o fim do §5.2.
+- **O resto dos achados baratos:** X2 (`mktemp -d` nos scripts de teste), X3
+  (`git add` só do que o `install-zed.sh` copiou), X4 (linha malformada em
+  `.keelsyms`) e as clarezas Q1 a Q13.
+- **S2:** as quatro variáveis estáticas do motor (`spanned_end`, `pending_cap`,
+  `seed_node_count`, `seed_count`) passam para `KAst` ou `Emit`. É pré-requisito
+  do §5.2: um motor sem estado de arquivo é o que se porta e o que se usa como
+  biblioteca.
+- **Os achados abertos do `keel_libs`** (A1 a A8) que se reproduzirem como bug
+  do `cgen`.
+- **A suíte `asan`** (`make -C tools/cgen asan`) rodando limpa, e a lista de
+  warnings extras (Q9) decidida.
+
+Fica registrado, sem entrar na 0.5.0, o que foi medido e adiado: a tabela de
+símbolos linear (`k_symtab_lookup`, parser-design §2.1; cresce ×3 por
+duplicação a partir de uns 4 mil símbolos), a reserva por token de `KAstNode`
+(128 bytes) e `KSymbol` (72), e o limite de arena só em tempo de compilação. O
+gatilho é o mesmo de sempre: uma aplicação real que reclame do tempo ou do
+teto. A solução provável da tabela é um índice por dispersão com o
+armazenamento dado pelo chamador, como já é o `decl_slots`, e a troca da decisão
+do §2.1.
+
+### 5.2 O cgen em keel
+
+Com a 0.5.0 publicada, o `cgen` passa a ser escrito em keel, módulo a módulo. É,
+ao mesmo tempo, a maior aplicação para testar a linguagem e a prova do uso que o
+README promete: ilhas de keel num mar de C, em adoção incremental. A linguagem
+continua fechada: o que o port tropeçar volta como relatório de bug ou lacuna
+da spec (`achados/README.md`), não como pedido de construção.
+
+**A costura é a que já existe.** `src/engine/` é puro (sem I/O, sem alocação, só
+o fonte e a entrada); `src/tool/` é a CLI e o sistema de arquivos. Porta-se o
+`engine/` de dentro para fora, e cada passo deixa o resto em C:
+
+1. Folhas sem estado: léxico (`lexer*`, `token_predicates*`), `names`, `diag`.
+2. Símbolos e parser (`symtab`, `parser_*`, `instances`). É aqui que o índice da
+   tabela de símbolos entra.
+3. O emissor (`emit/*`), por último: é o maior e o que mais depende dos
+   anteriores.
+4. `tool/`, só se os passos acima mostrarem que vale.
+
+Para cada módulo portado: o `.k` substitui o `.c`, o `golden/` e a suíte do
+cgen continuam sendo o oráculo, e o oráculo de uma tarefa nunca é capturado da
+ferramenta (regra do `AGENTS.md`).
+
+**Bootstrap em estágios.**
+
+- *Estágio 0:* o `cgen` em C da 0.5.0, congelado como o binário da distribuição.
+- *Estágio 1:* o `cgen` em keel, compilado pelo estágio 0.
+- *Estágio 2:* o estágio 1 compilando a si mesmo.
+
+O critério de aceite de cada módulo portado e do conjunto: o estágio 2 gera, byte
+a byte, o mesmo C que o estágio 1. Resta decidir se o C do estágio 1 entra no
+repositório, para quem clona sem um `cgen` anterior. Enquanto o `cgen` ainda usar
+a base do bootstrap (`tools/transform/base/`), o `transform` continua; ele sai
+quando o `cgen` compilar a base real (`base/keel`), e a retirada é o último
+passo, sem pressa.
+
+**O que medir antes do primeiro passo:** o que a base e a `keel_libs/coll` já
+cobrem do que o motor usa (texto, tabelas, ordenação, buffers sobre arena), e o
+custo de cada módulo portado em tempo de compilação e de execução do `cgen`.
 
 ## Fora do escopo
 

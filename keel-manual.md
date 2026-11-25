@@ -1,6 +1,6 @@
 # keel — manual (not so quick start)
 
-> **Versão descrita: keel 0.3.0** (`cgen 0.3.0`, tag `v0.3.0`). Se a sua versão
+> **Versão descrita: keel 0.4.0** (`cgen 0.4.0`, tag `v0.4.0`). Se a sua versão
 > for outra, desconfie dos detalhes: a spec e o `cgen --cgen-version` valem
 > mais que este texto. `cgen --cgen-version` também imprime o commit de que o
 > binário saiu, e é por ele que se distingue um build de desenvolvimento do
@@ -172,7 +172,26 @@ import_c <stdio.h>;                   // header C
   (tipos primitivos e protocolos).
 - `pub` e `priv` valem antes de declarações de arquivo. `priv` tira da
   interface (do `.h`) e não muda sozinho o *linkage* C.
-- `extern_c { … }` delimita C que atravessa sem tratamento nenhum.
+- `extern_c { … }` insere declarações C no `.h` sem mudar seus nomes.
+  Use `import_c` quando a biblioteca C já fornece um header.
+
+Uma fachada pode publicar o alias de outro módulo. Em `matrix/matrix.k`,
+`pub import matrix.linalg as linalg;` disponibiliza `m.linalg` a quem escreve
+`import matrix.matrix as m;`. Pode haver vários elos, desde que cada alias
+depois do import inicial seja publicado. A opção `types` só injeta nomes
+no arquivo que escreve o import. Nos dois tipos de import, `matrix.linalg`
+é procurado como `matrix/linalg.k` nas raízes de fontes, na ordem de busca.
+
+`pub struct S { int x; } s0;` declara o tipo e a variável na mesma linha.
+O cgen escreve a definição da tag no `.type.h`, uma declaração `extern`
+no `.h` e a definição de `s0` no `.c`.
+
+Durante o desenvolvimento, `pub i32 pending(void);` pode ficar como rascunho.
+Se o módulo ainda não tem a definição correspondente, o cgen emite
+`function-body-pending` e preserva a assinatura para análise. O C gerado
+omite o rascunho. Um uso que precise chegar ao C dá
+`use-of-draft-function` no ponto do uso. Se há uma definição de mesmo nome
+e aridade no mesmo módulo, o protótipo é uma declaração adiantada e não avisa.
 
 Os tipos primitivos são `i8…i64`, `u8…u64`, `f16`, `f32`, `f64`, `bf16`, com
 largura e representação fixas (não são aliases de `int`). `bool`, `char`,
@@ -1216,8 +1235,8 @@ Erros de invocação, todos com código 2 e sem posição: `multiple-sources`,
 Toda implementação tem limites, e os do `cgen` não são da linguagem: a spec
 (§6.4) manda que o esgotamento de capacidade saia como `implementation-limit`,
 com o limite, o valor e a configuração a ajustar, nunca como erro de sintaxe.
-Medidos em 2026-11-23, na 0.4.0, no build de desenvolvimento; "passa" é o maior
-valor aceito, e o seguinte é recusado.
+A tabela combina limites configurados e medições de 2026-11-23 no build de
+desenvolvimento. Os testes de escala originais usaram uma arena de 64 MiB.
 
 | Limite | Passa até | Ao passar disso |
 | --- | --- | --- |
@@ -1228,33 +1247,32 @@ valor aceito, e o seguinte é recusado.
 | Modificadores aninhados (`buffer buffer … i32`) | 9 níveis | `instance-depth` no 10º |
 | Nome gerado de instância | 215 caracteres | `name-too-long` no 216º (era 255 até a 0.3.0; o nome é também o do arquivo) |
 | Identificador escrito pelo usuário | sem teto próprio | o limite de 215 vale só para nomes gerados |
-| `extent`: grupos `[k, n]` | 4 | **o 5º sai sem diagnóstico (bug, E03)** |
+| `extent`: grupos `[k, n]` | 4 | `extent-limit-exceeded` no 5º |
 | `extent`: colunas `array` | 8 | `implementation-limit` |
-| `match`: rótulos | cerca de 14 com nomes curtos, 9 com nomes de 27 caracteres | `implementation-limit` ("shorten the line"): o teto é o texto das edições da linha do `match` (2048 bytes) |
+| `match`: rótulos | cerca de 14 com nomes curtos, 9 com nomes de 27 caracteres | `implementation-limit`: o teto é o texto das edições da linha do `match` (2048 bytes) |
 | `defer [now …]`: entradas | 8 | `implementation-limit` |
 | `parallel`: capturas | 16 | `implementation-limit` |
-| `protocol`: itens | 16 | `unexpected-token` no 17º |
-| `protocol`: parâmetros de um verbo, com o receptor | 8 | `unexpected-token` no 9º |
+| `protocol`: itens | 16 | `implementation-limit` no 17º |
+| `protocol`: parâmetros de um verbo, com o receptor | 8 | `implementation-limit` no 9º |
 | `x[i, j, …]`: índices | 8 | `implementation-limit` no 9º |
 | `#include` por arquivo gerado | 32 imports de tipos | `implementation-limit` no 33º |
 | Variáveis locais de uma função | 128 | `implementation-limit` |
 | Variáveis globais de um arquivo | 127 | `implementation-limit` (a posição aponta a primeira) |
-| Declaradores de um `array` no topo | 8 | `unexpected-token` no 9º |
+| Declaradores de um `array` no topo | 8 | `implementation-limit` no 9º |
 | Parâmetros de função | sem recusa até 18 (30 num módulo genérico) | — |
 | Nomes num `typedef`, dimensões de um `array`, estrelas de um declarador | sem recusa até 30, 11 e 300 | — |
 | Constante de texto numa linha sem construção keel | 10 000 bytes | — |
-| Módulos importados num programa | cerca de 400 (a arena acaba antes do teto de 1024) | `implementation-limit` (arena) |
-| Funções num módulo | cerca de 10 000 | `implementation-limit` (arena) |
-| Linhas de um fonte | 10 000 linhas (380 KB) em 42 s; 100 000 estouram a arena | `implementation-limit` (arena) |
+| Módulos importados num programa | depende da memória usada por módulo | `implementation-limit` (arena) |
 | Argumentos repassados ao compilador C | 256 (cerca de 127 pares `-I`) | `implementation-limit`; ajuste `CGEN_CLI_ARGS_CAP` ao compilar o cgen |
 | Raízes de busca (`-I`) | 128 | `implementation-limit`; na prática o limite de argumentos vem antes |
-| Memória do cgen | 64 MiB (pico medido em `keel_libs/coll`: 12,8 MiB) | `implementation-limit`; ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
+| Memória do cgen | 128 MiB por invocação | `implementation-limit`; ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
 | Entradas de `routine.mask` | 64 | `mask-above-64-slots` (em execução, em debug) |
 
 No Windows o caminho inteiro de um arquivo gerado tem 260 caracteres por padrão (salvo com `LongPathsEnabled`), então um `--dest-dir` profundo pode estourar antes do teto de 215 do nome: prefira um destino curto.
 
-O tempo de geração cresce com o quadrado do número de linhas: 1 000 funções em
-0,5 s, 4 000 em 7 s, 10 000 em 42 s. Um arquivo gerado por máquina deve ser
+No teste de escala do build de desenvolvimento, o tempo de geração cresceu
+com o quadrado do número de linhas: 1 000 funções em 0,5 s, 4 000 em 7 s
+e 10 000 em 42 s. Um arquivo gerado por máquina deve ser
 dividido em módulos. Os estudos E01 a E03 (`achados/`) tratam das arestas acima.
 
 > Referências: [cgen-tool-spec](cgen-tool-spec.md) ·
@@ -1264,8 +1282,8 @@ dividido em módulos. Os estudos E01 a E03 (`achados/`) tratam das arestas acima
 
 ## 8. Referência da API da base
 
-A base são onze módulos: o prelúdio `keel` (tipos primitivos e protocolos) e
-dez módulos `keel.*`. Nenhum módulo `keel.*` é importado implicitamente: só o
+A base tem 16 módulos: o prelúdio `keel` (tipos primitivos e protocolos) e
+15 módulos `keel.*`. Nenhum módulo `keel.*` é importado implicitamente: só o
 prelúdio. O contrato completo — regras, erros, casos especiais — está em
 [`keel-spec.md` capítulo 5](keel-spec.md#5-protocolos-e-módulos-da-base); esta
 referência resume e remete para lá. Para a fonte das funções, veja

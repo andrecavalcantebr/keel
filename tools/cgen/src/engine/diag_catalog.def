@@ -10,6 +10,8 @@
     X(NESTED_EXTERN_C, "nested-extern-c", K_ERROR) \
     X(TYPE_LAYER_ON_PRIV_EXTERN_C, "type-layer-on-priv-extern-c", K_ERROR) \
     X(MAIN_IN_EXTERN_C, "main-in-extern-c", K_ERROR) \
+    X(FUNCTION_BODY_PENDING, "function-body-pending", K_WARNING) \
+    X(USE_OF_DRAFT_FUNCTION, "use-of-draft-function", K_ERROR) \
     X(PRIVATE_MAIN, "private-main", K_ERROR) \
     X(INVALID_MAIN_SIGNATURE, "invalid-main-signature", K_ERROR) \
     X(IMPORT_CLAUSE_ORDER, "import-clause-order", K_ERROR) \

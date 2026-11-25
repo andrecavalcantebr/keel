@@ -8,20 +8,15 @@ só a sequência e os gatilhos.
 
 ## Onde estamos
 
-A linguagem v0 está fechada: os quatro normativos estão completos, a base está
-escrita em keel e o `cgen` emite C11 e C23 para todos os casos do `golden/`
-(71 casos, nos dois perfis). A versão corrente é a 0.3.0, em `master`
-(2026-11-19); os normativos são versionados e o `CHANGELOG.md` registra o que
-mudou. O trabalho rotineiro vai na branch `0.4.0`; `master` fica na versão
-publicada.
+A versão publicada é a 0.4.0 em `master`. O `cgen` emite C11 e C23
+para os 89 casos do `golden/`. Os normativos são versionados e o
+`CHANGELOG.md` registra as mudanças.
 
-## 1. Agora: o que fica depois da 0.2.0
+## 1. Agora: documentação e bibliotecas
 
 - **Manual (`keel-manual.md`).** Exemplos soltos 3.5, 3.8 e 3.9 e a
   reverificação dos exemplos *(verificado)* contra o cgen 0.2.0 (foram
   compilados com o 0.1.1).
-- **Publicar a 0.2.0 no GitHub** (tag `v0.2.0`, `make release VERSION=0.2.0`).
-  Depois, as bibliotecas passam a citar a tag nos resultados.
 - **Bibliotecas.** Atualizar `check_probes.py` e os resultados de `keel_maths`
   (dois probes de lacuna agora compilam) e rodar `make clean` ao trocar de
   compilador.
@@ -70,11 +65,9 @@ linguagem:
 Cada uma tem seu gatilho de reabertura em `possibilidades.md`; nenhuma entra
 sem caso real que o dispare.
 
-`pub import` e `keel.pool` (índice geracional) saíram desta lista em
-2026-11-24: os gatilhos dispararam, e o texto está na 0.4.0 (`em andamento`,
-`CHANGELOG.md`). O "Handle (ponteiro com geração)" sobre arena, que antes
-nomeava esse gatilho, foi descartado em favor do `pool`/`entity` — ver
-design/possibilidades.md.
+`pub import` e `keel.pool` (índice geracional) entraram na 0.4.0.
+O desenho anterior, com ponteiro e geração sobre arena, está arquivado em
+`design/possibilidades.md`.
 
 | Item | Gatilho |
 | --- | --- |

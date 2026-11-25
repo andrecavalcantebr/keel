@@ -172,14 +172,14 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     size_t before=k_diag_count(t->diag,K_ERROR);
     CgenModuleEntry *e=CGEN_NEW(t->arena,CgenModuleEntry,1);
     if(!e) {
-        k_diag_emit(t->diag,K_DIAG_CAPACITY,k_diag_text("module entry"),(KDiagArgs){{k_diag_text("the arena has no room for another module (CGEN_ARENA_CAPACITY is 64 MiB): import fewer modules, or raise it and rebuild the cgen")}});
+        k_diag_emit(t->diag,K_DIAG_CAPACITY,k_diag_text("module entry"),(KDiagArgs){{k_diag_text("the arena has no room for another module: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen")}});
         return K_LOAD_ERROR;
     }
     e->path=cgen_string_dup(t->arena,path,strlen(path));
     string saved=cgen_string_dup(t->arena,name.ptr,name.len);
     e->module.name=(keel_slice_char){saved.len,saved.ptr};
     e->state=CGEN_PENDING;e->next=t->mods;t->mods=e;
-    if(!saved.ptr||!e->path.ptr)return limit(t,e,before,"the arena has no room for this module's name and path (CGEN_ARENA_CAPACITY is 64 MiB): import fewer modules, or raise it and rebuild the cgen");
+    if(!saved.ptr||!e->path.ptr)return limit(t,e,before,"the arena has no room for this module's name and path: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
     keel_buffer_char source;
     if(given)source=(keel_buffer_char){.ptr=given->ptr,.len=given->len,.cap=given->len};
     else if(!cgen_read_source(t->arena,path,&source))return failure(t,e,K_DIAG_LOAD_FAILED,before);
@@ -189,7 +189,7 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
         return limit(t,e,before,"the file has more tokens than the cgen can index: split the module");
     e->ast.tokens=keel_buffer_KLexeme_from(CGEN_NEW(t->arena,KLexeme,count+1),count+1);
     e->ast.nodes=keel_buffer_KAstNode_from(CGEN_NEW(t->arena,KAstNode,count+1),count+1);
-    if(!e->ast.tokens.ptr||!e->ast.nodes.ptr)return limit(t,e,before,"the arena has no room for this module's token and node tables (CGEN_ARENA_CAPACITY is 64 MiB): import fewer modules, or raise it and rebuild the cgen");
+    if(!e->ast.tokens.ptr||!e->ast.nodes.ptr)return limit(t,e,before,"the arena has no room for this module's token and node tables: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
     e->ast.tokens.len=count;
     k_lexemes(e->ast.source,e->ast.tokens.ptr,count,t->diag);
     if(k_diag_count(t->diag,K_ERROR)>before)return failure(t,e,K_DIAG_LOAD_FAILED,before);
@@ -258,7 +258,7 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     size_t own=k_diag_count(t->diag,K_ERROR);
     if(capacity>SIZE_MAX/sizeof(KSymbol)) {t->active=parent;return limit(t,e,before,"the symbol table of this module and its imports is too large to allocate: import fewer modules");}
     KSymbol *storage=CGEN_NEW(t->arena,KSymbol,capacity);
-    if(!storage) {t->active=parent;return limit(t,e,own,"the arena has no room for the symbol table of this module and its imports (CGEN_ARENA_CAPACITY is 64 MiB): import fewer modules, or raise it and rebuild the cgen");}
+    if(!storage) {t->active=parent;return limit(t,e,own,"the arena has no room for the symbol table of this module and its imports: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");}
     k_symtab_init(&e->symbols,storage,capacity);
     KLoader loader={cgen_load,t};
     bool ok=storage && k_resolve_imports(&e->ast,&loader,&e->symbols,t->diag);
@@ -284,10 +284,10 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
             if(what)return limit(t,e,own,what);   }
         return failure(t,e,K_DIAG_PARSE_FAILED,own);
     }
-    if(!exports(t,e))return limit(t,e,own,"the arena has no room for this module's exported symbols (CGEN_ARENA_CAPACITY is 64 MiB): import fewer modules, or raise it and rebuild the cgen");
+    if(!exports(t,e))return limit(t,e,own,"the arena has no room for this module's exported symbols: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
     e->ast.instances=keel_buffer_KInstanceUse_from(CGEN_NEW(t->arena,KInstanceUse,count+1),count+1);
     if(!e->ast.instances.ptr||!k_collect_instances(&e->ast,t->diag))
-        return limit(t,e,own,"the arena has no room for this module's instance table (CGEN_ARENA_CAPACITY is 64 MiB): import fewer modules, or raise it and rebuild the cgen");
+        return limit(t,e,own,"the arena has no room for this module's instance table: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
     /* An island holds a few tokens' worth of text; the bound is generous, and
        running into it is a diagnostic, never a truncation. */
     size_t text=count*CGEN_ISLAND_TEXT_PER_TOKEN+CGEN_ISLAND_TEXT_BASE;
@@ -297,7 +297,7 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     e->ast.closure=keel_buffer_KClosure_from(CGEN_NEW(t->arena,KClosure,CGEN_CLOSURE_MAX),CGEN_CLOSURE_MAX);
     e->ast.unavailable=keel_buffer_KUnavailable_from(CGEN_NEW(t->arena,KUnavailable,CGEN_UNAVAILABLE_MAX),CGEN_UNAVAILABLE_MAX);
     if(!e->ast.islands.ptr||!e->ast.island_text.ptr||!e->ast.closure_text.ptr||!e->ast.closure.ptr||!e->ast.unavailable.ptr||!k_collect_islands(&e->ast,t->diag,t->for_generation))
-        return limit(t,e,own,"the arena has no room for this module's island and closure tables (CGEN_ARENA_CAPACITY is 64 MiB): import fewer modules, or raise it and rebuild the cgen");
+        return limit(t,e,own,"the arena has no room for this module's island and closure tables: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
     e->module.ast=&e->ast;e->state=CGEN_DONE;*out=&e->module;
     return K_LOAD_OK;
 }

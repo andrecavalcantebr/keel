@@ -33,12 +33,9 @@ int reading_first(const char *path) {
 `FILE`, `fopen`, `fgetc` e `EOF` keel não conhece, e não precisa: ela reconheceu
 `module`, `pub` e `defer`, e o resto atravessou. É essa a ideia inteira.
 
-> **Estado: a linguagem está fechada, e o compilador emite C para quase toda
-> ela.** Os quatro documentos normativos estão completos, a biblioteca base está
-> escrita em keel, e há 69 casos de teste com a saída C esperada nos dois perfis. O `cgen` lê um `.k`, resolve os imports, reconhece toda a
-> gramática, verifica as regras de keel, emite C (`--stop-after=gen`) e chama o
-> compilador C sobre ele: **os 69 casos saem byte a byte e o C compila**, nos dois perfis, e a
-> base inteira sai dele.
+> **Versão estável: [keel 0.4.0](https://github.com/andrecavalcantebr/keel/releases/tag/v0.4.0).**
+> O cgen gera C11 e C23. O `golden/` tem 89 casos com C esperado nos dois
+> perfis, e a suíte de geração também confere exemplos adicionais do compilador.
 
 ---
 
@@ -82,6 +79,13 @@ Um arquivo, um módulo, e o nome do módulo é o caminho do arquivo. Os símbolo
 saem prefixados — `pub int first` vira `reading_first`. `import` traz
 outro módulo keel; `import_c` entrega um header ao compilador C; `extern_c`
 delimita C que atravessa sem nenhum tratamento.
+
+`pub import matrix.linalg as linalg;` publica `linalg` na interface da
+fachada. Quem importa a fachada como `m` pode usar `m.linalg`. A busca do
+arquivo usa o caminho completo `matrix/linalg.k` a partir das raízes de
+fontes. Um protótipo sem definição no módulo pode ficar como rascunho:
+o cgen avisa, preserva a assinatura na análise e recusa referências ao
+rascunho na geração.
 
 ### Modificadores
 
@@ -195,7 +199,7 @@ concreto, resolvida na tradução.
 
 ## A base
 
-Dez módulos, escritos em keel, com uma exceção de licença para que o C gerado
+Quinze módulos além do prelúdio, escritos em keel, com uma exceção de licença para que o C gerado
 do seu programa não seja arrastado ao copyleft (veja abaixo). Todos exigem
 import explícito — o único implícito é `import keel types;`, que traz os nomes
 de tipo primitivos e os protocolos.
@@ -210,6 +214,7 @@ de tipo primitivos e os protocolos.
 | `keel.tagged` | valor com etiqueta |
 | `keel.routine` | composição cooperativa, `seq` e `par` |
 | `keel.parallel` | o símbolo de controle de um bloco `parallel` |
+| `keel.pool`, `keel.entity` | alocador de slots e identificadores com geração para detectar reutilização |
 
 A referência de cada módulo está no [manual, capítulo 8](keel-manual.md#8-referência-da-api-da-base).
 
@@ -220,6 +225,10 @@ Os tipos primitivos são `i8`…`i64`, `u8`…`u64`, `f16`, `f32`, `f64` e `bf16
 com largura e representação fixadas — não aliases de `int`.
 
 ## Como se compilaria
+
+Baixe a [distribuição da 0.4.0](https://github.com/andrecavalcantebr/keel/releases/tag/v0.4.0),
+extraia o tarball e execute `./install.sh` de dentro da pasta extraída.
+`cgen --cgen-version` mostra a versão e o commit do executável.
 
 `cgen` é um driver no molde do `gcc`: transpila e chama o compilador C sobre o
 que gerou. Trocar `gcc` por `cgen` num Makefile existente é a forma pretendida
@@ -234,12 +243,10 @@ compilador C. `-o` tem o significado do gcc: nomeia o arquivo da última fase. �
 do compilador C quando ele roda, e do cgen quando a invocação para antes, como
 em `cgen -o app.parse --stop-after=parse app.k`.
 
-Ao lado do `.c`, o cgen sempre escreve um `.keelsyms`: a tabela que liga cada
-símbolo C manglado ao nome keel que o originou (`cgen-tool-spec.md` §4.11). É
-o que permite depurar o gerado pelo nome keel sem perder o nome C — útil
-sobretudo para quem importa um projeto keel de fora e só reconhece o que
-aparece no C. Uma ferramenta de depuração lida com essa tabela mostra os dois
-nomes, o keel e o manglado, lado a lado — não um no lugar do outro.
+O `.type.h` define os tipos, o `.h` traz a interface e o `.c` contém os
+corpos e as definições dos objetos. Por exemplo, uma declaração como
+`pub struct S { int x; } s0;` põe a tag no `.type.h`, o `extern` no `.h`
+e a definição de `s0` no `.c`. A arena do cgen tem 128 MiB por invocação.
 
 ## keel por exemplos
 
@@ -717,8 +724,8 @@ Os pares são ilustração; os contratos estão na [spec](keel-spec.md).
 | [`keel-c-backend.md`](keel-c-backend.md) | o que depende do alvo: nomes, artefatos, perfis |
 | [`cgen-tool-spec.md`](cgen-tool-spec.md) | o que depende da invocação |
 | [`keel-manual.md`](keel-manual.md) | o manual: da ideia aos papéis e ao `cgen`, com a API da base (não normativo; indica a versão que descreve) |
-| [`base/`](base/) | os onze módulos da base, em keel: o prelúdio `keel` e os dez de `keel/` |
-| [`golden/`](golden/) | 69 casos com a saída C esperada, nos dois perfis |
+| [`base/`](base/) | os 16 módulos da base, em keel: o prelúdio `keel` e os 15 de `keel/` |
+| [`golden/`](golden/) | 89 casos com a saída C esperada, nos dois perfis |
 | [`tools/cgen/`](tools/cgen/) | o transpilador: lê, verifica e emite C (`--stop-after=gen`) |
 | [`ROADMAP.md`](ROADMAP.md) | a sequência do trabalho e os gatilhos de cada ideia (não normativo) |
 | [`design/`](design/) | desenho da implementação, e as ideias que não são v0 |

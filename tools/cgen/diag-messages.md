@@ -51,6 +51,8 @@ O conteúdo das tabelas é em inglês, como o código.
 | `nested-extern-c` | `extern_c` stands inside a declaration: it is a file-scope construction | `extern_c` in a nested position, that is, outside file level |
 | `type-layer-on-priv-extern-c` | `priv extern_c [type_h]` is contradictory: `type_h` puts the text in the interface, `priv` in the implementation | `priv extern_c [type_h]`: contradictory qualifiers |
 | `main-in-extern-c` | `main` is defined inside `extern_c`: `main` is a function of the module, which takes its prefix and gets the C wrapper | `main` defined inside `extern_c` |
+| `function-body-pending` | function `%s` has no body yet and will not be emitted | A module function declaration with no matching definition in the module |
+| `use-of-draft-function` | cannot generate a reference to `%s`: define its body first | A reference to a draft function in code being generated |
 | `private-main` | `main` is `priv`: `main` is a public function of the module; drop `priv` | `priv` applied to `main` |
 | `invalid-main-signature` | `main` has neither form of C: write `int main(void)` or `int main(int argc, char *argv[])` | `main` declared outside the two forms of C |
 | `import-clause-order` | `as` comes before `types`: write `import %s as %s types;` | `import M types as m;`: the message gives the correct form |
@@ -239,5 +241,3 @@ O conteúdo das tabelas é em inglês, como o código.
 | `module-load-failed` | cannot load module `%s` | A module of the import closure could not be loaded |
 | `tags-limit-exceeded` | `tags %s` has more than %s constants, the most the cgen holds in one set: split it into smaller sets | A `tags` set with more constants than the cgen's limit of 128 |
 | `extent-limit-exceeded` | `extent %s` has more than %s groups `[k, n]`, the most the cgen holds in one extent: split it into smaller extents | An `extent struct` with more groups than the cgen's limit of 4 |
-| `function-body-pending` | function `%s` has no body yet and will not be emitted | A module function declaration with no matching definition in the module |
-| `use-of-draft-function` | cannot generate a reference to `%s`: define its body first | A reference to a draft function in code being generated |

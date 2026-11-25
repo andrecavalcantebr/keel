@@ -1,5 +1,7 @@
 # keel — contexto compacto para geração de código
 
+**Versão descrita: keel 0.4.0.**
+
 Este arquivo é autocontido: não depende de nenhum outro documento do
 repositório para ser lido ou usado. Ele existe para caber no contexto de uma
 IA que vai **gerar código `.k`** (a fonte `keel`) — não C: o C é trabalho do
@@ -120,7 +122,7 @@ type-binder  ::= 'type' IDENT { ',' IDENT }
 
 top-item    ::= import | import-c | extern-c | top-decl
 
-import       ::= 'import' module-name [ 'as' IDENT ] [ 'types' ] ';'
+import       ::= [ 'pub' ] 'import' module-name [ 'as' IDENT ] [ 'types' ] ';'
 import-c     ::= 'import_c' ( system-header | STRING ) ';'
 extern-c     ::= [ 'pub' | 'priv' ] 'extern_c' [ '[' 'type_h' ']' ] '{' <opaque> '}'
 
@@ -332,6 +334,22 @@ A forma por si só não decide se um programa é aceito. O essencial:
 
 - **Visibilidade.** Sem `pub` nem `priv`, a declaração é `pub`. `priv` tira
   da interface (do `.h`), não muda por si só o *linkage* C.
+- **Imports de fachada** *(desde 0.4.0)*. Se `matrix.matrix` escreve
+  `pub import matrix.linalg as linalg;`, quem escreve
+  `import matrix.matrix as m;` alcança o módulo original por `m.linalg`.
+  Depois do primeiro import, cada elo da cadeia precisa ser publicado.
+  Sem `as`, o alias é o nome completo. `types` só injeta no arquivo que
+  escreve o import. `import` e `pub import` procuram `matrix/linalg.k`
+  nas raízes de fontes, na ordem de busca.
+- **Agregado com declaradores**. Em `pub struct S { int x; } s0;`,
+  o `.type.h` define a tag manglada, o `.h` declara o objeto com `extern`
+  e o `.c` define o objeto uma vez. A mesma divisão vale para `union` nomeada.
+- **Protótipo de função** *(desde 0.4.0)*. Se há definição de mesmo nome
+  e aridade no módulo, é declaração adiantada. Senão, é um rascunho:
+  `function-body-pending` na declaração, assinatura disponível na análise
+  e nenhum C emitido para ela. Uma referência que precise ser emitida gera
+  `use-of-draft-function` no uso. Para um símbolo de biblioteca C, use
+  `import_c` ou declare o protótipo em `extern_c`.
 - **Intervalo com marcador** *(desde 0.4.0)*: `a..b` e `a..<b` são `[a, b)`; `a..=b` inclui
   `b` (`[a, b+1)`, via `keel_inclusive`, que aborta em debug se `b == SIZE_MAX`). `a..`,
   `a..<` e `a..=` (sem limite superior) são a mesma forma, até o fim. Vale em `x[...]`,
@@ -2249,26 +2267,24 @@ Limites do `cgen` (0.4.0, medidos; todos saem como `implementation-limit`, salvo
 | Modificadores aninhados (`buffer buffer … i32`) | 9 níveis | `instance-depth` no 10º |
 | Nome gerado de instância | 215 caracteres | `name-too-long` no 216º (era 255 até a 0.3.0; o nome é também o do arquivo) |
 | Identificador escrito pelo usuário | sem teto próprio | o limite de 215 vale só para nomes gerados |
-| `extent`: grupos `[k, n]` | 4 | **o 5º sai sem diagnóstico (bug, E03)** |
+| `extent`: grupos `[k, n]` | 4 | `extent-limit-exceeded` no 5º |
 | `extent`: colunas `array` | 8 | `implementation-limit` |
-| `match`: rótulos | cerca de 14 com nomes curtos, 9 com nomes de 27 caracteres | `implementation-limit` ("shorten the line"): o teto é o texto das edições da linha do `match` (2048 bytes) |
+| `match`: rótulos | cerca de 14 com nomes curtos, 9 com nomes de 27 caracteres | `implementation-limit`: o teto é o texto das edições da linha do `match` (2048 bytes) |
 | `defer [now …]`: entradas | 8 | `implementation-limit` |
 | `parallel`: capturas | 16 | `implementation-limit` |
-| `protocol`: itens | 16 | `unexpected-token` no 17º |
-| `protocol`: parâmetros de um verbo, com o receptor | 8 | `unexpected-token` no 9º |
+| `protocol`: itens | 16 | `implementation-limit` no 17º |
+| `protocol`: parâmetros de um verbo, com o receptor | 8 | `implementation-limit` no 9º |
 | `x[i, j, …]`: índices | 8 | `implementation-limit` no 9º |
 | `#include` por arquivo gerado | 32 imports de tipos | `implementation-limit` no 33º |
 | Variáveis locais de uma função | 128 | `implementation-limit` |
 | Variáveis globais de um arquivo | 127 | `implementation-limit` (a posição aponta a primeira) |
-| Declaradores de um `array` no topo | 8 | `unexpected-token` no 9º |
+| Declaradores de um `array` no topo | 8 | `implementation-limit` no 9º |
 | Parâmetros de função | sem recusa até 18 (30 num módulo genérico) | — |
 | Nomes num `typedef`, dimensões de um `array`, estrelas de um declarador | sem recusa até 30, 11 e 300 | — |
 | Constante de texto numa linha sem construção keel | 10 000 bytes | — |
-| Módulos importados num programa | cerca de 400 (a arena acaba antes do teto de 1024) | `implementation-limit` (arena) |
-| Funções num módulo | cerca de 10 000 | `implementation-limit` (arena) |
-| Linhas de um fonte | 10 000 linhas (380 KB) em 42 s; 100 000 estouram a arena | `implementation-limit` (arena) |
+| Módulos importados num programa | depende da memória usada por módulo | `implementation-limit` (arena) |
 | Argumentos repassados ao compilador C | 256 (cerca de 127 pares `-I`) | `implementation-limit`; ajuste `CGEN_CLI_ARGS_CAP` ao compilar o cgen |
 | Raízes de busca (`-I`) | 128 | `implementation-limit`; na prática o limite de argumentos vem antes |
-| Memória do cgen | 64 MiB (pico medido em `keel_libs/coll`: 12,8 MiB) | `implementation-limit`; ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
+| Memória do cgen | 128 MiB por invocação | `implementation-limit`; ajuste `CGEN_ARENA_CAPACITY` ao compilar o cgen |
 | Entradas de `routine.mask` | 64 | `mask-above-64-slots` (em execução, em debug) |
 

@@ -8,7 +8,7 @@
 
 /* Override at build time; one stable allocation for the whole invocation. */
 #ifndef CGEN_ARENA_CAPACITY
-#define CGEN_ARENA_CAPACITY (64u * 1024u * 1024u)
+#define CGEN_ARENA_CAPACITY (128u * 1024u * 1024u)
 #endif
 
 typedef keel_buffer_char string;

@@ -156,7 +156,7 @@ três oráculos não alcançam.
 ## Memória da ferramenta
 
 `tool/memory.h` fornece a arena por invocação e os helpers de string.
-`CGEN_ARENA_CAPACITY` configura o bloco na compilação (padrão: 64 MiB).
+`CGEN_ARENA_CAPACITY` configura o bloco na compilação (padrão: 128 MiB).
 Somente a aquisição/liberação desse bloco usa `malloc`/`free`; a arena não
 cresce nem move endereços. Falhas informam `implementation-limit` com o uso,
 a capacidade e a configuração. Os vetores e acessos por índice são preservados.

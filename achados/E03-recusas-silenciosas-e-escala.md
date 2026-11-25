@@ -1,6 +1,6 @@
 # E03 — recusas silenciosas, mensagens enganosas e escala (medição de 2026-11-23)
 
-**Situação.** Fechados no cgen: o `extent` silencioso (`extent-limit-exceeded`, 0bd6f3c), as mensagens enganosas de `match` (SCRATCH), `protocol` (17 itens), `array` (9 declaradores), `defer [now]` (9) e `parallel` (17 capturas), a emissão de agregados nomeados com declaradores (golden 090) e a cobertura de protótipos sem corpo. Abertos: o tempo quadrático, a arena e o registro normativo do tratamento de rascunhos.
+**Situação.** Fechados no cgen: o `extent` silencioso (`extent-limit-exceeded`, 0bd6f3c), as mensagens enganosas de `match` (SCRATCH), `protocol` (17 itens), `array` (9 declaradores), `defer [now]` (9) e `parallel` (17 capturas), a emissão de agregados nomeados com declaradores (golden 090) e a cobertura de protótipos sem corpo. A especificação registra os rascunhos na §2.2. A arena padrão subiu para 128 MiB na 0.4.0. O perfil do tempo quadrático continua aberto.
 
 Estudo aberto a partir de `tools/agents/reports/limites-medicao.md` (Haiku; os
 achados 1 e 14 reproduzidos por mim, cgen 0.4.0-dev, build de desenvolvimento
@@ -42,12 +42,11 @@ capacidade para quem emite. Caso a escrever antes: `extent` de 5 grupos, com
   10 000: 42 s; 100 000 linhas de comentário não terminaram em 15 min. Programas
   reais (`coll`: 12,8 MiB, segundos) não sentem, mas um arquivo gerado por
   máquina sente.
-- **A arena (64 MiB) acaba antes dos tetos de arquivos.** Com cerca de 400
+- **No teste original, a arena de 64 MiB acabava antes dos tetos de arquivos.** Com cerca de 400
   módulos importados, e com 10 000 a 11 000 funções num módulo. `WRITTEN_CAP`
-  (1024) e `CGEN_SOURCES_CAP` (1024) nunca disparam. 100 000 linhas de fonte
+  (1024) e `CGEN_SOURCES_CAP` (1024) não dispararam nessa medição. 100 000 linhas de fonte
   esgotam a arena em 0,1 s.
-- Para decidir: se `maths` (e o `tensor`) passam de uns 100 módulos, a medição de
-  pico se repete e a arena sobe a 128 MiB.
+- A 0.4.0 usa 128 MiB por invocação. As contagens acima são do limite anterior.
 
 ## Cobertura do emissor
 

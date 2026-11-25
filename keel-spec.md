@@ -15,7 +15,7 @@
 > [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit)
 > para o argumento. Esta nota não é normativa.
 
-**Versão descrita: keel 0.3.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*, *(desde 0.3.0)* ou *(desde 0.4.0)*, conforme a versão em que sai (a 0.4.0 está em andamento); o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+**Versão descrita: keel 0.4.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*, *(desde 0.3.0)* ou *(desde 0.4.0)*, conforme a versão em que sai; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
 
 Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições de keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
 
@@ -499,6 +499,8 @@ keel-expr    ::= call | container | interval
 A produção `container` descreve as formas em que keel pode consultar a identidade de um contêiner a partir de símbolos conhecidos. Não atribui tipos a expressões C arbitrárias. A assinatura da operação determina qual argumento ocupa essa posição. [Justificativa: limite da análise de contêiner](keel-rationale.md#a-posição-de-contêiner-não-é-um-sistema-de-tipos).
 
 `keel-expr` é o que keel reconhece dentro de uma região `<opaque>`: chamada de verbo ou de função keel conhecida, contêiner com índice, `range-index` ou acesso de coluna, e intervalo. Em `call`, `IDENT` sem qualificador é função do módulo corrente ou nome injetado por `types`; uma chamada C desconhecida permanece C. Cada `call-arg` é lido como `argument` quando o parâmetro correspondente da assinatura é `type` (§4.4), e como `<opaque>` nos demais casos.
+
+*(desde 0.4.0)* Uma declaração de função terminada por `;`, sem definição de mesmo nome e aridade no módulo, é um rascunho. Sua assinatura participa da análise e a declaração recebe o aviso `function-body-pending`. O rascunho não produz código C. Uma referência que precise ser emitida produz `use-of-draft-function` no ponto de uso. Quando há uma definição correspondente no módulo, a declaração é adiantada e não recebe o aviso.
 
 ### 2.3 Reconhecimento
 
@@ -3093,6 +3095,8 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `nested-extern-c` | `extern_c` em posição aninhada, isto é, fora do nível de arquivo | `error` | keel | §4.1 |
 | `type-layer-on-priv-extern-c` | `priv extern_c [type_h]` — qualificadores contraditórios | `error` | keel | §4.1 |
 | `main-in-extern-c` | `main` definida dentro de `extern_c` | `error` | keel | §4.1 |
+| `function-body-pending` | Declaração de função do módulo sem definição de mesmo nome e aridade *(desde 0.4.0)* | `warning` | keel | §2.2 |
+| `use-of-draft-function` | Referência a um rascunho de função que precisa ser emitida *(desde 0.4.0)* | `error` | keel | §2.2 |
 | `private-main` | `priv` aplicado a `main` | `error` | keel | §4.1 |
 | `invalid-main-signature` | `main` assinada fora das duas formas do C | `error` | keel | §4.1 |
 | `import-clause-order` | `import M types as m;` — a mensagem dá a forma correta | `error` | keel | §4.1 |

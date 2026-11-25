@@ -10,6 +10,8 @@
     X(NESTED_EXTERN_C, "`extern_c` stands inside a declaration: it is a file-scope construction") \
     X(TYPE_LAYER_ON_PRIV_EXTERN_C, "`priv extern_c [type_h]` is contradictory: `type_h` puts the text in the interface, `priv` in the implementation") \
     X(MAIN_IN_EXTERN_C, "`main` is defined inside `extern_c`: `main` is a function of the module, which takes its prefix and gets the C wrapper") \
+    X(FUNCTION_BODY_PENDING, "function `%s` has no body yet and will not be emitted") \
+    X(USE_OF_DRAFT_FUNCTION, "cannot generate a reference to `%s`: define its body first") \
     X(PRIVATE_MAIN, "`main` is `priv`: `main` is a public function of the module; drop `priv`") \
     X(INVALID_MAIN_SIGNATURE, "`main` has neither form of C: write `int main(void)` or `int main(int argc, char *argv[])`") \
     X(IMPORT_CLAUSE_ORDER, "`as` comes before `types`: write `import %s as %s types;`") \
@@ -153,6 +155,4 @@
     X(PARSE_FAILED, "malformed or truncated declaration") \
     X(LOAD_FAILED, "cannot load module `%s`") \
     X(TAGS_LIMIT_EXCEEDED, "`tags %s` has more than %s constants, the most the cgen holds in one set: split it into smaller sets") \
-    X(EXTENT_LIMIT_EXCEEDED, "`extent %s` has more than %s groups `[k, n]`, the most the cgen holds in one extent: split it into smaller extents") \
-    X(FUNCTION_BODY_PENDING, "function `%s` has no body yet and will not be emitted") \
-    X(USE_OF_DRAFT_FUNCTION, "cannot generate a reference to `%s`: define its body first")
+    X(EXTENT_LIMIT_EXCEEDED, "`extent %s` has more than %s groups `[k, n]`, the most the cgen holds in one extent: split it into smaller extents")

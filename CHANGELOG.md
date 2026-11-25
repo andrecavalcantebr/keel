@@ -9,7 +9,7 @@ leva marca.
 
 Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
-## 0.4.0 (em andamento)
+## 0.4.0 (2026-11-24)
 
 **Linguagem** (`keel-spec.md`)
 
@@ -80,19 +80,26 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   com `pub`, sem flatten de símbolos. `indirect-import` não dispara por esse alcance. Não há `priv import`.
   `import` e `pub import` procuram o caminho do nome completo do módulo a partir das raízes de fontes
   (cgen-tool-spec §4.6). Um pacote é uma pasta com um ou mais módulos de fachada.
-- `keel.pool` (§5.9, texto, ainda sem implementação): módulo novo da base, o desenho de índice geracional de
+- `keel.pool` e `keel.entity` (§5.9, golden 088): módulo novo da base, o desenho de índice geracional de
   `design/possibilidades.md` ("Handle: ponteiro com geração"), e não a versão com ponteiro sobre arena, descartada.
   `pool T` é `byref`, capacidade fixa, sem `realloc`; `entity {u32 index, u32 gen}`, 8 bytes, sem ponteiro.
   `alloc`/`free`/`reset` são verbos distintos; `free` é `consumes` sobre `e` (e não `invalidates`: o próprio valor
   fica inválido, não só o que dele deriva); `alloc` devolve `outcome entity`. `ptr` verifica a geração em debug
   (`entity-generation-mismatch`, como `buffer.ptr`); `at` verifica em toda build (como `buffer.at`). A geração é
   `u32` e satura em `UINT32_MAX` em release; em debug, a liberação que a levaria além disso é
-  `pool-generation-overflow`.
-- `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
+  `pool-generation-overflow`. A geração da arena direta permite detectar a invalidação
+  do pool em O(1).
+- `--cgen-version` diz `cgen 0.4.0`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
 - Protótipos de verbos sem definição no módulo são tratados como rascunhos
-  (E03). O cgen emite `function-body-pending` na declaração e omite o
+  (spec §2.2, E03). O cgen emite `function-body-pending` na declaração e omite o
   rascunho do C. Na geração, uma referência ao rascunho produz
   `use-of-draft-function` no local do uso.
+- Agregados nomeados com declaradores (golden 090, E03): a tag é definida no
+  `.type.h`, a declaração `extern` dos objetos públicos vai para o `.h` e a
+  definição dos objetos vai para o `.c`.
+- A arena padrão do cgen passou de 64 para 128 MiB por invocação.
+  `CGEN_ARENA_CAPACITY` continua configurável na compilação, e um estouro
+  informa o tamanho efetivo e o consumo por categoria.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima
   de 128, o diagnóstico novo `tags-limit-exceeded` diz o conjunto e o limite. É

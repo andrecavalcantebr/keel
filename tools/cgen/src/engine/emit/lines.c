@@ -142,16 +142,75 @@ void k_em_drop_nested(Edit *ed, size_t *cnt) {
     *cnt = j;
 }
 
-void k_em_emit_line(Emit *e, size_t ln, size_t a, size_t b) {
+/* A combined aggregate belongs to both layers. Apply only the edits of the
+ * part this file retains and preserve the source line breaks in either part. */
+static size_t aggregate_edits(Emit *e, const KAstNode *type, size_t i, size_t first,
+                              size_t a, size_t b, KEmitFile file, Edit *ed, size_t *cnt) {
+    const KAst *ast = e->ast;
+    size_t next = i + 1;
+    while (next < ast->nodes.len) {
+        const KAstNode *var = keel_buffer_KAstNode_ptr(&ast->nodes, next);
+        if (var->first != type->first || var->kind != K_AST_VARIABLE) break;
+        next++;
+    }
+    size_t line_text_end = b;
+    if (line_text_end > a && ast->source.ptr[line_text_end - 1] == '\n') line_text_end--;
+    size_t from, to;
+    if (file == K_EMIT_TYPE_H) {
+        size_t close = k_em_tok_end(ast, first - 1);
+        if (a < close)
+            k_em_node_edits(e, type, a, b < close ? b : close, ed, cnt);
+        if (close >= a && close < b)
+            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = close, .text = ";", .text_len = 1 });
+        from = close;
+        to = k_em_last_end(e, type);
+    } else {
+        size_t declarators = k_em_tok_off(ast, first);
+        if (declarators < b) {
+            size_t start = declarators > a ? declarators : a;
+            for (size_t j = i + 1; j < next; j++)
+                k_em_node_edits(e, keel_buffer_KAstNode_ptr(&ast->nodes, j), start, b, ed, cnt);
+            if (declarators >= a) {
+                e->n = 0;
+                if (!type->is_public) k_em_put_bytes(e, "static ", 7);
+                k_em_put_aggregate_ref(e, type);
+                char *prefix = e->ok ? k_em_scratch(e, e->n) : NULL;
+                if (prefix) {
+                    memcpy(prefix, e->buf, e->n);
+                    k_em_push_edit(e, ed, cnt, (Edit){
+                        .kind = EDIT_TEXT, .at = declarators, .text = prefix, .text_len = e->n });
+                }
+            }
+        }
+        from = k_em_first_off(e, type);
+        to = declarators;
+    }
+    if (from < a) from = a;
+    if (to > line_text_end) to = line_text_end;
+    if (from < to)
+        k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_DROP, .at = from, .skip = to - from });
+    return next - 1;
+}
+
+static void emit_line(Emit *e, size_t ln, size_t a, size_t b, KEmitFile file) {
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
     e->at_line = ln;
     spanned_end = 0;
+    bool partitioned = false;
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (k_em_overlaps(e, n, a, b)) k_em_node_edits(e, n, a, b, ed, &cnt);
+        if (!k_em_overlaps(e, n, a, b)) continue;
+        size_t first = !e->inst && (file == K_EMIT_C || file == K_EMIT_TYPE_H)
+            ? k_em_aggregate_declarators(e->ast, n) : SIZE_MAX;
+        if (first == SIZE_MAX) k_em_node_edits(e, n, a, b, ed, &cnt);
+        else {
+            i = aggregate_edits(e, n, i, first, a, b, file, ed, &cnt);
+            partitioned = true;
+        }
     }
     k_em_comment_edits(e, a, b, ed, &cnt);
+    if (partitioned) k_em_sort_edits(ed, 0, cnt);
     k_em_drop_nested(ed, &cnt);
     if (!e->ok) return;
     const char *s = e->ast->source.ptr;
@@ -167,15 +226,19 @@ void k_em_emit_line(Emit *e, size_t ln, size_t a, size_t b) {
     k_em_post_lines_constblock(e, ln, a, b);
 }
 
+void k_em_emit_line(Emit *e, size_t ln, size_t a, size_t b) {
+    emit_line(e, ln, a, b, K_EMIT_H);
+}
+
 /* one source line [a, b) with its .k number; a one-line parallel block is written as two
  * parts (its header, and its body from the cut on), so the body gets its own #line */
-void k_em_emit_split(Emit *e, size_t ln, size_t a, size_t b) {
+void k_em_emit_split(Emit *e, size_t ln, size_t a, size_t b, KEmitFile file) {
     size_t cut = k_em_parallel_cut(e->ast, a, b);
     if (cut) {
-        k_em_emit_line(e, ln, a, cut);
-        k_em_emit_line(e, ln, cut, b);
+        emit_line(e, ln, a, cut, file);
+        emit_line(e, ln, cut, b, file);
     } else {
-        k_em_emit_line(e, ln, a, b);
+        emit_line(e, ln, a, b, file);
     }
 }
 
@@ -192,13 +255,13 @@ void k_em_emit_opaque_range(Emit *e, size_t a, size_t b) {
 }
 
 /* the whole lines [a, b), each with its own .k number */
-void k_em_emit_range(Emit *e, size_t a, size_t b) {
+void k_em_emit_range(Emit *e, size_t a, size_t b, KEmitFile file) {
     size_t ln = k_em_line_at(e, a);
     size_t written = 0;   /* the lines before this offset went out with an edit that spans them */
     while (a < b && e->ok) {
         size_t next = k_em_line_end(e, a);
         if (a >= written) {
-            k_em_emit_split(e, ln, a, next);
+            k_em_emit_split(e, ln, a, next, file);
             if (spanned_end > next) written = spanned_end;
         }
         a = next;

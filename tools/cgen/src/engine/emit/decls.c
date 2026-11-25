@@ -193,22 +193,44 @@ void k_em_emit_proto(Emit *e, const KAstNode *n) {
     if (e->ok && !k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ e->n, e->buf })) e->ok = false;
 }
 
+size_t k_em_aggregate_declarators(const KAst *ast, const KAstNode *type) {
+    if (type->kind != K_AST_TYPE || type->body_end == SIZE_MAX ||
+        type->body_end + 1 >= type->end - 1)
+        return SIZE_MAX;
+    size_t first = type->first;
+    if (k_em_is_visibility(k_em_tok(ast, first))) first++;
+    KToken kw = k_em_tok(ast, first);
+    if ((!k_em_text_is(kw, "struct") && !k_em_text_is(kw, "union")) ||
+        !k_em_text_is(k_em_tok(ast, type->body_end), "}"))
+        return SIZE_MAX;
+    return type->body_end + 1;
+}
+
+void k_em_put_aggregate_ref(Emit *e, const KAstNode *type) {
+    KToken kw = k_em_tok(e->ast, type->name_first - 1);
+    k_em_put_bytes(e, kw.ptr, kw.len);
+    k_em_put_bytes(e, " ", 1);
+    k_em_put_mangled(e, type->name_first, true);
+    k_em_put_bytes(e, " ", 1);
+}
+
 /* A public variable's declaration for the .h (backend §4.1, rule 13): `extern`,
  * the declaration without the initializers; the definition stays in the .c.
  * `pub int x = 1, y = 2;` is one declaration of several declarators: the nodes
  * from `i` on that share its span are written together, once (`first` is the
  * one at `i`). Each `= INIT` goes, up to the `,` or `;` that ends it. */
-void k_em_emit_extern(Emit *e, size_t i) {
+void k_em_emit_extern(Emit *e, size_t i, const KAstNode *aggregate) {
     const KAst *ast = e->ast;
     const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
-    size_t a = k_em_first_off(e, n), b = k_em_tok_off(ast, n->end - 1);   /* up to the `;` */
+    size_t first = aggregate ? k_em_aggregate_declarators(ast, aggregate) : n->first;
+    size_t a = k_em_tok_off(ast, first), b = k_em_tok_off(ast, n->end - 1);   /* up to the `;` */
     while (b > a && (ast->source.ptr[b - 1] == ' ' || ast->source.ptr[b - 1] == '\t')) b--;
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
     e->at_line = k_em_line_at(e, a);
     /* the initializers: from the end of the declarator's name to the `,` or `;` after the INIT */
     size_t cut[MAX_EDITS][2], ncut = 0;
-    for (size_t p = n->first, depth = 0; p < n->end; p++) {
+    for (size_t p = first, depth = 0; p < n->end; p++) {
         KToken t = k_em_tok(ast, p);
         if (k_em_text_is(t, "(") || k_em_text_is(t, "[") || k_em_text_is(t, "{")) depth++;
         else if (k_em_text_is(t, ")") || k_em_text_is(t, "]") || k_em_text_is(t, "}")) depth--;
@@ -253,6 +275,7 @@ void k_em_emit_extern(Emit *e, size_t i) {
     if (!e->ok) return;
     e->n = 0;
     k_em_put_bytes(e, "extern ", 7);
+    if (aggregate) k_em_put_aggregate_ref(e, aggregate);
     k_em_copy_edited(e, k_em_line_at(e, a), a, b, ed, cnt);
     k_em_put_bytes(e, ";\n", 2);
     if (e->ok && !k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ e->n, e->buf })) e->ok = false;

@@ -46,18 +46,21 @@ static void type_h_body(Emit *e) {
         case K_AST_CONSTEXPR:
             a = k_em_line_start(e, k_em_first_off(e, n));
             b = k_em_line_end(e, k_em_last_end(e, n));
-            if (e->opt.c23) k_em_emit_range(e, a, b);
+            if (e->opt.c23) k_em_emit_range(e, a, b, K_EMIT_TYPE_H);
             else k_em_emit_constexpr_c11(e, n);
             e->done = b;
             break;
         case K_AST_TAGS:
         case K_AST_TYPE:
-        case K_AST_OPAQUE:
+        case K_AST_OPAQUE: {
+            size_t declarators = k_em_aggregate_declarators(ast, n);
             a = k_em_line_start(e, k_em_first_off(e, n));
             if (a < e->done) a = e->done;
-            b = k_em_line_end(e, k_em_last_end(e, n) - 1);   /* a directive token ends past its newline */
-            if (a < b) { k_em_emit_range(e, a, b); e->done = b; }
+            size_t last = declarators == SIZE_MAX ? n->end - 1 : declarators - 1;
+            b = k_em_line_end(e, k_em_tok_end(ast, last) - 1);
+            if (a < b) { k_em_emit_range(e, a, b, K_EMIT_TYPE_H); e->done = b; }
             break;
+        }
         case K_AST_EXTERN_C:
             if (!k_em_extern_c_type_h(ast, n)) break;   /* the plain and the priv forms: h_body and emit_c */
             if (k_em_extern_c_inline(ast, n)) {
@@ -105,7 +108,9 @@ static void h_body(Emit *e) {
         if (header_function(e, n)) k_em_emit_proto(e, n);
         else if (n->kind == K_AST_VARIABLE && n->is_public) {
             /* a declaration of several declarators: written at its first node only */
-            if (i == 0 || keel_buffer_KAstNode_ptr(&e->ast->nodes, i - 1)->first != n->first) k_em_emit_extern(e, i);
+            const KAstNode *prev = i ? keel_buffer_KAstNode_ptr(&e->ast->nodes, i - 1) : NULL;
+            if (!prev || prev->first != n->first) k_em_emit_extern(e, i, NULL);
+            else if (k_em_aggregate_declarators(e->ast, prev) != SIZE_MAX) k_em_emit_extern(e, i, prev);
         }
         else if (n->kind == K_AST_TYPE && k_em_is_extent(e->ast, n)) k_em_extent_protos(e, n);
         else if (n->kind == K_AST_EXTERN_C && !k_em_extern_c_type_h(e->ast, n) && !k_em_extern_c_priv(e->ast, n)) {
@@ -129,7 +134,7 @@ static void h_body(Emit *e) {
             blank = true;
         }
         if (extent) { k_em_extent_bodies(e, n); continue; }
-        k_em_emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)));
+        k_em_emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)), K_EMIT_H);
     }
 }
 
@@ -238,7 +243,7 @@ void k_em_instance_c(Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
         if (skip(e, n) || !n->is_public || n->is_inline) continue;
-        k_em_emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)));
+        k_em_emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)), K_EMIT_C);
     }
 }
 
@@ -270,6 +275,17 @@ static void emit_c(Emit *e) {
         for (size_t i = 0; i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
             if (!k_em_overlaps(e, n, a, b)) continue;
+            size_t declarators = k_em_aggregate_declarators(e->ast, n);
+            if (declarators != SIZE_MAX) {
+                /* Only the declarator part belongs to this translation unit. */
+                if (k_em_tok_off(e->ast, declarators) < b) fn = true;
+                while (i + 1 < e->ast->nodes.len) {
+                    const KAstNode *next = keel_buffer_KAstNode_ptr(&e->ast->nodes, i + 1);
+                    if (next->first != n->first || next->kind != K_AST_VARIABLE) break;
+                    i++;
+                }
+                continue;
+            }
             if (k_em_is_pub_inline(e->ast, n)) empty = true;   /* its body is in the .h */
             /* a function over a protocol (spec §4.14): one instance per concrete type, none of
                them this module's own common translation (backend §5.19) */
@@ -300,7 +316,7 @@ static void emit_c(Emit *e) {
         } else if (opaque) {
             k_em_emit_opaque_range(e, a, b);
         } else {
-            k_em_emit_split(e, k_em_line_at(e, a), a, b);
+            k_em_emit_split(e, k_em_line_at(e, a), a, b, K_EMIT_C);
             if (k_em_spanned_end() > b) written = k_em_spanned_end();
         }
         a = b;

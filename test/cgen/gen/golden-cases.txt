@@ -103,3 +103,4 @@ test/cgen/gen/share|use.k|-
 087-inclusive-range|app/ir.k|app.ir
 088-pool-entity|app/pl.k|app.pl
 089-pub-import|app.k facade.k middle.k owner.k|-
+090-aggregate-objects|aggregate.k|-

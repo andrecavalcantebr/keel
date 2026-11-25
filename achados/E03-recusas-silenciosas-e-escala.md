@@ -1,6 +1,6 @@
 # E03 — recusas silenciosas, mensagens enganosas e escala (medição de 2026-11-23)
 
-**Situação (2026-11-23).** Fechados: o `extent` silencioso (`extent-limit-exceeded`, 0bd6f3c) e as mensagens enganosas de `match` (SCRATCH), `protocol` (17 itens), `array` (9 declaradores), `defer [now]` (9) e `parallel` (17 capturas), com `test/cgen/cli/limit_messages.sh`. Abertos: o tempo quadrático, a arena e a cobertura de `pub struct S {…} s0;` e do protótipo sem corpo.
+**Situação.** Fechados: o `extent` silencioso (`extent-limit-exceeded`, 0bd6f3c), as mensagens enganosas de `match` (SCRATCH), `protocol` (17 itens), `array` (9 declaradores), `defer [now]` (9) e `parallel` (17 capturas), com `test/cgen/cli/limit_messages.sh`, e a emissão de agregados nomeados com declaradores (golden 090). Abertos: o tempo quadrático, a arena e a cobertura do protótipo público sem corpo.
 
 Estudo aberto a partir de `tools/agents/reports/limites-medicao.md` (Haiku; os
 achados 1 e 14 reproduzidos por mim, cgen 0.4.0-dev, build de desenvolvimento
@@ -49,11 +49,16 @@ capacidade para quem emite. Caso a escrever antes: `extent` de 5 grupos, com
 - Para decidir: se `maths` (e o `tensor`) passam de uns 100 módulos, a medição de
   pico se repete e a arena sobe a 128 MiB.
 
-## Cobertura (lacuna da spec ou do emissor, a decidir)
+## Cobertura do emissor
 
-`pub struct S { int x; } s0;` (declarador no topo, já com 1) e o protótipo sem
-corpo `pub i32 h(void);` saem com `implementation-limit` ("does not cover…"),
-embora a gramática do `keel-llm-context.md` §1 os admita.
+`pub struct S { int x; } s0;` e `pub i32 h(void);` já são admitidos pela
+gramática da spec §2.2. Na declaração de agregado, o tipo e os objetos
+compartilham o trecho de fonte. O golden 090 verifica a separação entre
+a tag no `.type.h`, os `extern` no `.h` e as definições no `.c`, tanto
+para `struct` quanto para `union` nomeadas.
+
+O protótipo público sem corpo ainda sai com `implementation-limit`
+porque o emissor extrai a assinatura a partir da posição do corpo.
 
 ## Caminho
 
@@ -61,4 +66,4 @@ embora a gramática do `keel-llm-context.md` §1 os admita.
 2. E03b: as mensagens, junto do E02 (mesmo molde).
 3. E03c: o tempo quadrático: perfil (`perf`) de `--stop-after=gen` com 4 000
    funções, antes de supor a causa.
-4. E03d: a cobertura dos dois itens acima: lacuna da spec ou do emissor.
+4. E03d: a cobertura dos agregados nomeados está resolvida. Falta o protótipo público sem corpo.

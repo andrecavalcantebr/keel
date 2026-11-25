@@ -179,8 +179,8 @@ void k_em_comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt);
 void k_em_drop_nested(Edit *ed, size_t *cnt);
 void k_em_copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, size_t cnt);
 void k_em_emit_line(Emit *e, size_t ln, size_t a, size_t b);
-void k_em_emit_split(Emit *e, size_t ln, size_t a, size_t b);
-void k_em_emit_range(Emit *e, size_t a, size_t b);
+void k_em_emit_split(Emit *e, size_t ln, size_t a, size_t b, KEmitFile file);
+void k_em_emit_range(Emit *e, size_t a, size_t b, KEmitFile file);
 void k_em_emit_opaque_range(Emit *e, size_t a, size_t b);
 size_t k_em_spanned_end(void);
 
@@ -192,7 +192,10 @@ bool k_em_is_pub_inline(const KAst *ast, const KAstNode *n);
 bool k_em_decl_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt);
 void k_em_emit_import(Emit *e, const KAstNode *n, size_t a);
 void k_em_emit_proto(Emit *e, const KAstNode *n);
-void k_em_emit_extern(Emit *e, size_t i);
+/* The first declarator after a named aggregate definition, or SIZE_MAX. */
+size_t k_em_aggregate_declarators(const KAst *ast, const KAstNode *type);
+void k_em_put_aggregate_ref(Emit *e, const KAstNode *type);
+void k_em_emit_extern(Emit *e, size_t i, const KAstNode *aggregate);
 void k_em_emit_constexpr_c11(Emit *e, const KAstNode *n);
 bool k_em_extern_c_type_h(const KAst *ast, const KAstNode *n);
 bool k_em_extern_c_priv(const KAst *ast, const KAstNode *n);

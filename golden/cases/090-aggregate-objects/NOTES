@@ -1,0 +1,4 @@
+A definição da tag vai para o `.type.h`, os objetos saem como `extern`
+no `.h` e o `.c` contém a única definição de cada objeto. O programa
+inclui o header em duas unidades C e usa um agregado em uma linha e
+outro em várias linhas, seguido de declaradores de ponteiro e vetor.

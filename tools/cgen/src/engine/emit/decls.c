@@ -179,20 +179,28 @@ void k_em_emit_import(Emit *e, const KAstNode *n, size_t a) {
 }
 
 /* A public function's prototype (backend §4.1): the declaration up to the `)`
- * that closes the parameters, without the visibility, with the mangled name. */
+ * that closes the parameters, without the visibility, with the mangled name.
+ * A prototype with one parameter per line is several source lines (achados
+ * 2026-11-25, A6): the lines before the one that closes the parameters go out
+ * one at a time, as a body does, so LINE_CAP measures a physical line, as the
+ * message promises, not the whole declaration. */
 void k_em_emit_proto(Emit *e, const KAstNode *n) {
     size_t a = k_em_first_off(e, n);
     size_t b = k_em_tok_end(e->ast, n->body_first - 2);
+    size_t last_line = k_em_line_start(e, b);
+    size_t tail = last_line > a ? last_line : a;   /* the `)` line alone, or the whole one-line prototype */
+    if (tail > a) k_em_emit_range(e, a, tail, K_EMIT_H);
+    if (!e->ok) return;
     Edit ed[MAX_EDITS];
     size_t cnt = 0;
-    e->at_line = k_em_line_at(e, a);
-    k_em_node_edits(e, n, a, b, ed, &cnt);
-    k_em_comment_edits(e, a, b, ed, &cnt);
+    e->at_line = k_em_line_at(e, tail);
+    k_em_node_edits(e, n, tail, b, ed, &cnt);
+    k_em_comment_edits(e, tail, b, ed, &cnt);
     if (!e->ok) return;
     e->n = 0;
-    k_em_copy_edited(e, k_em_line_at(e, a), a, b, ed, cnt);
+    k_em_copy_edited(e, k_em_line_at(e, tail), tail, b, ed, cnt);
     k_em_put_bytes(e, ";\n", 2);
-    if (e->ok && !k_emit_at(&e->w, k_em_line_at(e, a), (keel_slice_char){ e->n, e->buf })) e->ok = false;
+    if (e->ok && !k_emit_at(&e->w, k_em_line_at(e, tail), (keel_slice_char){ e->n, e->buf })) e->ok = false;
 }
 
 size_t k_em_aggregate_declarators(const KAst *ast, const KAstNode *type) {

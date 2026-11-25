@@ -419,7 +419,7 @@ dimensions    ::= '[' [ <opaque> { ',' <opaque> } ] ']'
 
 `dim-value`, a capacidade de `extent-dim` e `tag-value` admitem um literal ou uma constante nomeada conhecida nas condições da §4.2, inclusive de outro módulo, qualificada. A validade do valor não decorre só da sua classificação como `NUM` ou nome. [Justificativa: constantes nomeadas](keel-rationale.md#constantes-nomeadas).
 
-Em `decl-constexpr`, o grupo `[ IDENT '=' <opaque> ]` só se aplica quando há `'='` no nível externo antes do `';'` que fecha a declaração — e nesse caso há **exatamente um**, então `IDENT` é o token imediatamente anterior a ele, sem candidato concorrente: não é uma busca entre identificadores, é a única posição que a gramática admite. Sem `'='` de topo, o grupo inteiro fica de fora, a declaração é opaca por completo, e nenhuma constante é registrada — o que a §4.2 já dizia em prosa; a produção agora diz o mesmo em gramática. Se houver `'='` de topo e o token anterior não for `IDENT`, é `constexpr-name-missing` (§4.2, §6.2).
+Em `decl-constexpr`, o grupo `[ IDENT '=' <opaque> ]` só se aplica quando há `'='` no nível externo antes do `';'` que fecha a declaração — e nesse caso há **exatamente um**, então `IDENT` é o token imediatamente anterior a ele. Sem `'='` de topo, o grupo inteiro fica de fora, a declaração é opaca por completo, e nenhuma constante é registrada — o que a §4.2 já dizia em prosa; a produção agora diz o mesmo em gramática. Se houver `'='` de topo e o token anterior não for `IDENT`, é `constexpr-name-missing` (§4.2, §6.2). O `<opaque>` antes do nome não é interpretado, mas um `constexpr` escalar bem formado tem nele zero ou mais palavras C e, no máximo, **um** token que não é palavra C — o nome do próprio tipo, ou nenhum quando o tipo é só palavras C, como `unsigned long`. Um segundo token desses *(desde 0.4.1)* é um candidato concorrente ao nome, não parte do tipo, e também é `constexpr-name-missing`: sem essa checagem, `constexpr i32 BIAS extra = 0;` tomava `extra` como nome, `BIAS` ficava preso num tipo sem sentido (`i32 BIAS`), e só o compilador C recusava, longe da causa.
 
 #### Statements e blocos
 
@@ -3219,7 +3219,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `return-in-parallel` | `return` no corpo de um `parallel`: o corpo do worker não sai da função que o contém | `error` | keel | §4.8 |
 | `defer-later-shadowed` | `defer` sem `[now]` cujo corpo nomeia símbolo redeclarado em escopo mais interno com ponto de saída — a `note` dá as duas saídas, `[now]` ou `goto` | `error` | keel | §4.6 |
 | `constexpr-as-lvalue` | `&` sobre símbolo `constexpr`, ou uso que exija lvalue — a `note` dá a saída, `static const T k = K;` | `error` | keel | §4.2 |
-| `constexpr-name-missing` | Há `'='` no nível externo de `decl-constexpr`, mas o token imediatamente anterior não é `IDENT` | `error` | keel | §4.2 |
+| `constexpr-name-missing` | Há `'='` no nível externo de `decl-constexpr`, mas o token imediatamente anterior não é `IDENT`, ou o `<opaque>` que o precede tem outro `IDENT` que também competiria pela posição *(desde 0.4.1)* | `error` | keel | §4.2 |
 | `dim-below-one` | Argumento de `dim` que resolve para valor menor que 1 — a mensagem dá a cadeia de instanciação | `error` | keel | §4.3 |
 | `extent-count-not-field` | Contagem de grupo de `extent` que não nomeia campo do struct | `error` | keel | §4.11 |
 | `extent-unknown-capacity` | Capacidade de grupo de `extent` que não é campo, `constexpr` conhecido nem literal decimal | `error` | keel | §4.11 |

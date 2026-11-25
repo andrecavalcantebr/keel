@@ -385,7 +385,13 @@ void isl_check_declarations(Ctx *c) {
 
 /* `constexpr T NAME = value;` (spec §4.2): the name is the token before the
    only `=` at the top (constexpr-name-missing), and the declaration is a
-   scalar: no array declarator, no braces around the value (nonscalar-constexpr) */
+   scalar: no array declarator, no braces around the value (nonscalar-constexpr).
+   The type between `constexpr` and the name is opaque, but a well-formed scalar
+   type holds at most one token that is not a C keyword (its own name, or none
+   when the type is bare C keywords, as in `unsigned long`); a second one *(desde
+   0.4.1)* is a competing name candidate, not part of the type — the stray token
+   that made `constexpr i32 BIAS zzz = 2;` silently take `zzz`, not `BIAS`, and
+   emit C that only the C compiler refused (achados 2026-11-25, A2). */
 void isl_check_constexpr(Ctx *c, size_t kw, size_t end) {
     KAst *a = c->ast;
     keel_slice_char none = {0};
@@ -400,7 +406,17 @@ void isl_check_constexpr(Ctx *c, size_t kw, size_t end) {
         isl_diag3(c, K_DIAG_NONSCALAR_CONSTEXPR, isl_tok(a, kw), none, none, none);
         return;
     }
-    if (!isl_ident(a, eq - 1)) isl_diag3(c, K_DIAG_CONSTEXPR_NAME_MISSING, isl_tok(a, eq - 1), isl_tok(a, eq - 1), none, none);
+    bool missing = !isl_ident(a, eq - 1);
+    bool ambiguous = false;
+    if (!missing) {
+        /* the type is zero or more C keywords and at most one identifier of its
+         * own; a second one before the name means two tokens compete for it */
+        bool seen = false;
+        for (size_t j = kw + 1; j < eq - 1 && !ambiguous; j++)
+            if (isl_ident(a, j)) { if (seen) ambiguous = true; seen = true; }
+    }
+    if (missing || ambiguous)
+        isl_diag3(c, K_DIAG_CONSTEXPR_NAME_MISSING, isl_tok(a, eq - 1), isl_tok(a, eq - 1), none, none);
 }
 
 /* ---- protocol declarations (spec §5.1, rules 5 and 7) ------------------ */

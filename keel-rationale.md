@@ -610,6 +610,22 @@ Essas regras devem incorporar constantes nomeadas sem introduzir avaliação de
 expressões em keel. Ler um literal de uma declaração conhecida permite usar um
 nome sem mudar o limite de análise.
 
+**Por que um segundo identificador no tipo é erro, não ambiguidade tolerada.**
+O tipo de `decl-constexpr` é opaco por desenho (keel não reconstrói gramática
+de tipo C), e o nome é "o `IDENT` antes do `=`" — uma regra posicional, sem
+busca. Isso funciona enquanto o tipo tiver, no máximo, um token que não seja
+palavra C: o seu próprio nome (`i32`, `size_t`, um `typedef`), ou nenhum,
+quando o tipo é só palavras C (`unsigned long`). Um segundo token desse tipo
+não é mais tipo — é um segundo candidato ao nome que a posição não resolve.
+Manter esse caso aceito (achado 2026-11-25, A2) significava que
+`constexpr i32 BIAS extra = 0;` tomava `extra` como nome, `BIAS` sobrava
+dentro de um tipo sem sentido para C (`i32 BIAS`), e o próprio keel não via
+erro algum: só o compilador C recusava, apontando a declaração sem indicar
+qual dos dois tokens é o problema. Recusar no próprio keel — na mesma posição
+que `constexpr-name-missing` já usa, o token antes do `=` — substitui esse
+erro tardio e confuso por um diagnóstico na hora certa, mesmo que esse token,
+sozinho, pareça um nome válido: o que falta não é a forma, é a unicidade.
+
 O mesmo limite governa os valores escritos de um conjunto de tags: aceita-se um
 literal decimal, com sinal opcional, ou uma constante conhecida. Um valor
 calculado exigiria avaliação de expressão, e um conjunto sem valor conhecido

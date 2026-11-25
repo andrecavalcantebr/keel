@@ -21,6 +21,7 @@ blk.blk(2) i32 i32 v3;                       /* DIAG: undeclared-tags */
 pub typedef int Color_RED;                   /* DIAG: canonical-name-collision */
 constexpr int TABLE[2] = {1, 2};             /* DIAG: nonscalar-constexpr */
 constexpr int (*fp) = 0;                     /* DIAG: constexpr-name-missing */
+constexpr i32 BIAS2 extra = 0;               /* DIAG: constexpr-name-missing */
 pub void f(void) {
     constexpr size_t K = {3};                /* DIAG: nonscalar-constexpr */
 }

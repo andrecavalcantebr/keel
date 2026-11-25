@@ -11,9 +11,21 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
 ## 0.4.1 (em andamento)
 
+**Linguagem** (`keel-spec.md`)
+
+- §4.2, `constexpr-name-missing`: um segundo token que não é palavra C no tipo
+  de um `constexpr`, antes do nome, também é recusado — ele competia pela
+  posição do nome sem que a gramática resolvesse qual dos dois era (achados
+  2026-11-25, A2; antes, `constexpr i32 BIAS extra = 0;` tomava `extra` como
+  nome em silêncio e só o `cc` recusava).
+
 **Ferramenta**
 
 - `--cgen-version` diz `cgen 0.4.1-dev`.
+- A1 (achados 2026-11-25): palavra de keel como nome de arquivo (`typedef i32
+  pub;`), seguida de uma função cuja visibilidade usa a mesma palavra, gerava
+  um C que lia além do fim da fonte, contido só por acaso pelo `LINE_CAP`; sem
+  mudança normativa, só a emissão.
 
 ## 0.4.0 (2026-11-24)
 

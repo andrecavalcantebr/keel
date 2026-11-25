@@ -9,7 +9,7 @@ leva marca.
 
 Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
-## 0.4.1 (em andamento)
+## 0.4.1 (2026-11-25)
 
 **Linguagem** (`keel-spec.md`)
 
@@ -21,7 +21,7 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
 **Ferramenta**
 
-- `--cgen-version` diz `cgen 0.4.1-dev`.
+- `--cgen-version` diz `cgen 0.4.1`.
 - A1 (achados 2026-11-25): palavra de keel como nome de arquivo (`typedef i32
   pub;`), seguida de uma função cuja visibilidade usa a mesma palavra, gerava
   um C que lia além do fim da fonte, contido só por acaso pelo `LINE_CAP`; sem

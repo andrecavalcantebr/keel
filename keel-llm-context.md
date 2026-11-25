@@ -1,6 +1,6 @@
 # keel — contexto compacto para geração de código
 
-**Versão descrita: keel 0.4.0.**
+**Versão descrita: keel 0.4.1.**
 
 Este arquivo é autocontido: não depende de nenhum outro documento do
 repositório para ser lido ou usado. Ele existe para caber no contexto de uma

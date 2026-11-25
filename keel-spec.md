@@ -15,7 +15,7 @@
 > [rationale](keel-rationale.md#por-que-a-base-é-copyleft-com-exceção-e-não-gpl-simples-nem-mit)
 > para o argumento. Esta nota não é normativa.
 
-**Versão descrita: keel 0.4.0.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*, *(desde 0.3.0)* ou *(desde 0.4.0)*, conforme a versão em que sai; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+**Versão descrita: keel 0.4.1.** Regra, diagnóstico ou opção que entrou ou mudou depois da 0.1.2 leva a marca *(desde 0.2.0)*, *(desde 0.3.0)* ou *(desde 0.4.0)*, conforme a versão em que sai; o registro por versão está em [`CHANGELOG.md`](CHANGELOG.md).
 
 Este documento especifica a sintaxe, o reconhecimento, as transformações e as restrições de keel. As decisões e justificativas pertencem ao [rationale](keel-rationale.md); a representação e a emissão formal de C pertencem ao [keel-c-backend.md](keel-c-backend.md); a interface de linha de comando pertence à ferramenta [cgen-tool-spec.md](cgen-tool-spec.md).
 

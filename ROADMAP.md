@@ -8,12 +8,12 @@ só a sequência e os gatilhos.
 
 ## Onde estamos
 
-A versão publicada é a 0.4.0 em `master`; a `0.4.1` está em andamento (os
-achados da terceira revisão de código, sem mudança normativa). O `cgen` emite C11
-e C23 para os 90 casos do `golden/`. Os normativos são versionados e o
-`CHANGELOG.md` registra as mudanças. O que vem depois da 0.4.1 está na §5: uma
-0.5.0 só de estabilidade, a `keel_libs` fechada e, em seguida, o `cgen` escrito em
-keel.
+A versão publicada é a 0.4.1 em `master` (2026-11-25): os achados da terceira
+revisão de código, com uma única mudança normativa (`constexpr-name-missing`,
+spec §4.2). O `cgen` emite C11 e C23 para os 89 casos do `golden/`. Os
+normativos são versionados e o `CHANGELOG.md` registra as mudanças. O que vem
+depois está na §5: uma 0.5.0 só de estabilidade, a `keel_libs` fechada e, em
+seguida, o `cgen` escrito em keel.
 
 ## 1. Agora: documentação e bibliotecas
 

@@ -33,7 +33,7 @@ int reading_first(const char *path) {
 `FILE`, `fopen`, `fgetc` e `EOF` keel não conhece, e não precisa: ela reconheceu
 `module`, `pub` e `defer`, e o resto atravessou. É essa a ideia inteira.
 
-> **Versão estável: [keel 0.4.0](https://github.com/andrecavalcantebr/keel/releases/tag/v0.4.0).**
+> **Versão estável: [keel 0.4.1](https://github.com/andrecavalcantebr/keel/releases/tag/v0.4.1).**
 > O cgen gera C11 e C23. O `golden/` tem 89 casos com C esperado nos dois
 > perfis, e a suíte de geração também confere exemplos adicionais do compilador.
 
@@ -226,7 +226,7 @@ com largura e representação fixadas — não aliases de `int`.
 
 ## Como se compilaria
 
-Baixe a [distribuição da 0.4.0](https://github.com/andrecavalcantebr/keel/releases/tag/v0.4.0),
+Baixe a [distribuição da 0.4.1](https://github.com/andrecavalcantebr/keel/releases/tag/v0.4.1),
 extraia o tarball e execute `./install.sh` de dentro da pasta extraída.
 `cgen --cgen-version` mostra a versão e o commit do executável.
 

@@ -44,7 +44,7 @@ out=$("$CGEN" --cgen-version 2>&1)
 code=$?
 if [ "$code" != 0 ]; then
     fail_with_output "--cgen-version exit code: got $code" "$out"
-elif [ "$(printf '%s\n' "$out" | sed -n 1p)" != "cgen 0.4.0" ]; then
+elif [ "$(printf '%s\n' "$out" | sed -n 1p)" != "cgen 0.4.1-dev" ]; then
     fail_with_output "--cgen-version first line: got '$out'" ""
 else
     # procedência do binário (§4.1): uma linha `chave valor` para cada chave

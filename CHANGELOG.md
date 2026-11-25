@@ -9,6 +9,12 @@ leva marca.
 
 Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
+## 0.4.1 (em andamento)
+
+**Ferramenta**
+
+- `--cgen-version` diz `cgen 0.4.1-dev`.
+
 ## 0.4.0 (2026-11-24)
 
 **Linguagem** (`keel-spec.md`)

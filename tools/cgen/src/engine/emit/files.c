@@ -273,8 +273,9 @@ static void emit_c(Emit *e) {
         if (a < written) { a = b; continue; }
         bool empty = false, fn = false, opaque = false;
         const KAstNode *inl = NULL;   /* a one-line priv extern_c: its line is its text */
-        for (size_t i = 0; i < e->ast->nodes.len; i++) {
+        for (size_t i = k_em_nodes_from(e, a); i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
+            if (k_em_node_past(e, n, b)) break;
             if (n->is_draft || !k_em_overlaps(e, n, a, b)) continue;
             size_t declarators = k_em_aggregate_declarators(e->ast, n);
             if (declarators != SIZE_MAX) {
@@ -412,6 +413,7 @@ size_t k_emit_file(const KAst *ast, keel_slice_char module, keel_slice_char src_
     e.done = 0;
     e.cache_off = 0;
     e.cmt_gap = SIZE_MAX;
+    e.nodes_floor = 0; e.floor_a = 0; e.nodes_sorted = 0;
     e.idle_fn = NULL;
     e.cache_line = 1;
     e.ok = true;

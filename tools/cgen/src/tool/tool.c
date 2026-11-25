@@ -285,6 +285,10 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
         return failure(t,e,K_DIAG_PARSE_FAILED,own);
     }
     if(!exports(t,e))return limit(t,e,own,"the arena has no room for this module's exported symbols: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
+    {   size_t n=k_ast_decl_slots(&e->ast);
+        size_t *slots=CGEN_NEW(t->arena,size_t,n);
+        if(!slots)return limit(t,e,own,"the arena has no room for this module's declaration index: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
+        k_ast_index_decls(&e->ast,slots,n);   }
     e->ast.instances=keel_buffer_KInstanceUse_from(CGEN_NEW(t->arena,KInstanceUse,count+1),count+1);
     if(!e->ast.instances.ptr||!k_collect_instances(&e->ast,t->diag))
         return limit(t,e,own,"the arena has no room for this module's instance table: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");

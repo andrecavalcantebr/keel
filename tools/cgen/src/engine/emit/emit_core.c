@@ -108,6 +108,7 @@ const KAstNode *k_em_declared_at(const Emit *e, size_t i) {
     const KAst *ast = e->ast;
     if (i > 0 && (k_em_text_is(k_em_tok(ast, i - 1), ".") || k_em_text_is(k_em_tok(ast, i - 1), "->"))) return NULL;
     KToken t = k_em_tok(ast, i);
+    if (ast->decl_slots) return k_ast_decl_named(ast, t.ptr, t.len);
     for (size_t k = 0; k < ast->nodes.len; k++) {
         const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, k);
         if (d->kind != K_AST_TYPE && d->kind != K_AST_TAGS && !k_em_declares_value(d->kind)) continue;
@@ -237,6 +238,27 @@ void k_em_put_range(Emit *e, size_t tok_a, size_t tok_b) {
             k_em_put_mangled(e, d->name_first, d->kind == K_AST_TYPE || d->kind == K_AST_TAGS);
         else k_em_put_bytes(e, k_em_tok(ast, i).ptr, k_em_tok(ast, i).len);
     }
+}
+
+/* Where a loop over the nodes for the source line [a, b) starts, and where it stops. The lines come in
+ * source order, so the nodes that ended at or before this one are not looked at again (the floor), and,
+ * the nodes starting in source order, the ones that start past its end are not either (achados
+ * 2026-11-25, A4): a module of N declarations costs N per line, not N lines of N. */
+size_t k_em_nodes_from(Emit *e, size_t a) {
+    const KAst *ast = e->ast;
+    if (e->nodes_sorted == 0) {
+        e->nodes_sorted = 1;
+        for (size_t i = 1; i < ast->nodes.len; i++)
+            if (k_em_first_off(e, keel_buffer_KAstNode_ptr(&ast->nodes, i)) < k_em_first_off(e, keel_buffer_KAstNode_ptr(&ast->nodes, i - 1))) e->nodes_sorted = 2;
+    }
+    if (a < e->floor_a) e->nodes_floor = 0;
+    e->floor_a = a;
+    while (e->nodes_floor < ast->nodes.len &&
+           k_em_last_end(e, keel_buffer_KAstNode_ptr(&ast->nodes, e->nodes_floor)) <= a) e->nodes_floor++;
+    return e->nodes_floor;
+}
+bool k_em_node_past(const Emit *e, const KAstNode *n, size_t b) {
+    return e->nodes_sorted == 1 && k_em_first_off(e, n) >= b;
 }
 
 bool k_em_overlaps(const Emit *e, const KAstNode *n, size_t a, size_t b) {

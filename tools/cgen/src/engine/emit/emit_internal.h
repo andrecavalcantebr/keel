@@ -59,6 +59,8 @@ typedef struct {
     size_t cache_off, cache_line;   /* line_at's last answer */
     const KAstNode *idle_fn;        /* analyzer_is_idle (emit.c): the function the masks below are for */
     unsigned idle_probed, idle_mask;
+    size_t nodes_floor, floor_a;    /* emit_line: the nodes before nodes_floor end at or before floor_a */
+    int nodes_sorted;               /* 0 unknown, 1 the nodes start in source order, 2 they do not */
     size_t cmt_gap, cmt_resume;     /* k_em_comment_edits: in the gap starting at cmt_gap, the scan state at cmt_resume equals the scan from the start (SIZE_MAX: none) */
     bool ok;                   /* false: the call is refused (UNSUPPORTED, or the limit in `limit`) */
     size_t limit;              /* 0, or the K_EMIT_LIMIT_* code of the first capacity that ran out */
@@ -78,6 +80,8 @@ typedef struct {
 
 KToken k_em_tok(const KAst *ast, size_t i);
 size_t k_em_tok_off(const KAst *ast, size_t i);
+size_t k_em_nodes_from(Emit *e, size_t a);
+bool k_em_node_past(const Emit *e, const KAstNode *n, size_t b);
 size_t k_em_first_tok_from(const KAst *ast, size_t lo, size_t hi, size_t off);
 size_t k_em_tok_end(const KAst *ast, size_t i);
 size_t k_em_first_off(const Emit *e, const KAstNode *n);

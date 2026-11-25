@@ -30,6 +30,8 @@ typedef struct KAst {
     keel_buffer_KClosure closure;      /* the closed set of instances (stage 4i) */
     keel_buffer_KUnavailable unavailable;  /* the verbs each of them loses */
     keel_buffer_char closure_text; /* the closure's strings: arguments, causes */
+    size_t *decl_slots;        /* k_ast_index_decls: a hash of the declared names, NULL when not built (the emitter then scans the nodes) */
+    size_t decl_slots_n;       /* its slots, a power of two */
 } KAst;
 
 /* Both passes return the required count. A NULL/zero output only counts. */
@@ -40,6 +42,13 @@ size_t k_lexemes(keel_slice_char source, KLexeme *out, size_t cap,
 bool k_parse_ast(KAst *ast);
 bool k_parse_headers(KAst *ast);
 bool k_collect_ast(KAst *ast, KSymbolTable *symbols);
+/* The slots k_ast_index_decls needs for `ast` (a power of two, at least twice the nodes). */
+size_t k_ast_decl_slots(const KAst *ast);
+/* Indexes the declared names (types, tags, values) of the nodes in `slots`, k_ast_decl_slots(ast)
+ * zeroed entries: k_em_declared_at then finds a name without scanning every node. */
+void k_ast_index_decls(KAst *ast, size_t *slots, size_t n);
+/* The first declaration, in node order, named like `name`; NULL when there is none. */
+const KAstNode *k_ast_decl_named(const KAst *ast, const char *name, size_t len);
 /* Passage 1 (parser-design §3): resolves the file's imports — the
    implicit `import keel types;` first — into `symtab`, by calling back
    through `loader`. Emits `circular-import` at the offending `import`;

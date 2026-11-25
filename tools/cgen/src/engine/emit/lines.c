@@ -205,8 +205,9 @@ static void emit_line(Emit *e, size_t ln, size_t a, size_t b, KEmitFile file) {
     e->at_line = ln;
     spanned_end = 0;
     bool partitioned = false;
-    for (size_t i = 0; i < e->ast->nodes.len; i++) {
+    for (size_t i = k_em_nodes_from(e, a); i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
+        if (k_em_node_past(e, n, b)) break;
         if (!k_em_overlaps(e, n, a, b)) continue;
         size_t first = !e->inst && (file == K_EMIT_C || file == K_EMIT_TYPE_H)
             ? k_em_aggregate_declarators(e->ast, n) : SIZE_MAX;

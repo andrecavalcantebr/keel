@@ -465,3 +465,47 @@ bool k_collect_ast(KAst *a, KSymbolTable *symbols) {
 bool k_parse_ast(KAst *a) {
     return parse(a, NULL, false);
 }
+
+/* ---- the index of declared names (emit_core.c k_em_declared_at) ---- */
+
+static bool is_decl_node(const KAstNode *d) {
+    return (d->kind == K_AST_TYPE || d->kind == K_AST_TAGS || d->kind == K_AST_FUNCTION ||
+            d->kind == K_AST_VARIABLE || d->kind == K_AST_CONSTEXPR) && d->name_first < d->name_end;
+}
+
+static size_t name_hash(const char *p, size_t len) {
+    size_t h = 1469598103934665603u;
+    for (size_t i = 0; i < len; i++) h = (h ^ (unsigned char)p[i]) * 1099511628211u;
+    return h;
+}
+
+size_t k_ast_decl_slots(const KAst *ast) {
+    size_t n = 8;
+    while (n < 2 * (ast->nodes.len + 1)) n *= 2;
+    return n;
+}
+
+/* Open addressing, entries are node index + 1 (0 is empty). Nodes are inserted in order, and equal
+ * names follow one probe sequence, so a lookup meets the lowest node first. */
+void k_ast_index_decls(KAst *ast, size_t *slots, size_t n) {
+    for (size_t k = 0; k < ast->nodes.len; k++) {
+        const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, k);
+        if (!is_decl_node(d)) continue;
+        keel_slice_char name = keel_buffer_KLexeme_ptr(&ast->tokens, d->name_first)->token;
+        size_t s = name_hash(name.ptr, name.len) & (n - 1);
+        while (slots[s]) s = (s + 1) & (n - 1);
+        slots[s] = k + 1;
+    }
+    ast->decl_slots = slots;
+    ast->decl_slots_n = n;
+}
+
+const KAstNode *k_ast_decl_named(const KAst *ast, const char *name, size_t len) {
+    size_t n = ast->decl_slots_n;
+    for (size_t s = name_hash(name, len) & (n - 1); ast->decl_slots[s]; s = (s + 1) & (n - 1)) {
+        const KAstNode *d = keel_buffer_KAstNode_ptr(&ast->nodes, ast->decl_slots[s] - 1);
+        keel_slice_char t = keel_buffer_KLexeme_ptr(&ast->tokens, d->name_first)->token;
+        if (t.len == len && memcmp(t.ptr, name, len) == 0) return d;
+    }
+    return NULL;
+}

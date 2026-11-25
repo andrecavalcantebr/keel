@@ -73,6 +73,26 @@ static inline void *cgen_alloc(keel_arena *a, size_t n, size_t size,
     if (zero) memset(p, 0, n*size);
     return p;
 }
+/* A table that one pass fills and nothing else allocates meanwhile, whose final size only that pass
+ * knows: it is handed what the arena has left (at most `want` entries) and, once filled, the arena
+ * keeps just the entries used. The table's worst case need not fit the arena, only what is written
+ * (achados 2026-11-25, A5). Use it for the last allocation of the moment, never for a table that
+ * later passes grow. */
+static inline void *cgen_tail_reserve(keel_arena *a, size_t size, size_t alignment, size_t want, size_t *cap) {
+    *cap = 0;
+    if (a->top > a->cap || !a->ptr) return NULL;
+    uintptr_t address = (uintptr_t)(a->ptr + a->top);
+    size_t padding = (size_t)(-address & ((uintptr_t)alignment - 1));
+    if (padding > a->cap - a->top) return NULL;
+    size_t room = (a->cap - a->top - padding) / size;
+    *cap = want < room ? want : room;
+    return a->ptr + a->top + padding;
+}
+static inline void cgen_tail_commit(keel_arena *a, const void *table, size_t size, size_t used, const char *what) {
+    size_t before = a->top;
+    a->top = (size_t)((const unsigned char *)table - a->ptr) + used * size;
+    cgen_stat_add(what, a->top - before);
+}
 #define CGEN_NEW(a,T,n) ((T *)cgen_alloc((a),(n),sizeof(T),_Alignof(T),true,#T))
 static inline string cgen_string_dup(keel_arena *a, const char *p, size_t n) {
     string s = str_dup(a, (string){.ptr=(char *)p,.len=n,.cap=n});

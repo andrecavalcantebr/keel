@@ -289,8 +289,17 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
         size_t *slots=CGEN_NEW(t->arena,size_t,n);
         if(!slots)return limit(t,e,own,"the arena has no room for this module's declaration index: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
         k_ast_index_decls(&e->ast,slots,n);   }
-    e->ast.instances=keel_buffer_KInstanceUse_from(CGEN_NEW(t->arena,KInstanceUse,count+1),count+1);
-    if(!e->ast.instances.ptr||!k_collect_instances(&e->ast,t->diag))
+    /* one entry per token is the worst case; a module has few distinct instances, so the table takes
+       the arena's tail while it is filled and keeps only what it used */
+    size_t instances_cap;
+    KInstanceUse *instances=cgen_tail_reserve(t->arena,sizeof(KInstanceUse),_Alignof(KInstanceUse),count+1,&instances_cap);
+    e->ast.instances=keel_buffer_KInstanceUse_from(instances,instances_cap);
+    bool collected=instances&&k_collect_instances(&e->ast,t->diag);
+    if(collected){
+        cgen_tail_commit(t->arena,instances,sizeof(KInstanceUse),e->ast.instances.len,"KInstanceUse");
+        e->ast.instances.cap=e->ast.instances.len;
+    }
+    if(!collected)
         return limit(t,e,own,"the arena has no room for this module's instance table: import fewer modules, or raise CGEN_ARENA_CAPACITY and rebuild the cgen");
     /* An island holds a few tokens' worth of text; the bound is generous, and
        running into it is a diagnostic, never a truncation. */

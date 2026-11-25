@@ -57,6 +57,7 @@ typedef struct {
     KWriter w;
     size_t done;               /* source offset: the lines before it are written */
     size_t cache_off, cache_line;   /* line_at's last answer */
+    size_t cmt_gap, cmt_resume;     /* k_em_comment_edits: in the gap starting at cmt_gap, the scan state at cmt_resume equals the scan from the start (SIZE_MAX: none) */
     bool ok;                   /* false: the call is refused (UNSUPPORTED, or the limit in `limit`) */
     size_t limit;              /* 0, or the K_EMIT_LIMIT_* code of the first capacity that ran out */
     size_t at_line;            /* the .k line the emitter is writing (0: none yet); where a limit is reported */

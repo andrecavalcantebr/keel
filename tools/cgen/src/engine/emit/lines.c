@@ -24,7 +24,10 @@ void k_em_comment_edits(Emit *e, size_t a, size_t b, Edit *ed, size_t *cnt) {
         size_t g1 = i < ntok ? k_em_tok_off(ast, i) : ast->source.len;
         /* the scan starts at the gap's start, not at the line's: a block comment
          * that began on an earlier line still covers the start of this one */
-        for (size_t p = g0; p < g1 && p < b; ) {
+        size_t p0 = g0;   /* resume where an earlier line of this gap left off: a gap of many spliced lines is scanned once */
+        if (e->cmt_gap == g0 && e->cmt_resume <= a && e->cmt_resume > g0) p0 = e->cmt_resume;
+        for (size_t p = p0; p < g1 && p < b; ) {
+            if (p <= a) { e->cmt_gap = g0; e->cmt_resume = p; }
             size_t ce;
             if (s[p] == '/' && p + 1 < g1 && s[p + 1] == '/') {
                 ce = p;

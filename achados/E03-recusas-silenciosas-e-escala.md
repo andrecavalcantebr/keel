@@ -1,6 +1,6 @@
 # E03 — recusas silenciosas, mensagens enganosas e escala (medição de 2026-11-23)
 
-**Situação.** Fechados: o `extent` silencioso (`extent-limit-exceeded`, 0bd6f3c), as mensagens enganosas de `match` (SCRATCH), `protocol` (17 itens), `array` (9 declaradores), `defer [now]` (9) e `parallel` (17 capturas), com `test/cgen/cli/limit_messages.sh`, e a emissão de agregados nomeados com declaradores (golden 090). Abertos: o tempo quadrático, a arena e a cobertura do protótipo público sem corpo.
+**Situação.** Fechados no cgen: o `extent` silencioso (`extent-limit-exceeded`, 0bd6f3c), as mensagens enganosas de `match` (SCRATCH), `protocol` (17 itens), `array` (9 declaradores), `defer [now]` (9) e `parallel` (17 capturas), a emissão de agregados nomeados com declaradores (golden 090) e a cobertura de protótipos sem corpo. Abertos: o tempo quadrático, a arena e o registro normativo do tratamento de rascunhos.
 
 Estudo aberto a partir de `tools/agents/reports/limites-medicao.md` (Haiku; os
 achados 1 e 14 reproduzidos por mim, cgen 0.4.0-dev, build de desenvolvimento
@@ -57,8 +57,11 @@ compartilham o trecho de fonte. O golden 090 verifica a separação entre
 a tag no `.type.h`, os `extern` no `.h` e as definições no `.c`, tanto
 para `struct` quanto para `union` nomeadas.
 
-O protótipo público sem corpo ainda sai com `implementation-limit`
-porque o emissor extrai a assinatura a partir da posição do corpo.
+O cgen trata a assinatura sem definição correspondente no módulo como
+rascunho. A análise emite `function-body-pending` e reconhece a assinatura.
+O emissor omite a declaração, e o cgen acusa `use-of-draft-function` no
+ponto de uso durante a geração. Uma declaração adiantada com definição no módulo
+permanece válida sem aviso. O teste está em `test/cgen/cli/function_drafts.sh`.
 
 ## Caminho
 
@@ -66,4 +69,4 @@ porque o emissor extrai a assinatura a partir da posição do corpo.
 2. E03b: as mensagens, junto do E02 (mesmo molde).
 3. E03c: o tempo quadrático: perfil (`perf`) de `--stop-after=gen` com 4 000
    funções, antes de supor a causa.
-4. E03d: a cobertura dos agregados nomeados está resolvida. Falta o protótipo público sem corpo.
+4. E03d: agregados nomeados e protótipos sem corpo estão cobertos no cgen.

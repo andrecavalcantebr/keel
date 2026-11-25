@@ -23,6 +23,7 @@ typedef struct KAst {
     bool error_is_capacity;    /* error_token's failure is a capacity, not a syntax error */
     bool error_is_extent_limit; /* error_token is an `extent` with more than K_EXTENT_MAX_DIMS groups */
     bool error_is_tags_limit;  /* error_token is a `tags` set with more than K_TAGS_MAX_ITEMS items */
+    bool imports_or_declares_drafts;
     keel_buffer_KInstanceUse instances;
     keel_buffer_KIsland islands;   /* pass 3, sorted by anchor */
     keel_buffer_char island_text;  /* the islands' detail columns */

@@ -33,6 +33,7 @@ typedef struct {
     const char *roots[CGEN_SEARCH_ROOTS_CAP];
     int root_count;
     KDiagnosticSink *diag;
+    bool for_generation;
     CgenModuleEntry *mods;
     CgenModuleEntry *active;
     const char *entry;          /* the source the invocation translates */
@@ -295,7 +296,7 @@ static KLoadResult load_file(CgenTool *t, keel_slice_char name, const char *path
     e->ast.closure_text=(keel_buffer_char){.ptr=CGEN_NEW(t->arena,char,CGEN_CLOSURE_TEXT),.len=0,.cap=CGEN_CLOSURE_TEXT};
     e->ast.closure=keel_buffer_KClosure_from(CGEN_NEW(t->arena,KClosure,CGEN_CLOSURE_MAX),CGEN_CLOSURE_MAX);
     e->ast.unavailable=keel_buffer_KUnavailable_from(CGEN_NEW(t->arena,KUnavailable,CGEN_UNAVAILABLE_MAX),CGEN_UNAVAILABLE_MAX);
-    if(!e->ast.islands.ptr||!e->ast.island_text.ptr||!e->ast.closure_text.ptr||!e->ast.closure.ptr||!e->ast.unavailable.ptr||!k_collect_islands(&e->ast,t->diag))
+    if(!e->ast.islands.ptr||!e->ast.island_text.ptr||!e->ast.closure_text.ptr||!e->ast.closure.ptr||!e->ast.unavailable.ptr||!k_collect_islands(&e->ast,t->diag,t->for_generation))
         return limit(t,e,own,"the arena has no room for this module's island and closure tables (CGEN_ARENA_CAPACITY is 64 MiB): import fewer modules, or raise it and rebuild the cgen");
     e->module.ast=&e->ast;e->state=CGEN_DONE;*out=&e->module;
     return K_LOAD_OK;
@@ -346,6 +347,7 @@ void cgen_loader_init(void *v,keel_arena *arena,const char *const *roots,int n,K
     t->root_count=n;
     for(int i=0;i<t->root_count;i++)t->roots[i]=roots[i];
 }
+void cgen_loader_for_generation(void *v) { ((CgenTool *)v)->for_generation = true; }
 size_t cgen_loader_size(void){return sizeof(CgenTool);}
 void cgen_loader_destroy(void *v) {
     CgenTool *t=v;

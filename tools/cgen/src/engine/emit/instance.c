@@ -471,7 +471,8 @@ static void emit_body(Emit *e, const KAstNode *n, bool vis_static) {
 /* whether the declaration is one the instance can carry */
 static bool carried(const Emit *e, const KAstNode *n) {
     if (n->kind == K_AST_MODIFIER || n->kind == K_AST_TYPE || n->kind == K_AST_CONSTEXPR || is_static_assert(e->ast, n)) return true;
-    return is_function_with_body(e, n);
+    return is_function_with_body(e, n) ||
+           (n->kind == K_AST_FUNCTION && n->body_first == SIZE_MAX);
 }
 
 static bool has_modifier(const KAst *ast) {
@@ -506,7 +507,7 @@ static bool instance_supported(const Emit *e) {
 static bool has_function(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_public && !k_em_other_modifier(e, n)) return true;
+        if (k_em_generic_out(e->ast, n) && is_function_with_body(e, n) && n->is_public && !k_em_other_modifier(e, n)) return true;
     }
     return false;
 }
@@ -514,7 +515,7 @@ static bool has_function(const Emit *e) {
 static bool has_inline(const Emit *e) {
     for (size_t i = 0; i < e->ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_inline && !k_em_other_modifier(e, n)) return true;
+        if (k_em_generic_out(e->ast, n) && is_function_with_body(e, n) && n->is_inline && !k_em_other_modifier(e, n)) return true;
     }
     return false;
 }
@@ -616,12 +617,12 @@ static void emit_file(Emit *e, KEmitFile which) {
         if (has_function(e)) raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-            if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_public) emit_proto(e, n);
+            if (k_em_generic_out(e->ast, n) && is_function_with_body(e, n) && n->is_public) emit_proto(e, n);
         }
         if (has_inline(e)) raw(e, "\n");
         for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-            if (k_em_generic_out(e->ast, n) && n->kind == K_AST_FUNCTION && n->is_inline) emit_body(e, n, true);
+            if (k_em_generic_out(e->ast, n) && is_function_with_body(e, n) && n->is_inline) emit_body(e, n, true);
         }
     }
     raw(e, "\n#endif /* "); raw_slice(e, guard); raw(e, " */\n");
@@ -692,7 +693,9 @@ bool k_em_places_instances(const KAst *ast) {
 
 bool k_em_supported_placement(const KAst *ast) {
     for (size_t i = 0; i < ast->nodes.len; i++) {
-        KAstKind k = keel_buffer_KAstNode_ptr(&ast->nodes, i)->kind;
+        const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        if (n->is_draft) continue;
+        KAstKind k = n->kind;
         if (k != K_AST_MODULE && k != K_AST_IMPORT && k != K_AST_INSTANCE) return false;
     }
     for (size_t i = 0; i < ast->closure.len; i++) {

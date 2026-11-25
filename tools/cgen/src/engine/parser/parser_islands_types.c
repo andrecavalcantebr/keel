@@ -817,6 +817,24 @@ static void check_array_argument(Ctx *c, const KAst *home, const Param *p, Range
     if (wrong) isl_diag3(c, K_DIAG_ARRAY_ARGUMENT_WRONG_DIMENSION, isl_tok(a, arg.first), isl_range_text(a, arg), ak->dims, dims);
 }
 
+/* A function name without call arguments cannot select an arity. It
+   depends on a draft when no visible definition of that name exists. */
+static bool draft_only_name(const KAst *home, KToken name, bool public_only) {
+    bool draft = false;
+    for (size_t i = 0; i < home->nodes.len; i++) {
+        const KAstNode *fn = isl_node_at(home, i);
+        if (fn->kind != K_AST_FUNCTION || (public_only && !fn->is_public) ||
+            !k_symtab_same_name(isl_tok(home, fn->name_first), name)) continue;
+        if (!fn->is_draft) return false;
+        draft = true;
+    }
+    return draft;
+}
+
+static void draft_use(Ctx *c, KToken at, keel_slice_char name) {
+    isl_diag3(c, K_DIAG_USE_OF_DRAFT_FUNCTION, at, name, (keel_slice_char){0}, (keel_slice_char){0});
+}
+
 static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KModule *module) {
     KAst *a = c->ast;
     size_t close = isl_close_paren(a, open, a->tokens.len);
@@ -872,6 +890,11 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     /* Leave an explicitly qualified private verb unresolved, including
        when its C definition lives in a generic module's shared header. */
     if (module && callee != verb && original.found && !original.fn->is_public) return -1;
+    if (c->check_draft_uses && !c->quiet &&
+        (original.found ? original.fn->is_draft : draft_only_name(home, name, module && callee != verb))) {
+        draft_use(c, isl_tok(a, callee), written);
+        return -1;
+    }
 
     keel_slice_char redirected = {0};
     /* A function over a protocol (spec §4.14, backend §5.19): the instance is
@@ -934,6 +957,10 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
 
     Sig sig = !redirected.len && home == original_home
         ? original : isl_find_verb(home, redirected.len ? redirected : name, redirected.len ? redirect_arity : argc);
+    if (c->check_draft_uses && !c->quiet && sig.found && sig.fn->is_draft) {
+        draft_use(c, isl_tok(a, callee), written);
+        return -1;
+    }
     keel_slice_char declared = redirected.len ? redirected : name;
     bool gen = module && isl_generic(home);
     /* a function of a generic module that names no binder and no modifier belongs to the module,
@@ -1405,6 +1432,11 @@ void isl_name_island(Ctx *c, size_t i) {
     isl_put_str(&t, " \xe2\x86\x92 ");
     const KSymbol *s = k_symbol_resolve(a->symbols, name);
     if (s && (s->kind == K_SYM_CONSTANT || s->kind == K_SYM_VARIABLE || s->kind == K_SYM_FUNCTION) && s->origin) {
+        if (c->check_draft_uses && !c->quiet && s->kind == K_SYM_FUNCTION &&
+            draft_only_name(s->origin->ast ? s->origin->ast : a, name, false)) {
+            draft_use(c, name, name);
+            return;
+        }
         char sym[K_DETAIL_MAX];
         size_t n = k_mangle_symbol(s, (keel_slice_char){ sizeof sym, sym });
         if (n > sizeof sym) return;
@@ -1456,6 +1488,11 @@ size_t isl_qualified_name(Ctx *c, size_t i, size_t qlen, const KModule *module) 
     isl_put_glued(&t, a, i, end);
     isl_put_str(&t, " \xe2\x86\x92 ");
     if (found) {
+        if (c->check_draft_uses && !c->quiet && found->kind == K_SYM_FUNCTION && module->ast &&
+            draft_only_name(module->ast, member, true)) {
+            draft_use(c, isl_tok(a, i), isl_range_text(a, (Range){i, end}));
+            return qlen + 1;
+        }
         char sym[K_DETAIL_MAX];
         size_t n = k_mangle_symbol(found, (keel_slice_char){ sizeof sym, sym });
         if (n > sizeof sym) return qlen + 1;

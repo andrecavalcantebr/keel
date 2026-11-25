@@ -56,6 +56,7 @@ bool k_em_over_protocol(const KAst *ast, const KAstNode *n) {
 }
 
 bool k_em_generic_out(const KAst *ast, const KAstNode *n) {
+    if (n->is_draft) return false;
     if (over_protocol(ast, n)) return true;
     if (n->kind == K_AST_MODULE || n->kind == K_AST_IMPORT || !k_em_module_is_generic(ast)) return false;
     if (n->kind == K_AST_MODIFIER) return true;
@@ -90,6 +91,7 @@ bool k_em_other_modifier(const Emit *e, const KAstNode *n) {
 bool k_em_skip(const Emit *e, const KAstNode *n);
 #define skip k_em_skip
 bool k_em_skip(const Emit *e, const KAstNode *n) {
+    if (n->is_draft) return true;
     bool out = k_em_generic_out(e->ast, n);
     /* a function over a protocol is neither: one instance per concrete type (backend §5.19) */
     if (!e->inst) return out;

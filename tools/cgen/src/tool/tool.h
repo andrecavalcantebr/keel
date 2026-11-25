@@ -3,6 +3,7 @@
 #include "engine/ast.h"
 #include "tool/memory.h"
 void cgen_loader_init(void *, keel_arena *, const char *const *, int, KDiagnosticSink *, KLoader *);
+void cgen_loader_for_generation(void *);
 size_t cgen_loader_size(void);
 void cgen_loader_destroy(void *);
 KLoadResult cgen_load(void *, keel_slice_char, KModule **);

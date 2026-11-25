@@ -742,7 +742,7 @@ void isl_check_generic(Ctx *c) {
     }
     for (size_t i = 0; i < a->nodes.len; i++) {
         const KAstNode *n = isl_node_at(a, i);
-        if (!((n->kind == K_AST_FUNCTION && !n->is_inline) || n->kind == K_AST_VARIABLE)) continue;
+        if (!((n->kind == K_AST_FUNCTION && !n->is_inline && !n->is_draft) || n->kind == K_AST_VARIABLE)) continue;
         bool mentions = false;
         size_t end = n->body_first != SIZE_MAX ? n->body_first : n->end;
         for (size_t j = n->first; j < end && !mentions; j++) {

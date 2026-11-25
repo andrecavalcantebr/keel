@@ -13,6 +13,14 @@
 
 void k_em_node_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
+    if (n->is_draft) {
+        size_t start = k_em_first_off(e, n), end = k_em_last_end(e, n);
+        if (start < a) start = a;
+        if (end >= b) end = b - (b > a && ast->source.ptr[b - 1] == '\n');
+        if (end > start)
+            k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_DROP, .at = start, .skip = end - start });
+        return;
+    }
     size_t entry = *cnt;
     if (!k_em_decl_edits(e, n, a, b, ed, cnt)) return;
     /* the constructions of a function body (backend §5): each file adds its edits

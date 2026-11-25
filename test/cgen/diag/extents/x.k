@@ -39,7 +39,7 @@ pub extent struct dims [h, N] [w, M] {
     size_t h, w;
 };
 
-pub struct grid *get(void);
+pub struct grid *get(void) { return 0; }
 
 pub void use(struct ok *o, struct grid *g, struct ok s) {
     o->a[1] = 0;

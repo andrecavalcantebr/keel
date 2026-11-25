@@ -79,6 +79,7 @@ bool k_em_supported(Emit *e) {
     if (k_em_places_instances(ast)) return k_em_supported_placement(ast);
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
+        if (n->is_draft) continue;
         if (n->first >= n->end) return refuse_node(e, n);
         if (k_em_generic_out(ast, n)) continue;
         switch (n->kind) {

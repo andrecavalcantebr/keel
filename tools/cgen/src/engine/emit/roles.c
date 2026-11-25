@@ -31,7 +31,9 @@ static size_t blanks_after(const KAst *ast, size_t i) {
 }
 
 /* the `)` that closes the parameter list of `fn` */
-static size_t params_close(const KAstNode *fn) { return fn->body_first - 2; }
+static size_t params_close(const KAstNode *fn) {
+    return fn->body_first == SIZE_MAX ? fn->end - 2 : fn->body_first - 2;
+}
 
 /* the number of parameters written: a `(void)` or `()` has none; a `type T` is one */
 static size_t param_count(const KAst *ast, const KAstNode *fn) {
@@ -53,7 +55,7 @@ static bool has_params(const KAst *ast, const KAstNode *fn);
 size_t k_em_param_count(const KAst *ast, const KAstNode *fn) { return has_params(ast, fn) ? param_count(ast, fn) : 0; }
 
 static bool has_params(const KAst *ast, const KAstNode *fn) {
-    return fn->kind == K_AST_FUNCTION && fn->body_first != (size_t)-1 && fn->body_first >= 2 &&
+    return fn->kind == K_AST_FUNCTION && !fn->is_draft && fn->end >= 2 &&
            fn->name_first < fn->name_end && k_em_text_is(k_em_tok(ast, fn->name_first + 1), "(") &&
            k_em_text_is(k_em_tok(ast, params_close(fn)), ")");
 }
@@ -187,7 +189,7 @@ void k_em_edits_roles(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = rat, .skip = rt.len, .text = "void", .text_len = 4 });
         }
         /* the body: `sizeof(X)` and `alignof(X)` */
-        for (size_t j = fn->body_first; j + 3 < fn->end; j++) {
+        for (size_t j = fn->body_first; j != SIZE_MAX && j + 3 < fn->end; j++) {
             KToken w0 = k_em_tok(ast, j), w2 = k_em_tok(ast, j + 2);
             bool sz = k_em_text_is(w0, "sizeof"), al = k_em_text_is(w0, "alignof") || k_em_text_is(w0, "_Alignof");
             if (!(sz || al) || !k_em_text_is(k_em_tok(ast, j + 1), "(") || !k_em_text_is(k_em_tok(ast, j + 3), ")")) continue;
@@ -238,7 +240,8 @@ static bool param_name(const KAst *ast, const KAstNode *fn, size_t k, KToken *na
 
 void k_em_edits_range_check(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed, size_t *cnt) {
     const KAst *ast = e->ast;
-    if (!has_params(ast, fn) || !k_em_text_is(k_em_tok(ast, fn->name_first), "as_slice") || param_count(ast, fn) != 3) return;
+    if (fn->body_first == SIZE_MAX || !has_params(ast, fn) ||
+        !k_em_text_is(k_em_tok(ast, fn->name_first), "as_slice") || param_count(ast, fn) != 3) return;
     size_t brace = fn->body_first - 1;
     size_t at = k_em_tok_end(ast, brace);
     const char *src = ast->source.ptr;

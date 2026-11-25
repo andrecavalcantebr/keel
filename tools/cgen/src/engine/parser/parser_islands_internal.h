@@ -83,6 +83,8 @@ typedef struct {
     bool quiet;                     /* reading declarations, not printing islands */
     int depth;
     bool failed;
+    bool check_draft_uses;       /* a draft reference prevents emitting C */
+    bool draft_checks_only;     /* check a generic's shared functions without keeping islands */
     bool has_target;            /* an initializer is being read... */
     KSpecifier target;          /* ...of an object declared with this type */
     size_t par_open, par_close; /* the worker body of the `parallel` under way, or 0, 0 */

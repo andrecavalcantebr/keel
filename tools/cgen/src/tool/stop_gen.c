@@ -18,6 +18,7 @@
 #include "engine/islands.h"
 
 int cgen_write_output(const char *path, const char *data, size_t n);
+void cgen_report(const char *path, keel_slice_char source, const KDiagnosticSink *sink);
 
 static bool absolute(const char *path, char *out, size_t cap) {
     if (path[0] == '/') return cgen_path_normalize(path, out, cap);
@@ -182,6 +183,22 @@ static int emit_imports(keel_arena *arena, void *tool, const char *dest, const K
 /* The instances of a function over a protocol the closure holds (backend
  * §5.19): one file pair per concrete type, `<prefix>_<name>_<concrete>`. The
  * concrete type is the closure's instance whose symbol ends the entry's. */
+/* Most instance analysis is speculative. A draft dependency, however,
+   prevents emitting the instance in the same way it prevents emitting a module. */
+static bool report_draft_uses(const KAst *ast, char *path, size_t len, const KDiagnosticSink *sink) {
+    if (!len) return false;
+    path[len] = '\0';
+    bool found = false;
+    for (size_t i = 0; i < sink->len; i++) {
+        KDiagnostic *item = &sink->items[i];
+        if (item->id != K_DIAG_USE_OF_DRAFT_FUNCTION) continue;
+        KDiagnosticSink one = { .items = item, .len = 1 };
+        cgen_report(path, ast->source, &one);
+        found = true;
+    }
+    return found;
+}
+
 static int emit_protocol_functions(keel_arena *arena, const char *dest, const KAst *ast, KEmitOptions opt, bool base) {
     for (size_t i = 0; i < ast->closure.len; i++) {
         const KClosure *c = keel_buffer_KClosure_ptr(&ast->closure, i);
@@ -258,11 +275,12 @@ static int emit_protocol_functions(keel_arena *arena, const char *dest, const KA
         size_t save_islands = generic->islands.len, save_island_text = generic->island_text.len;
         size_t save_closure = generic->closure.len, save_closure_text = generic->closure_text.len;
         size_t save_unavailable = generic->unavailable.len;
-        if (k) k_collect_instance_islands(generic, &ii, &scratch);
         char src_buf[8192];
-        keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf);
+        keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf - 1);
+        if (k) k_collect_instance_islands(generic, &ii, &scratch, true);
+        bool draft_use = report_draft_uses(generic, src_buf, src_path.len, &scratch);
         int rc = 0;
-        for (int w = 0; w < 2 && !rc; w++) {
+        for (int w = 0; w < 2 && !rc && !draft_use; w++) {
             KEmitFile which = w == 0 ? K_EMIT_TYPE_H : K_EMIT_H;
             const char *ext = w == 0 ? ".type.h" : ".h";
             size_t need = k_emit_instance(generic, &inst, src_path, which, opt, (keel_slice_char){0});
@@ -286,7 +304,7 @@ static int emit_protocol_functions(keel_arena *arena, const char *dest, const KA
         generic->closure.len = save_closure;
         generic->closure_text.len = save_closure_text;
         generic->unavailable.len = save_unavailable;
-        if (rc) return rc;
+        if (rc || draft_use) return draft_use ? 1 : rc;
     }
     return 0;
 }
@@ -312,9 +330,10 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
         KDiagnostic scratch_items[256];
         KDiagnosticSink scratch;
         k_diag_init(&scratch, scratch_items, 256);
-        k_collect_instance_islands(generic, &ii, &scratch);
+        k_collect_instance_islands(generic, &ii, &scratch, true);
         char src_buf[8192];
-        keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf);
+        keel_slice_char src_path = source_path(gen, src_buf, sizeof src_buf - 1);
+        if (report_draft_uses(generic, src_buf, src_path.len, &scratch)) return 1;
         for (int w = 0; w < 2; w++) {
             KEmitFile which = w == 0 ? K_EMIT_TYPE_H : K_EMIT_H;
             const char *ext = w == 0 ? ".type.h" : ".h";
@@ -347,7 +366,7 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
 static bool has_public_main(const KAst *ast) {
     for (size_t i = 0; i < ast->nodes.len; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, i);
-        if (n->kind != K_AST_FUNCTION || !n->is_public) continue;
+        if (n->kind != K_AST_FUNCTION || !n->is_public || n->is_draft) continue;
         KToken t = keel_buffer_KLexeme_ptr(&ast->tokens, n->name_first)->token;
         if (t.len == 4 && memcmp(t.ptr, "main", 4) == 0) return true;
     }
@@ -379,6 +398,7 @@ int cgen_stop_after_gen(keel_arena *arena, const char *path, const char *const *
     if (!tool) return 2;
     KLoader loader;
     cgen_loader_init(tool, arena, search, n, &sink, &loader);
+    cgen_loader_for_generation(tool);
     KModule *module = NULL;
     KLoadResult result = cgen_load_path(tool, path, name, &module);
     cgen_loader_report(tool, &sink);
@@ -478,6 +498,7 @@ int cgen_stop_after_instance(keel_arena *arena, const char *use, const char *con
     if (!tool) return 2;
     KLoader loader;
     cgen_loader_init(tool, arena, search, n, &sink, &loader);
+    cgen_loader_for_generation(tool);
 
     /* every dotted name of the use: its module is imported under an alias of
        its own, and the name is written through it */

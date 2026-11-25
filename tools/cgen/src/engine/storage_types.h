@@ -59,6 +59,7 @@ typedef struct {
     bool clause_swapped;        /* import ... types as A */
     bool is_public;             /* default visibility is public */
     bool is_inline;
+    bool is_draft;              /* function declaration without a matching body */
 } KAstNode;
 
 #define K_INSTANCE_NAME_CAP 256 /* the buffer: K_GENERATED_NAME_MAX plus room for what the checks need, and the zero */

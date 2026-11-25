@@ -239,3 +239,5 @@ O conteúdo das tabelas é em inglês, como o código.
 | `module-load-failed` | cannot load module `%s` | A module of the import closure could not be loaded |
 | `tags-limit-exceeded` | `tags %s` has more than %s constants, the most the cgen holds in one set: split it into smaller sets | A `tags` set with more constants than the cgen's limit of 128 |
 | `extent-limit-exceeded` | `extent %s` has more than %s groups `[k, n]`, the most the cgen holds in one extent: split it into smaller extents | An `extent struct` with more groups than the cgen's limit of 4 |
+| `function-body-pending` | function `%s` has no body yet and will not be emitted | A module function declaration with no matching definition in the module |
+| `use-of-draft-function` | cannot generate a reference to `%s`: define its body first | A reference to a draft function in code being generated |

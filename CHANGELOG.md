@@ -89,6 +89,10 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   `u32` e satura em `UINT32_MAX` em release; em debug, a liberação que a levaria além disso é
   `pool-generation-overflow`.
 - `--cgen-version` diz `cgen 0.4.0-dev`; `test/run.sh AREA...` roda só uma fatia dos oráculos.
+- Protótipos de verbos sem definição no módulo são tratados como rascunhos
+  (E03). O cgen emite `function-body-pending` na declaração e omite o
+  rascunho do C. Na geração, uma referência ao rascunho produz
+  `use-of-draft-function` no local do uso.
 - Um conjunto `tags` passa de 16 a 128 constantes (o 17º item dava
   `unexpected-token`, apontando o início da declaração; achado 1 do xprk). Acima
   de 128, o diagnóstico novo `tags-limit-exceeded` diz o conjunto e o limite. É

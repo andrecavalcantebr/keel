@@ -462,14 +462,12 @@ bool k_em_handles_extern_c(const Emit *e, const KAstNode *n) {
     return true;
 }
 
-/* a function's prototype or body (backend §4.1): a forward declaration has no
- * body (`priv void release(R *r);`, a line of the .c like any other); a `pub`
- * one would have to be weighed against the prototype the .h already writes,
- * and has no golden */
+/* A forward declaration with a definition in this module stays in the .c.
+ * The .h takes the public prototype from the definition. Drafts are omitted. */
 bool k_em_handles_function(const Emit *e, const KAstNode *n) {
     const KAst *ast = e->ast;
     if (n->body_first == (size_t)-1)
-        return !n->is_public && k_em_text_is(k_em_tok(ast, n->end - 1), ";");
+        return k_em_text_is(k_em_tok(ast, n->end - 1), ";");
     if (n->body_first < 2) return false;
     if (!k_em_text_is(k_em_tok(ast, n->body_first - 1), "{") || !k_em_text_is(k_em_tok(ast, n->body_first - 2), ")"))
         return false;

@@ -3,8 +3,8 @@ import keel.outcome as outcome types;
 import keel.corot as corot types;
 
 pub typedef struct { i32 x; outcome i32 r; } Box;
-pub outcome i32 get(void);
-pub corot step(void);
+pub outcome i32 get(void) { for (;;) {} }
+pub corot step(void) { for (;;) {} }
 
 pub i32 use(Box *b, i16 *p) {
     outcome i32 a = get() else return 1;

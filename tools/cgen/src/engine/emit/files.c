@@ -90,12 +90,13 @@ static void raw(Emit *e, const char *s);
  * translation unit cannot redefine it. */
 static bool header_function(const Emit *e, const KAstNode *n) {
     (void)e;
-    return n->kind == K_AST_FUNCTION && (n->is_public || n->is_inline);
+    return n->kind == K_AST_FUNCTION && n->body_first != SIZE_MAX && (n->is_public || n->is_inline);
 }
 
 /* a `pub inline` function, any other `inline` one (same note as above), or in
  * an instance a function over a protocol: its body is in the .h */
 static bool header_body(const Emit *e, const KAstNode *n) {
+    if (n->body_first == SIZE_MAX) return false;
     if (e->inst && e->inst->proto_fn.len) return true;
     return k_em_is_pub_inline(e->ast, n) || (n->kind == K_AST_FUNCTION && n->is_inline);
 }
@@ -242,7 +243,7 @@ void k_em_instance_c(Emit *e) {
     raw(e, "#include \""); raw_slice(e, h_path); raw(e, "\"\n");
     for (size_t i = 0; i < e->ast->nodes.len && e->ok; i++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-        if (skip(e, n) || !n->is_public || n->is_inline) continue;
+        if (skip(e, n) || !n->is_public || n->is_inline || n->body_first == SIZE_MAX) continue;
         k_em_emit_range(e, k_em_line_start(e, k_em_first_off(e, n)), k_em_line_end(e, k_em_last_end(e, n)), K_EMIT_C);
     }
 }
@@ -274,7 +275,7 @@ static void emit_c(Emit *e) {
         const KAstNode *inl = NULL;   /* a one-line priv extern_c: its line is its text */
         for (size_t i = 0; i < e->ast->nodes.len; i++) {
             const KAstNode *n = keel_buffer_KAstNode_ptr(&e->ast->nodes, i);
-            if (!k_em_overlaps(e, n, a, b)) continue;
+            if (n->is_draft || !k_em_overlaps(e, n, a, b)) continue;
             size_t declarators = k_em_aggregate_declarators(e->ast, n);
             if (declarators != SIZE_MAX) {
                 /* Only the declarator part belongs to this translation unit. */

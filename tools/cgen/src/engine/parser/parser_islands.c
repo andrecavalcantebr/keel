@@ -125,6 +125,7 @@ void isl_put_source(Text *t, const char *p, const char *end) {
    the details, where nothing reads it but the diagnostic. */
 keel_slice_char isl_keep(Ctx *c, const Text *t) {
     KAst *a = c->ast;
+    if (c->draft_checks_only) return (keel_slice_char){0};
     if (!t->ok || t->n > a->island_text.cap - a->island_text.len) return k_diag_text("its verbs");
     char *at = a->island_text.ptr + a->island_text.len;
     memcpy(at, t->s, t->n);
@@ -134,7 +135,7 @@ keel_slice_char isl_keep(Ctx *c, const Text *t) {
 
 bool isl_emit(Ctx *c, KIslandKind kind, size_t anchor, const Text *t) {
     KAst *a = c->ast;
-    if (c->quiet) return true;
+    if (c->quiet || c->draft_checks_only) return true;
     if (!t->ok || a->islands.len == a->islands.cap || t->n > a->island_text.cap - a->island_text.len) {
         if (!c->failed) {
             KToken at = isl_tok(a, anchor);
@@ -359,7 +360,7 @@ Sig isl_find_verb(const KAst *a, keel_slice_char verb, size_t arity) {
         Param p[K_PARAMS_MAX];
         size_t n = isl_params_of(a, fn, p, K_PARAMS_MAX);
         if (n == SIZE_MAX) continue;
-        seen |= (uint64_t)1 << n;
+        if (!fn->is_draft) seen |= (uint64_t)1 << n;
         if (!sig.found && (arity == SIZE_MAX || n == arity)) {
             memcpy(sig.p, p, n * sizeof *p);
             sig.n = n;
@@ -658,7 +659,7 @@ keel_slice_char isl_range_text(const KAst *a, Range r) {
 
 void isl_diag3(Ctx *c, KDiagId id, keel_slice_char at, keel_slice_char x, keel_slice_char y,
                   keel_slice_char z) {
-    if (c->quiet) return;
+    if (c->quiet || (c->draft_checks_only && id != K_DIAG_USE_OF_DRAFT_FUNCTION)) return;
     k_diag_emit(c->diag, id, at, (KDiagArgs){{ x, y, z }});
 }
 
@@ -1081,7 +1082,48 @@ static void constexpr_names(Ctx *c, const KAstNode *n) {
     }
 }
 
-bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
+/* A declaration is paired by the same name and arity that identify a
+   module verb. The C compiler still checks compatible declarations. */
+static void mark_drafts(KAst *a, KDiagnosticSink *diag) {
+    a->imports_or_declares_drafts = false;
+    for (size_t i = 0; i < a->symbols->len; i++) {
+        const KSymbol *s = keel_buffer_KSymbol_ptr(a->symbols, i);
+        if (s->kind == K_SYM_MODULE && s->origin && s->origin->ast &&
+            s->origin->ast->imports_or_declares_drafts) {
+            a->imports_or_declares_drafts = true;
+            break;
+        }
+    }
+    for (size_t i = 0; i < a->nodes.len; i++) {
+        KAstNode *n = keel_buffer_KAstNode_ptr(&a->nodes, i);
+        if (n->kind != K_AST_FUNCTION || n->body_first != SIZE_MAX) continue;
+        size_t first = n->first;
+        while (isl_word(a, first, "pub") || isl_word(a, first, "priv") || isl_word(a, first, "inline"))
+            first++;
+        /* The fallback declarator reader can see `defer f();` as a
+           declaration. It is a file-scope defer and gets its own error. */
+        if (isl_word(a, first, "defer")) continue;
+        KToken name = isl_tok(a, n->name_first);
+        Param params[K_PARAMS_MAX];
+        size_t arity = isl_params_of(a, n, params, K_PARAMS_MAX);
+        n->is_draft = true;
+        for (size_t j = 0; arity != SIZE_MAX && j < a->nodes.len; j++) {
+            const KAstNode *other = isl_node_at(a, j);
+            if (other->kind != K_AST_FUNCTION || other->body_first == SIZE_MAX ||
+                !k_symtab_same_name(name, isl_tok(a, other->name_first))) continue;
+            if (isl_params_of(a, other, params, K_PARAMS_MAX) == arity) {
+                n->is_draft = false;
+                break;
+            }
+        }
+        if (n->is_draft) {
+            a->imports_or_declares_drafts = true;
+            k_diag_emit(diag, K_DIAG_FUNCTION_BODY_PENDING, name, (KDiagArgs){{ name }});
+        }
+    }
+}
+
+bool k_collect_islands(KAst *a, KDiagnosticSink *diag, bool for_generation) {
     a->islands.len = 0;
     a->island_text.len = 0;
     a->closure_text.len = 0;
@@ -1090,12 +1132,24 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     seed_count = seed_node_count = 0;
     if (!a->symbols) return true;
     static Surface surface[K_SURFACE_MAX];
-    Ctx ctx = { .ast = a, .diag = diag, .surface = surface };
+    mark_drafts(a, diag);
+    Ctx ctx = { .ast = a, .diag = diag, .surface = surface,
+                .check_draft_uses = for_generation && a->imports_or_declares_drafts };
     isl_check_modifiers(&ctx);
     isl_check_declarations(&ctx);
     isl_check_protocols(&ctx);
     if (isl_generic(a)) {
         isl_check_generic(&ctx);
+        if (ctx.check_draft_uses) {
+            /* Binder-dependent bodies are checked when instantiated. Fixed
+               inline bodies go into the shared header even without an instance. */
+            ctx.draft_checks_only = true;
+            for (size_t i = 0; i < a->nodes.len; i++) {
+                const KAstNode *fn = isl_node_at(a, i);
+                if (fn->kind == K_AST_FUNCTION && fn->body_first != SIZE_MAX && !isl_names_instance(a, fn))
+                    isl_walk(&ctx, fn);
+            }
+        }
         return true;
     }
     isl_check_collisions(&ctx);
@@ -1156,7 +1210,8 @@ bool k_collect_islands(KAst *a, KDiagnosticSink *diag) {
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = isl_node_at(a, i);
-        if (n->kind != K_AST_FUNCTION && n->kind != K_AST_VARIABLE) continue;
+        if ((n->kind != K_AST_FUNCTION && n->kind != K_AST_VARIABLE) ||
+            (for_generation && n->is_draft)) continue;
         if (n->first < covered) continue;       /* declarators of one declaration share its span */
         covered = n->end;
         isl_walk(&ctx, n);
@@ -1181,7 +1236,8 @@ bool isl_names_instance(const KAst *a, const KAstNode *fn) {
     return false;
 }
 
-bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosticSink *diag) {
+bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosticSink *diag,
+                                bool for_generation) {
     /* a function over a protocol in a module that is not generic is read too: its body's
        verbs of the protocol are the concrete type's (spec §4.14, rule 5). That module is
        emitted from its own islands and closure, so they are kept and this walk appends to
@@ -1195,7 +1251,10 @@ bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosti
     if (!a->symbols || (!isl_generic(a) && !keep) || inst->argc > K_SPEC_MAX_ARGS) return false;
     static Surface surface[K_SURFACE_MAX];
     static Ctx ctx;
-    ctx = (Ctx){ .ast = a, .diag = diag, .surface = surface, .inst_mode = true, .keep_islands = keep };
+    bool has_drafts = a->imports_or_declares_drafts ||
+        (inst->self && inst->self->ast && inst->self->ast->imports_or_declares_drafts);
+    ctx = (Ctx){ .ast = a, .diag = diag, .surface = surface, .inst_mode = true,
+                 .keep_islands = keep, .check_draft_uses = for_generation && has_drafts };
     /* the instance's type, index 0, over its arguments, 1..argc */
     KType *k = &ctx.inst_types[0];
     *k = (KType){ .kind = KT_MODIFIER, .module = inst->self, .name = inst->modifier, .elem = -1 };
@@ -1233,7 +1292,7 @@ bool k_collect_instance_islands(KAst *a, const KIslandInstance *inst, KDiagnosti
     size_t covered = 0;
     for (size_t i = 0; i < a->nodes.len && !ctx.failed; i++) {
         const KAstNode *n = isl_node_at(a, i);
-        if (n->kind != K_AST_FUNCTION || n->first < covered) continue;
+        if (n->kind != K_AST_FUNCTION || n->first < covered || (for_generation && n->is_draft)) continue;
         if (inst->proto_fn.len) {
             Param p[K_PARAMS_MAX];
             size_t np = isl_params_of(a, n, p, K_PARAMS_MAX);

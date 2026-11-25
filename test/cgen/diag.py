@@ -24,7 +24,7 @@ from collections import Counter
 from pathlib import Path
 
 repo = Path.cwd()
-binary = repo / 'tools/cgen/cgen'
+binary = __import__('pathlib').Path(__import__('os').environ.get('CGEN_BIN') or repo / 'tools/cgen/cgen')
 base = repo / 'base'
 cases_dir = repo / 'test/cgen/diag'
 MARK = re.compile(r'(?://|/\*)\s*DIAG(-NEXT)?:\s*([a-z0-9]+(?:-[a-z0-9]+)*)')

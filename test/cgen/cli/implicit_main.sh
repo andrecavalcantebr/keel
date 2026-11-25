@@ -3,7 +3,7 @@
 # takes the compiled module's own public main; -c, -S, -E, -shared and --stop-after do not link, and
 # a module without a main has no entry either. A fake compiler records its arguments.
 cd "$(dirname "$0")/../../.." || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 APP=$PWD/golden/cases/033-debug-more
 LIB=$PWD/golden/cases/019-walk

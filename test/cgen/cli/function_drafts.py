@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 
 repo = Path.cwd()
-binary = repo / 'tools/cgen/cgen'
+binary = __import__('pathlib').Path(__import__('os').environ.get('CGEN_BIN') or repo / 'tools/cgen/cgen')
 
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)

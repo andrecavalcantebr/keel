@@ -3,7 +3,7 @@
 # compiler. A fake compiler records its argument list and exits 7, so the order of the
 # arguments and the exit code can be asserted; a real build of golden 033 runs the result.
 cd "$(dirname "$0")/../../.." || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 CASE=$PWD/golden/cases/033-debug-more
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT

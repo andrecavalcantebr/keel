@@ -5,7 +5,7 @@
 # from the source below: `foreach` is at line 7, column 5. (The case this test began with, `walk` over a
 # container whose module has a `dim` — keel_coll finding A7 — is covered now: the second half checks it.)
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

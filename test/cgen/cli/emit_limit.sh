@@ -4,7 +4,7 @@
 # §7.1), not "does not cover this module's constructions yet", which is for a
 # construction the emitter really lacks.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

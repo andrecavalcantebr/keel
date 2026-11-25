@@ -18,11 +18,35 @@ static inline string str_str(char *s) {
     return (string){.len=n, .cap=n+1, .ptr=s};
 }
 static inline char *str_cstr(string s) { return s.ptr; }
+/* Every allocation of the arena goes through here. The arena is one block, so the ASan sees no
+ * redzone between two of its tables: an overflow from one into the next is invisible. A build with
+ * -DCGEN_ASAN_REDZONE (make -C tools/cgen asan) puts a poisoned zone before and after each
+ * allocation, so the overrun is reported where it happens (achados 2026-11-25, S1). */
+#ifdef CGEN_ASAN_REDZONE
+#include <sanitizer/asan_interface.h>
+static inline void *cgen_arena_alloc(keel_arena *a, size_t size, size_t alignment, size_t n) {
+    if (size == 0 || alignment == 0 || (alignment & (alignment - 1)) || n > (SIZE_MAX - 256) / size) return NULL;
+    size_t bytes = n * size;
+    void *raw = keel_arena_alloc_(a, 1, 16, 128 + 8 * alignment + bytes);
+    if (!raw) return NULL;
+    __asan_unpoison_memory_region(raw, 128 + 8 * alignment + bytes);   /* the space may have been poisoned by an earlier use */
+    uintptr_t base = ((uintptr_t)raw + 64 + alignment - 1) & ~(uintptr_t)(alignment - 1);
+    while (((base + bytes) & 7) != 0) base += alignment;   /* the end sits on an 8-byte granule */
+    char *p = (char *)base;
+    __asan_poison_memory_region(raw, (size_t)(p - (char *)raw));
+    __asan_poison_memory_region(p + bytes, 64);
+    return p;
+}
+#else
+static inline void *cgen_arena_alloc(keel_arena *a, size_t size, size_t alignment, size_t n) {
+    return keel_arena_alloc_(a, size, alignment, n);
+}
+#endif
 /* Accepts a length-delimited source; returns an owned, terminated copy.
    A null pointer denotes failure, including for an empty input. */
 static inline string str_dup(keel_arena *a, string orig) {
     if (orig.len == SIZE_MAX) return (string){0};
-    char *p = keel_arena_alloc(a, char, orig.len+1);
+    char *p = (char *)cgen_arena_alloc(a, 1, 1, orig.len+1);
     if (!p) return (string){0};
     if (orig.len) memcpy(p, orig.ptr, orig.len);
     p[orig.len] = '\0';
@@ -67,7 +91,7 @@ static inline void cgen_memory_error(const keel_arena *a, const char *what) {
 static inline void *cgen_alloc(keel_arena *a, size_t n, size_t size,
                                size_t alignment, bool zero, const char *what) {
     size_t before = a->top;
-    void *p = keel_arena_alloc_(a, size, alignment, n);
+    void *p = cgen_arena_alloc(a, size, alignment, n);
     if (!p) { cgen_memory_error(a, what); return NULL; }
     cgen_stat_add(what, a->top - before);
     if (zero) memset(p, 0, n*size);
@@ -92,6 +116,9 @@ static inline void cgen_tail_commit(keel_arena *a, const void *table, size_t siz
     size_t before = a->top;
     a->top = (size_t)((const unsigned char *)table - a->ptr) + used * size;
     cgen_stat_add(what, a->top - before);
+#ifdef CGEN_ASAN_REDZONE
+    __asan_poison_memory_region((const unsigned char *)table + used * size, 64);
+#endif
 }
 #define CGEN_NEW(a,T,n) ((T *)cgen_alloc((a),(n),sizeof(T),_Alignof(T),true,#T))
 static inline string cgen_string_dup(keel_arena *a, const char *p, size_t n) {

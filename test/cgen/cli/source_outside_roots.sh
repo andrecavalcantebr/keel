@@ -3,7 +3,7 @@
 # module-path-mismatch against an empty expected name (the empty name is the
 # search's own "I don't know" sentinel, not the program's declared name).
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

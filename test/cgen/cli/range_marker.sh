@@ -2,7 +2,7 @@
 # The marker of an interval's upper bound (spec §4.5, 0.4.0): `a..<b` is `a..b`, `a..=b` includes `b`, `..<=` is invalid-range-marker,
 # and the spaces around the marker do not matter. The debug abort of `keel_inclusive` is in golden 087.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

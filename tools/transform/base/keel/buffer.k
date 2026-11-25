@@ -36,6 +36,18 @@ typedef struct keel_buffer_cursor { size_t i; } keel_buffer_cursor;
 
 #include <string.h>
 
+/* A build with -DCGEN_CHECKED_BUFFERS (make -C tools/cgen asan) checks the index of the unchecked
+ * accessors: past the capacity it stops where the access happens. The checked base (base/keel) does
+ * the same with KEEL_CHECK; this is the bootstrap's. */
+#ifndef KEEL_BUFFER_CHECK
+#ifdef CGEN_CHECKED_BUFFERS
+#include <assert.h>
+#define KEEL_BUFFER_CHECK(c) assert(c)
+#else
+#define KEEL_BUFFER_CHECK(c) ((void)0)
+#endif
+#endif
+
 static inline keel_buffer_$T keel_buffer_$T_of($T *ptr, size_t len) {
     keel_buffer_$T b;
     b.ptr = ptr;
@@ -61,10 +73,12 @@ static inline size_t keel_buffer_$T_capacity(const keel_buffer_$T *b) {
 }
 
 static inline $T keel_buffer_$T_get(const keel_buffer_$T *b, size_t index) {
+    KEEL_BUFFER_CHECK(index < b->len);
     return b->ptr[index];
 }
 
 static inline void keel_buffer_$T_set(keel_buffer_$T *b, size_t index, $T value) {
+    KEEL_BUFFER_CHECK(index < b->cap);
     b->ptr[index] = value;
 }
 
@@ -73,6 +87,7 @@ static inline $T *keel_buffer_$T_data(const keel_buffer_$T *b) {
 }
 
 static inline $T *keel_buffer_$T_ptr(const keel_buffer_$T *b, size_t index) {
+    KEEL_BUFFER_CHECK(index < b->cap);
     return &b->ptr[index];
 }
 

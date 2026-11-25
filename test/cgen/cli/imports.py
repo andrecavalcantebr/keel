@@ -6,7 +6,7 @@ import tempfile
 
 repo = Path.cwd()
 base = repo / 'base'
-binary = repo / 'tools/cgen/cgen'
+binary = __import__('pathlib').Path(__import__('os').environ.get('CGEN_BIN') or repo / 'tools/cgen/cgen')
 
 def run(root, module, expected=0, diagnostic=None):
     result = subprocess.run([str(binary), '--base-dir', str(base), '-I', str(root),

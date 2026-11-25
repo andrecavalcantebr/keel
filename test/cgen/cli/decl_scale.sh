@@ -5,7 +5,7 @@
 # the module generates in under 6 s (it takes ~2.7 s), and the first and last functions come out
 # renamed with the module prefix in owner.h.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0
@@ -18,7 +18,7 @@ out=$("$BIN" -I "$tmp" --base-dir "$K" --stop-after=gen --dest-dir "$tmp/gen" "$
 t1=$(date +%s%N)
 [ $rc -eq 0 ] || bad "4000 functions: rc=$rc [$out]"
 ms=$(( (t1 - t0) / 1000000 ))
-[ $ms -lt 6000 ] || bad "4000 functions took ${ms} ms (quadratic)"
+[ -n "${CGEN_BIN:-}" ] || [ $ms -lt 6000 ] || bad "4000 functions took ${ms} ms (quadratic)"
 grep -q "owner_g1(void)" "$tmp/gen/owner.h" || bad "owner_g1 missing from owner.h"
 grep -q "owner_g4000(void)" "$tmp/gen/owner.h" || bad "owner_g4000 missing from owner.h"
 

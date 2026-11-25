@@ -6,7 +6,7 @@
 # are not judged here. A case whose emission hits `implementation-limit` is
 # `wip`, as in golden/run.sh; any other failure is a FAIL.
 cd "$(dirname "$0")/../.." || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 bad=0 ok=0 wip=0
 while IFS='|' read -r case src main flag opts; do

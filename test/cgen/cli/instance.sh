@@ -3,7 +3,7 @@
 # exit code and diagnostic id, and the files a valid use writes. Expected values
 # written by hand from the design. Run from the repository root.
 cd "$(dirname "$0")/../../.." || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 bad=0 n=0
 # use | exit code | id in stderr

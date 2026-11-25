@@ -5,7 +5,7 @@
 # well under the 1.5 s the quadratic scan needed, and a block comment opened before the
 # splices and closed after them is still dropped (the case the restart protected).
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0
@@ -19,7 +19,7 @@ out=$("$BIN" -I "$tmp" --base-dir "$K" --stop-after=gen --dest-dir "$tmp/gen" "$
 t1=$(date +%s%N)
 [ $rc -eq 0 ] || bad "40000 splices: rc=$rc [$out]"
 ms=$(( (t1 - t0) / 1000000 ))
-[ $ms -lt 800 ] || bad "40000 splices took ${ms} ms (quadratic scan)"
+[ -n "${CGEN_BIN:-}" ] || [ $ms -lt 800 ] || bad "40000 splices took ${ms} ms (quadratic scan)"
 
 { printf 'module c;\nint y = 1 /* opened'
   awk 'BEGIN { for (i = 0; i < 50; i++) printf " \\\n"; }'

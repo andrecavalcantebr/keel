@@ -5,7 +5,7 @@
 set -u
 d=$(mktemp -d)
 trap 'rm -rf "$d"' EXIT
-cgen=$PWD/tools/cgen/cgen
+cgen=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 base=$PWD/base
 printf 'module app;\npub i32 one(void) { return 1; }\n' > "$d/app.k"
 printf 'module bad;\n#define keel_bad 1\n' > "$d/bad.k"

@@ -2,7 +2,7 @@
 # -f writes every generated file even when its content is the same, so the timestamp moves
 # (cgen-tool-spec §4.1, §6 rule 2); without it an identical file is not touched.
 cd "$(dirname "$0")/../../.." || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 CASE=$PWD/golden/cases/033-debug-more
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT

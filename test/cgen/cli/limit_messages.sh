@@ -3,7 +3,7 @@
 # sentence for everything (E02, E03): each point below is refused with its own text, and with the id
 # [implementation-limit]. A construction at the limit passes, one past it is refused.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

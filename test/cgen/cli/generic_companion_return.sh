@@ -5,7 +5,7 @@
 # generic's `r3_pair.type.h`), the call `pair.make` becomes `r3_pair_i32_i64_make`, the C compiles with
 # -Wall -Werror, and running it gives the pair's value (2). Two forms of the target: `return` and an initializer.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

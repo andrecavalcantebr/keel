@@ -8,7 +8,7 @@
 #   - a second run into the same directory writes nothing (no mtime changes)
 # Exit 3 while `--stop-after=gen` is not implemented: run.sh reports `wip`.
 cd "$(dirname "$0")/../.." || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 SRC=$PWD/test/cgen/gen/hello
 BASE=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT

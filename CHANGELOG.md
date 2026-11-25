@@ -34,6 +34,10 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   256 MiB por invocação: com a reserva menor, o `implementation-limit` passa de
   cerca de 250 mil tokens para cerca de 900 mil (uns 3,5 MB de fonte); sem
   mudança normativa.
+- S1 (achados 2026-11-25): `make -C tools/cgen asan` constrói um `cgen-asan`
+  (ASan + UBSan, redzones entre as alocações da arena e índices checados nos
+  buffers do bootstrap) e roda a suíte do cgen com ele; os testes aceitam
+  `CGEN_BIN` para trocar o binário. Fora do pre-push (leva cerca de 7 min).
 
 ## 0.4.0 (2026-11-24)
 

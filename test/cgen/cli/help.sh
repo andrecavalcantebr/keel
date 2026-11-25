@@ -6,7 +6,7 @@
 # are the C compiler's.
 # Hand-written oracle: help.expected is the exact text.
 set -u
-cgen=$PWD/tools/cgen/cgen
+cgen=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 want=$PWD/test/cgen/cli/help.expected
 d=$(mktemp -d)
 trap 'rm -rf "$d"' EXIT

@@ -40,7 +40,7 @@ ilha	walk	p, c : xs (buffer i32)	app/st.k:15:5
 ilha	match	s (tagged Light void): RED AMBER GREEN	app/st.k:16:5
 W
 )
-got=$(cd "$d" && "$OLDPWD/tools/cgen/cgen" --base-dir "$OLDPWD/base" --stop-after=parse app/st.k 2>&1 |
+got=$(cd "$d" && "${CGEN_BIN:-$OLDPWD/tools/cgen/cgen}" --base-dir "$OLDPWD/base" --stop-after=parse app/st.k 2>&1 |
       grep -E '^ilha	(defer|foreach|walk|match)	|error')
 if [ "$got" != "$want" ]; then
     echo "FAIL: statements"

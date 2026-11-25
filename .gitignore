@@ -26,3 +26,7 @@ compile_commands.json
 /tools/*/cgen-release
 /tools/*/obj-release/
 /release/
+/tools/cgen/cgen-asan
+/tools/cgen/obj-asan/
+/tools/cgen/obj-release/
+/tools/cgen/cgen-release

@@ -3,7 +3,7 @@
 # C compiler before the `.a`, `.so`, `-l`, `-L` and `-Wl,` the user wrote, wherever he wrote them. The
 # linker resolves an archive only against what came before it, so the old order was `undefined reference`.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

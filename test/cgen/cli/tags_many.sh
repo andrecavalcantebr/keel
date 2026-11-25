@@ -2,7 +2,7 @@
 # A tags set is not capped at 16 items (xprk finding 1): 25 items, with and without written values, in
 # a module that uses it from another, and past the limit of 128 the refusal is `tags-limit-exceeded`.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

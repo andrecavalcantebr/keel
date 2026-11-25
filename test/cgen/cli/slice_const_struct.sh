@@ -5,7 +5,7 @@
 # holds no `const_t_use_record` outside of its own name `keel_slice_const_t_use_record`, and the C
 # generated for the module compiles with -Wall -Werror. The scalar control keeps working.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

@@ -2,7 +2,7 @@
 # Delimiters nested past the checker's stack (256) are reported as the limit they hit
 # ([implementation-limit]), never as a balanced source accused of an unpaired `)`.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

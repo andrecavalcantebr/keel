@@ -104,9 +104,25 @@ release: base boundary
 cgen-release: $(objects)
 	$(CC) $(objects) $(LDLIBS) -o cgen-release
 
-.PHONY: FORCE all clean ccjson base boundary run vars release cgen-release
+# O executável de verificação (achados 2026-11-25, S1): ASan + UBSan, redzones entre as alocações da
+# arena (-DCGEN_ASAN_REDZONE, memory.h) e índices checados nos buffers do bootstrap
+# (-DCGEN_CHECKED_BUFFERS). `make asan` o constrói e roda a suíte do cgen com ele (CGEN_BIN); fora do
+# pre-push, que roda a suíte com o executável normal. Para uma entrada só: `make cgen-asan`.
+ASAN_CFLAGS := -std=c2x -I $(SRCDIR) -I $(GENDIR) -Wall -Wextra -g -O1 -DDEBUG -DCGEN_ASAN_REDZONE \
+  -DCGEN_CHECKED_BUFFERS -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -MMD -MP
+
+cgen-asan-build: base boundary
+	@$(MAKE) --no-print-directory -o base -o boundary PRJ=cgen-asan OBJDIR=./obj-asan CFLAGS="$(ASAN_CFLAGS)" cgen-asan
+
+cgen-asan: $(objects)
+	$(CC) -fsanitize=address,undefined $(objects) $(LDLIBS) -o cgen-asan
+
+asan: cgen-asan-build
+	@CGEN_BIN=$(abspath cgen-asan) sh ../../test/cgen/run.sh
+
+.PHONY: FORCE all clean ccjson base boundary run vars release cgen-release asan cgen-asan cgen-asan-build
 
 clean:
-	@rm -rf $(OBJDIR) $(PRJ) obj-release cgen-release
+	@rm -rf $(OBJDIR) $(PRJ) obj-release cgen-release obj-asan cgen-asan
 
 -include $(deps)

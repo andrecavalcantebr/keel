@@ -1,7 +1,7 @@
 #!/bin/sh
 # Invocation errors of the tool that have a name (cgen-tool-spec §7.1): all exit 2.
 cd "$(dirname "$0")/../../.." || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

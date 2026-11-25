@@ -3,7 +3,7 @@
 # (E03): 4 groups `[k, n]` pass and the 5th is `extent-limit-exceeded`; 8 `array` columns pass and the
 # 9th is an `implementation-limit`.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

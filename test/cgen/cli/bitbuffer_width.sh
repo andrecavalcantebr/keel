@@ -3,7 +3,7 @@
 # writes the instance, and the `static_assert` that every instance carries fails the translation unit.
 # Each bad instance below is written by hand with the reason it is bad; the good one compiles.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
-BIN=$PWD/tools/cgen/cgen
+BIN=${CGEN_BIN:-$PWD/tools/cgen/cgen}
 K=$PWD/base
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 fail=0

@@ -89,6 +89,7 @@ bool k_em_decl_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
             for (size_t i = n->first; i < n->end; i++) {
                 /* the declarator, and the module types the members use; a member
                  * or a value of the module is not renamed here */
+                if (i == n->first && k_em_is_visibility(k_em_tok(ast, n->first))) continue;   /* the keyword, not a reference, even when its spelling also names a declaration */
                 size_t at = k_em_tok_off(ast, i);
                 if (at < a || at >= b) continue;
                 const KAstNode *d = k_em_declared_at(e, i);
@@ -97,6 +98,7 @@ bool k_em_decl_edits(Emit *e, const KAstNode *n, size_t a, size_t b, Edit *ed, s
             }
         } else if (value) {
             for (size_t i = n->first; i < n->end; i++) {
+                if (i == n->first && k_em_is_visibility(k_em_tok(ast, n->first))) continue;   /* the keyword, not a reference, even when its spelling also names a declaration */
                 size_t at = k_em_tok_off(ast, i);
                 if (at < a || at >= b) continue;
                 const KAstNode *d = k_em_declared_at(e, i);

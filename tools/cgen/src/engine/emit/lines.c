@@ -103,6 +103,10 @@ void k_em_copy_edited(Emit *e, size_t ln, size_t a, size_t b, const Edit *ed, si
     const char *s = e->ast->source.ptr;
     size_t pos = a;
     for (size_t k = 0; k < cnt && e->ok; k++) {
+        /* k_em_push_edit/k_em_sort_edits promise edits sorted and non-overlapping;
+         * a violation here would underflow `at - pos` into a huge copy, reading
+         * past the source. Refuse cleanly instead of trusting the invariant. */
+        if (ed[k].at < pos) { k_em_limit(e, K_EMIT_LIMIT_LINE); return; }
         k_em_put_bytes(e, s + pos, ed[k].at - pos);
         if (ed[k].kind == EDIT_RENAME) k_em_put_mangled(e, ed[k].name_tok, ed[k].is_type);
         else if (ed[k].kind == EDIT_ASSERT) k_em_put_bytes(e, "_Static_assert", 14);

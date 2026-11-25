@@ -65,6 +65,35 @@ static size_t span_end(const KAst *ast, size_t anchor, const Detail *d) {
     return i;
 }
 
+/* The qualifier from its first identifier through its last. */
+static const KModule *qualifier_at(const KAst *ast, size_t first, size_t last, bool published) {
+    KToken start = k_em_tok(ast, first), end = k_em_tok(ast, last);
+    keel_slice_char name = { (size_t)(end.ptr + end.len - start.ptr), start.ptr };
+    return k_module_qualifier(ast->symbols, name, published);
+}
+
+/* A published path names the owner even when a direct import has the same
+   mangled prefix, or the owner is beyond the legacy indirect-import walk. */
+static size_t header_of_use(const KAst *ast, const KIsland *is, const Detail *d,
+                            const char *ext, char *path, size_t cap) {
+    const KModule *owner = NULL;
+    size_t i = is->anchor;
+    KToken first = k_em_tok(ast, i);
+    if (is->kind == K_ISLAND_TYPE &&
+        (k_em_text_is(first, "struct") || k_em_text_is(first, "union") || k_em_text_is(first, "enum")))
+        first = k_em_tok(ast, ++i);
+
+    if (ast->symbols && k_token_is_ident(first)) {
+        size_t last = i;
+        while (k_em_text_is(k_em_tok(ast, last + 1), ".") && k_token_is_ident(k_em_tok(ast, last + 2)))
+            last += 2;
+        /* Leave at least one component for the member. A tag may leave two. */
+        for (size_t q = last; q >= i + 4 && !owner; q -= 2)
+            owner = qualifier_at(ast, i, q - 2, true);
+    }
+    return k_em_header_of_module(ast, owner, d->sym, d->sym_len, ext, path, cap);
+}
+
 /* whether the module declares the written name itself (the rule of emit.c) */
 static bool declared_here(const KAst *ast, const Detail *d) {
     for (size_t k = 0; k < ast->nodes.len; k++) {
@@ -175,15 +204,9 @@ bool k_em_foreign_island(const KAst *ast, const KIsland *is) {
 static const KAst *callee_module(const KAst *ast, size_t anchor, size_t end, size_t *name) {
     if (!ast->symbols) return NULL;
     *name = end - 1;
-    if (end - anchor == 3 && k_em_text_is(k_em_tok(ast, anchor + 1), ".")) {
-        KToken m = k_em_tok(ast, anchor);
-        for (size_t i = 0; i < ast->symbols->len; i++) {
-            const KSymbol *s = keel_buffer_KSymbol_ptr(ast->symbols, i);
-            if (s->kind == K_SYM_MODULE && s->origin && s->origin->ast &&
-                k_symtab_same_name(s->name, (keel_slice_char){ m.len, (char *)m.ptr }))
-                return s->origin->ast;
-        }
-        return NULL;
+    if (end - anchor >= 3 && k_em_text_is(k_em_tok(ast, end - 2), ".")) {
+        const KModule *module = qualifier_at(ast, anchor, end - 3, false);
+        return module ? module->ast : NULL;
     }
     if (end - anchor != 1) return NULL;
     KToken f = k_em_tok(ast, anchor);
@@ -632,7 +655,7 @@ void k_em_h_forward_decls(Emit *e) {
             if (k_em_own_instance(e, d.sym, d.sym_len)) continue;
             char own[NAME_CAP], hp[NAME_CAP];
             size_t ol = k_em_own_type_path(e, own, sizeof own);
-            size_t hl = ol ? k_em_header_of(ast, d.sym, d.sym_len, ".type.h", hp, sizeof hp) : 0;
+            size_t hl = ol ? header_of_use(ast, is, &d, ".type.h", hp, sizeof hp) : 0;
             if (ol && hl == ol && memcmp(hp, own, ol) == 0) continue;
             /* once: not if an earlier island of a public signature has the same symbol */
             bool seen = false;
@@ -701,7 +724,7 @@ void k_em_h_type_includes(Emit *e) {
         size_t pl = k_em_arg_header(e, d.sym, d.sym_len, ".type.h", path, sizeof path);
         if (pl == SIZE_MAX) continue;
         if (!pl && e->inst && e->inst->user) pl = k_em_header_of_instance(e->inst->user, d.sym, d.sym_len, ".type.h", path, sizeof path);
-        if (!pl) pl = k_em_header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
+        if (!pl) pl = header_of_use(ast, is, &d, ".type.h", path, sizeof path);
         if (!pl && k_em_plain_arg(e, d.sym, d.sym_len)) continue;   /* a C type: no header of keel */
         if (!pl) { e->ok = false; return; }
         size_t before = s.n;
@@ -752,7 +775,7 @@ void k_em_use_includes(Emit *e) {
         Detail d;
         if (!k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
         char path[NAME_CAP];
-        size_t pl = k_em_header_of(ast, d.sym, d.sym_len, ".h", path, sizeof path);
+        size_t pl = header_of_use(ast, is, &d, ".h", path, sizeof path);
         if (pl == sl && memcmp(path, self, pl) == 0) continue;
         if (pl && !k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
     }
@@ -829,7 +852,7 @@ bool k_em_h_body_includes(Emit *e) {
         } else own = k_em_own_instance(e, d.sym, d.sym_len);
         if (!body || own) continue;
         char path[NAME_CAP];
-        size_t pl = k_em_header_of(ast, d.sym, d.sym_len, ".h", path, sizeof path);
+        size_t pl = header_of_use(ast, is, &d, ".h", path, sizeof path);
         if (!pl || (pl == sl && memcmp(path, self, pl) == 0)) continue;
         if (!k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return false; }
     }
@@ -867,7 +890,7 @@ void k_em_type_h_includes(Emit *e) {
         size_t end = span_end(ast, is->anchor, &d);
         if (end < ast->tokens.len && k_em_text_is(k_em_tok(ast, end), "*")) continue;
         char path[NAME_CAP];
-        size_t pl = k_em_header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
+        size_t pl = header_of_use(ast, is, &d, ".type.h", path, sizeof path);
         if (!pl) { e->ok = false; return; }
         size_t before = s.n;
         if (!k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }
@@ -907,7 +930,7 @@ void k_em_instance_type_includes(Emit *e) {
                     const KIsland *is = keel_buffer_KIsland_ptr(&ast->islands, q);
                     Detail d;
                     if (is->kind != K_ISLAND_TYPE || is->anchor != j || !k_em_handles_use(ast, is) || !detail_of(ast, is, &d)) continue;
-                    pl = k_em_header_of(ast, d.sym, d.sym_len, ".type.h", path, sizeof path);
+                    pl = header_of_use(ast, is, &d, ".type.h", path, sizeof path);
                 }
             }
             if (pl && pl != SIZE_MAX && !k_em_add_include(&s, path, pl)) { k_em_limit(e, K_EMIT_LIMIT_INCLUDES); return; }

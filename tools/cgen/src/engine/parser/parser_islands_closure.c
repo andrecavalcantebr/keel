@@ -143,7 +143,7 @@ static bool compute_surface(Ctx *c, const KAst *home, const KAstNode *fn, int t,
         const KAst *callee = home;
         if (j > fn->body_first + 1 && isl_punct(home, j - 1, ".")) {
             if (!isl_ident(home, j - 2)) continue;
-            const KModule *m = isl_module_alias(home->symbols, isl_tok(home, j - 2));
+            const KModule *m = isl_module_before_member(home, j);
             callee = m ? isl_ast_of(c, m) : NULL;
             if (!callee) continue;
         }
@@ -695,9 +695,10 @@ static void check_opaque(Ctx *c, const KAstNode *fn) {
         } else if (isl_ident(a, j) && isl_punct(a, j + 1, "[")) {
             size_t close = isl_close_bracket(a, j + 1, fn->body_end);
             for (size_t k = j + 2; close != SIZE_MAX && k < close; k++) if (isl_punct(a, k, "..")) { x = j; what = "range-index"; }
-        } else if (isl_ident(a, j) && isl_punct(a, j + 1, ".") && isl_ident(a, j + 2) && isl_punct(a, j + 3, "(") &&
-                   isl_module_alias(a->symbols, isl_tok(a, j))) {
-            size_t arg = j + 4;
+        } else if (isl_ident(a, j) && isl_punct(a, j + 1, "(") &&
+                   isl_module_before_member(a, j)) {
+            size_t arg = j + 2;
+            while (at >= 2 && isl_punct(a, at - 1, ".") && isl_ident(a, at - 2)) at -= 2;
             while (isl_punct(a, arg, "&") || isl_punct(a, arg, "*")) arg++;
             if (isl_punct(a, arg + 1, ",") || isl_punct(a, arg + 1, ")")) { x = arg; what = "qualified call"; }
         } else if (isl_word(a, j, "else") && !isl_punct(a, j - 1, ";") && !isl_punct(a, j - 1, "}")) {

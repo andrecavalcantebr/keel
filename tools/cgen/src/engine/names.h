@@ -3,7 +3,9 @@
 #include "engine/loader.h"
 /* Compact a qualified name; SIZE_MAX means malformed or insufficient space. */
 size_t k_name_normalize(keel_slice_char, keel_slice_char);
-/* Resolve qualified names through module identities, never through headers. */
+/* Resolve a complete qualifier. require_publication requires at least one
+   published edge after the initial local import. */
+const KModule *k_module_qualifier(const KSymbolTable *, keel_slice_char, bool require_publication);
 const KSymbol *k_symbol_resolve(const KSymbolTable *, keel_slice_char);
 const char *k_primitive_name(keel_slice_char);
 bool k_c_arith_word(KToken);

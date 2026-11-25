@@ -867,6 +867,12 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         return prim_type(c, "size_t");
     }
 
+    const KAst *original_home = home;
+    Sig original = isl_find_verb(home, name, argc);
+    /* Leave an explicitly qualified private verb unresolved, including
+       when its C definition lives in a generic module's shared header. */
+    if (module && callee != verb && original.found && !original.fn->is_public) return -1;
+
     keel_slice_char redirected = {0};
     /* A function over a protocol (spec §4.14, backend §5.19): the instance is
        named by the concrete type of the argument, `<prefix>_<name><arity>_<type>`.
@@ -879,7 +885,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
     const KAst *proto_home = NULL;
     Sig fsig = {0};
     if (argc) {
-        Sig f = isl_find_verb(home, name, argc);
+        Sig f = original;
         if (f.found && f.n && f.p[0].is_protocol) {
             KProtocolDecl pd;
             if (!isl_protocol_decl(c, home, f.p[0].base, &pd, 0)) return -1;
@@ -926,7 +932,8 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
         if (!home) return -1;
     }
 
-    Sig sig = isl_find_verb(home, redirected.len ? redirected : name, redirected.len ? redirect_arity : argc);
+    Sig sig = !redirected.len && home == original_home
+        ? original : isl_find_verb(home, redirected.len ? redirected : name, redirected.len ? redirect_arity : argc);
     keel_slice_char declared = redirected.len ? redirected : name;
     bool gen = module && isl_generic(home);
     /* a function of a generic module that names no binder and no modifier belongs to the module,
@@ -1459,6 +1466,12 @@ size_t isl_qualified_name(Ctx *c, size_t i, size_t qlen, const KModule *module) 
             isl_put(&t, item.ptr, item.len);
         }
     } else if (module->ast) {
+        for (size_t k = 0; k < module->ast->nodes.len; k++) {
+            const KAstNode *decl = isl_node_at(module->ast, k);
+            if (!decl->is_public && decl->kind != K_AST_IMPORT && decl->name_first < decl->name_end &&
+                k_symtab_same_name(isl_tok(module->ast, decl->name_first), member))
+                return qlen + 1;
+        }
         /* a value of a set of the module, written without the level of the set:
            from outside, `M.Set.VALUE` (spec §4.2, item 9) */
         if (isl_tag_of_some_set(module->ast, member)) {

@@ -982,11 +982,15 @@ static size_t inst_arg_end(Ctx *c, size_t i, int depth) {
     if (depth > 0 && (isl_binder(a, t) || k_primitive_name(t))) return i + 1;
     const KSymbol *s = k_symbol_resolve(a->symbols, t);
     if (depth > 0 && s && (s->kind == K_SYM_TYPE || s->kind == K_SYM_TAGS)) return i + 1;
-    if (s && s->kind == K_SYM_MODULE && isl_punct(a, i + 1, ".") && isl_ident(a, i + 2)) {
-        const KModule *m = isl_module_alias(a->symbols, t);
-        for (size_t k = 0; m && k < m->symbol_count; k++)
-            if (m->symbols[k].kind == K_SYM_MODIFIER && k_symtab_same_name(m->symbols[k].name, isl_tok(a, i + 2)))
-                return depth > 0 || !isl_punct(a, i + 3, "(") ? i + 3 : 0;
+    if (isl_punct(a, i + 1, ".") && isl_ident(a, i + 2)) {
+        size_t qlen = 0;
+        const KModule *m = isl_module_alias_at(a->symbols, a, i, &qlen);
+        size_t member = i + qlen + 1;
+        if (m && isl_ident(a, member)) {
+            for (size_t k = 0; k < m->symbol_count; k++)
+                if (m->symbols[k].kind == K_SYM_MODIFIER && k_symtab_same_name(m->symbols[k].name, isl_tok(a, member)))
+                    return depth > 0 || !isl_punct(a, member + 1, "(") ? member + 1 : 0;
+        }
         return 0;
     }
     if (!s || s->kind != K_SYM_MODIFIER) return 0;
@@ -1110,7 +1114,7 @@ void isl_walk(Ctx *c, const KAstNode *n) {
         }
         /* `corot.fault(r, c)` with a code known to be zero or negative (spec §5.5) */
         if (isl_word(a, i, "fault") && isl_punct(a, i + 1, "(") && i >= 2 && isl_punct(a, i - 1, ".") && isl_ident(a, i - 2)) {
-            const KModule *m = isl_module_alias(a->symbols, isl_tok(a, i - 2));
+            const KModule *m = isl_module_before_member(a, i);
             size_t close = isl_close_paren(a, i + 1, n->end);
             if (m && k_symtab_same_name(m->name, k_diag_text("keel.corot")) && close != SIZE_MAX) {
                 size_t comma = i + 2;

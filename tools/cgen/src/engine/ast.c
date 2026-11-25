@@ -212,7 +212,9 @@ static bool parse(KAst *a,
             } else {
                 KImportDecl imp;
                 if (!k_scan_import(&lexer, &imp, &next, &next_pp)) return false;
+                if (named(a, start, "priv") || node.is_inline) return false;
                 node.kind = K_AST_IMPORT;
+                node.is_public = named(a, start, "pub");
                 node.name_first = index_at(a, i, imp.module_name.ptr);
                 node.name_end = index_at(a, node.name_first, imp.module_name.ptr + imp.module_name.len);
                 node.has_types = imp.has_types;

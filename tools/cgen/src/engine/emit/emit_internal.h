@@ -227,6 +227,8 @@ bool k_em_plain_arg(const Emit *e, const char *sym, size_t len);
 size_t k_em_arg_header(const Emit *e, const char *sym, size_t len, const char *ext, char *path, size_t cap);
 bool k_em_own_instance(const Emit *e, const char *sym, size_t len);
 bool k_em_sym_is_tags_named(const KAst *ast, const char *sym, size_t len, const char *written, size_t wlen);
+size_t k_em_header_of_module(const KAst *ast, const KModule *owner, const char *sym, size_t len,
+                             const char *ext, char *path, size_t cap);
 size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap);
 size_t k_em_header_of_instance(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap);
 void k_em_raw_include(Emit *e, const char *path, size_t len);

@@ -429,12 +429,12 @@ bool isl_put_verb_suffix(const Ctx *c, const KType *k, const Sig *sig, size_t ar
 
 #define K_IMPORT_CLOSURE_MAX 64
 
-const KModule *isl_module_alias_ex(const KSymbolTable *symbols, keel_slice_char name, bool *indirect) {
+/* Keep rule 8's legacy transitive lookup after local and published paths. */
+static const KModule *module_alias(const KSymbolTable *symbols, keel_slice_char name, bool *indirect) {
     if (indirect) *indirect = false;
-    for (size_t i = 0; i < symbols->len; i++) {
-        const KSymbol *s = keel_buffer_KSymbol_ptr(symbols, i);
-        if (s->kind == K_SYM_MODULE && s->origin && k_symtab_same_name(s->name, name)) return s->origin;
-    }
+    if (!symbols) return NULL;
+    const KModule *direct = k_module_qualifier(symbols, name, false);
+    if (direct) return direct;
     /* spec §4.1 regra 8: resolution also reaches the transitive closure of
        this file's own direct imports — flattened the same way
        isl_check_collisions does for rule 9's name-collision check
@@ -469,8 +469,16 @@ const KModule *isl_module_alias_ex(const KSymbolTable *symbols, keel_slice_char 
     return NULL;
 }
 
-const KModule *isl_module_alias(const KSymbolTable *symbols, keel_slice_char name) {
-    return isl_module_alias_ex(symbols, name, NULL);
+const KModule *isl_module_before_member(const KAst *a, size_t member) {
+    if (!a->symbols || member < 2 || !isl_punct(a, member - 1, ".") ||
+        !isl_ident(a, member - 2)) return NULL;
+    size_t first = member - 2;
+    while (first >= 2 && isl_punct(a, first - 1, ".") && isl_ident(a, first - 2))
+        first -= 2;
+    KToken start = isl_tok(a, first), end = isl_tok(a, member - 2);
+    return module_alias(a->symbols,
+                              (keel_slice_char){(size_t)(end.ptr + end.len - start.ptr), start.ptr},
+                              NULL);
 }
 
 /* The qualifier a use at token `i` names: an alias, or — without `as`
@@ -485,11 +493,14 @@ const KModule *isl_module_alias_at_ex(const KSymbolTable *symbols, const KAst *a
     if (!isl_ident(a, i)) return NULL;
     size_t end = i + 1;
     while (isl_punct(a, end, ".") && isl_ident(a, end + 1)) end += 2;
-    for (size_t e = end; e > i; e -= 2) {
+    /* Leave the last identifier for the member, even if the module has
+       also published an alias with that spelling. */
+    if (end == i + 1) return NULL;
+    for (size_t e = end - 2; e > i; e -= 2) {
         KToken first = isl_tok(a, i), last = isl_tok(a, e - 1);
         keel_slice_char span = { (size_t)((last.ptr + last.len) - first.ptr), first.ptr };
         bool ind = false;
-        const KModule *m = isl_module_alias_ex(symbols, span, &ind);
+        const KModule *m = module_alias(symbols, span, &ind);
         if (m) {
             if (qlen) *qlen = e - i;
             if (indirect) *indirect = ind;

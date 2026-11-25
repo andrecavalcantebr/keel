@@ -27,6 +27,7 @@ typedef struct {
                     same way KModuleHeader grew its binders. */
     const struct KModule *origin; /* declaration identity, also alias target */
     int dim_arity;
+    bool published_import; /* K_SYM_MODULE: qualifier exported by this file */
     keel_slice_char value; /* explicit constexpr initializer, if present */
     keel_slice_char alias; /* K_SYM_TYPE: the specifier of `typedef M T name;`, as written, when it may be an instance
                               of a modifier (the name stands for that instance, spec §4.2, `known-type`) */

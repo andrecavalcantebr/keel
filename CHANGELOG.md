@@ -75,11 +75,11 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   entradas, `parallel` com mais de 16 capturas) nomeia o limite; o de `match` com muitos rótulos não manda mais
   "encurtar a linha". Teste: `cli/limit_messages`.
 - `..<` e `..=` (golden 087, `cli/range_marker`): o lexer junta o marcador às pontos (`..<`, `..=`, e `..<=` continua `..` e `<=`, com o diagnóstico `invalid-range-marker`); `isl_punct` e o emissor leem `..` como as pontos com ou sem marcador; `subscript.c`, `foreach.c`, `rangelit.c` e `parallel.c` (`0..=3` são quatro workers) tratam o `..=`; `base/keel.k` ganha `keel_inclusive`; `inverted-range-index` conta `a..=b` como `[a, b+1)`.
-- `pub import` (texto, ainda sem implementação): `pub import M [as A] [types];` publica `A` como alias de quem o
+- `pub import`: `pub import M [as A] [types];` publica `A` como alias de quem o
   escreve (regra 7a do §4.1); o alcance segue qualquer cadeia de alias publicados, cada elo até onde foi publicado
-  com `pub`, sem flatten de símbolos. `indirect-import` não dispara por esse alcance. Não há `priv import`. A
-  ferramenta busca todo import, publicado ou não, relativo ao diretório de quem importa antes de olhar as raízes
-  `-I` (cgen-tool-spec §4.6), e um pacote passa a ser só uma pasta com um ou mais módulos de fachada.
+  com `pub`, sem flatten de símbolos. `indirect-import` não dispara por esse alcance. Não há `priv import`.
+  `import` e `pub import` procuram o caminho do nome completo do módulo a partir das raízes de fontes
+  (cgen-tool-spec §4.6). Um pacote é uma pasta com um ou mais módulos de fachada.
 - `keel.pool` (§5.9, texto, ainda sem implementação): módulo novo da base, o desenho de índice geracional de
   `design/possibilidades.md` ("Handle: ponteiro com geração"), e não a versão com ponteiro sobre arena, descartada.
   `pool T` é `byref`, capacidade fixa, sem `realloc`; `entity {u32 index, u32 gen}`, 8 bytes, sem ponteiro.

@@ -83,7 +83,8 @@ size_t k_em_header_of_instance(const KAst *ast, const char *sym, size_t len, con
 /* The header a symbol of another module lives in, with extension `ext`: its
  * instance's, or the imported module's whose symbol prefixes it (the longest).
  * Its length in path, 0 when none (the prelude's names are everywhere). */
-size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap) {
+size_t k_em_header_of_module(const KAst *ast, const KModule *owner, const char *sym, size_t len,
+                             const char *ext, char *path, size_t cap) {
     int c = instance_of(ast, sym, len);
     if (c >= 0) {
         const KClosure *k = keel_buffer_KClosure_ptr(&ast->closure, (size_t)c);
@@ -97,7 +98,17 @@ size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *
     size_t best = 0;
     char name_buf[NAME_CAP], best_name[NAME_CAP];
     size_t best_len = 0;
-    for (size_t k = 0; k < ast->nodes.len; k++) {
+    if (owner && !k_em_is_keel(owner->name) && owner->name.len <= sizeof best_name) {
+        char ms[NAME_CAP];
+        size_t ml = k_mangle_module(owner->name, (keel_slice_char){ sizeof ms, ms });
+        if (ml <= sizeof ms && prefix_of(sym, len, ms, ml)) {
+            best = ml;
+            best_len = owner->name.len;
+            memcpy(best_name, owner->name.ptr, best_len);
+        }
+    }
+    bool known_owner = best != 0;
+    for (size_t k = 0; !known_owner && k < ast->nodes.len; k++) {
         const KAstNode *n = keel_buffer_KAstNode_ptr(&ast->nodes, k);
         if (n->kind != K_AST_IMPORT) continue;
         keel_slice_char name = import_name(ast, n, name_buf, sizeof name_buf);
@@ -112,7 +123,7 @@ size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *
     /* the module itself: an instance reaches the generic's share (backend §4.4.1, rule 4) */
     const KAstNode *mn = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
     keel_slice_char own = import_name(ast, mn, name_buf, sizeof name_buf);
-    if (own.len && !k_em_is_keel(own)) {
+    if (!known_owner && own.len && !k_em_is_keel(own)) {
         char ms[NAME_CAP];
         size_t ml = k_mangle_module(own, (keel_slice_char){ sizeof ms, ms });
         if (ml <= sizeof ms && prefix_of(sym, len, ms, ml) && ml > best) {
@@ -124,7 +135,7 @@ size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *
     if (!best) {
         /* spec §4.1 regra 8: the symbol's module may be only transitively
            imported — walk the closure of this file's own direct imports
-           (same flattening isl_module_alias_ex uses for the parser's own
+           (same flattening module_alias uses for the parser's own
            resolution, parser_islands.c: grow the worklist as each level
            turns up new modules) and match the mangled prefix the same way
            the direct-imports loop above does. */
@@ -162,7 +173,7 @@ size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *
     }
     if (!best) return 0;
     /* a generic module's symbol that none of its declarations has: one of its instances */
-    const KModule *gm = NULL;
+    const KModule *gm = known_owner ? owner : NULL;
     for (size_t i = 0; ast->symbols && i < ast->symbols->len && !gm; i++) {
         const KSymbol *q = keel_buffer_KSymbol_ptr(ast->symbols, i);
         if (q->kind == K_SYM_MODULE && q->origin && q->origin->ast && q->origin->name.len == best_len &&
@@ -200,6 +211,10 @@ size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *
     }
     size_t pl = k_mangle_path((keel_slice_char){ best_len, best_name }, ext, (keel_slice_char){ cap, path });
     return pl <= cap ? pl : 0;
+}
+
+size_t k_em_header_of(const KAst *ast, const char *sym, size_t len, const char *ext, char *path, size_t cap) {
+    return k_em_header_of_module(ast, NULL, sym, len, ext, path, cap);
 }
 
 void k_em_raw_include(Emit *e, const char *path, size_t len) {

@@ -165,3 +165,4 @@ golden/cases/068-parallel-partition-value/expected/c23/app/app_ppv.c	{ keel_slic
 golden/cases/068-parallel-partition-value/expected/c23/app/app_ppv.c	for (size_t w = 0; w < 2; w++) {
 golden/cases/068-parallel-partition-value/expected/c23/app/app_ppv.c	keel_slice_i32 part = keel_slice_i32_partition(*keel__c0, 2, w);
 golden/cases/077-import-without-alias/expected/c11/app/app_qty.type.h	static const i32 app_qty_SEVEN__chk = 7; _Static_assert(sizeof(app_qty_SEVEN__chk) > 0, "constexpr");
+golden/cases/089-pub-import/expected/c11/owner.type.h	static const i32 owner_BIAS__chk = 2; _Static_assert(sizeof(owner_BIAS__chk) > 0, "constexpr");

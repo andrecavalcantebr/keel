@@ -148,7 +148,7 @@ static bool inject_types(KSymbolTable *symtab, const KModule *module, KDiagnosti
 
 /* One import. `at` is what a diagnostic points at. */
 static bool resolve_one(KLoader *loader, KSymbolTable *symtab, KDiagnosticSink *diag,
-                        keel_slice_char module_name, bool has_types,
+                        keel_slice_char module_name, bool has_types, bool publish,
                         keel_slice_char alias, keel_slice_char at) {
     KModule *module = NULL;
     KLoadResult result = loader->load(loader->tool, module_name, &module);
@@ -192,10 +192,14 @@ static bool resolve_one(KLoader *loader, KSymbolTable *symtab, KDiagnosticSink *
     }
     /* Keep the real qualifier as well as any alias; neither changes origin. */
     if (!k_symtab_insert(symtab, module_name, K_SYM_MODULE, 0)) return false;
-    keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)->origin = module;
+    KSymbol *entry = keel_buffer_KSymbol_ptr(symtab, symtab->len - 1);
+    entry->origin = module;
+    entry->published_import = publish && !alias.len;
     if (alias.len != 0) {
         if (!k_symtab_insert(symtab, alias, K_SYM_MODULE, 0)) return false;
-        keel_buffer_KSymbol_ptr(symtab, symtab->len - 1)->origin = module;
+        entry = keel_buffer_KSymbol_ptr(symtab, symtab->len - 1);
+        entry->origin = module;
+        entry->published_import = publish;
     }
     return true;
 }
@@ -212,7 +216,7 @@ bool k_resolve_imports(const KAst *ast, KLoader *loader, KSymbolTable *symtab,
     static const char keel_name[] = "keel";
     keel_slice_char prelude = { 4, (char *)keel_name };
     if (!k_symtab_same_name(self, prelude)) {
-        if (!resolve_one(loader, symtab, diag, prelude, true,
+        if (!resolve_one(loader, symtab, diag, prelude, true, false,
                          (keel_slice_char){ 0, NULL }, self))
             ok = false;
     }
@@ -248,7 +252,7 @@ bool k_resolve_imports(const KAst *ast, KLoader *loader, KSymbolTable *symtab,
                 ok = false;
             }
         }
-        if (!resolve_one(loader, symtab, diag, name, n->has_types, alias,
+        if (!resolve_one(loader, symtab, diag, name, n->has_types, n->is_public, alias,
                          keel_buffer_KLexeme_ptr(&ast->tokens, n->anchor)->token))
             ok = false;
     }

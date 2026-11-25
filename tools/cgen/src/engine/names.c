@@ -1,4 +1,5 @@
 #include "engine/names.h"
+#include "engine/ast.h"
 #include <stdint.h>
 
 size_t k_name_normalize(keel_slice_char source, keel_slice_char out) {
@@ -57,22 +58,68 @@ const char *k_c_words_primitive(const KToken *w,size_t n) {
     if(lg)return lg==2?(un?"u64":"i64"):NULL;
     return un?"u32":"i32";
 }
-const KSymbol *k_symbol_resolve(const KSymbolTable *table,keel_slice_char name) {
+/* A qualifier may itself contain dots. Pick the longest spelling at each
+   step and follow the original module, starting in the importing file. */
+static const KModule *module_qualifier(const KSymbolTable *scope, keel_slice_char name,
+                                       bool require_publication) {
+    const KModule *module = NULL;
+    while (scope && name.len) {
+        const KSymbol *best = NULL;
+        size_t best_len = 0;
+        for (size_t i = 0; i < scope->len; i++) {
+            const KSymbol *entry = keel_buffer_KSymbol_ptr(scope, i);
+            if (entry->kind != K_SYM_MODULE || !entry->origin ||
+                (module && !entry->published_import)) continue;
+
+            char compact[4096];
+            size_t len = entry->name.len;
+            const char *spelling = entry->name.ptr;
+            if (len > name.len || memcmp(spelling, name.ptr, len) != 0) {
+                /* Only source spellings with trivia can differ after normalization. */
+                if (len == entry->origin->name.len ||
+                    !memchr(spelling, '.', len)) continue;
+                len = k_name_normalize(entry->name, (keel_slice_char){sizeof compact, compact});
+                spelling = compact;
+            }
+            if (len > name.len || len <= best_len || memcmp(spelling, name.ptr, len) != 0 ||
+                (len < name.len && name.ptr[len] != '.')) continue;
+            best = entry;
+            best_len = len;
+        }
+        if (!best) return NULL;
+        if (best_len == name.len) return !require_publication || module ? best->origin : NULL;
+        module = best->origin;
+        name.ptr += best_len + 1;
+        name.len -= best_len + 1;
+        scope = module->ast ? module->ast->symbols : NULL;
+    }
+    return NULL;
+}
+
+const KModule *k_module_qualifier(const KSymbolTable *table, keel_slice_char name,
+                                  bool require_publication) {
     char compact[4096];
-    size_t n=k_name_normalize(name,(keel_slice_char){sizeof compact,compact});
-    if(n==SIZE_MAX)return NULL;
-    name=(keel_slice_char){n,compact};
-    const KSymbol *plain=k_symtab_lookup(table,name);
-    if(plain&&plain->kind!=K_SYM_MODULE)return plain;
-    for(size_t i=0;i<table->len;i++) {
-        const KSymbol *q=keel_buffer_KSymbol_ptr(table, i);
-        if(q->kind!=K_SYM_MODULE||!q->origin)continue;
-        char prefix[4096];
-        size_t plen=k_name_normalize(q->name,(keel_slice_char){sizeof prefix,prefix});
-        if(plen==SIZE_MAX||name.len<=plen+1||memcmp(name.ptr,prefix,plen)||name.ptr[plen]!='.')continue;
-        keel_slice_char tail={name.len-plen-1,name.ptr+plen+1};
-        for(size_t j=0;j<q->origin->symbol_count;j++)
-            if(k_symtab_same_name(q->origin->symbols[j].name,tail))return &q->origin->symbols[j];
+    size_t len = k_name_normalize(name, (keel_slice_char){sizeof compact, compact});
+    return len == SIZE_MAX ? NULL : module_qualifier(table, (keel_slice_char){len, compact}, require_publication);
+}
+
+const KSymbol *k_symbol_resolve(const KSymbolTable *table, keel_slice_char name) {
+    char compact[4096];
+    size_t len = k_name_normalize(name, (keel_slice_char){sizeof compact, compact});
+    if (len == SIZE_MAX) return NULL;
+    name = (keel_slice_char){len, compact};
+    const KSymbol *plain = k_symtab_lookup(table, name);
+    if (plain && plain->kind != K_SYM_MODULE) return plain;
+
+    size_t prefix = name.len;
+    while (prefix && name.ptr[prefix - 1] != '.') prefix--;
+    if (!prefix) return plain;
+    prefix--;
+    const KModule *module = module_qualifier(table, (keel_slice_char){prefix, name.ptr}, false);
+    if (module) {
+        keel_slice_char member = {name.len - prefix - 1, name.ptr + prefix + 1};
+        for (size_t i = 0; i < module->symbol_count; i++)
+            if (k_symtab_same_name(module->symbols[i].name, member)) return &module->symbols[i];
     }
     return plain;
 }

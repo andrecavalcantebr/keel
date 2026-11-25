@@ -1,0 +1,4 @@
+O consumidor passa por dois aliases publicados para alcançar um tipo,
+uma constante e uma função. O C usa os nomes e os headers de `owner`.
+O `types` injeta nomes em `middle`, onde aparece, e o consumidor usa
+o tipo pelo caminho qualificado.

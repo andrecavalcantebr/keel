@@ -12,7 +12,8 @@ A versão publicada é a 0.4.0 em `master`; a `0.4.1` está em andamento (os
 achados da terceira revisão de código, sem mudança normativa). O `cgen` emite C11
 e C23 para os 90 casos do `golden/`. Os normativos são versionados e o
 `CHANGELOG.md` registra as mudanças. O que vem depois da 0.4.1 está na §5: uma
-0.5.0 só de estabilidade e, em seguida, o `cgen` escrito em keel.
+0.5.0 só de estabilidade, a `keel_libs` fechada e, em seguida, o `cgen` escrito em
+keel.
 
 ## 1. Agora: documentação e bibliotecas
 
@@ -117,7 +118,18 @@ do §2.1.
 
 ### 5.2 O cgen em keel
 
-Com a 0.5.0 publicada, o `cgen` passa a ser escrito em keel, módulo a módulo. É,
+**Pré-requisito: a `keel_libs` fechada.** Um compilador precisa de coleções,
+texto (`string`, `strview`), tabelas e ordenação, e não adianta começar o port
+sem tê-los. A `keel_libs` (coleções, `string` etc.) tem de estar pronta e
+estável antes, e a base compilada em keel junto com ela já é, por si, um passo
+grande na direção de keel escrita em keel: é o `cgen` usando só keel nas
+bibliotecas de que depende, ainda que o motor continue em C. Os itens da §3
+(`string`/`strview`, `buffer(N)`/`slice(N)`) deixam de ser "quando uma biblioteca
+pedir" e passam a ser o que o port pede; o que faltar entra como caso de uso, no
+fluxo de sempre (`achados/README.md`).
+
+Com a 0.5.0 publicada e a `keel_libs` fechada, o `cgen` passa a ser escrito em
+keel, módulo a módulo. É,
 ao mesmo tempo, a maior aplicação para testar a linguagem e a prova do uso que o
 README promete: ilhas de keel num mar de C, em adoção incremental. A linguagem
 continua fechada: o que o port tropeçar volta como relatório de bug ou lacuna
@@ -144,15 +156,21 @@ ferramenta (regra do `AGENTS.md`).
 - *Estágio 1:* o `cgen` em keel, compilado pelo estágio 0.
 - *Estágio 2:* o estágio 1 compilando a si mesmo.
 
-O critério de aceite de cada módulo portado e do conjunto: o estágio 2 gera, byte
-a byte, o mesmo C que o estágio 1. Resta decidir se o C do estágio 1 entra no
-repositório, para quem clona sem um `cgen` anterior. Enquanto o `cgen` ainda usar
-a base do bootstrap (`tools/transform/base/`), o `transform` continua; ele sai
-quando o `cgen` compilar a base real (`base/keel`), e a retirada é o último
+O critério de aceite **não** é o C do `cgen` ser igual entre os estágios: o jeito
+de escrever em keel produz, naturalmente, um C diferente do escrito à mão, e
+exigir igualdade seria exigir que o port imitasse o original. O que tem de ser
+byte a byte igual é o que cada `cgen` **produz**: o estágio 0, o 1 e o 2, cada um
+compilando o `golden/`, geram exatamente o `expected/` escrito à mão (perfis c11
+e c23), e passam a mesma suíte (`test/cgen/`). O estágio 2 existe para provar que
+o `cgen` em keel compila a si mesmo e que o binário resultante continua
+passando nos dois oráculos. Resta decidir se o C do estágio 1 entra no
+repositório, para quem clona sem um `cgen` anterior. Enquanto o `cgen` ainda
+usar a base do bootstrap (`tools/transform/base/`), o `transform` continua; ele
+sai quando o `cgen` compilar a base real (`base/keel`), e a retirada é o último
 passo, sem pressa.
 
-**O que medir antes do primeiro passo:** o que a base e a `keel_libs/coll` já
-cobrem do que o motor usa (texto, tabelas, ordenação, buffers sobre arena), e o
+**O que medir antes do primeiro passo:** o que a base e a `keel_libs` já cobrem
+do que o motor usa (texto, tabelas, ordenação, buffers sobre arena), e o
 custo de cada módulo portado em tempo de compilação e de execução do `cgen`.
 
 ## Fora do escopo

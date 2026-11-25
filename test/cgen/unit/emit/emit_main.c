@@ -61,6 +61,8 @@ int main(void) {
     KAst hello_ast = parse((keel_slice_char){ n, hello });
     char *keel = slurp("base/keel.k", &n);
     KAst keel_ast = parse((keel_slice_char){ n, keel });
+    char *aggregate = slurp("golden/cases/090-aggregate-objects/aggregate.k", &n);
+    KAst aggregate_ast = parse((keel_slice_char){ n, aggregate });
     for (int i = 0; i < 2; i++) {
         bool c23 = i == 0;
         char p[160];
@@ -71,6 +73,8 @@ int main(void) {
         check(NULL,       "hello", "hello.k", K_EMIT_ENTRY,  c23, EXP("test/cgen/gen/hello/expected/%s/main_hello.c", prof[i]));
         check(&keel_ast,  "keel",  "keel.k",  K_EMIT_TYPE_H, c23, EXP("golden/%s/keel.type.h", prof[i]));
         check(&keel_ast,  "keel",  "keel.k",  K_EMIT_H,      c23, EXP("golden/%s/keel.h", prof[i]));
+        check(&aggregate_ast, "aggregate", "aggregate.k", K_EMIT_C, c23,
+              EXP("golden/cases/090-aggregate-objects/expected/%s/aggregate.c", prof[i]));
     }
     /* --line=off: the same hello.c with no #line (backend §6). */
     {
@@ -83,15 +87,6 @@ int main(void) {
             fprintf(stderr, "FAIL: --line=off still writes #line or lost the function\n"); failures++;
         }
         free(buf);
-    }
-    /* Outside the covered slice: refused, not mistranslated. */
-    {
-        char *src = "module m;\npub struct S { int a; } s1, s2;\n";
-        KAst ast = parse(SL(src));
-        KEmitOptions opt = { .c23 = true, .line_on = true };
-        if (k_emit_file(&ast, SL("m"), SL("m.k"), K_EMIT_C, opt, (keel_slice_char){0}) != K_EMIT_UNSUPPORTED) {
-            fprintf(stderr, "FAIL: a struct declaration with declarators of variables must be K_EMIT_UNSUPPORTED\n"); failures++;
-        }
     }
     /* An instance of a generic module: golden 007's expected files, written by hand. */
     {

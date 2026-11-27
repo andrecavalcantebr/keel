@@ -75,7 +75,9 @@ bool k_em_other_modifier(const Emit *e, const KAstNode *n) {
     if (n->kind == K_AST_MODIFIER) return n->name_first < n->name_end && !same_slice(k_em_tok(ast, n->name_first), e->inst->modifier);
     if (n->kind != K_AST_FUNCTION || n->name_first >= n->name_end) return false;
     size_t end = n->body_first != (size_t)-1 ? n->body_first : n->end;
-    for (size_t i = n->name_first + 1; i < end; i++) {
+    /* the signature: the return type (before the name) and the parameters */
+    for (size_t i = n->first; i < end; i++) {
+        if (i == n->name_first) continue;
         KToken t = k_em_tok(ast, i);
         if (!k_token_is_ident(t) || same_slice(t, e->inst->modifier)) continue;
         for (size_t k = 0; k < ast->nodes.len; k++) {

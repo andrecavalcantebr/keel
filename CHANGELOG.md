@@ -9,7 +9,7 @@ leva marca.
 
 Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
-## 0.4.2 (em preparo)
+## 0.4.2 (2026-11-27)
 
 **Linguagem** (`keel-spec.md`)
 

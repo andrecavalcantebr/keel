@@ -18,7 +18,7 @@ para cá.
   novas (as três de 2026-11-20 foram copiadas: `keel_libs` como repositório
   único, os dois bugs do cgen da 0.4.0-dev e os testes por área). O que diverge
   do repositório vale menos que o repositório.
-- **Estado (2026-11-25): a 0.4.1 está publicada** (tag `v0.4.1`, `master`). Não
+- **Estado (2026-11-27): a 0.4.2 está publicada** (tag `v0.4.2`, `master`). Não
   há pendência de normativo em aberto. O que mudou nos normativos, por versão,
   está no [`CHANGELOG.md`](CHANGELOG.md), e o que fica depois está no
   [`ROADMAP.md`](ROADMAP.md). Os achados das bibliotecas entram por

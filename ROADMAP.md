@@ -8,9 +8,9 @@ só a sequência e os gatilhos.
 
 ## Onde estamos
 
-A versão publicada é a 0.4.1 em `master` (2026-11-25): os achados da terceira
-revisão de código, com uma única mudança normativa (`constexpr-name-missing`,
-spec §4.2). O `cgen` emite C11 e C23 para os 89 casos do `golden/`. Os
+A versão publicada é a 0.4.2 em `master` (2026-11-27): os achados da `keel_libs`
+(A1 a A9, N1 e N2), com duas mudanças normativas novas (`modifier-argument-count`
+e `typedef-aggregate-of-binder`, spec §4.3) e uma regra dita (§2.5). O `cgen` emite C11 e C23 para os 89 casos do `golden/`. Os
 normativos são versionados e o `CHANGELOG.md` registra as mudanças. O que vem
 depois está na §5: uma 0.5.0 só de estabilidade, a `keel_libs` fechada e, em
 seguida, o `cgen` escrito em keel.

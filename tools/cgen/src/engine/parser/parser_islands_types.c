@@ -58,6 +58,16 @@ static void kt_compose(Ctx *c, int t, const KSymbol *modifier) {
 static int isl_kt_from_text_depth(Ctx *c, const KSymbolTable *symbols, keel_slice_char text, int depth);
 
 /* A type written in `symbols`' scope. */
+/* A target written as a `typedef` of an instance (`typedef buffer u8 text;`, then `text t = buffer.of(...)`)
+ * is that instance: the table keeps the aliased specifier (spec §4.2, `known-type`). The instance stays the
+ * original one (`keel_buffer_u8`); the alias only names it. */
+static bool target_is_instance(const KAst *a, const KSpecifier *spec) {
+    if (spec->kind == K_SPEC_MODIFIER) return true;
+    if (spec->kind != K_SPEC_NAMED_TYPE) return false;
+    const KSymbol *s = k_symbol_resolve(a->symbols, spec->type_name);
+    return s && s->kind == K_SYM_TYPE && s->alias.len;
+}
+
 int isl_kt_from_text(Ctx *c, const KSymbolTable *symbols, keel_slice_char text) {
     return isl_kt_from_text_depth(c, symbols, text, 0);
 }
@@ -1120,7 +1130,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             if (!spelled.ok) return -1;
             inst = isl_kt_from_text(c, a->symbols, (keel_slice_char){ spelled.n, spelled.s });
             named = true;
-        } else if (sig.found && c->has_target && c->target.kind == K_SPEC_MODIFIER) {
+        } else if (sig.found && c->has_target && target_is_instance(a, &c->target)) {
             /* in a generic's instance the target is written with its binders (`pair.pair K V`) */
             inst = c->inst_mode ? isl_kt_from_home(c, a, c->target.text, 0) : isl_kt_from_text(c, a->symbols, c->target.text);
             if (inst < 0 || isl_kt(c, inst)->module != module) return -1;
@@ -1132,7 +1142,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
             bool target = false;
             if (callee >= 2 && isl_punct(a, callee - 1, "=") && isl_ident(a, callee - 2)) {
                 const Local *l = isl_find_local(c, isl_tok(a, callee - 2));
-                if (l && l->spec.kind == K_SPEC_MODIFIER) { spec = l->spec; target = true; }
+                if (l && target_is_instance(a, &l->spec)) { spec = l->spec; target = true; }
             } else if (callee >= 1 && isl_word(a, callee - 1, "return") && c->fn) {
                 size_t s0 = c->fn->first;
                 while (s0 < c->fn->name_first && (isl_word(a, s0, "pub") || isl_word(a, s0, "priv") || isl_word(a, s0, "inline") ||
@@ -1143,7 +1153,7 @@ static int call_core(Ctx *c, size_t callee, size_t verb, size_t open, const KMod
                 KToken next = {0};
                 KToken first = isl_enter(a, s0, &lexer, &pp);
                 target = s0 < c->fn->name_first && k_scan_known_type(&lexer, first, a->symbols, &spec, &next, &pp) &&
-                         spec.kind == K_SPEC_MODIFIER;
+                         target_is_instance(a, &spec);
             }
             if (!target) {
                 if (sig.found) {

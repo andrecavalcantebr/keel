@@ -18,6 +18,19 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   `m *t` passava pelo cgen como C cru e falhava no compilador C
   (`unknown type name`; achado A3 da keel_libs).
 
+**Ferramenta**
+
+- O alvo escrito como `typedef` de uma instância (`typedef buffer u8 text;`,
+  `text t = buffer.of(src, 4);`) infere a instância, como o tipo direto; a
+  instância continua a original (`keel_buffer_u8`), o alias só a nomeia. Antes,
+  `from-without-target` (achado N2 da keel_libs). Sem mudança normativa.
+- `-Wno-<nome>` e `-Werror` passam a valer para os diagnósticos do keel, como o
+  manual (§7.7) e a spec da ferramenta (§7) já diziam (A2); função de módulo com
+  dois modificadores só entra na instância do modificador que a assinatura cita
+  (A1); binder `const T *p` do `walk` (A4, A5); `type T` não usado sem aviso do
+  `cc` (A6); `dim` decimal de até 18 dígitos (A7); `implementation-limit` de
+  instância com posição (A8).
+
 ## 0.4.1 (2026-11-25)
 
 **Linguagem** (`keel-spec.md`)

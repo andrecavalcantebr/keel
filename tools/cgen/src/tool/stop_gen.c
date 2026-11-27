@@ -16,6 +16,7 @@
 #include "engine/emit/emit.h"
 #include "engine/emit/mangle.h"
 #include "engine/islands.h"
+#include "engine/names.h"
 
 int cgen_write_output(const char *path, const char *data, size_t n);
 void cgen_report(const char *path, keel_slice_char source, const KDiagnosticSink *sink);
@@ -309,6 +310,50 @@ static int emit_protocol_functions(keel_arena *arena, const char *dest, const KA
     return 0;
 }
 
+/* An instance the emitter cannot name has no site of its own: the closure keeps none. Its first use in
+ * the file that asked for it is the nearest honest place: a written use (`box i32`), or the first
+ * `alias.` whose module is the generic. false when neither is found. */
+static bool instance_site(const KAst *ast, const KClosure *c, size_t *line, size_t *col, KToken *tok) {
+    size_t at = SIZE_MAX;
+    for (size_t i = 0; i < ast->instances.len && at == SIZE_MAX; i++) {
+        const KInstanceUse *u = keel_buffer_KInstanceUse_ptr(&ast->instances, i);
+        if (u->symbol_len == c->symbol_len && !memcmp(u->symbol, c->symbol, u->symbol_len)) at = u->first;
+    }
+    for (size_t i = 0; i + 1 < ast->tokens.len && at == SIZE_MAX; i++) {
+        KToken t = keel_buffer_KLexeme_ptr(&ast->tokens, i)->token;
+        if (!k_token_is_ident(t) || !k_token_is_punct(keel_buffer_KLexeme_ptr(&ast->tokens, i + 1)->token, ".")) continue;
+        if (k_module_qualifier(ast->symbols, t, false) == c->module) at = i;
+    }
+    if (at == SIZE_MAX) return false;
+    *tok = keel_buffer_KLexeme_ptr(&ast->tokens, at)->token;
+    *line = 1; *col = 1;
+    for (const char *p = ast->source.ptr; p < tok->ptr; p++) {
+        if (*p == '\n') { ++*line; *col = 1; } else ++*col;
+    }
+    return true;
+}
+
+/* "the emitter does not cover this instance yet", at the first use of the instance in `ast` when one is found */
+static void report_unnamed_instance(const KAst *ast, const KClosure *c) {
+    size_t line, col;
+    KToken use;
+    const KAstNode *mod = keel_buffer_KAstNode_ptr(&ast->nodes, ast->module);
+    char own[4096];
+    keel_slice_char name = { 0, NULL };
+    if (mod->name_first < mod->name_end) {
+        KToken a0 = keel_buffer_KLexeme_ptr(&ast->tokens, mod->name_first)->token;
+        KToken a1 = keel_buffer_KLexeme_ptr(&ast->tokens, mod->name_end - 1)->token;
+        name = (keel_slice_char){ (size_t)(a1.ptr + a1.len - a0.ptr), (char *)a0.ptr };
+    }
+    keel_slice_char path = source_path(name, own, sizeof own - 1);
+    if (path.len && instance_site(ast, c, &line, &col, &use))
+        fprintf(stderr, "%.*s:%zu:%zu: error: the emitter does not cover the instance `%.*s` yet (at `%.*s`) [implementation-limit]\n",
+                (int)path.len, path.ptr, line, col, (int)c->symbol_len, c->symbol, (int)use.len, use.ptr);
+    else
+        fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
+                (int)c->symbol_len, c->symbol);
+}
+
 static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, KEmitOptions opt, bool base) {
     int prc = emit_protocol_functions(arena, dest, ast, opt, base);
     if (prc) return prc;
@@ -319,8 +364,7 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
         if (!base && gen.len >= 4 && memcmp(gen.ptr, "keel", 4) == 0 && (gen.len == 4 || gen.ptr[4] == '.')) continue;
         KEmitInstance inst;
         if (!k_emit_instance_of(ast, c, &inst)) {
-            fprintf(stderr, "cgen: error: %.*s: the emitter does not cover this instance yet [implementation-limit]\n",
-                    (int)c->symbol_len, c->symbol);
+            report_unnamed_instance(ast, c);
             return 2;
         }
         /* the instance's islands, in the generic's tree, for this instance only */
@@ -341,7 +385,8 @@ static int emit_instances(keel_arena *arena, const char *dest, const KAst *ast, 
             opt.refusal = &site;
             size_t need = k_emit_instance(c->module->ast, &inst, src_path, which, opt, (keel_slice_char){0});
             if (K_EMIT_IS_FAILURE(need)) {
-                report_refused(need, (int)inst.symbol.len, inst.symbol.ptr, "this instance", &site);
+                if (need == K_EMIT_UNSUPPORTED && !site.what) report_unnamed_instance(ast, c);
+                else report_refused(need, (int)inst.symbol.len, inst.symbol.ptr, "this instance", &site);
                 return 2;
             }
             char *data = cgen_alloc(arena, need ? need : 1, 1, 1, false, "generated file");

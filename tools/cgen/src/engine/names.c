@@ -116,6 +116,19 @@ const KSymbol *k_symbol_resolve(const KSymbolTable *table, keel_slice_char name)
     if (!prefix) return plain;
     prefix--;
     const KModule *module = module_qualifier(table, (keel_slice_char){prefix, name.ptr}, false);
+    if (!module && !plain) {
+        /* the module's own name qualifies its own symbols: the entry has no `origin` (see k_collect_ast) */
+        keel_slice_char member = {name.len - prefix - 1, name.ptr + prefix + 1};
+        for (size_t i = 0; i < table->len; i++) {
+            const KSymbol *self = keel_buffer_KSymbol_ptr(table, i);
+            char compact_self[4096];
+            if (self->kind != K_SYM_MODULE || self->origin) continue;
+            size_t slen = k_name_normalize(self->name, (keel_slice_char){sizeof compact_self, compact_self});
+            if (slen != prefix || memcmp(compact_self, name.ptr, prefix) != 0) continue;
+            const KSymbol *own = k_symtab_lookup(table, member);
+            if (own && own->kind != K_SYM_MODULE) return own;
+        }
+    }
     if (module) {
         keel_slice_char member = {name.len - prefix - 1, name.ptr + prefix + 1};
         for (size_t i = 0; i < module->symbol_count; i++)

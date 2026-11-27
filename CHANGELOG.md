@@ -23,6 +23,11 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   `typedef` de tipo existente (`typedef T *Ref`, `typedef buffer u8 string`) não
   muda. O golden 059 passa a declarar `typedef T Elem` (achado N1 da keel_libs).
 
+- §2.5: o módulo pode escrever o próprio qualificador sobre os próprios símbolos
+  (`shapes.matrix(C, R)` dentro de `module shapes`). Era a regra implícita; o
+  texto agora a diz. O cgen deixava `shapes.matrix(...)` passar como C cru
+  (`unknown type name`; achado A9 da keel_libs, sonda `shapes_use`).
+
 **Ferramenta**
 
 - O alvo escrito como `typedef` de uma instância (`typedef buffer u8 text;`,

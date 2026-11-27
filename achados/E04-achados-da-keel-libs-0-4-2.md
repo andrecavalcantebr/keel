@@ -12,4 +12,5 @@
 | A7 | `dim` decimal acima de 9 dígitos recusado | até 18 dígitos; a mensagem de `nonconstant-dim` nomeia o limite |
 | A8 | `implementation-limit` de instância sem posição | aponta o primeiro uso no `.k` |
 | N1 | `typedef struct { T … } X` em módulo genérico competia com `modifier` | `typedef-aggregate-of-binder` (spec §4.3 regra 15, rationale "Por que typedef não define tipo genérico"); golden 059 usa `typedef T Elem` |
+| A9 | `shapes.matrix(C, R)` dentro de `module shapes` (qualificador do próprio módulo) passava como C cru; no mapa da `keel_achados.md`, "nome qualificado do modificador do próprio módulo no retorno" (0.1.0) | o nome do módulo entra na tabela como qualificador sem `origin` (`ast.c`) e `k_symbol_resolve` o lê (`names.c`); spec §2.5 diz a regra; teste `test/cgen/cli/own_qualifier.sh` |
 | N2 | alvo escrito como `typedef buffer u8 text` não inferia a instância (`from-without-target`) | `target_is_instance` em `parser_islands_types.c`; a instância continua `keel_buffer_u8`; teste `test/cgen/cli/alias_target.sh` |

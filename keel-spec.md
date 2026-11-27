@@ -625,7 +625,7 @@ priv i32 helper(i32 x) { return x; }
 
 **Reconhecimento**
 
-- A declaração de módulo estabelece o qualificador de seus símbolos. Os imports carregam interfaces keel e registram qualificadores e aliases.
+- A declaração de módulo estabelece o qualificador de seus símbolos, e o próprio módulo pode escrevê-lo sobre eles: em `module shapes`, `shapes.matrix(C, R)` é o modificador `matrix`, como `matrix(C, R)` *(desde 0.4.2)*. Os imports carregam interfaces keel e registram qualificadores e aliases.
 - A coleta registra as declarações reconhecidas do arquivo antes da resolução dos usos. A análise de cada corpo respeita os escopos léxicos.
 - `import_c` introduz uma inclusão C. keel não abre o header nem registra os tipos, funções, variáveis ou macros que ele possa declarar.
 - `extern_c` delimita texto C preservado, sem tradução de construções keel. O registro de nomes explícitos pode distinguir variável e função segundo a §2.3, sem determinar seus tipos.

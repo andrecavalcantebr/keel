@@ -173,6 +173,9 @@ static bool parse(KAst *a,
     KSymbolTable local;
     k_symtab_init(&local, symtab_storage, 256);
     KSymbolTable *symtab = symbols ? symbols : &local;
+    /* The module's own name is the qualifier of its own symbols (spec §2.5): an entry without `origin`,
+       which only `k_symbol_resolve` reads, so `own.mat(C, R)` inside module `own` is the modifier. */
+    k_symtab_insert(symtab, header.module_name, K_SYM_MODULE, 0);
 
     while (i < n) {
         if (keel_buffer_KLexeme_ptr(&a->tokens, i)->directive) {

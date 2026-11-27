@@ -108,7 +108,7 @@ void isl_check_alias_types(Ctx *c) {
         const KSymbol *m = NULL;
         for (size_t k = 0; k < a->symbols->len; k++) {
             const KSymbol *s = keel_buffer_KSymbol_ptr(a->symbols, k);
-            if (s->kind == K_SYM_MODULE && k_symtab_same_name(s->name, alias)) { m = s; break; }
+            if (s->kind == K_SYM_MODULE && s->origin && k_symtab_same_name(s->name, alias)) { m = s; break; }
         }
         if (!m) continue;
         for (size_t k = 0; k < a->symbols->len; k++) {
@@ -144,7 +144,7 @@ void isl_check_name(Ctx *c, KToken name, bool top, bool function) {
     /* or a qualifier of an import of the file */
     for (size_t k = 0; !shadows && k < a->symbols->len; k++) {
         const KSymbol *q = keel_buffer_KSymbol_ptr(a->symbols, k);
-        if (q->kind == K_SYM_MODULE && k_symtab_same_name(q->name, name)) shadows = true;
+        if (q->kind == K_SYM_MODULE && q->origin && k_symtab_same_name(q->name, name)) shadows = true;
     }
     if (shadows) isl_diag3(c, K_DIAG_KEEL_NAME_SHADOWED, name, name, none, none);
     /* a name `types` injected from another module, declared again here: the

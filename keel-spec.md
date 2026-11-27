@@ -821,7 +821,7 @@ Os parâmetros ficam na linha `module`, e não no `modifier`, porque a unidade
 instanciada é o módulo: todos os seus modificadores e funções compartilham os
 argumentos.
 
-Os parâmetros pertencem à linha `module`, nesta ordem: `dim`, `tags`, `type`. Cada um admite lista separada por vírgulas. O uso espelha a assinatura: `blocos.bloco(3) i32`, `marked.mark Kind i32`. Um modificador de módulo com `dim` leva, no uso, um valor para cada `dim` da linha `module`, entre parênteses e antes dos tipos; com mais ou menos valores, ou sem eles, o uso é `modifier-dimension-count`. *(desde 0.3.0)* `modifier` e `instance` são declarações de arquivo; `byref` segue o nome do modificador. Um módulo pode declarar mais de um modificador, e o nome do módulo não precisa coincidir com o de nenhum deles.
+Os parâmetros pertencem à linha `module`, nesta ordem: `dim`, `tags`, `type`. Cada um admite lista separada por vírgulas. O uso espelha a assinatura: `blocos.bloco(3) i32`, `marked.mark Kind i32`. Um modificador de módulo com `dim` leva, no uso, um valor para cada `dim` da linha `module`, entre parênteses e antes dos tipos; com mais ou menos valores, ou sem eles, o uso é `modifier-dimension-count`. Do mesmo modo, um modificador de módulo com `type` leva, no uso, um argumento de tipo para cada `type` da linha `module`, depois das dimensões; com mais ou menos argumentos, ou sem eles (`m *t` onde se esperava `m u32 *t`), o uso é `modifier-argument-count` *(desde 0.4.2)*. Dentro do próprio módulo genérico o nome sem argumentos é o da instância corrente e não é uso. *(desde 0.3.0)* `modifier` e `instance` são declarações de arquivo; `byref` segue o nome do modificador. Um módulo pode declarar mais de um modificador, e o nome do módulo não precisa coincidir com o de nenhum deles.
 
 **Reconhecimento**
 
@@ -2822,7 +2822,7 @@ foreach (u8 q, size_t i : weights) { acc += q; }
 
 #### 4. Erros
 
-De keel, na tradução; condições no [catálogo](#62-catálogo): `protocol-not-satisfied`, `modifier-dimension-count`, `from-without-target`. Do backend: `bitbuffer-width-invalid` (tradução, pelo compilador C) e, em execução debug, `index-out-of-length`, `set-out-of-length` e `bit-value-out-of-width`.
+De keel, na tradução; condições no [catálogo](#62-catálogo): `protocol-not-satisfied`, `modifier-dimension-count`, `modifier-argument-count`, `from-without-target`. Do backend: `bitbuffer-width-invalid` (tradução, pelo compilador C) e, em execução debug, `index-out-of-length`, `set-out-of-length` e `bit-value-out-of-width`.
 
 #### 5. Casos especiais
 
@@ -3236,6 +3236,7 @@ esse vínculo no C emitido, conforme seu contrato de mapeamento de linhas.
 | `type-param-shadows-type` | Parâmetro `type` apagado com nome de tipo conhecido no escopo | `error` | keel | §4.4 |
 | `type-arg-foreign` | Argumento de tipo escrito num parâmetro `type` apagado (§4.4, regra 13) que é de outro módulo | `error` | keel | §4.4 |
 | `modifier-dimension-count` | Modificador de módulo com `dim` usado com número de dimensões diferente do declarado na linha `module`, inclusive sem nenhuma *(desde 0.3.0)* | `error` | keel | §4.3 |
+| `modifier-argument-count` | Modificador de módulo com `type` usado com número de argumentos de tipo diferente do declarado na linha `module`, inclusive sem nenhum *(desde 0.4.2)* | `error` | keel | §4.3 |
 | `role-position` | Papel fora de posição admitida | `error` | keel, na tradução | §4.12 |
 | `role-missing` | Corpo cujo retorno depende de parâmetro, ou que invalida ou consome parâmetro, sem o papel correspondente na assinatura *(desde 0.2.0)* | `error` | keel, na tradução | §4.12 |
 | `return-may-escape` | Retorno de expressão que contém, como operando, símbolo que depende de origem local ou de parâmetro sem o papel *(desde 0.2.0)* | `warning` | keel, na tradução | §4.12 |

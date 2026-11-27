@@ -1274,6 +1274,27 @@ void isl_walk(Ctx *c, const KAstNode *n) {
                     }
         }
 
+        /* a modifier of a generic module written without its type arguments: `m *t`, `m t;` (spec §4.3) */
+        if (!scanned && !c->inst_mode && !c->proto_mode && !isl_punct(a, i + 1, ".") && !isl_punct(a, i + 1, "(") &&
+            (i == n->first || isl_punct(a, i - 1, "(") || isl_punct(a, i - 1, ",") || isl_punct(a, i - 1, ";") ||
+             isl_punct(a, i - 1, "{") || isl_punct(a, i - 1, "}") || isl_word(a, i - 1, "const") || isl_word(a, i - 1, "volatile"))) {
+            const KSymbol *m = isl_ident(a, i) ? k_symbol_resolve(a->symbols, t) : NULL;
+            const KAst *home = m && m->kind == K_SYM_MODIFIER && m->origin ? m->origin->ast : NULL;
+            size_t need = m ? (size_t)(m->arity - m->dim_arity) : 0;
+            size_t nm = isl_punct(a, i + 1, "*") ? i + 1 : i + 1;
+            while (isl_punct(a, nm, "*")) nm++;
+            bool declarator = isl_ident(a, nm) && (isl_punct(a, nm + 1, ";") || isl_punct(a, nm + 1, "=") || isl_punct(a, nm + 1, ",") ||
+                                                   isl_punct(a, nm + 1, ")") || isl_punct(a, nm + 1, "["));
+            /* the word after a bare `m` is the declarator, not an argument keel or C could read */
+            bool bare = nm > i + 1 || !k_symbol_resolve(a->symbols, isl_tok(a, i + 1));
+            if (home && home != a && need > 0 && declarator && bare && !k_primitive_name(isl_tok(a, i + 1)) &&
+                !k_token_is_c_word(isl_tok(a, i + 1))) {
+                Text want = { .ok = true };
+                isl_put_uint(&want, need);
+                isl_diag3(c, K_DIAG_MODIFIER_ARGUMENT_COUNT, t, t, isl_keep(c, &want), k_diag_text("0"));
+            }
+        }
+
         bool stmt_start = i == n->body_first + 1 || isl_punct(a, i - 1, ";") || isl_punct(a, i - 1, "{") || isl_punct(a, i - 1, "}");
         /* `IDENT IDENT` or `IDENT * IDENT` opening a statement, the second a
            known keel symbol: a possible redeclaration, refused (spec §2.5) */

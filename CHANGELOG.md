@@ -9,6 +9,15 @@ leva marca.
 
 Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
 
+## 0.4.2 (em preparo)
+
+**Linguagem** (`keel-spec.md`)
+
+- §4.3: o uso de um modificador de módulo com `type` leva um argumento de tipo
+  para cada `type`. Diagnóstico novo: `modifier-argument-count` (erro). Antes,
+  `m *t` passava pelo cgen como C cru e falhava no compilador C
+  (`unknown type name`; achado A3 da keel_libs).
+
 ## 0.4.1 (2026-11-25)
 
 **Linguagem** (`keel-spec.md`)

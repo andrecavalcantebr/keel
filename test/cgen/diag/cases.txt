@@ -57,4 +57,5 @@ import-analysis-error use.k
 use-after-effects use.k
 protocol-role-ambiguous amb.k
 modifier-dimension-count use.k
+modifier-argument-count use.k
 index-rank use.k

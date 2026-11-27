@@ -1770,6 +1770,8 @@ Os parâmetros pertencem às declarações do módulo genérico que descrevem
 essa substituição. Chamar um tipo comum de “tipo sem parâmetros” mistura
 o tipo com o mecanismo usado para produzir outras declarações.
 
+**Argumento de tipo que falta *(desde 0.4.2)*.** `m *t`, sem o `u32` de `m u32 *t`, não é um tipo que keel leia, e o que keel não lê passa adiante como C. O resultado era `unknown type name 'm'`, dito pelo compilador C, longe da causa, e as chamadas sobre `t` ficavam sem resolver. É o caso do `dim` que falta (`modifier-dimension-count`, 0.3.0) com o outro parâmetro da linha `module`: o diagnóstico é do mesmo tipo e fica na mesma regra, com nome próprio porque a correção que cada um pede é outra (`name(4) T` contra `name T`).
+
 **Tipos C como argumento *(desde 0.4.0)*.** O idioma é `u8`, e `unsigned char` é
 só a grafia do mesmo tipo em C. Código C existente ou em migração escreve a
 segunda, e recusá-la obrigaria a trocar cada ocorrência antes de a primeira

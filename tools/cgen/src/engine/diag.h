@@ -69,6 +69,13 @@ typedef struct {
 } KDiagnosticSink;
 
 void   k_diag_init(KDiagnosticSink *s, KDiagnostic *storage, size_t cap);
+
+/* The id of the diagnostic called `name` (the kebab-case of the table); false when there is none. */
+bool   k_diag_by_name(const char *name, KDiagId *id);
+/* The command line's policy (tool spec §7): `-Wno-<name>` mutes a warning or an info (an error stays);
+ * `-Werror` makes every warning an error, and does not reach an info. Set before the first emission. */
+void   k_diag_mute(KDiagId id);
+void   k_diag_werror(bool on);
 void   k_diag_emit(KDiagnosticSink *s, KDiagId id, keel_slice_char at, KDiagArgs args);
 size_t k_diag_count(const KDiagnosticSink *s, KSeverity sev);
 

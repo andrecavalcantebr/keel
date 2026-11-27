@@ -6,6 +6,7 @@
 #include "tool/memory.h"
 #include "tool/cli_limits.h"
 #include "tool/tool.h"
+#include "engine/diag.h"
 
 extern const char cgen_build_commit[], cgen_build_date[], cgen_build_cc[];
 bool cgen_match_long_option(const char *arg, const char *name, bool *has_value, const char **value);
@@ -56,6 +57,8 @@ static void print_help(void) {
         "                                execution mechanism for parallel (default: auto)\n"
         "  --profile=<auto|c11|c23>      C standard of the generated code (default: auto)\n"
         "  -f                            force regeneration, ignoring timestamps\n"
+        "  -Wno-<name>                   silence the warning or info <name> of the language\n"
+        "  -Werror                       make the language's warnings errors (also forwarded to the C compiler)\n"
         "  --cgen-version                print the cgen version and exit\n"
         "  --cgen-help, --help           print this help and exit\n"
         "\n"
@@ -229,6 +232,22 @@ int main(int argc, char *argv[]) {
                       "--pedantic-names is not implemented: generated names are limited to 215 characters (keel-c-backend §2.4, D22)");
             } else if (strcmp(w, "-f") == 0) {
                 f_flag = true;
+            } else if (strcmp(w, "-Werror") == 0) {
+                /* both sides: the keel warnings become errors, and the C compiler's too (tool spec §7) */
+                k_diag_werror(true);
+                ARG_ROOM(1);
+                passthrough[passthrough_count++] = w;
+            } else if (strncmp(w, "-Wno-", 5) == 0 || (strncmp(w, "-W", 2) == 0 && w[2] != '\0')) {
+                /* `-Wno-<name>` and `-W<name>` of a diagnostic of the table are the cgen's and are not
+                 * forwarded (the gcc refuses an option it does not know); any other name goes to the cc */
+                KDiagId id;
+                bool no = strncmp(w, "-Wno-", 5) == 0;
+                if (k_diag_by_name(w + (no ? 5 : 2), &id)) {
+                    if (no) k_diag_mute(id);
+                } else {
+                    ARG_ROOM(1);
+                    passthrough[passthrough_count++] = w;
+                }
             } else if (w[0] == '-' && w[1] != '\0') {
                 ARG_ROOM(1);
                 passthrough[passthrough_count++] = w;

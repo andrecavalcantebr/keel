@@ -32,9 +32,22 @@ void k_diag_init(KDiagnosticSink *s, KDiagnostic *storage, size_t cap) {
     for (int k = 0; k < K_SEVERITY_COUNT; ++k) s->count[k] = 0;
 }
 
+static bool muted[K_DIAG_COUNT];
+static bool werror;
+
+bool k_diag_by_name(const char *name, KDiagId *id) {
+    for (int i = 0; i < K_DIAG_COUNT; ++i)
+        if (strcmp(k_diags[i].name, name) == 0) { *id = (KDiagId)i; return true; }
+    return false;
+}
+void k_diag_mute(KDiagId id) { muted[id] = true; }
+void k_diag_werror(bool on) { werror = on; }
+
 void k_diag_emit(KDiagnosticSink *s, KDiagId id, keel_slice_char at, KDiagArgs args) {
     if (s == NULL) return;
     KSeverity sev = k_diags[id].severity;
+    if (sev != K_ERROR && muted[id]) return;
+    if (sev == K_WARNING && werror) sev = K_ERROR;
     s->count[sev]++;
     if (s->len < s->cap) {
         s->items[s->len++] = (KDiagnostic){ id, sev, at, args };

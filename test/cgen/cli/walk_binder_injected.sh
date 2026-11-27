@@ -3,6 +3,7 @@
 # (keel_libs findings A4 and A5, cgen 0.4.2). `const u32 *p, cursor c` was read as one declaration with two
 # declarators, so `cursor` (or the alias `mm` of `mm.cursor`) counted as a declared name: the emitter left
 # `cursor` unqualified and the parser warned about a shadowed name that nobody declared.
+# (-Wno-instance-field-access: the test reads the fields of the support module on purpose.)
 # Expected by hand: no shadowed-injected-name and no keel-name-shadowed, the C compiles with -Wall -Werror and
 # the sum of {1,2,3,4} is 10, for the bare injected name and for the aliased one.
 cd "$(dirname "$0")/../.." && cd .. || exit 2
@@ -35,7 +36,7 @@ pub u32 total(void) {
 }
 pub int main(void) { return total() == 10 ? 0 : 1; }
 EOF
-    out=$("$BIN" --base-dir "$K" -I "$tmp" --dest-dir "$tmp/g_$form" -std=c2x -Wall -Wextra -Werror "$tmp/$form.k" -o "$tmp/$form" 2>&1) ||
+    out=$("$BIN" --base-dir "$K" -I "$tmp" --dest-dir "$tmp/g_$form" -std=c2x -Wall -Wextra -Wno-instance-field-access -Werror "$tmp/$form.k" -o "$tmp/$form" 2>&1) ||
         { bad "$form: cgen/cc failed [$(printf '%s\n' "$out" | grep -v 'info:' | head -3)]"; continue; }
     printf '%s\n' "$out" | grep -q 'shadowed' && bad "$form: spurious shadow warning"
     "$tmp/$form" || bad "$form: wrong sum"

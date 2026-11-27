@@ -17,6 +17,8 @@ cgen options (consumed, never forwarded to the C compiler):
                                 execution mechanism for parallel (default: auto)
   --profile=<auto|c11|c23>      C standard of the generated code (default: auto)
   -f                            force regeneration, ignoring timestamps
+  -Wno-<name>                   silence the warning or info <name> of the language
+  -Werror                       make the language's warnings errors (also forwarded to the C compiler)
   --cgen-version                print the cgen version and exit
   --cgen-help, --help           print this help and exit
 

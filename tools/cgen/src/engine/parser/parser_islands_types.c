@@ -1667,7 +1667,9 @@ size_t isl_declaration(Ctx *c, size_t i, const KSpecifier *spec, KLexer *lexer, 
             k_scan_opaque_until(lexer, value, stops, 2, &which, &after, &pp);
         }
         /* in `(T *e, M.cursor c : x)` the comma separates binders, not declarators */
-        bool binder = i > 0 && (isl_punct(a, i - 1, "(") || isl_punct(a, i - 1, ","));
+        size_t before = i;     /* past the qualifiers: `(const T *e, M.cursor c : x)` */
+        while (before > 0 && (isl_word(a, before - 1, "const") || isl_word(a, before - 1, "volatile"))) before--;
+        bool binder = before > 0 && (isl_punct(a, before - 1, "(") || isl_punct(a, before - 1, ","));
         if (signature || binder || !k_token_is_punct(after, ",")) break;
         d = k_lexer_next(lexer, &pp);
     }

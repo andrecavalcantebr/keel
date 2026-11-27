@@ -17,6 +17,11 @@ Este arquivo não é normativo. Em caso de dúvida, vale o normativo.
   para cada `type`. Diagnóstico novo: `modifier-argument-count` (erro). Antes,
   `m *t` passava pelo cgen como C cru e falhava no compilador C
   (`unknown type name`; achado A3 da keel_libs).
+- §4.3, regra 15: em módulo genérico, `typedef` com corpo `struct`, `union` ou
+  `enum` que menciona parâmetro passa a ser recusado. Diagnóstico novo:
+  `typedef-aggregate-of-binder` (erro), cujo hint manda usar `modifier`. O
+  `typedef` de tipo existente (`typedef T *Ref`, `typedef buffer u8 string`) não
+  muda. O golden 059 passa a declarar `typedef T Elem` (achado N1 da keel_libs).
 
 **Ferramenta**
 

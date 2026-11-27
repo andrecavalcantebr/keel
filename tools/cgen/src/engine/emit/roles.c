@@ -188,6 +188,30 @@ void k_em_edits_roles(Emit *e, const KAstNode *fn, size_t a, size_t b, Edit *ed,
             if (rt.len == x.len && memcmp(rt.ptr, x.ptr, x.len) == 0 && k_em_text_is(k_em_tok(ast, r + 1), "*") && rat >= a && rat < b)
                 k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = rat, .skip = rt.len, .text = "void", .text_len = 4 });
         }
+        /* the hidden parameters the body never reads would make the C compiler warn of a valid
+         * program: the opening `{` casts those to void. `sizeof(X)` reads the size, `alignof(X)`
+         * the alignment; any other mention of X is taken as a read of both. */
+        if (fn->body_first != SIZE_MAX && fn->body_first > 0) {
+            bool size_read = false, align_read = false, other = false;
+            for (size_t j = fn->body_first; j < fn->end; j++) {
+                KToken w0 = k_em_tok(ast, j);
+                if (!(w0.len == x.len && memcmp(w0.ptr, x.ptr, x.len) == 0)) continue;
+                KToken pre = k_em_tok(ast, j - 2);
+                bool wrapped = k_em_text_is(k_em_tok(ast, j - 1), "(") && k_em_text_is(k_em_tok(ast, j + 1), ")");
+                if (wrapped && k_em_text_is(pre, "sizeof")) size_read = true;
+                else if (wrapped && (k_em_text_is(pre, "alignof") || k_em_text_is(pre, "_Alignof"))) align_read = true;
+                else other = true;
+            }
+            size_t bat = k_em_tok_end(ast, fn->body_first - 1);
+            if (!other && (!size_read || !align_read) && bat >= a && bat < b) {
+                char *txt = k_em_scratch(e, 2 * (13 + x.len + 7));
+                if (!txt) return;
+                size_t w = 0;
+                if (!size_read) { put(txt, &w, " (void)keel__", 13); put(txt, &w, x.ptr, x.len); put(txt, &w, "_size;", 6); }
+                if (!align_read) { put(txt, &w, " (void)keel__", 13); put(txt, &w, x.ptr, x.len); put(txt, &w, "_align;", 7); }
+                k_em_push_edit(e, ed, cnt, (Edit){ .kind = EDIT_TEXT, .at = bat, .skip = 0, .text = txt, .text_len = w });
+            }
+        }
         /* the body: `sizeof(X)` and `alignof(X)` */
         for (size_t j = fn->body_first; j != SIZE_MAX && j + 3 < fn->end; j++) {
             KToken w0 = k_em_tok(ast, j), w2 = k_em_tok(ast, j + 2);

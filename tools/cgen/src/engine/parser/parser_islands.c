@@ -168,7 +168,7 @@ const Local *isl_find_local(const Ctx *c, keel_slice_char name) {
 bool isl_digits(keel_slice_char s, long *out) {
     while (s.len && (s.ptr[0] == ' ' || s.ptr[0] == '\t' || s.ptr[0] == '\n')) { s.ptr++; s.len--; }
     while (s.len && (s.ptr[s.len - 1] == ' ' || s.ptr[s.len - 1] == '\t' || s.ptr[s.len - 1] == '\n')) s.len--;
-    if (!s.len || s.len > 9) return false;
+    if (!s.len || s.len > (sizeof(long) >= 8 ? 18 : 9)) return false;   /* what a long holds */
     long v = 0;
     for (size_t i = 0; i < s.len; i++) {
         if (s.ptr[i] < '0' || s.ptr[i] > '9') return false;

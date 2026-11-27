@@ -103,7 +103,7 @@
     X(TAG_NOT_IN_SET, "`%s` is not a tag of `%s`") \
     X(TAG_WITHOUT_LABEL, "`%s` of `%s` has no arm in this `match`: every tag of the set has a label") \
     X(RESTRICT_ON_CONTAINER, "`restrict` does not apply to the type `%s`: qualify a pointer to it (`T *restrict p`)") \
-    X(NONCONSTANT_DIM, "the dimension `%s` of `%s` is not known at translation time: write a decimal literal or a `constexpr`") \
+    X(NONCONSTANT_DIM, "the dimension `%s` of `%s` is not known at translation time: write a decimal literal of up to 18 digits or a `constexpr`") \
     X(CANONICAL_NAME_COLLISION, "`%s` is the C name of both `%s` and `%s` in this module: rename one") \
     X(MODIFIER_NAMED_INSTANCE, "a modifier cannot be named `instance`: the word opens the declaration that places an instance's bodies") \
     X(ADDRESS_IN_OBJECT_POSITION, "`%s` takes its object without `&`: the object is written as itself and the address is inserted from the parameter (`%s`)") \

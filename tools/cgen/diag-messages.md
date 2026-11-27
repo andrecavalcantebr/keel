@@ -155,7 +155,7 @@ O conteúdo das tabelas é em inglês, como o código.
 | `restrict-on-container` | `restrict` does not apply to the type `%s`: qualify a pointer to it (`T *restrict p`) | `restrict` written before a modifier: the `note` gives the form with a pointer |
 | `specific-format-unavailable` |  | The module uses `f16` or `bf16`, and the target does not offer the format |
 | `bitbuffer-width-invalid` |  | An instance of `bitbuffer` or `bitslice` with `W` outside `1..8*sizeof(T)`, a signed or non-integer `T`, or a `bool` with `W` other than 1 |
-| `nonconstant-dim` | the dimension `%s` of `%s` is not known at translation time: write a decimal literal or a `constexpr` | An argument of `dim` that is not a decimal literal or a `constexpr` with a known decimal initializer |
+| `nonconstant-dim` | the dimension `%s` of `%s` is not known at translation time: write a decimal literal of up to 18 digits or a `constexpr` | An argument of `dim` that is not a decimal literal of up to 18 digits or a `constexpr` with a known decimal initializer |
 | `alloc-overflow` |  | `arena.alloc` whose `n * sz` does not fit in `size_t` |
 | `entity-generation-mismatch` |  | `pool.ptr(p, e)` whose `e` is out of `p`'s capacity, or whose generation does not match the slot's |
 | `pool-generation-overflow` |  | `pool.free` whose slot's generation is already `UINT32_MAX` |

@@ -7,7 +7,7 @@
 > licença própria, ver [`LICENSE.md`](LICENSE.md). Escrita e revisão tiveram
 > auxílio de Claude Opus e Claude Sonnet (Anthropic), sob direção humana.
 
-**Versão descrita: keel 0.4.1.** Justifica as decisões dos três documentos normativos na versão em que estão; o que entrou na 0.4.0 leva a marca *(desde 0.4.0)*, e o que entrou na 0.3.0, *(desde 0.3.0)*; o registro das mudanças por versão está em [`CHANGELOG.md`](CHANGELOG.md).
+**Versão descrita: keel 0.4.2.** Justifica as decisões dos três documentos normativos na versão em que estão; o que entrou na 0.4.2 leva a marca *(desde 0.4.2)*, o que entrou na 0.4.0, *(desde 0.4.0)*, e o que entrou na 0.3.0, *(desde 0.3.0)*; o registro das mudanças por versão está em [`CHANGELOG.md`](CHANGELOG.md).
 
 Este documento reúne as motivações e as decisões de projeto de keel. Os
 contratos pertencem à [especificação](keel-spec.md); a representação e a emissão
@@ -2232,6 +2232,18 @@ sem default não exige um verbo que escreve valor.
 A unidade instanciada é o módulo. Seus modificadores, tipos e funções
 compartilham os argumentos de `dim`, `tags` e `type`; movê-los para cada
 modificador criaria unidades de instanciação diferentes.
+
+### Por que typedef não define tipo genérico
+
+O tipo verdadeiro de um genérico é a instância (`buffer u8`). O `modifier` a
+define; o `typedef` só a nomeia (`typedef buffer u8 string`, `typedef corot
+(*routine)(C *ctx)`). Se `typedef struct { T first; T last; } Pair` também
+definisse um tipo parametrizado, haveria duas formas de declarar o mesmo, e
+`modifier` perderia a razão de existir: `typedef struct { size_t len, cap; T *buf; }
+buffer` faria o que `modifier buffer` faz, sem que o uso pudesse levar
+argumento. A recusa (`typedef-aggregate-of-binder`) mantém um só lugar para
+definir e um só para nomear. Um `typedef` sem parâmetro no corpo, como o
+`cursor` de `buffer`, não é parametrizado e fica fora da regra.
 
 ### Tipos associados em vez de consulta de tipo declarado
 

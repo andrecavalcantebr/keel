@@ -59,3 +59,4 @@ protocol-role-ambiguous amb.k
 modifier-dimension-count use.k
 modifier-argument-count use.k
 index-rank use.k
+typedef-aggregate-of-binder gen.k

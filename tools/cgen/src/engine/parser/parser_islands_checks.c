@@ -277,6 +277,25 @@ void isl_check_declarations(Ctx *c) {
             if (has_pub && has_static && !has_inline) isl_diag3(c, K_DIAG_PUB_STATIC, isl_tok(a, n->first), none, none, none);
             if (isl_word(a, n->first, "static") && has_inline) isl_diag3(c, K_DIAG_INLINE_WITHOUT_VISIBILITY, isl_tok(a, n->first), none, none, none);
         }
+        /* a `typedef` names a type that exists; a generic type is defined by `modifier` (spec §4.3, rule 15) */
+        if (has_typedef && mod->dim_first != mod->type_end) {
+            for (size_t j = n->first; j + 1 < n->end; j++) {
+                if (!isl_word(a, j, "struct") && !isl_word(a, j, "union") && !isl_word(a, j, "enum")) continue;
+                size_t b = j + 1;
+                if (isl_ident(a, b) && !isl_punct(a, b, "{")) b++;      /* the tag */
+                if (!isl_punct(a, b, "{")) continue;
+                for (size_t k = b + 1; k < n->end; k++) {
+                    if (!isl_ident(a, k)) continue;
+                    for (size_t m = mod->dim_first; m < mod->type_end; m++)
+                        if (isl_ident(a, m) && !isl_word(a, m, "dim") && !isl_word(a, m, "tags") && !isl_word(a, m, "type") &&
+                            k_symtab_same_name(isl_tok(a, m), isl_tok(a, k))) {
+                            isl_diag3(c, K_DIAG_TYPEDEF_AGGREGATE_OF_BINDER, isl_tok(a, k), isl_tok(a, k), none, none);
+                            goto typedef_done;
+                        }
+                }
+            }
+        }
+        typedef_done:;
         if ((n->kind == K_AST_TYPE || has_typedef) && has_static) isl_diag3(c, K_DIAG_STATIC_ON_TYPE, isl_tok(a, n->first), none, none, none);
         /* sets of tags (spec §4.9) */
         if (n->kind == K_AST_TAGS) {

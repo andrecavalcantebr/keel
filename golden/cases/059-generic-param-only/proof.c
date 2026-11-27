@@ -1,5 +1,6 @@
 /* proof.c — harness. The client reaches the instance box(3) i32 only through its public
-   functions: cap is the constant of the generic, and ends returns the pair of extremes. */
+   functions: cap is the constant of the generic, and first and last read the extremes through
+   the instance's own alias Elem. */
 
 #include "app/app_pbox_use.h"
 

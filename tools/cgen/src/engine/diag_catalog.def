@@ -138,6 +138,7 @@
     X(TYPE_ARG_FOREIGN, "type-arg-foreign", K_ERROR) \
     X(MODIFIER_DIMENSION_COUNT, "modifier-dimension-count", K_ERROR) \
     X(MODIFIER_ARGUMENT_COUNT, "modifier-argument-count", K_ERROR) \
+    X(TYPEDEF_AGGREGATE_OF_BINDER, "typedef-aggregate-of-binder", K_ERROR) \
     X(ROLE_POSITION, "role-position", K_ERROR) \
     X(ROLE_MISSING, "role-missing", K_ERROR) \
     X(RETURN_MAY_ESCAPE, "return-may-escape", K_WARNING) \
